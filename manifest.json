@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "minAppVersion": "1.0.0",
   "description": "Self-hosted vault asset manager: clipboard auto-upload, SHA-256 deduplication, zero-broken-link batch cloud migration, orphan cleanup, and dual-track watermark routing.",
-  "author": "FileMaster",
+  "author": "weichen-ink",
+  "authorUrl": "https://github.com/weichen-ink",
   "isDesktopOnly": false
 }
