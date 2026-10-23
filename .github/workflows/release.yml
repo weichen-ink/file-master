@@ -1,0 +1,47 @@
+name: Release FileMaster Plugin
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: FileMaster v${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: |
+            ## 🚀 FileMaster v${{ github.ref_name }} — Initial Release
+
+            Enterprise-grade asset management and self-hosted image hosting plugin for Obsidian.
+
+            ### ✨ Key Features
+            - **⚡ Smart Cloud Upload**: Automatically intercepts pasted/dragged attachments and uploads them directly to your FileMaster Server.
+            - **🔍 SHA-256 Deduplication**: Instant hash comparison prevents redundant uploads; reuses existing assets automatically.
+            - **🛡️ Zero-Broken-Link Migration**: Safely migrate local attachments to the cloud with two-phase reference verification before any deletion.
+            - **🧹 Orphan Asset Scanner**: Identifies unreferenced local and remote files with detailed Markdown inspection reports.
+            - **🔀 Duplicate Merge Wizard**: Merges duplicate assets across local and remote storage, rewriting note links seamlessly.
+            - **💧 Dual-Track Watermark Routing**: Dynamic private vs public asset routing with automatic watermark protection.
+            - **🌐 i18n Architecture**: Native English primary language with an extensible localization architecture ready for future translations.
+
+            ### 📦 Manual Installation
+            1. Download `main.js`, `manifest.json`, and `styles.css` from the assets below.
+            2. In your Obsidian vault, navigate to `.obsidian/plugins/` and create a folder named `file-master`.
+            3. Copy the 3 downloaded files into `.obsidian/plugins/file-master/`.
+            4. Reload Obsidian and enable **FileMaster** under **Settings → Community Plugins**.
+          files: |
+            main.js
+            manifest.json
+            styles.css
