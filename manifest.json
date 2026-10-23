@@ -1,0 +1,9 @@
+{
+  "id": "file-master",
+  "name": "FileMaster",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Self-hosted vault asset manager: clipboard auto-upload, SHA-256 deduplication, zero-broken-link batch cloud migration, orphan cleanup, and dual-track watermark routing.",
+  "author": "FileMaster",
+  "isDesktopOnly": false
+}
