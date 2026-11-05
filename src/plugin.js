@@ -11,8 +11,97 @@ class FileMasterPlugin extends Plugin {
     return Boolean(this.settings?.enableRemoteServer && this.settings?.serverVerified);
   }
 
+  getLogFilePath() {
+    const dir = this.manifest?.dir || `${this.app?.vault?.configDir || '.obsidian'}/plugins/${this.manifest?.id || 'file-master'}`;
+    return `${dir}/operation.log`;
+  }
+
+  async loadOperationLogs() {
+    if (!Array.isArray(this.operationLogs)) {
+      this.operationLogs = [];
+    }
+    try {
+      const adapter = this.app?.vault?.adapter;
+      const logPath = this.getLogFilePath();
+      if (adapter && (await adapter.exists(logPath))) {
+        const raw = await adapter.read(logPath);
+        const parsed = [];
+        for (const line of String(raw || '').split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            parsed.push(JSON.parse(trimmed));
+          } catch { }
+        }
+        this.operationLogs = parsed.slice(-500);
+      }
+    } catch { }
+    return this.operationLogs;
+  }
+
+  async saveOperationLogs() {
+    try {
+      const adapter = this.app?.vault?.adapter;
+      if (!adapter) return;
+      const logPath = this.getLogFilePath();
+      const lines = (this.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
+      await adapter.write(logPath, lines.join('\n') + (lines.length ? '\n' : ''));
+    } catch { }
+  }
+
+  logOperation(level, action, summary, details = null) {
+    if (!Array.isArray(this.operationLogs)) {
+      this.operationLogs = [];
+    }
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const entry = {
+      ts,
+      level: String(level || 'INFO').toUpperCase(),
+      action: String(action || 'GENERAL'),
+      summary: String(summary || '')
+    };
+    if (details && typeof details === 'object' && Object.keys(details).length > 0) {
+      entry.details = details;
+    }
+    this.operationLogs.push(entry);
+    if (this.operationLogs.length > 500) {
+      this.operationLogs = this.operationLogs.slice(-500);
+    }
+    this.saveOperationLogs();
+  }
+
+  async clearOperationLogs() {
+    this.operationLogs = [];
+    await this.saveOperationLogs();
+  }
+
+  formatLogsForExport() {
+    const version = this.manifest?.version || '1.0.2';
+    const serverStatus = this.lastServerCompatStatus
+      ? `${this.lastServerCompatStatus.status} (server v${this.lastServerCompatStatus.serverVersion || '?'})`
+      : (this.settings?.enableRemoteServer ? 'unverified' : 'disabled');
+    const header = [
+      `# File Master Diagnostic & Operation Logs`,
+      `# Plugin Version: v${version}`,
+      `# Exported At: ${new Date().toISOString()}`,
+      `# Server Status: ${serverStatus}`,
+      `# Excluded Local Folders: ${this.settings?.excludedLocalFolders || '(none)'}`,
+      `# Total Entries: ${(this.operationLogs || []).length}`,
+      `------------------------------------------------------------`
+    ];
+    const body = (this.operationLogs || []).map((e) => {
+      const detailStr = e.details ? ` | ${JSON.stringify(e.details)}` : '';
+      return `[${e.ts}] [${e.level}] [${e.action}] ${e.summary}${detailStr}`;
+    });
+    return [...header, ...body].join('\n');
+  }
+
   async onload() {
     await this.loadSettings();
+    this.operationLogs = [];
+    await this.loadOperationLogs();
     this.heicPreviewCache = new Map();
     this.sidebarRibbonEl = null;
     this.lastServerCompatStatus = null;
@@ -167,6 +256,11 @@ class FileMasterPlugin extends Plugin {
         nameKey: 'cmdCopyAstroLinks',
         requiresRemote: true,
         callback: () => this.copyActiveNoteForAstro()
+      },
+      {
+        id: 'open-operation-logs',
+        nameKey: 'cmdOpenOpLogs',
+        callback: () => this.openModalSafely(new OperationLogModal(this.app, this))
       }
     ];
 
@@ -553,7 +647,7 @@ class FileMasterPlugin extends Plugin {
         if (localTFile) {
           menu.addItem((item) => {
             item
-              .setTitle(`☁️ FileMaster: Upload local "${localTFile.name}" to cloud (Update links)`)
+              .setTitle(`${this.t('menuUploadCloud')} (${localTFile.name})`)
               .setIcon('upload-cloud')
               .onClick(async () => {
                 await this.migrateSingleLocalFileToRemote(localTFile, {
@@ -983,7 +1077,7 @@ class FileMasterPlugin extends Plugin {
   }
 
   async buildVaultReferenceSnapshot(scanCtx = {}) {
-    const { signal, onProgress } = scanCtx || {};
+    const { signal, onProgress, freshRead = false } = scanCtx || {};
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
       (f) =>
@@ -999,7 +1093,9 @@ class FileMasterPlugin extends Plugin {
         onProgress(i + 1, docFiles.length, doc.path);
         await new Promise((r) => setTimeout(r, 0));
       }
-      const rawText = await this.app.vault.cachedRead(doc);
+      const rawText = freshRead
+        ? await this.app.vault.read(doc)
+        : await this.app.vault.cachedRead(doc);
       let decodedText = rawText;
       try {
         decodedText = decodeURIComponent(rawText);
@@ -1012,17 +1108,19 @@ class FileMasterPlugin extends Plugin {
       });
     }
 
-    const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
     const resolvedTargetMap = new Map();
-    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
-      if (isReportFile(sourcePath)) {
-        continue;
-      }
-      for (const targetPath of Object.keys(targets || {})) {
-        if (!resolvedTargetMap.has(targetPath)) {
-          resolvedTargetMap.set(targetPath, new Set());
+    if (!freshRead) {
+      const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
+      for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+        if (isReportFile(sourcePath)) {
+          continue;
         }
-        resolvedTargetMap.get(targetPath).add(sourcePath);
+        for (const targetPath of Object.keys(targets || {})) {
+          if (!resolvedTargetMap.has(targetPath)) {
+            resolvedTargetMap.set(targetPath, new Set());
+          }
+          resolvedTargetMap.get(targetPath).add(sourcePath);
+        }
       }
     }
 
@@ -1040,17 +1138,24 @@ class FileMasterPlugin extends Plugin {
     const baseName = tfile.basename;
     const relPath = tfile.path;
 
+    const stripRemoteUrls = (str) =>
+      String(str || '')
+        .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
+        .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
+
     for (const doc of snapshot.docContents) {
       if (doc.path === tfile.path) continue;
+      const localRaw = stripRemoteUrls(doc.rawText);
+      const localDecoded = stripRemoteUrls(doc.decodedText);
       if (
-        doc.rawText.includes(name) ||
-        doc.decodedText.includes(name) ||
-        doc.rawText.includes(relPath) ||
-        doc.decodedText.includes(relPath) ||
+        localRaw.includes(name) ||
+        localDecoded.includes(name) ||
+        localRaw.includes(relPath) ||
+        localDecoded.includes(relPath) ||
         (tfile.extension === 'md' &&
-          (doc.rawText.includes(`[[${baseName}]]`) ||
-            doc.rawText.includes(`[[${baseName}|`) ||
-            doc.rawText.includes(`[[${baseName}#`)))
+          (localRaw.includes(`[[${baseName}]]`) ||
+            localRaw.includes(`[[${baseName}|`) ||
+            localRaw.includes(`[[${baseName}#`)))
       ) {
         refNotes.add(doc.path);
       }
@@ -1062,16 +1167,24 @@ class FileMasterPlugin extends Plugin {
     const refNotes = new Set();
     const fname = remoteItem.filename;
     const encodedFname = encodeURIComponent(fname);
+    const baseName = getBaseName(fname);
+    const webpName = `${baseName}.webp`;
+    const encodedWebpName = encodeURIComponent(webpName);
     const relKey = `${remoteItem.year}/${remoteItem.month}/${fname}`;
     const encodedRelKey = `${remoteItem.year}/${remoteItem.month}/${encodedFname}`;
+    const pubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${webpName}`;
+    const encodedPubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${encodedWebpName}`;
 
     for (const doc of snapshot.docContents) {
       if (
-        doc.rawText.includes(fname) ||
-        doc.decodedText.includes(fname) ||
-        doc.rawText.includes(encodedFname) ||
         doc.rawText.includes(relKey) ||
-        doc.rawText.includes(encodedRelKey)
+        doc.decodedText.includes(relKey) ||
+        doc.rawText.includes(encodedRelKey) ||
+        doc.rawText.includes(pubRelKey) ||
+        doc.decodedText.includes(pubRelKey) ||
+        doc.rawText.includes(encodedPubRelKey) ||
+        (remoteItem.rawUrl && doc.rawText.includes(remoteItem.rawUrl)) ||
+        (remoteItem.pubUrl && doc.rawText.includes(remoteItem.pubUrl))
       ) {
         refNotes.add(doc.path);
       }
@@ -1251,6 +1364,7 @@ class FileMasterPlugin extends Plugin {
         deletedLocal++;
       } catch (err) {
         console.error('Failed to delete local file:', err);
+        this.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
       }
     }
 
@@ -1260,9 +1374,13 @@ class FileMasterPlugin extends Plugin {
         deletedRemote++;
       } catch (err) {
         new Notice(this.t('noticeRemoteDeleteFailed', { name: item.name, err: err.message }));
+        this.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
       }
     }
 
+    this.logOperation('INFO', 'ORPHAN_CLEANUP', `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
+      files: selectedItems.map((i) => i.displayPath)
+    });
     new Notice(this.t('noticeCleanupComplete', { local: deletedLocal, remote: deletedRemote }));
     if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, total: deletedLocal + deletedRemote });
   }
@@ -1492,7 +1610,10 @@ class FileMasterPlugin extends Plugin {
     const { signal, onProgress } = scanCtx || {};
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
-      (f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name)
+      (f) =>
+        (f.extension === 'md' || f.extension === 'canvas') &&
+        !isReportFile(f.name) &&
+        !this.isLocalPathExcluded(f.path)
     );
 
     const vaultFilePaths = new Set(allFiles.map((f) => f.path));
@@ -1521,7 +1642,7 @@ class FileMasterPlugin extends Plugin {
           const data = JSON.parse(rawText);
           if (Array.isArray(data.nodes)) {
             for (const node of data.nodes) {
-              if (node.type === 'file' && node.file) {
+              if (node.type === 'file' && node.file && options.checkLocalMarkdown !== false) {
                 if (
                   !vaultFilePaths.has(node.file) &&
                   !vaultFileNames.has(node.file.split('/').pop())
@@ -1539,15 +1660,25 @@ class FileMasterPlugin extends Plugin {
                 }
               } else if (node.type === 'text' && node.text) {
                 const subIssues = scanNoteContentForBrokenLinks(doc.path, node.text, vaultIndex, {
-                  checkRemote: false
+                  checkWikiLinks: options.checkWikiLinks !== false,
+                  checkLocalMarkdown: options.checkLocalMarkdown !== false,
+                  checkRemote: options.checkRemote
                 });
-                issues.push(...subIssues);
+                for (const iss of subIssues) {
+                  if (iss.category === 'remote') {
+                    remoteToCheck.push(iss);
+                  } else {
+                    issues.push(iss);
+                  }
+                }
               }
             }
           }
         } catch { }
       } else {
         const docIssues = scanNoteContentForBrokenLinks(doc.path, rawText, vaultIndex, {
+          checkWikiLinks: options.checkWikiLinks !== false,
+          checkLocalMarkdown: options.checkLocalMarkdown !== false,
           checkRemote: options.checkRemote
         });
 
@@ -1593,6 +1724,10 @@ class FileMasterPlugin extends Plugin {
       }
     }
 
+    this.logOperation('INFO', 'HEALTH_SCAN', `Scanned ${docFiles.length} document(s), found ${issues.length} broken link issue(s)`, {
+      docsScanned: docFiles.length,
+      issuesFound: issues.length
+    });
     return { issues, totalDocs: docFiles.length };
   }
 
@@ -1940,6 +2075,7 @@ class FileMasterPlugin extends Plugin {
             `[FileMaster Safety Gate] Blocked deletion of ${rem.displayPath}; dangling references detected in notes:`,
             remainingRefs
           );
+          this.logOperation('WARN', 'DEDUP_SAFETY_GATE', `Kept ${rem.displayPath} because references remain in notes`, { remainingRefs });
           skippedBySafetyGate++;
           continue;
         }
@@ -1953,10 +2089,18 @@ class FileMasterPlugin extends Plugin {
             deletedRemoteCount++;
           } catch (err) {
             new Notice(this.t('noticeRemoteDeleteFailed', { name: rem.name, err: err.message }));
+            this.logOperation('ERROR', 'DEDUP_MERGE', `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
           }
         }
       }
     }
+
+    this.logOperation('INFO', 'DEDUP_MERGE', `Merged duplicates: updated ${modifiedDocsCount} note(s), removed ${deletedLocalCount} local & ${deletedRemoteCount} remote file(s)`, {
+      modifiedDocsCount,
+      deletedLocalCount,
+      deletedRemoteCount,
+      skippedBySafetyGate
+    });
 
     if (skippedBySafetyGate > 0) {
       new Notice(
@@ -2021,7 +2165,7 @@ class FileMasterPlugin extends Plugin {
       }
 
       if (deleteLocal) {
-        const postSnapshot = await this.buildVaultReferenceSnapshot();
+        const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
         const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
         if (remaining.length === 0) {
           await this.app.vault.trash(tfile, true).catch(() => { });
@@ -2042,41 +2186,75 @@ class FileMasterPlugin extends Plugin {
     }
   }
 
-  async downloadSingleRemoteItemToLocal(remoteMatch) {
+  async downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
+    const silent = Boolean(options?.silent);
     try {
       const { year, month, filename } = remoteMatch;
-      new Notice(this.t('noticeDownloadingFile', { name: filename }));
-
-      let remoteObj = null;
-      try {
-        const list = await this.fetchRemoteFileList();
-        remoteObj = list.find(
-          (r) => r.year === year && r.month === month && r.filename === filename
-        );
-      } catch { }
-
-      const downloadUrl = remoteObj
-        ? `${remoteObj.rawUrl}?download=1`
-        : `${remoteMatch.matchedUrl}?download=1`;
-
-      const response = await requestUrl({
-        url: downloadUrl,
-        method: 'GET',
-        headers: { Authorization: `Bearer ${this.settings.apiToken}` },
-        throw: false
-      });
-
-      if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
-        throw new Error(`Failed to download remote file (HTTP ${response.status})`);
+      if (!silent) {
+        new Notice(this.t('noticeDownloadingFile', { name: filename }));
       }
 
-      const activeFile = this.app.workspace.getActiveFile();
+      let remoteObj = remoteMatch.rawObj || null;
+      if (!remoteObj) {
+        try {
+          const list = await this.fetchRemoteFileList();
+          remoteObj = list.find(
+            (r) => r.year === year && r.month === month && r.filename === filename
+          );
+        } catch { }
+      }
+
+      const activeFile = options?.activeFile || this.app.workspace.getActiveFile();
       const sourcePath = activeFile ? activeFile.path : '';
-      const localPath = await this.app.fileManager.getAvailablePathForAttachment(
+      const availablePath = remoteMatch.availablePath || await this.app.fileManager.getAvailablePathForAttachment(
         filename,
         sourcePath
       );
-      const createdFile = await this.app.vault.createBinary(localPath, response.arrayBuffer);
+      const slashIdx = availablePath.lastIndexOf('/');
+      const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : '';
+      const idealPath = remoteMatch.idealPath || (targetDir ? `${targetDir}/${filename}` : filename);
+
+      let existingFile = remoteMatch.existingFile || null;
+      if (!existingFile) {
+        const byName = this.app.vault.getAbstractFileByPath(idealPath);
+        if (byName && !Array.isArray(byName.children)) {
+          existingFile = byName;
+        }
+      }
+      const hasConflict = Boolean(existingFile && !Array.isArray(existingFile.children));
+
+      const conflictStrategy = options?.conflictStrategy || 'rename';
+      let targetLocalFile = null;
+      let action = 'downloaded';
+
+      if (hasConflict && conflictStrategy === 'reuse') {
+        targetLocalFile = existingFile;
+        action = 'reused';
+      } else {
+        const downloadUrl = remoteObj?.rawUrl
+          ? `${remoteObj.rawUrl}?download=1`
+          : `${remoteMatch.matchedUrl}?download=1`;
+
+        const response = await requestUrl({
+          url: downloadUrl,
+          method: 'GET',
+          headers: { Authorization: `Bearer ${this.settings.apiToken}` },
+          throw: false
+        });
+
+        if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
+          throw new Error(`Failed to download remote file (HTTP ${response.status})`);
+        }
+
+        if (hasConflict && conflictStrategy === 'overwrite') {
+          await this.app.vault.modifyBinary(existingFile, response.arrayBuffer);
+          targetLocalFile = existingFile;
+          action = 'overwritten';
+        } else {
+          targetLocalFile = await this.app.vault.createBinary(availablePath, response.arrayBuffer);
+          action = 'downloaded';
+        }
+      }
 
       const removeItem = {
         source: 'remote',
@@ -2094,39 +2272,67 @@ class FileMasterPlugin extends Plugin {
 
       const keepItem = {
         source: 'local',
-        name: createdFile.name,
-        ext: createdFile.extension.toLowerCase(),
-        displayPath: createdFile.path,
-        rawObj: createdFile
+        name: targetLocalFile.name,
+        ext: targetLocalFile.extension.toLowerCase(),
+        displayPath: targetLocalFile.path,
+        rawObj: targetLocalFile
       };
 
-      const allDocs = this.app.vault
-        .getFiles()
-        .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+      const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
+      const allDocs = (syncOtherNotes || !activeFile)
+        ? this.app.vault
+            .getFiles()
+            .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name))
+        : [activeFile];
 
       let modifiedCount = 0;
+      const syncedOtherNotePaths = [];
       for (const doc of allDocs) {
         const modified = await this.safeModifyFileContent(doc, (orig) => {
           return this.rewriteContentLinks(orig, removeItem, keepItem);
         });
-        if (modified) modifiedCount++;
+        if (modified) {
+          modifiedCount++;
+          if (activeFile && doc.path !== activeFile.path) {
+            syncedOtherNotePaths.push(doc.path);
+          }
+        }
       }
 
-      new Notice(
-        this.t('noticeDownloadedToVault', {
-          name: filename,
-          path: createdFile.path,
-          docs: modifiedCount
-        })
-      );
-      return createdFile;
+      if (!silent) {
+        new Notice(
+          this.t('noticeDownloadedToVault', {
+            name: filename,
+            path: targetLocalFile.path,
+            docs: modifiedCount
+          })
+        );
+      }
+
+      if (options?.returnDetails) {
+        return {
+          file: targetLocalFile,
+          name: targetLocalFile.name,
+          originName: filename,
+          displayPath: targetLocalFile.path,
+          remotePath: `${year}/${month}/${filename}`,
+          size: targetLocalFile.stat?.size || remoteObj?.size || 0,
+          action,
+          modifiedDocs: modifiedCount,
+          syncedOtherNotes: syncedOtherNotePaths.length,
+          syncedOtherNotePaths
+        };
+      }
+      return targetLocalFile;
     } catch (err) {
-      new Notice(this.t('noticeDownloadFailed', { err: err.message }));
+      if (!silent) {
+        new Notice(this.t('noticeDownloadFailed', { err: err.message }));
+      }
       throw err;
     }
   }
 
-  async executeDownloadNoteDirect(activeFile, onProgress = null) {
+  async scanActiveNoteRemoteAttachments(activeFile) {
     const content = await this.app.vault.read(activeFile);
     const serverBase = escapeRegExp(this.getCleanServerUrl());
     const re = new RegExp(
@@ -2154,29 +2360,211 @@ class FileMasterPlugin extends Plugin {
     }
 
     if (matchesMap.size === 0) {
-      return 0;
+      return [];
+    }
+
+    let remoteList = [];
+    try {
+      remoteList = await this.fetchRemoteFileList();
+    } catch { }
+
+    const snapshot = await this.buildVaultReferenceSnapshot();
+
+    // Pre-index local attachment files by size for fast SHA-256 content duplicate checks
+    const localFilesBySize = new Map();
+    const localHashCache = new Map();
+    const getLocalFileSha256 = async (tfile) => {
+      if (!tfile || Array.isArray(tfile.children)) return null;
+      if (localHashCache.has(tfile.path)) return localHashCache.get(tfile.path);
+      try {
+        const buf = await this.app.vault.readBinary(tfile);
+        const h = computeSha256Hex(buf);
+        localHashCache.set(tfile.path, h);
+        return h;
+      } catch {
+        return null;
+      }
+    };
+    for (const f of this.app.vault.getFiles()) {
+      if (!isAttachmentExt(f.extension)) continue;
+      if (this.isLocalPathExcluded(f.path)) continue;
+      const sz = f.stat?.size || 0;
+      if (sz <= 0) continue;
+      if (!localFilesBySize.has(sz)) localFilesBySize.set(sz, []);
+      localFilesBySize.get(sz).push(f);
+    }
+
+    const out = [];
+    for (const match of matchesMap.values()) {
+      const { year, month, filename, matchedUrl, routePrefix } = match;
+      const remoteObj = remoteList.find(
+        (r) => r.year === year && r.month === month && r.filename === filename
+      );
+      const availablePath = await this.app.fileManager.getAvailablePathForAttachment(
+        filename,
+        activeFile.path
+      );
+      const slashIdx = availablePath.lastIndexOf('/');
+      const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : '';
+      const idealPath = targetDir ? `${targetDir}/${filename}` : filename;
+      const existingByName = this.app.vault.getAbstractFileByPath(idealPath);
+      const hasSameName = Boolean(existingByName && !Array.isArray(existingByName.children));
+
+      let existingFile = hasSameName ? existingByName : null;
+      let conflictType = null; // 'hash_and_name' | 'hash_only' | 'name_only' | null
+      const remoteSha256 = remoteObj?.sha256 || null;
+      const remoteSize = remoteObj?.size || 0;
+
+      if (remoteSha256) {
+        if (hasSameName) {
+          const sameNameHash = await getLocalFileSha256(existingByName);
+          if (sameNameHash && sameNameHash === remoteSha256) {
+            conflictType = 'hash_and_name';
+            existingFile = existingByName;
+          }
+        }
+        if (!conflictType && remoteSize > 0) {
+          const candidates = localFilesBySize.get(remoteSize) || [];
+          // Prioritize candidates inside targetDir first
+          const sortedCandidates = [...candidates].sort((a, b) => {
+            const aInTarget = (a.parent?.path || '') === targetDir ? 0 : 1;
+            const bInTarget = (b.parent?.path || '') === targetDir ? 0 : 1;
+            return aInTarget - bInTarget;
+          });
+          for (const cand of sortedCandidates) {
+            const candHash = await getLocalFileSha256(cand);
+            if (candHash && candHash === remoteSha256) {
+              conflictType = cand.path === idealPath ? 'hash_and_name' : 'hash_only';
+              existingFile = cand;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!conflictType && hasSameName) {
+        conflictType = 'name_only';
+        existingFile = existingByName;
+      }
+
+      const hasConflict = Boolean(conflictType && existingFile);
+      const refNotes = this.findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
+      const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
+
+      out.push({
+        id: `remote:${year}/${month}/${filename}`,
+        source: 'remote',
+        name: filename,
+        filename,
+        ext: getExt(filename),
+        year,
+        month,
+        matchedUrl,
+        routePrefix,
+        displayPath: `${year}/${month}/${filename}`,
+        size: remoteSize,
+        sha256: remoteSha256,
+        rawObj: remoteObj || {
+          year,
+          month,
+          filename,
+          rawUrl: matchedUrl,
+          pubUrl: `${this.getCleanServerUrl()}/pub/${year}/${month}/${encodeURIComponent(getBaseName(filename))}.webp`
+        },
+        targetDir: targetDir || '/',
+        idealPath,
+        availablePath,
+        existingFile: hasConflict ? existingFile : null,
+        conflictType,
+        hasConflict,
+        refNotes,
+        otherRefNotes,
+        selected: true
+      });
+    }
+    return out;
+  }
+
+  async executeDownloadNoteDirect(activeFile, onProgress = null, options = {}) {
+    let items = Array.isArray(options?.items) ? options.items : null;
+    if (!items) {
+      items = await this.scanActiveNoteRemoteAttachments(activeFile);
+    }
+
+    if (items.length === 0) {
+      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
     }
 
     let count = 0;
-    const items = Array.from(matchesMap.values());
+    const processedItems = [];
+    const failures = [];
+    const conflictStrategy = options?.conflictStrategy || 'rename';
+    const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (onProgress) onProgress(i + 1, items.length, item.filename);
+      if (onProgress) onProgress(i + 1, items.length, item.filename || item.name);
       try {
-        await this.downloadSingleRemoteItemToLocal(item);
+        const detail = await this.downloadSingleRemoteItemToLocal(item, {
+          activeFile,
+          conflictStrategy,
+          syncOtherNotes,
+          silent: true,
+          returnDetails: true
+        });
         count++;
-      } catch { }
+        processedItems.push({
+          source: 'local',
+          name: detail.name,
+          ext: getExt(detail.name),
+          displayPath: detail.displayPath,
+          remotePath: detail.remotePath,
+          size: detail.size,
+          action: detail.action,
+          syncedOtherNotes: detail.syncedOtherNotes || 0,
+          syncedOtherNotePaths: detail.syncedOtherNotePaths || [],
+          rawObj: detail.file
+        });
+      } catch (err) {
+        this.logOperation('ERROR', 'NOTE_DOWNLOAD', `Failed to download ${item.filename || item.name} in ${activeFile.path}: ${err.message}`, {
+          note: activeFile.path,
+          remotePath: item.displayPath
+        });
+        failures.push({
+          name: item.filename || item.name,
+          size: item.size || 0,
+          error: err.message || String(err)
+        });
+      }
     }
-    return count;
+    if (count > 0) {
+      this.logOperation('INFO', 'NOTE_DOWNLOAD', `Processed ${count} server attachment(s) in ${activeFile.path}`, {
+        note: activeFile.path,
+        conflictStrategy,
+        syncOtherNotes,
+        items: processedItems.map((p) => ({
+          name: p.name,
+          localPath: p.displayPath,
+          action: p.action,
+          syncedOtherNotes: p.syncedOtherNotePaths
+        }))
+      });
+    }
+    return options?.returnDetails ? { count, processedItems, failures } : count;
   }
 
-  async downloadActiveNoteRemoteAttachments(targetFile = null) {
+  async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
     if (!activeFile || activeFile.extension !== 'md') {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
-    new ActiveNoteActionModal(this.app, this, activeFile, 'download').open();
+    const modal = new ActiveNoteActionModal(this.app, this, activeFile, 'download', options);
+    if (options?.fromHub) {
+      this.openModalSafely(modal);
+    } else {
+      modal.open();
+    }
   }
 
   /**
@@ -2265,6 +2653,10 @@ class FileMasterPlugin extends Plugin {
         });
       } catch (err) {
         new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
+        this.logOperation('ERROR', 'BATCH_UPLOAD', `Batch upload failed for ${tfile.path}: ${err.message}`, {
+          file: tfile.path,
+          size: tfile.stat?.size || 0
+        });
       }
     }
 
@@ -2291,7 +2683,7 @@ class FileMasterPlugin extends Plugin {
 
     let trashedCount = 0;
     if (options.deleteLocalAfter) {
-      const postSnapshot = await this.buildVaultReferenceSnapshot();
+      const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
       for (const { tfile } of uploadedPairs) {
         const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
         if (remaining.length === 0) {
@@ -2300,6 +2692,12 @@ class FileMasterPlugin extends Plugin {
         }
       }
     }
+
+    this.logOperation('INFO', 'BATCH_UPLOAD', `Batch uploaded ${uploadedPairs.length} file(s), updated ${modifiedDocsCount} note(s), trashed ${trashedCount} local file(s)`, {
+      uploadedCount: uploadedPairs.length,
+      modifiedDocsCount,
+      trashedCount
+    });
 
     const trashedPart = options.deleteLocalAfter
       ? this.t('noticeBatchMigrateTrashedPart', { trashed: trashedCount })
@@ -2320,41 +2718,84 @@ class FileMasterPlugin extends Plugin {
     }
   }
 
-  async executeMigrateNoteDirect(activeFile, onProgress = null) {
-    let content = await this.app.vault.read(activeFile);
-    const wikiRegex = /!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
-    const mdLinkRegex = /!\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
+  async scanActiveNoteLocalAttachments(activeFile) {
+    const content = await this.app.vault.read(activeFile);
+    const wikiRegex = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
+    const mdLinkRegex = /!?\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
 
-    const localFilesToMigrate = new Map();
+    const localFilesMap = new Map();
     let m;
     while ((m = wikiRegex.exec(content)) !== null) {
       const tf = this.app.metadataCache.getFirstLinkpathDest(m[1].trim(), activeFile.path);
       if (tf && isAttachmentExt(tf.extension)) {
-        localFilesToMigrate.set(tf.path, tf);
+        localFilesMap.set(tf.path, tf);
       }
     }
     while ((m = mdLinkRegex.exec(content)) !== null) {
-      const tf = this.app.metadataCache.getFirstLinkpathDest(
-        decodeURIComponent(m[2].trim()),
-        activeFile.path
-      );
+      let rawTarget = m[2].trim().replace(/^<|>$/g, '');
+      try {
+        rawTarget = decodeURIComponent(rawTarget);
+      } catch { }
+      const tf = this.app.metadataCache.getFirstLinkpathDest(rawTarget, activeFile.path);
       if (tf && isAttachmentExt(tf.extension)) {
-        localFilesToMigrate.set(tf.path, tf);
+        localFilesMap.set(tf.path, tf);
       }
     }
 
-    if (localFilesToMigrate.size === 0) {
-      return 0;
+    const snapshot = await this.buildVaultReferenceSnapshot();
+
+    return Array.from(localFilesMap.values()).map((tf) => {
+      const refNotes = this.findReferencingNotesForLocalFile(tf, snapshot);
+      const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
+      return {
+        id: `local:${tf.path}`,
+        source: 'local',
+        name: tf.name,
+        ext: tf.extension.toLowerCase(),
+        displayPath: tf.path,
+        size: tf.stat?.size || 0,
+        rawObj: tf,
+        tfile: tf,
+        refNotes,
+        otherRefNotes,
+        selected: true,
+        locked: false
+      };
+    });
+  }
+
+  async executeMigrateNoteDirect(activeFile, onProgress = null, options = {}) {
+    let content = await this.app.vault.read(activeFile);
+    let items = Array.isArray(options?.items) ? options.items : null;
+    if (!items) {
+      items = await this.scanActiveNoteLocalAttachments(activeFile);
+    }
+
+    if (items.length === 0) {
+      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
     }
 
     let migratedCount = 0;
-    const items = Array.from(localFilesToMigrate.values());
+    const uploadedPairs = [];
+    const processedItems = [];
+    const failures = [];
     for (let i = 0; i < items.length; i++) {
-      const tfile = items[i];
+      const entry = items[i];
+      const tfile = entry.tfile || entry.rawObj || entry;
+      const wantLock = Boolean(entry.locked);
       if (onProgress) onProgress(i + 1, items.length, tfile.name);
       try {
         const buf = await this.app.vault.readBinary(tfile);
         const res = await this.uploadBufferToServer(buf, tfile.name);
+
+        if (wantLock && !res.locked && res.year && res.month && res.filename) {
+          try {
+            await this.toggleRemoteFileLock(res.year, res.month, res.filename, true);
+            res.locked = true;
+          } catch (lockErr) {
+            console.warn(`Failed to lock ${res.filename}:`, lockErr);
+          }
+        }
 
         const removeItem = {
           source: 'local',
@@ -2373,33 +2814,122 @@ class FileMasterPlugin extends Plugin {
 
         content = this.rewriteContentLinks(content, removeItem, keepItem);
         migratedCount++;
+        const otherRefNotes = Array.isArray(entry.otherRefNotes) ? entry.otherRefNotes : [];
+        uploadedPairs.push({ tfile, removeItem, keepItem, otherRefNotes });
+        processedItems.push({
+          source: 'remote',
+          name: res.filename,
+          ext: getExt(res.filename),
+          displayPath: `${res.year}/${res.month}/${res.filename}`,
+          size: tfile.stat?.size || res.size || 0,
+          locked: Boolean(res.locked || wantLock),
+          trashedLocal: false,
+          keptForOtherRefs: 0,
+          keptForOtherRefPaths: [],
+          syncedOtherNotes: 0,
+          syncedOtherNotePaths: [],
+          action: 'uploaded',
+          rawObj: res,
+          localPath: tfile.path
+        });
       } catch (err) {
         console.error(`Failed to migrate ${tfile.name}:`, err);
+        this.logOperation('ERROR', 'NOTE_UPLOAD', `Failed to upload ${tfile.name} in ${activeFile.path}: ${err.message}`, {
+          note: activeFile.path,
+          file: tfile.path,
+          size: tfile.stat?.size || 0
+        });
+        failures.push({
+          name: tfile.name,
+          size: tfile.stat?.size || 0,
+          error: err.message || String(err)
+        });
       }
     }
 
     if (migratedCount > 0) {
       await this.safeModifyFileContent(activeFile, () => content);
-      if (this.settings.deleteLocalAfterMigrate) {
-        const snapshot = await this.buildVaultReferenceSnapshot();
-        for (const tfile of items) {
-          const otherRefs = this.findReferencingNotesForLocalFile(tfile, snapshot);
-          if (otherRefs.length === 0) {
-            await this.app.vault.trash(tfile, true).catch(() => { });
+      const shouldDeleteLocal = options?.deleteLocalAfter !== undefined
+        ? Boolean(options.deleteLocalAfter)
+        : Boolean(this.settings.deleteLocalAfterMigrate);
+      const syncOtherNotes = options?.syncOtherNotes !== undefined
+        ? Boolean(options.syncOtherNotes)
+        : true;
+
+      if (syncOtherNotes) {
+        const otherDocs = this.app.vault
+          .getFiles()
+          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+        for (let i = 0; i < uploadedPairs.length; i++) {
+          const { removeItem, keepItem } = uploadedPairs[i];
+          const syncedPaths = [];
+          for (const doc of otherDocs) {
+            const modified = await this.safeModifyFileContent(doc, (orig) => {
+              return this.rewriteContentLinks(orig, removeItem, keepItem);
+            });
+            if (modified) syncedPaths.push(doc.path);
+          }
+          if (processedItems[i]) {
+            processedItems[i].syncedOtherNotes = syncedPaths.length;
+            processedItems[i].syncedOtherNotePaths = syncedPaths;
           }
         }
       }
+
+      if (shouldDeleteLocal) {
+        const postSnapshot = !syncOtherNotes
+          ? await this.buildVaultReferenceSnapshot({ freshRead: true })
+          : null;
+        for (let i = 0; i < uploadedPairs.length; i++) {
+          const { tfile } = uploadedPairs[i];
+          if (!syncOtherNotes && postSnapshot) {
+            const remainingRefs = this.findReferencingNotesForLocalFile(tfile, postSnapshot).filter(
+              (p) => p !== activeFile.path
+            );
+            if (remainingRefs.length > 0) {
+              if (processedItems[i]) {
+                processedItems[i].keptForOtherRefs = remainingRefs.length;
+                processedItems[i].keptForOtherRefPaths = remainingRefs;
+              }
+              continue;
+            }
+          }
+          await this.app.vault.trash(tfile, true).catch(() => { });
+          if (processedItems[i]) {
+            processedItems[i].trashedLocal = true;
+          }
+        }
+      }
+
+      this.logOperation('INFO', 'NOTE_UPLOAD', `Uploaded ${migratedCount} attachment(s) from ${activeFile.path}`, {
+        note: activeFile.path,
+        deleteLocalAfter: shouldDeleteLocal,
+        syncOtherNotes,
+        items: processedItems.map((p) => ({
+          name: p.name,
+          remotePath: p.displayPath,
+          locked: p.locked,
+          trashedLocal: p.trashedLocal,
+          keptForOtherRefs: p.keptForOtherRefPaths,
+          syncedOtherNotes: p.syncedOtherNotePaths
+        }))
+      });
     }
-    return migratedCount;
+    return options?.returnDetails ? { count: migratedCount, processedItems, failures } : migratedCount;
   }
 
-  async migrateActiveNoteAttachments(targetFile = null) {
+  async migrateActiveNoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
     if (!activeFile || activeFile.extension !== 'md') {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
-    new ActiveNoteActionModal(this.app, this, activeFile, 'migrate').open();
+    const modal = new ActiveNoteActionModal(this.app, this, activeFile, 'migrate', options);
+    if (options?.fromHub) {
+      this.openModalSafely(modal);
+    } else {
+      modal.open();
+    }
   }
 
   async copyActiveNoteForAstro(targetFile = null) {
@@ -2509,6 +3039,10 @@ class FileMasterSettingTab extends PluginSettingTab {
             this.plugin.openModalSafely(new FileMasterHubModal(this.app, this.plugin));
             return;
           }
+          if (page === 'logs') {
+            this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
+            return;
+          }
           this.activePage = page;
           this.display();
           containerEl.scrollTop = 0;
@@ -2532,7 +3066,8 @@ class FileMasterSettingTab extends PluginSettingTab {
       ['exemptions', 'tabExemptions', 'shield']
     ]);
     group('settingsToolsGroup', '🧰', [
-      ['hub', 'openHubName', 'wrench']
+      ['hub', 'openHubName', 'wrench'],
+      ['logs', 'opLogTitle', 'file-text']
     ]);
     group('settingsInfoGroup', 'ℹ️', [
       ['about', 'aboutTitle', 'info']
@@ -2773,7 +3308,7 @@ class FileMasterSettingTab extends PluginSettingTab {
     const repoUrl = 'https://github.com/weichen-ink/file-master';
 
     const intro = new Setting(containerEl)
-      .setName('FileMaster')
+      .setName('File Master')
       .setDesc(this.plugin.t('aboutDesc'));
     intro.controlEl.createSpan({ text: `v${version}` });
 
@@ -2786,6 +3321,14 @@ class FileMasterSettingTab extends PluginSettingTab {
       cls: `fm-about-status ${sCompat?.ok ? 'is-connected' : ''}`,
       text: sCompat ? this.plugin.getCompatibilityMessage(sCompat) : this.plugin.t('aboutServerOffline')
     });
+    new Setting(containerEl)
+      .setName(this.plugin.t('opLogTitle'))
+      .setDesc(this.plugin.t('opLogDesc'))
+      .addButton((btn) =>
+        btn.setButtonText(this.plugin.t('opLogBtnOpen')).onClick(() => {
+          this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
+        })
+      );
     addRow('aboutFeedback').createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
   }
 }

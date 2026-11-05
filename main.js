@@ -211,8 +211,8 @@ const UI_STRINGS = {
   zh: {
     // 快捷控制中心
     hubBadge: '文件工具',
-    hubTitle: 'FileMaster',
-    hubSubtitle: '管理知识库文件、链接和服务器文件',
+    hubTitle: 'File Master',
+    hubSubtitle: '告别冗余附件与失效链接，云端秒传加速、零断链迁移，让知识库始终轻量整洁',
     catFiles: '服务器文件',
     catGovernance: '知识库整理',
     catActiveNote: '当前笔记',
@@ -293,6 +293,17 @@ const UI_STRINGS = {
     dupLocScope: '1. 比对范围',
     dupCompareLocal: '仅知识库文件',
     dupCompareCross: '知识库与服务器文件',
+    dupCompareRemote: '仅服务器文件',
+    dupProtRuleHint: '🛡️ 保护规则：本地排除目录（{folders}）会自动跳过；开启了「🔒 防删除保护」的服务器文件将优先作为保留副本，绝不会被删除。',
+    dupStrategyLabel: '保留策略：',
+    dupStrategyAuto: '1. 自动选择保留副本（推荐）',
+    dupStrategyPreferRemote: '2. 优先保留服务器文件，清理本地副本（知识库瘦身）',
+    dupStrategyPreferLocal: '3. 优先保留本地文件，清理服务器重复副本',
+    dupGroupHeader: '重复文件组 #{idx}（SHA-256: {hash}... | 体积: {size}）',
+    dupGroupSubhint: '点击缩略图可放大预览；点击引用次数可查看关联笔记',
+    dupTagKeep: '✅ 保留',
+    dupTagProtected: '🔒 受保护',
+    dupTagRemove: '🗑️ 清理',
     dupTypeScope: '2. 文件类型',
     dupTypeImage: '🖼️ 图片素材',
     dupTypeAudio: '🎵 音频素材',
@@ -337,7 +348,7 @@ const UI_STRINGS = {
 
     // 404 断链与健康体检 (HealthCheckModal)
     healthStep1Title: '失效链接',
-    healthStep1Desc: '检查笔记和白板中的内部链接、本地文件链接及网页链接。',
+    healthStep1Desc: '可检查笔记和白板中的内部链接、本地文件链接及网页链接。',
     healthScopeTitle: '检查范围',
     healthCheckWiki: '检查指向不存在笔记的内部链接',
     healthCheckLocal: '检查缺失的本地文件',
@@ -400,7 +411,7 @@ const UI_STRINGS = {
     noticeAstroCopied: '✅ 已将包含公开 WebP 链接的笔记内容复制至剪贴板！',
 
     // 设置面板标签
-    settingsTitle: 'FileMaster 设置',
+    settingsTitle: 'File Master 设置',
     settingsBack: '返回设置首页',
     settingsSetupGroup: '开始使用',
     settingsPreferencesGroup: '使用偏好',
@@ -413,10 +424,10 @@ const UI_STRINGS = {
 
     // 常规与语言
     langName: '界面语言',
-    langDesc: '设置 FileMaster 的界面语言',
+    langDesc: '设置 File Master 的界面语言',
     langAuto: '跟随 Obsidian',
     sidebarBtnName: '显示工具栏按钮',
-    sidebarBtnDesc: '在 Obsidian 左侧工具栏显示 FileMaster 按钮',
+    sidebarBtnDesc: '在 Obsidian 左侧工具栏显示 File Master 按钮',
     clipboardMonitorName: '处理粘贴与拖入的附件',
     clipboardMonitorDesc: '按附件保存位置处理粘贴或拖入的文件',
 
@@ -468,10 +479,10 @@ const UI_STRINGS = {
     excludeLockedRemoteDesc: '查找未引用文件和重复文件时，跳过开启防删除保护的服务器文件',
     openHubName: '功能面板',
     openHubDesc: '检查链接、整理文件并查看知识库概览',
-    btnOpenHub: '打开 FileMaster',
+    btnOpenHub: '打开 File Master',
 
     // 底部信息栏
-    aboutTitle: '关于 FileMaster',
+    aboutTitle: '关于 File Master',
     aboutDesc: '在 Obsidian 中管理附件和链接，并通过自建服务器存储与分享文件。',
     aboutAuthor: '开发者',
     aboutRepo: '官方开源仓库',
@@ -482,21 +493,21 @@ const UI_STRINGS = {
     aboutServerOffline: '未连接',
 
     // 右键上下文菜单
-    menuMigrateFolder: 'FileMaster：批量上传此目录的附件...',
-    menuRemoveExclusion: 'FileMaster：不再跳过此目录',
-    menuAddExclusion: 'FileMaster：扫描时跳过此目录',
-    menuUploadCloud: 'FileMaster：上传到服务器并更新链接',
-    menuUploadProtected: 'FileMaster：上传到服务器保护目录',
-    menuCopyRaw: 'FileMaster：复制原文件链接（{name}）',
-    menuCopyWebp: 'FileMaster：复制 WebP 链接',
-    menuDownloadToVault: 'FileMaster：下载到知识库并更新链接（{name}）',
-    menuLockRemote: 'FileMaster：开启防删除保护（{name}）',
-    menuActiveNoteMigrate: 'FileMaster：上传当前笔记的附件',
-    menuActiveNoteDownload: 'FileMaster：下载当前笔记的服务器附件',
-    menuActiveNoteAstro: 'FileMaster：复制当前笔记并使用 WebP 链接',
+    menuMigrateFolder: 'File Master：批量上传此目录的附件...',
+    menuRemoveExclusion: 'File Master：不再跳过此目录',
+    menuAddExclusion: 'File Master：扫描时跳过此目录',
+    menuUploadCloud: 'File Master：上传到服务器并更新链接',
+    menuUploadProtected: 'File Master：上传到服务器保护目录',
+    menuCopyRaw: 'File Master：复制原文件链接（{name}）',
+    menuCopyWebp: 'File Master：复制 WebP 链接',
+    menuDownloadToVault: 'File Master：下载到知识库并更新链接（{name}）',
+    menuLockRemote: 'File Master：开启防删除保护（{name}）',
+    menuActiveNoteMigrate: 'File Master：上传当前笔记的附件',
+    menuActiveNoteDownload: 'File Master：下载当前笔记的服务器附件',
+    menuActiveNoteAstro: 'File Master：复制当前笔记并使用 WebP 链接',
 
     // 命令面板命令
-    cmdOpenHub: '打开 FileMaster',
+    cmdOpenHub: '打开 File Master',
     cmdScanHealth: '检查失效链接',
     cmdScanOrphan: '查找未引用文件',
     cmdScanDuplicate: '查找重复文件',
@@ -596,8 +607,53 @@ const UI_STRINGS = {
     orphanResultTitle: '未引用文件已处理',
     orphanResultDesc: '已处理 {count} 个文件：知识库 {local} 个，服务器 {remote} 个。',
     activeNoteModalTitle: '当前笔记',
-    activeNoteMigrateTitle: '上传附件',
-    activeNoteDownloadTitle: '下载附件',
+    activeNoteMigrateTitle: '上传当前笔记的附件',
+    activeNoteDownloadTitle: '下载当前笔记的服务器附件',
+    activeNoteStep1Desc: '检测到当前笔记引用了以下 {count} 个本地附件，请确认要上传的文件及选项：',
+    activeNoteBtnLockOff: '🔓 不锁定',
+    activeNoteBtnLockOn: '🔒 锁定',
+    activeNoteLockExplain: '💡 锁定说明：开启锁定后，文件上传到服务器后会被标记为「防删除保护」；后续在清理未引用文件或合并重复文件时将自动跳过该文件，防止误删。',
+    activeNoteDeleteLocalOpt: '上传后删除本地原文件（移入回收站）',
+    activeNoteOtherRefsBadge: '🔗 其他 {count} 篇笔记引用',
+    activeNoteOnlyCurrentRef: '仅本篇引用',
+    activeNoteInspectOtherRefs: '点击查看同样引用了此附件的其他笔记',
+    activeNoteSyncOtherUploadOpt: '同步更新其他引用了相同附件的笔记链接（共涉及 {count} 篇其他笔记）',
+    activeNoteSyncOtherUploadHintOn: '✅ 已开启同步更新：其他笔记中对该附件的引用也会一并更新为服务器链接，删除本地原文件不会产生任何断链。',
+    activeNoteSyncOtherUploadHintOff: '🛡️ 未开启同步更新：仅更新当前笔记。为防止其他笔记出现断链，仍被其他笔记引用的本地原文件将自动保留、不会被删除。',
+    activeNoteSyncOtherDownloadOpt: '同步将其他引用了相同服务器链接的笔记也更新为本地链接（共涉及 {count} 篇其他笔记）',
+    activeNoteSyncOtherDownloadHintOn: '✅ 已开启同步更新：其他笔记中相同的服务器链接也会一并替换为下载后的本地文件链接。',
+    activeNoteSyncOtherDownloadHintOff: 'ℹ️ 未开启同步更新：仅替换当前笔记中的链接，其他笔记继续保留原有的服务器链接。',
+    activeNoteDownOtherRefsTitle: '🔗 检测到有附件同时出现在其他 {count} 篇笔记中',
+    activeNoteDownOtherRefsDesc: '以下服务器附件在知识库的其他笔记中也有引用，请确认下载项及是否同步更新其他笔记的链接：',
+    activeNoteStartUpload: '开始上传 ({count})',
+    activeNoteStartDownload: '开始下载 ({count})',
+    activeNoteSelectRequired: '请至少选择一个要处理的附件',
+    activeNoteFailedTitle: '⚠️ 有 {failed} 个附件上传失败',
+    activeNoteDownFailedTitle: '⚠️ 有 {failed} 个附件下载失败',
+    activeNoteFailedTooLarge: '文件过大，超过服务器单文件 100 MB 限制',
+    activeNoteFailedAuth: 'API 令牌无效或未授权，请检查服务器连接设置',
+    activeNoteFailedNotFound: '服务器上未找到该文件 (404)',
+    activeNoteFailedNetwork: '无法连接到服务器，请检查网络或服务器状态',
+    activeNoteDownConflictTitle: '⚠️ 检测到本地已存在 {count} 个重复或同名文件',
+    activeNoteDownConflictDesc: '已通过 SHA-256 内容哈希与文件名比对本地文件，请确认要处理的附件及冲突处理方式：',
+    activeNoteDownTagHashAndName: '⚡ 同名且内容完全相同 (SHA-256 一致)',
+    activeNoteDownTagHashOnly: '⚡ 本地已有相同内容文件 (SHA-256 一致)',
+    activeNoteDownTagConflict: '⚠️ 已存在同名文件（内容不同）',
+    activeNoteDownTagReady: '✅ 可直接下载',
+    activeNoteDownTargetLabel: '目标路径：{path}',
+    activeNoteDownExistingMatchLabel: '匹配本地文件：{path}',
+    activeNoteDownStrategyTitle: '重复或同名文件处理方式',
+    activeNoteDownOptReuse: '直接复用本地已有文件（不重复下载，直接更新笔记链接）',
+    activeNoteDownOptRename: '保留两者并自动重命名（下载并保存为新副本）',
+    activeNoteDownOptOverwrite: '覆盖本地已有文件（重新下载并替换本地文件）',
+    activeNoteResultListTitle: '已处理的附件明细（{count}）',
+    activeNoteBadgeDownloaded: '✅ 已下载',
+    activeNoteBadgeReused: '🔗 已复用本地文件',
+    activeNoteBadgeOverwritten: '🔄 已覆盖本地文件',
+    activeNoteBadgeUploaded: '☁️ 已上传',
+    activeNoteBadgeTrashedLocal: '🗑️ 已删本地原文件',
+    activeNoteBadgeKeptForOtherRefs: '🛡️ 其他 {count} 篇笔记仍引用，已保留原文件',
+    activeNoteBadgeSyncedNotes: '🔗 同步更新其他 {count} 篇笔记',
     activeNoteScanning: '⏳ 正在解析当前笔记中的附件引用...',
     activeNoteProcessing: '⏳ 正在处理 ({current}/{total}): {name}...',
     activeNoteMigrateComplete: '上传完成',
@@ -651,13 +707,29 @@ const UI_STRINGS = {
     galleryDeleteConfirm: '将服务器文件“{name}”移入回收站？\n笔记中指向此文件的链接将无法使用。',
     galleryDeleteSuccess: '✅ 已成功将 "{name}" 移入回收站',
 
+    // 操作与调试日志
+    opLogTitle: '操作与调试日志',
+    opLogDesc: '查看插件最近的操作记录与错误详情，支持复制或导出日志文件以便排查问题',
+    opLogBtnOpen: '查看日志',
+    opLogFilterAll: '全部记录',
+    opLogFilterErrors: '仅警告与错误',
+    opLogSearchPlaceholder: '搜索日志内容或文件名...',
+    opLogEmpty: '暂无符合条件的日志记录',
+    opLogCopyAll: '📋 复制全部日志',
+    opLogCopiedNotice: '✅ 已将诊断与操作日志复制到剪贴板',
+    opLogExportFile: '📥 导出日志文件 (.log)',
+    opLogClear: '🗑️ 清空日志',
+    opLogClearedNotice: '已清空操作日志',
+    opLogPathHint: '日志保存在插件目录（{path}），不会出现在知识库文件树或被扫描功能误扫。',
+    cmdOpenOpLogs: '查看操作与调试日志',
+
     closeBtn: '关闭'
   },
   en: {
     // Quick Hub
     hubBadge: 'File tools',
-    hubTitle: 'FileMaster',
-    hubSubtitle: 'Manage vault files, links, and server files',
+    hubTitle: 'File Master',
+    hubSubtitle: 'Eliminate redundant attachments and broken links — instant cloud acceleration and zero-broken-link migration keep your vault fast and clean.',
     catGovernance: 'Organize vault',
     catFiles: 'Server files',
     catActiveNote: 'Current note',
@@ -738,6 +810,17 @@ const UI_STRINGS = {
     dupLocScope: '1. Compare',
     dupCompareLocal: 'Vault files only',
     dupCompareCross: 'Vault and server files',
+    dupCompareRemote: 'Server files only',
+    dupProtRuleHint: '🛡️ Protection Rules: Local excluded folders ({folders}) are skipped. Server files with "🔒 Protected Lock" are prioritized as keep targets and never deleted.',
+    dupStrategyLabel: 'Strategy:',
+    dupStrategyAuto: '1. Auto-select item to keep (Recommended)',
+    dupStrategyPreferRemote: '2. Replace local files with remote copies (Vault Slimming)',
+    dupStrategyPreferLocal: '3. Keep local files and remove remote duplicates',
+    dupGroupHeader: 'Duplicate Group #{idx} (SHA-256: {hash}... | Size: {size})',
+    dupGroupSubhint: 'Click thumbnail to inspect; click reference count to view notes',
+    dupTagKeep: '✅ Keep',
+    dupTagProtected: '🔒 Protected',
+    dupTagRemove: '🗑️ Remove',
     dupTypeScope: '2. File types',
     dupTypeImage: 'Images',
     dupTypeAudio: 'Audio',
@@ -782,7 +865,7 @@ const UI_STRINGS = {
 
     // Vault Link Health Check
     healthStep1Title: 'Broken links',
-    healthStep1Desc: 'Check links to notes, local files, and web pages in notes and canvases.',
+    healthStep1Desc: 'Can check internal links, local file links, and web links in notes and canvases.',
     healthScopeTitle: 'What to check',
     healthCheckWiki: 'Links to missing notes',
     healthCheckLocal: 'Links to missing local files',
@@ -845,7 +928,7 @@ const UI_STRINGS = {
     noticeAstroCopied: '✅ Copied active note text with public WebP links to clipboard!',
 
     // Settings Tabs
-    settingsTitle: 'FileMaster settings',
+    settingsTitle: 'File Master settings',
     settingsBack: 'Back to settings',
     settingsSetupGroup: 'Get started',
     settingsPreferencesGroup: 'Preferences',
@@ -858,10 +941,10 @@ const UI_STRINGS = {
 
     // General & Language
     langName: 'Interface Language',
-    langDesc: 'Choose the language for FileMaster',
+    langDesc: 'Choose the language for File Master',
     langAuto: 'Follow Obsidian',
     sidebarBtnName: 'Show ribbon button',
-    sidebarBtnDesc: 'Show the FileMaster button in the left Obsidian ribbon',
+    sidebarBtnDesc: 'Show the File Master button in the left Obsidian ribbon',
     clipboardMonitorName: 'Handle pasted and dropped files',
     clipboardMonitorDesc: 'Use your attachment destination for pasted or dropped files',
 
@@ -913,10 +996,10 @@ const UI_STRINGS = {
     excludeLockedRemoteDesc: 'Skip server files protected from deletion when finding unreferenced or duplicate files',
     openHubName: 'Open file tools',
     openHubDesc: 'Check links, organize files, and view vault statistics',
-    btnOpenHub: 'Open FileMaster',
+    btnOpenHub: 'Open File Master',
 
     // About Footer
-    aboutTitle: 'About FileMaster',
+    aboutTitle: 'About File Master',
     aboutDesc: 'Manage attachments and links in Obsidian, with optional self-hosted file storage and sharing.',
     aboutAuthor: 'Author',
     aboutRepo: 'GitHub Repository',
@@ -927,21 +1010,21 @@ const UI_STRINGS = {
     aboutServerOffline: 'Offline',
 
     // Context Menus
-    menuMigrateFolder: 'FileMaster: Upload attachments in this folder...',
-    menuRemoveExclusion: 'FileMaster: Include this folder in scans',
-    menuAddExclusion: 'FileMaster: Skip this folder in scans',
-    menuUploadCloud: 'FileMaster: Upload to server and update links',
-    menuUploadProtected: 'FileMaster: Upload to protected server folder',
-    menuCopyRaw: 'FileMaster: Copy original file URL ({name})',
-    menuCopyWebp: 'FileMaster: Copy WebP URL',
-    menuDownloadToVault: 'FileMaster: Download to vault and update links ({name})',
-    menuLockRemote: 'FileMaster: Protect from deletion ({name})',
-    menuActiveNoteMigrate: 'FileMaster: Upload attachments in this note',
-    menuActiveNoteDownload: 'FileMaster: Download server files in this note',
-    menuActiveNoteAstro: 'FileMaster: Copy this note with WebP links',
+    menuMigrateFolder: 'File Master: Upload attachments in this folder...',
+    menuRemoveExclusion: 'File Master: Include this folder in scans',
+    menuAddExclusion: 'File Master: Skip this folder in scans',
+    menuUploadCloud: 'File Master: Upload to server and update links',
+    menuUploadProtected: 'File Master: Upload to protected server folder',
+    menuCopyRaw: 'File Master: Copy original file URL ({name})',
+    menuCopyWebp: 'File Master: Copy WebP URL',
+    menuDownloadToVault: 'File Master: Download to vault and update links ({name})',
+    menuLockRemote: 'File Master: Protect from deletion ({name})',
+    menuActiveNoteMigrate: 'File Master: Upload attachments in this note',
+    menuActiveNoteDownload: 'File Master: Download server files in this note',
+    menuActiveNoteAstro: 'File Master: Copy this note with WebP links',
 
     // Command Palette
-    cmdOpenHub: 'Open FileMaster',
+    cmdOpenHub: 'Open File Master',
     cmdScanHealth: 'Check broken links',
     cmdScanOrphan: 'Find unreferenced files',
     cmdScanDuplicate: 'Find duplicate files',
@@ -1041,8 +1124,53 @@ const UI_STRINGS = {
     orphanResultTitle: 'Unreferenced files processed',
     orphanResultDesc: 'Processed {count} files: {local} in the vault and {remote} on the server.',
     activeNoteModalTitle: 'Current note',
-    activeNoteMigrateTitle: 'Upload attachments',
-    activeNoteDownloadTitle: 'Download attachments',
+    activeNoteMigrateTitle: 'Upload attachments in this note',
+    activeNoteDownloadTitle: 'Download server files in this note',
+    activeNoteStep1Desc: 'Found {count} local attachments referenced in this note. Select files and options before uploading:',
+    activeNoteBtnLockOff: '🔓 Unlocked',
+    activeNoteBtnLockOn: '🔒 Locked',
+    activeNoteLockExplain: '💡 About Lock: Locked files are marked with deletion protection on the server and automatically skipped when cleaning unreferenced or duplicate files.',
+    activeNoteDeleteLocalOpt: 'Delete local files after upload (move to trash)',
+    activeNoteOtherRefsBadge: '🔗 Referenced by {count} other note(s)',
+    activeNoteOnlyCurrentRef: 'Only this note',
+    activeNoteInspectOtherRefs: 'Click to view other notes referencing this attachment',
+    activeNoteSyncOtherUploadOpt: 'Also update links in other notes referencing the same attachment ({count} other note(s))',
+    activeNoteSyncOtherUploadHintOn: '✅ Sync enabled: Other notes referencing this attachment will also be updated to the server URL, so deleting the local file will not break any links.',
+    activeNoteSyncOtherUploadHintOff: '🛡️ Sync disabled: Only this note will be updated. Local files still referenced by other notes will be automatically kept to prevent broken links.',
+    activeNoteSyncOtherDownloadOpt: 'Also update the same server links in other notes to local links ({count} other note(s))',
+    activeNoteSyncOtherDownloadHintOn: '✅ Sync enabled: Identical server links in other notes will also be updated to the local file.',
+    activeNoteSyncOtherDownloadHintOff: 'ℹ️ Sync disabled: Only links in this note will be updated; other notes will keep their server links.',
+    activeNoteDownOtherRefsTitle: '🔗 Attachment links also appear in {count} other note(s)',
+    activeNoteDownOtherRefsDesc: 'These server attachments are also referenced in other notes. Confirm files to download and whether to sync links in other notes:',
+    activeNoteStartUpload: 'Upload ({count})',
+    activeNoteStartDownload: 'Download ({count})',
+    activeNoteSelectRequired: 'Please select at least one attachment to process',
+    activeNoteFailedTitle: '⚠️ {failed} attachment(s) failed to upload',
+    activeNoteDownFailedTitle: '⚠️ {failed} attachment(s) failed to download',
+    activeNoteFailedTooLarge: 'File too large (exceeds server 100 MB limit)',
+    activeNoteFailedAuth: 'Invalid or unauthorized API token. Check server settings.',
+    activeNoteFailedNotFound: 'File not found on server (404)',
+    activeNoteFailedNetwork: 'Could not connect to server. Check network or server status.',
+    activeNoteDownConflictTitle: '⚠️ Found {count} duplicate or same-named local file(s)',
+    activeNoteDownConflictDesc: 'Compared both SHA-256 content hashes and filenames against local files. Confirm files and how to handle matches:',
+    activeNoteDownTagHashAndName: '⚡ Same name & identical content (SHA-256 match)',
+    activeNoteDownTagHashOnly: '⚡ Identical content exists locally (SHA-256 match)',
+    activeNoteDownTagConflict: '⚠️ Same filename exists (different content)',
+    activeNoteDownTagReady: '✅ Ready to download',
+    activeNoteDownTargetLabel: 'Target path: {path}',
+    activeNoteDownExistingMatchLabel: 'Matched local file: {path}',
+    activeNoteDownStrategyTitle: 'How to handle duplicate or same-named files',
+    activeNoteDownOptReuse: 'Reuse existing local file (skip download and update note links)',
+    activeNoteDownOptRename: 'Keep both and auto-rename (download and save as a new copy)',
+    activeNoteDownOptOverwrite: 'Overwrite existing local file (download and replace existing file)',
+    activeNoteResultListTitle: 'Processed attachments ({count})',
+    activeNoteBadgeDownloaded: '✅ Downloaded',
+    activeNoteBadgeReused: '🔗 Reused local file',
+    activeNoteBadgeOverwritten: '🔄 Overwritten',
+    activeNoteBadgeUploaded: '☁️ Uploaded',
+    activeNoteBadgeTrashedLocal: '🗑️ Local file trashed',
+    activeNoteBadgeKeptForOtherRefs: '🛡️ Kept (used in {count} other note(s))',
+    activeNoteBadgeSyncedNotes: '🔗 Updated {count} other note(s)',
     activeNoteScanning: '⏳ Scanning attachments referenced in active note...',
     activeNoteProcessing: '⏳ Processing ({current}/{total}): {name}...',
     activeNoteMigrateComplete: 'Upload complete',
@@ -1095,6 +1223,22 @@ const UI_STRINGS = {
     galleryBtnDelete: 'Move to trash',
     galleryDeleteConfirm: 'Move server file "{name}" to trash?\nLinks to this file in notes will stop working.',
     galleryDeleteSuccess: '✅ Successfully moved "{name}" to trash',
+
+    // Operation & Debug Logs
+    opLogTitle: 'Operation & debug logs',
+    opLogDesc: 'View recent plugin operations and error details, or copy/export logs for troubleshooting',
+    opLogBtnOpen: 'View logs',
+    opLogFilterAll: 'All entries',
+    opLogFilterErrors: 'Warnings & errors only',
+    opLogSearchPlaceholder: 'Search logs or filenames...',
+    opLogEmpty: 'No matching log entries found',
+    opLogCopyAll: '📋 Copy all logs',
+    opLogCopiedNotice: '✅ Copied diagnostic & operation logs to clipboard',
+    opLogExportFile: '📥 Export log file (.log)',
+    opLogClear: '🗑️ Clear logs',
+    opLogClearedNotice: 'Cleared operation logs',
+    opLogPathHint: 'Logs are saved in the plugin folder ({path}) and will never appear in the vault tree or trigger scans.',
+    cmdOpenOpLogs: 'View operation & debug logs',
 
     closeBtn: 'Close'
   }
@@ -1409,37 +1553,40 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
   if (!rawText) return issues;
 
   // 1. Check WikiLinks: ![[...]] and [[...]]
-  const wikiRegex = /(!?)\[\[([^\]\n\r]+)\]\]/g;
-  let m;
-  while ((m = wikiRegex.exec(rawText)) !== null) {
-    const isEmbed = Boolean(m[1]);
-    const rawInside = m[2].trim();
-    const targetPart = rawInside.split(/[|#]/)[0].trim();
-    if (!targetPart) continue; // Same-page anchor [[#heading]]
+  if (options.checkWikiLinks !== false) {
+    const wikiRegex = /(!?)\[\[([^\]\n\r]+)\]\]/g;
+    let m;
+    while ((m = wikiRegex.exec(rawText)) !== null) {
+      const isEmbed = Boolean(m[1]);
+      const rawInside = m[2].trim();
+      const targetPart = rawInside.split(/[|#]/)[0].trim();
+      if (!targetPart) continue; // Same-page anchor [[#heading]]
 
-    if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
-      const prefix = rawText.substring(0, m.index);
-      const lineNumber = prefix.split('\n').length;
-      const lineStart = prefix.lastIndexOf('\n') + 1;
-      let lineEnd = rawText.indexOf('\n', m.index);
-      if (lineEnd === -1) lineEnd = rawText.length;
-      const lineText = rawText.substring(lineStart, lineEnd).trim();
+      if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
+        const prefix = rawText.substring(0, m.index);
+        const lineNumber = prefix.split('\n').length;
+        const lineStart = prefix.lastIndexOf('\n') + 1;
+        let lineEnd = rawText.indexOf('\n', m.index);
+        if (lineEnd === -1) lineEnd = rawText.length;
+        const lineText = rawText.substring(lineStart, lineEnd).trim();
 
-      issues.push({
-        type: isEmbed ? 'wikilink-embed' : 'wikilink',
-        category: 'wikilink',
-        sourcePath: docPath,
-        target: targetPart,
-        rawText: m[0],
-        line: lineNumber,
-        lineText,
-        reason: isEmbed ? 'Embedded attachment not found in vault' : 'Linked note not found in vault'
-      });
+        issues.push({
+          type: isEmbed ? 'wikilink-embed' : 'wikilink',
+          category: 'wikilink',
+          sourcePath: docPath,
+          target: targetPart,
+          rawText: m[0],
+          line: lineNumber,
+          lineText,
+          reason: isEmbed ? 'Embedded attachment not found in vault' : 'Linked note not found in vault'
+        });
+      }
     }
   }
 
   // 2. Check Standard Markdown Links: ![alt](url) and [alt](url)
   const mdRegex = /(!?)\[([^\]\r\n]*)\]\((\s*<[^>]+>|[^\s)]+)(?:\s+["'][^"']*["'])?\)/g;
+  let m;
   while ((m = mdRegex.exec(rawText)) !== null) {
     const isEmbed = Boolean(m[1]);
     let rawUrl = m[3].trim();
@@ -1469,7 +1616,7 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
           reason: 'Remote resource unreachable'
         });
       }
-    } else {
+    } else if (options.checkLocalMarkdown !== false) {
       const cleanTarget = rawUrl.split(/[?#]/)[0].trim();
       if (!cleanTarget) continue;
 
@@ -1556,25 +1703,63 @@ function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet
 }
 
 /**
+ * Helper to return from a module modal back to the main File Master Hub modal
+ * when the modal was opened from the Hub; otherwise simply closes the modal.
+ */
+function returnToHub(modal) {
+  modal.close();
+  if (!modal.fromHub) return;
+  if (modal.plugin && typeof modal.plugin.openModalSafely === 'function') {
+    modal.plugin.openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
+  } else if (modal.app && modal.plugin) {
+    new FileMasterHubModal(modal.app, modal.plugin).open();
+  }
+}
+
+/**
+ * Helper to translate raw HTTP/server error strings into localized UI descriptions
+ */
+function formatFriendlyError(modal, rawErr) {
+  const errStr = String(rawErr || '').trim();
+  const t = (k, p) => (modal && typeof modal.t === 'function' ? modal.t(k, p) : modal?.plugin?.t ? modal.plugin.t(k, p) : errStr);
+  if (/file too large|too large|413/i.test(errStr)) {
+    return t('activeNoteFailedTooLarge');
+  }
+  if (/401|unauthorized|invalid.*token/i.test(errStr)) {
+    return t('activeNoteFailedAuth');
+  }
+  if (/404|not found/i.test(errStr)) {
+    return t('activeNoteFailedNotFound');
+  }
+  if (/network|fetch|econnrefused|offline/i.test(errStr)) {
+    return t('activeNoteFailedNetwork');
+  }
+  return errStr;
+}
+
+/**
  * Helper to create a real-time scan progress bar + cancel button inside wizard modals
  */
 function createScanProgressWidget(contentEl, plugin) {
   const abortController = new AbortController();
   const box = contentEl.createDiv({
-    cls: 'fm-section-box',
-    style: 'display:none; margin-top:10px; border-color: rgba(59, 130, 246, 0.45);'
+    cls: 'fm-section-box fm-scan-progress-box',
+    attr: { style: 'display:none; margin-top:10px; border-color: rgba(59, 130, 246, 0.45);' }
   });
+  box.style.display = 'none';
   const topRow = box.createDiv({
-    style: 'display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;'
+    cls: 'fm-scan-progress-top',
+    attr: { style: 'display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; width:100%;' }
   });
   const statusText = topRow.createSpan({
     text: plugin ? plugin.t('scanPreparing') : '⏳ Preparing scan...',
-    style: 'font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'
+    cls: 'fm-scan-progress-text',
+    attr: { style: 'font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;' }
   });
   const cancelScanBtn = topRow.createEl('button', {
     text: plugin ? plugin.t('btnCancelScan') : '⏹ Cancel Scan',
-    cls: 'fm-mini-btn mod-warning',
-    style: 'flex-shrink:0;'
+    cls: 'fm-mini-btn mod-warning fm-scan-cancel-btn',
+    attr: { style: 'flex-shrink:0; margin-left:auto;' }
   });
   cancelScanBtn.onclick = () => {
     abortController.abort();
@@ -1697,7 +1882,7 @@ class ImageLightboxModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('previewNonImageTip', { ext: ext.toUpperCase() }),
-        style: 'text-align: center; padding: 30px 16px;'
+        attr: { style: 'text-align: center; padding: 30px 16px;' }
       });
     }
 
@@ -1865,13 +2050,13 @@ class NoteRefsModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('noteRefsNone'),
-        style: 'text-align: center; padding: 24px;'
+        attr: { style: 'text-align: center; padding: 24px;' }
       });
     } else {
       const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
       for (const notePath of this.refNotePaths) {
         const row = listEl.createDiv({ cls: 'fm-list-item' });
-        row.createSpan({ text: `📝 ${notePath}`, style: 'word-break: break-all; font-weight: 500;' });
+        row.createSpan({ text: `📝 ${notePath}`, attr: { style: 'word-break: break-all; font-weight: 500;' } });
         const jumpBtn = row.createEl('button', {
           text: t('btnOpenNote'),
           cls: 'fm-mini-btn mod-cta'
@@ -2001,7 +2186,7 @@ class IncomingFileModal extends Modal {
       const loadingTip = NEEDS_TRANSCODE_IMAGE_EXTS.has(this.fileInfo.ext)
         ? contentEl.createDiv({
             text: this.t('destTranscodeTip', { ext: this.fileInfo.ext.toUpperCase() }),
-            style: 'font-size: 12px; color: var(--text-accent); text-align: center; margin-bottom: 8px;'
+            attr: { style: 'font-size: 12px; color: var(--text-accent); text-align: center; margin-bottom: 8px;' }
           })
         : null;
 
@@ -2017,7 +2202,7 @@ class IncomingFileModal extends Modal {
 
     contentEl.createDiv({
       text: this.t('destTypeSize', { ext: this.fileInfo.ext.toUpperCase(), size: formatBytes(this.fileInfo.size) }),
-      style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-align: center;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-align: center;' }
     });
 
     // Filename input
@@ -2029,7 +2214,7 @@ class IncomingFileModal extends Modal {
     const nameInput = nameBox.createEl('input', {
       type: 'text',
       value: this.fileInfo.defaultBaseName,
-      style: 'width: 100%; padding: 8px 10px; font-size: 14px;'
+      attr: { style: 'width: 100%; padding: 8px 10px; font-size: 14px;' }
     });
 
     const triggerExecute = (target) => {
@@ -2084,20 +2269,20 @@ class IncomingFileModal extends Modal {
     const { contentEl } = this;
     contentEl.createEl('h3', { text: this.t('destProcessingTitle') });
 
-    const infoBox = contentEl.createDiv({ cls: 'fm-section-box', style: 'margin-bottom: 14px;' });
+    const infoBox = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'margin-bottom: 14px;' } });
     infoBox.createDiv({
       text: `📄 ${this.finalFilename}  (${formatBytes(this.fileInfo.size)})`,
-      style: 'font-weight: 600; margin-bottom: 10px;'
+      attr: { style: 'font-weight: 600; margin-bottom: 10px;' }
     });
 
     const progressWrap = infoBox.createDiv({ cls: 'fm-progress-wrap' });
-    this.progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar', style: 'width: 15%;' });
+    this.progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 15%;' } });
 
     this.statusLabel = infoBox.createDiv({
       text: this.targetLocation === 'remote'
         ? this.t('destProbeChecking')
         : this.t('destSavingLocal'),
-      style: 'font-size: 12px; color: var(--text-accent); margin-top: 8px;'
+      attr: { style: 'font-size: 12px; color: var(--text-accent); margin-top: 8px;' }
     });
   }
 
@@ -2132,6 +2317,10 @@ class IncomingFileModal extends Modal {
           mdLink,
           inserted: !!editor
         };
+        this.plugin?.logOperation?.('INFO', 'SAVE_LOCAL', `Saved attachment to vault: ${createdFile.path}`, {
+          size: this.fileInfo.size,
+          note: sourcePath || null
+        });
       } else {
         // Remote upload with Instant SHA-256 Probe check
         if (this.progressBar) this.progressBar.style.width = '25%';
@@ -2180,12 +2369,22 @@ class IncomingFileModal extends Modal {
           isInstant: !!res.isInstant,
           inserted: !!editor
         };
+        this.plugin?.logOperation?.('INFO', 'UPLOAD_REMOTE', `${res.isInstant ? 'Reused existing remote file' : 'Uploaded attachment to server'}: ${this.finalFilename}`, {
+          remotePath: `${res.year}/${res.month}/${res.filename}`,
+          isInstant: !!res.isInstant,
+          size: this.fileInfo.size,
+          note: sourcePath || null
+        });
       }
     } catch (err) {
       this.result = {
         success: false,
         error: err.message || String(err)
       };
+      this.plugin?.logOperation?.('ERROR', 'SAVE_ATTACHMENT', `Failed to process attachment "${this.finalFilename}": ${this.result.error}`, {
+        target: this.targetLocation,
+        size: this.fileInfo.size
+      });
     }
 
     if (this.callback) {
@@ -2204,7 +2403,7 @@ class IncomingFileModal extends Modal {
       const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
       errBanner.createDiv({
         cls: 'fm-result-banner-title',
-        text: this.t('destProcessingError', { err: this.result.error })
+        text: this.t('destProcessingError', { err: formatFriendlyError(this, this.result.error) })
       });
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const closeBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
@@ -2232,7 +2431,7 @@ class IncomingFileModal extends Modal {
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
         text: `📄 ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
-        style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);'
+        attr: { style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);' }
       });
 
       const addCopyRow = (label, val) => {
@@ -2271,7 +2470,7 @@ class IncomingFileModal extends Modal {
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
         text: `📄 ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
-        style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);'
+        attr: { style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);' }
       });
 
       const addCopyRow = (label, val) => {
@@ -2317,15 +2516,22 @@ class IncomingFileModal extends Modal {
 }
 
 /**
- * Modal to execute active note operations with real-time progress bar & in-window result
+ * Modal to execute active note operations with 2-step preview/options (for migrate & download conflict check),
+ * real-time progress bar & in-window result list
  */
 class ActiveNoteActionModal extends Modal {
-  constructor(app, plugin, targetFile, actionType = 'migrate') {
+  constructor(app, plugin, targetFile, actionType = 'migrate', options = {}) {
     super(app);
     this.plugin = plugin;
     this.targetFile = targetFile;
     this.actionType = actionType; // 'migrate' | 'download'
-    this.step = 'running';
+    this.fromHub = Boolean(options?.fromHub);
+    this.step = 'loading';
+    this.items = [];
+    this.deleteLocalAfter = Boolean(plugin?.settings?.deleteLocalAfterMigrate);
+    this.syncOtherNotes = true;
+    this.conflictStrategy = 'reuse'; // 'reuse' | 'rename' | 'overwrite'
+    this.hadConflictStep = false;
     this.result = null;
   }
 
@@ -2333,9 +2539,54 @@ class ActiveNoteActionModal extends Modal {
     return this.plugin ? this.plugin.t(k, p) : k;
   }
 
+  getUniqueOtherRefNotes(onlySelected = false) {
+    const set = new Set();
+    for (const item of this.items) {
+      if (onlySelected && !item.selected) continue;
+      for (const p of item.otherRefNotes || []) {
+        set.add(p);
+      }
+    }
+    return [...set];
+  }
+
   async onOpen() {
     this.render();
-    await this.execute();
+    if (this.actionType === 'migrate') {
+      try {
+        this.items = await this.plugin.scanActiveNoteLocalAttachments(this.targetFile);
+        this.step = 'preview';
+      } catch (err) {
+        this.result = { success: false, message: err.message || String(err) };
+        this.step = 'result';
+      }
+      this.render();
+    } else {
+      try {
+        this.items = await this.plugin.scanActiveNoteRemoteAttachments(this.targetFile);
+        if (this.items.length === 0) {
+          this.result = { success: true, count: 0, processedItems: [], failures: [] };
+          this.step = 'result';
+          this.render();
+          return;
+        }
+        const hasConflicts = this.items.some((item) => item.hasConflict);
+        const hasOtherRefs = this.items.some((item) => (item.otherRefNotes?.length || 0) > 0);
+        if (hasConflicts || hasOtherRefs) {
+          this.hadConflictStep = true;
+          this.step = 'conflict';
+          this.render();
+        } else {
+          this.step = 'running';
+          this.render();
+          await this.execute(this.items);
+        }
+      } catch (err) {
+        this.result = { success: false, message: err.message || String(err) };
+        this.step = 'result';
+        this.render();
+      }
+    }
   }
 
   render() {
@@ -2344,55 +2595,496 @@ class ActiveNoteActionModal extends Modal {
     contentEl.addClass('fm-wizard-modal');
 
     const titleKey = this.actionType === 'migrate' ? 'activeNoteMigrateTitle' : 'activeNoteDownloadTitle';
-    contentEl.createEl('h3', { text: this.t(titleKey) });
+    if (this.actionType === 'migrate' || this.hadConflictStep || this.step === 'conflict') {
+      const stepNum = (this.step === 'loading' || this.step === 'preview' || this.step === 'conflict') ? 1 : 2;
+      const header = contentEl.createDiv({ cls: 'fm-step-header' });
+      header.createSpan({ text: this.t('stepOf', { current: stepNum, total: 2 }), cls: 'fm-step-badge' });
+      header.createEl('h3', { text: this.t(titleKey), cls: 'fm-step-title' });
+    } else {
+      contentEl.createEl('h3', { text: this.t(titleKey) });
+    }
 
     contentEl.createDiv({
       text: `📄 ${this.targetFile.path}`,
-      style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' }
     });
+
+    if (this.step === 'loading') {
+      const box = contentEl.createDiv({ cls: 'fm-section-box' });
+      box.createDiv({
+        text: this.t('activeNoteScanning'),
+        attr: { style: 'font-size: 13px; color: var(--text-accent);' }
+      });
+      return;
+    }
+
+    if (this.step === 'conflict') {
+      const conflictItems = this.items.filter((i) => i.hasConflict);
+      const otherRefNotesAll = this.getUniqueOtherRefNotes(false);
+
+      if (conflictItems.length > 0) {
+        const warnBanner = contentEl.createDiv({
+          cls: 'fm-result-banner fm-result-banner-error',
+          attr: { style: 'margin-bottom: 12px;' }
+        });
+        warnBanner.createDiv({
+          cls: 'fm-result-banner-title',
+          text: this.t('activeNoteDownConflictTitle', { count: conflictItems.length }),
+          attr: { style: 'margin-bottom: 0;' }
+        });
+      } else if (otherRefNotesAll.length > 0) {
+        const infoBanner = contentEl.createDiv({
+          cls: 'fm-result-banner fm-result-banner-instant',
+          attr: { style: 'margin-bottom: 12px;' }
+        });
+        infoBanner.createDiv({
+          cls: 'fm-result-banner-title',
+          text: this.t('activeNoteDownOtherRefsTitle', { count: otherRefNotesAll.length }),
+          attr: { style: 'margin-bottom: 0;' }
+        });
+      }
+
+      const listEl = contentEl.createDiv({
+        cls: 'fm-scroll-list',
+        attr: { style: 'max-height: 220px;' }
+      });
+
+      let runBtn = null;
+      const updateRunBtnLabel = () => {
+        if (!runBtn) return;
+        const selectedCount = this.items.filter((i) => i.selected).length;
+        runBtn.setText(this.t('activeNoteStartDownload', { count: selectedCount }));
+      };
+
+      for (const item of this.items) {
+        const row = listEl.createDiv({ cls: 'fm-list-item' });
+        const left = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+        });
+        const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
+        cb.checked = item.selected;
+        cb.onchange = () => {
+          item.selected = cb.checked;
+          updateRunBtnLabel();
+        };
+
+        renderItemVisualThumb(left, item, this.plugin);
+
+        const nameCol = left.createDiv({
+          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+        });
+        nameCol.createSpan({
+          text: item.name,
+          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+        });
+        const displayPath = (item.hasConflict && item.existingFile)
+          ? item.existingFile.path
+          : item.idealPath;
+        nameCol.createSpan({
+          text: `${displayPath}${item.size ? ' · ' + formatBytes(item.size) : ''}`,
+          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+        });
+
+        const otherRefs = item.otherRefNotes || [];
+        if (otherRefs.length > 0) {
+          const rightBox = row.createDiv({
+            attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
+          });
+          const refBadge = rightBox.createSpan({
+            text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
+            cls: 'fm-tag fm-tag-ref fm-clickable-badge',
+            attr: { title: this.t('activeNoteInspectOtherRefs') }
+          });
+          refBadge.onclick = (e) => {
+            e.stopPropagation();
+            new NoteRefsModal(this.app, item.name, otherRefs, () => this.close(), this.plugin).open();
+          };
+        }
+      }
+
+      if (otherRefNotesAll.length > 0 || conflictItems.length > 0) {
+        const optionsBox = contentEl.createDiv({
+          cls: 'fm-section-box',
+          attr: { style: 'margin-top: 10px; display: flex; flex-direction: column; gap: 10px;' }
+        });
+
+        if (otherRefNotesAll.length > 0) {
+          const syncLabel = optionsBox.createEl('label', {
+            cls: 'fm-check-row',
+            attr: { style: 'margin: 0; cursor: pointer;' }
+          });
+          const syncCb = syncLabel.createEl('input', { type: 'checkbox' });
+          syncCb.checked = this.syncOtherNotes;
+          syncCb.onchange = () => {
+            this.syncOtherNotes = syncCb.checked;
+          };
+          syncLabel.createSpan({
+            text: this.t('activeNoteSyncOtherDownloadOpt', { count: otherRefNotesAll.length })
+          });
+        }
+
+        if (conflictItems.length > 0) {
+          const strategyWrap = optionsBox.createDiv({
+            attr: {
+              style: otherRefNotesAll.length > 0
+                ? 'border-top: 1px solid var(--background-modifier-border); padding-top: 10px;'
+                : ''
+            }
+          });
+          strategyWrap.createDiv({
+            text: this.t('activeNoteDownStrategyTitle'),
+            cls: 'fm-section-title'
+          });
+
+          const strategies = [
+            { value: 'reuse', label: this.t('activeNoteDownOptReuse') },
+            { value: 'rename', label: this.t('activeNoteDownOptRename') },
+            { value: 'overwrite', label: this.t('activeNoteDownOptOverwrite') }
+          ];
+          for (const st of strategies) {
+            const rowLabel = strategyWrap.createEl('label', {
+              cls: 'fm-check-row',
+              attr: { style: 'cursor:pointer;' }
+            });
+            const radio = rowLabel.createEl('input', {
+              type: 'radio',
+              attr: { name: 'fm-down-conflict-strategy', value: st.value }
+            });
+            radio.checked = this.conflictStrategy === st.value;
+            radio.onchange = () => {
+              if (radio.checked) this.conflictStrategy = st.value;
+            };
+            rowLabel.createSpan({ text: st.label });
+          }
+        }
+      }
+
+      const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
+
+      runBtn = btnRow.createEl('button', {
+        text: this.t('activeNoteStartDownload', { count: this.items.filter((i) => i.selected).length }),
+        cls: 'mod-cta'
+      });
+      runBtn.onclick = async () => {
+        const selected = this.items.filter((i) => i.selected);
+        if (selected.length === 0) {
+          new Notice(this.t('activeNoteSelectRequired'));
+          return;
+        }
+        this.step = 'running';
+        this.render();
+        await this.execute(selected);
+      };
+      return;
+    }
+
+    if (this.step === 'preview') {
+      if (this.items.length === 0) {
+        const emptyBanner = contentEl.createDiv({
+          cls: 'fm-section-box',
+          attr: { style: 'text-align: center; padding: 24px 16px;' }
+        });
+        emptyBanner.createDiv({
+          text: this.t('activeNoteNoLocal'),
+          attr: { style: 'font-size: 14px; color: var(--text-muted);' }
+        });
+        const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+        const closeBtn = btnRow.createEl('button', { text: this.t('closeBtn') });
+        closeBtn.onclick = () => returnToHub(this);
+        return;
+      }
+
+      contentEl.createEl('p', {
+        text: this.t('activeNoteStep1Desc', { count: this.items.length }),
+        cls: 'fm-step-desc'
+      });
+
+      const listEl = contentEl.createDiv({
+        cls: 'fm-scroll-list',
+        attr: { style: 'max-height: 240px;' }
+      });
+
+      let runBtn = null;
+      const updateRunBtnLabel = () => {
+        if (!runBtn) return;
+        const selectedCount = this.items.filter((i) => i.selected).length;
+        runBtn.setText(this.t('activeNoteStartUpload', { count: selectedCount }));
+      };
+
+      for (const item of this.items) {
+        const row = listEl.createDiv({ cls: 'fm-list-item' });
+        const left = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+        });
+        const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
+        cb.checked = item.selected;
+        cb.onchange = () => {
+          item.selected = cb.checked;
+          updateRunBtnLabel();
+        };
+
+        renderItemVisualThumb(left, item, this.plugin);
+
+        const nameCol = left.createDiv({
+          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+        });
+        nameCol.createSpan({
+          text: item.name,
+          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+        });
+        nameCol.createSpan({
+          text: `${item.displayPath} · ${formatBytes(item.size)}`,
+          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+        });
+
+        const rightBox = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
+        });
+        const otherRefs = item.otherRefNotes || [];
+        if (otherRefs.length > 0) {
+          const refBadge = rightBox.createSpan({
+            text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
+            cls: 'fm-tag fm-tag-ref fm-clickable-badge',
+            attr: { title: this.t('activeNoteInspectOtherRefs') }
+          });
+          refBadge.onclick = (e) => {
+            e.stopPropagation();
+            new NoteRefsModal(this.app, item.name, otherRefs, () => this.close(), this.plugin).open();
+          };
+        }
+
+        const lockBtn = rightBox.createEl('button', {
+          type: 'button',
+          cls: 'fm-mini-btn',
+          text: item.locked ? this.t('activeNoteBtnLockOn') : this.t('activeNoteBtnLockOff'),
+          attr: {
+            style: item.locked
+              ? 'border-color: var(--interactive-accent); color: var(--text-accent); font-weight: 600;'
+              : 'color: var(--text-muted);'
+          }
+        });
+        lockBtn.onclick = (e) => {
+          e.stopPropagation();
+          item.locked = !item.locked;
+          lockBtn.setText(item.locked ? this.t('activeNoteBtnLockOn') : this.t('activeNoteBtnLockOff'));
+          lockBtn.style.cssText = item.locked
+            ? 'border-color: var(--interactive-accent); color: var(--text-accent); font-weight: 600;'
+            : 'color: var(--text-muted);';
+        };
+      }
+
+      contentEl.createDiv({
+        cls: 'fm-section-box',
+        text: this.t('activeNoteLockExplain'),
+        attr: { style: 'font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 10px;' }
+      });
+
+      const otherRefNotesAll = this.getUniqueOtherRefNotes(false);
+      const optBox = contentEl.createDiv({
+        cls: 'fm-section-box',
+        attr: { style: 'margin-top: 8px; display: flex; flex-direction: column; gap: 10px;' }
+      });
+
+      if (otherRefNotesAll.length > 0) {
+        const syncLabel = optBox.createEl('label', {
+          cls: 'fm-check-row',
+          attr: { style: 'margin: 0; cursor: pointer;' }
+        });
+        const syncCb = syncLabel.createEl('input', { type: 'checkbox' });
+        syncCb.checked = this.syncOtherNotes;
+        syncCb.onchange = () => {
+          this.syncOtherNotes = syncCb.checked;
+        };
+        syncLabel.createSpan({
+          text: this.t('activeNoteSyncOtherUploadOpt', { count: otherRefNotesAll.length })
+        });
+      }
+
+      const delWrap = optBox.createDiv({
+        attr: {
+          style: otherRefNotesAll.length > 0
+            ? 'border-top: 1px solid var(--background-modifier-border); padding-top: 10px;'
+            : ''
+        }
+      });
+      const delLabel = delWrap.createEl('label', {
+        cls: 'fm-check-row',
+        attr: { style: 'margin: 0; cursor: pointer;' }
+      });
+      const delCb = delLabel.createEl('input', { type: 'checkbox' });
+      delCb.checked = this.deleteLocalAfter;
+      delCb.onchange = () => {
+        this.deleteLocalAfter = delCb.checked;
+      };
+      delLabel.createSpan({ text: this.t('activeNoteDeleteLocalOpt') });
+
+      const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
+
+      runBtn = btnRow.createEl('button', {
+        text: this.t('activeNoteStartUpload', { count: this.items.filter((i) => i.selected).length }),
+        cls: 'mod-cta'
+      });
+      runBtn.onclick = async () => {
+        const selected = this.items.filter((i) => i.selected);
+        if (selected.length === 0) {
+          new Notice(this.t('activeNoteSelectRequired'));
+          return;
+        }
+        this.step = 'running';
+        this.render();
+        await this.execute(selected);
+      };
+      return;
+    }
 
     if (this.step === 'running') {
       const box = contentEl.createDiv({ cls: 'fm-section-box' });
       this.statusText = box.createDiv({
         text: this.t('activeNoteScanning'),
-        style: 'font-size: 13px; color: var(--text-accent); margin-bottom: 8px;'
+        attr: { style: 'font-size: 13px; color: var(--text-accent); margin-bottom: 8px;' }
       });
       const wrap = box.createDiv({ cls: 'fm-progress-wrap' });
-      this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', style: 'width: 10%;' });
+      this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 10%;' } });
     } else if (this.step === 'result') {
+      const failures = this.result?.failures || [];
+      const processedItems = this.result?.processedItems || [];
       if (!this.result.success) {
         const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
         errBanner.createDiv({ cls: 'fm-result-banner-title', text: '❌ ' + this.result.message });
-      } else if (this.result.count === 0) {
-        const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', style: 'text-align: center; padding: 24px 16px;' });
-        emptyBanner.createDiv({
-          text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
-          style: 'font-size: 14px; color: var(--text-muted);'
-        });
       } else {
-        const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
-        banner.createDiv({
-          cls: 'fm-result-banner-title',
-          text: this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
-        });
-        banner.createDiv({
-          cls: 'fm-result-banner-desc',
-          text: this.actionType === 'migrate'
-            ? this.t('activeNoteMigrateDoneDesc', { count: this.result.count })
-            : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
-        });
+        if (this.result.count > 0) {
+          const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
+          banner.createDiv({
+            cls: 'fm-result-banner-title',
+            text: this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
+          });
+          banner.createDiv({
+            cls: 'fm-result-banner-desc',
+            text: this.actionType === 'migrate'
+              ? this.t('activeNoteMigrateDoneDesc', { count: this.result.count })
+              : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
+          });
+
+          if (processedItems.length > 0) {
+            const listBox = contentEl.createDiv({
+              cls: 'fm-section-box',
+              attr: { style: 'margin-top: 10px;' }
+            });
+            listBox.createDiv({
+              text: this.t('activeNoteResultListTitle', { count: processedItems.length }),
+              cls: 'fm-section-title'
+            });
+            const listEl = listBox.createDiv({
+              cls: 'fm-scroll-list',
+              attr: { style: 'max-height: 220px; margin-bottom: 0;' }
+            });
+            for (const pItem of processedItems) {
+              const row = listEl.createDiv({ cls: 'fm-list-item' });
+              const left = row.createDiv({
+                attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+              });
+              renderItemVisualThumb(left, pItem, this.plugin);
+              const nameCol = left.createDiv({
+                attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+              });
+              nameCol.createSpan({
+                text: pItem.name,
+                attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+              });
+              nameCol.createSpan({
+                text: `${pItem.displayPath}${pItem.size ? ' · ' + formatBytes(pItem.size) : ''}`,
+                attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+              });
+
+              const rightBox = row.createDiv({
+                attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;' }
+              });
+              if (pItem.syncedOtherNotes > 0) {
+                const syncedPaths = Array.isArray(pItem.syncedOtherNotePaths) ? pItem.syncedOtherNotePaths : [];
+                const syncedBadge = rightBox.createSpan({
+                  text: this.t('activeNoteBadgeSyncedNotes', { count: pItem.syncedOtherNotes }),
+                  cls: syncedPaths.length > 0 ? 'fm-tag fm-tag-ref fm-clickable-badge' : 'fm-tag fm-tag-ref',
+                  attr: syncedPaths.length > 0 ? { title: this.t('activeNoteInspectOtherRefs') } : {}
+                });
+                if (syncedPaths.length > 0) {
+                  syncedBadge.onclick = (e) => {
+                    e.stopPropagation();
+                    new NoteRefsModal(this.app, pItem.name, syncedPaths, () => this.close(), this.plugin).open();
+                  };
+                }
+              }
+              if (pItem.trashedLocal) {
+                rightBox.createSpan({ text: this.t('activeNoteBadgeTrashedLocal'), cls: 'fm-tag fm-tag-info' });
+              } else if (pItem.keptForOtherRefs > 0) {
+                const keptPaths = Array.isArray(pItem.keptForOtherRefPaths) ? pItem.keptForOtherRefPaths : [];
+                const keptBadge = rightBox.createSpan({
+                  text: this.t('activeNoteBadgeKeptForOtherRefs', { count: pItem.keptForOtherRefs }),
+                  cls: keptPaths.length > 0 ? 'fm-tag fm-tag-warning fm-clickable-badge' : 'fm-tag fm-tag-warning',
+                  attr: keptPaths.length > 0 ? { title: this.t('activeNoteInspectOtherRefs') } : {}
+                });
+                if (keptPaths.length > 0) {
+                  keptBadge.onclick = (e) => {
+                    e.stopPropagation();
+                    new NoteRefsModal(this.app, pItem.name, keptPaths, () => this.close(), this.plugin).open();
+                  };
+                }
+              }
+              if (pItem.locked) {
+                rightBox.createSpan({ text: this.t('activeNoteBtnLockOn'), cls: 'fm-tag fm-tag-info' });
+              }
+              let badgeKey = 'activeNoteBadgeDownloaded';
+              if (pItem.action === 'reused') badgeKey = 'activeNoteBadgeReused';
+              else if (pItem.action === 'overwritten') badgeKey = 'activeNoteBadgeOverwritten';
+              else if (pItem.action === 'uploaded') badgeKey = 'activeNoteBadgeUploaded';
+              rightBox.createSpan({
+                text: this.t(badgeKey),
+                cls: 'fm-tag fm-tag-info'
+              });
+            }
+          }
+        } else if (failures.length === 0) {
+          const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align: center; padding: 24px 16px;' } });
+          emptyBanner.createDiv({
+            text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
+            attr: { style: 'font-size: 14px; color: var(--text-muted);' }
+          });
+        }
+
+        if (failures.length > 0) {
+          const failBanner = contentEl.createDiv({
+            cls: 'fm-result-banner fm-result-banner-error',
+            attr: { style: 'margin-top: 10px;' }
+          });
+          const failTitleKey = this.actionType === 'migrate' ? 'activeNoteFailedTitle' : 'activeNoteDownFailedTitle';
+          failBanner.createDiv({
+            cls: 'fm-result-banner-title',
+            text: this.t(failTitleKey, { failed: failures.length })
+          });
+          for (const f of failures) {
+            const reason = formatFriendlyError(this, f.error);
+            failBanner.createDiv({
+              cls: 'fm-result-banner-desc',
+              text: `• ${f.name} (${formatBytes(f.size || 0)}): ${reason}`,
+              attr: { style: 'margin-top: 4px;' }
+            });
+          }
+        }
       }
 
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
-      doneBtn.onclick = () => this.close();
+      doneBtn.onclick = () => returnToHub(this);
     }
   }
 
-  async execute() {
+  async execute(selectedItems = null) {
     try {
       if (this.actionType === 'migrate') {
-        const count = await this.plugin.executeMigrateNoteDirect(
+        const res = await this.plugin.executeMigrateNoteDirect(
           this.targetFile,
           (cur, total, name) => {
             if (this.progressBar) {
@@ -2402,11 +3094,20 @@ class ActiveNoteActionModal extends Modal {
             if (this.statusText) {
               this.statusText.setText(this.t('activeNoteProcessing', { current: cur, total, name }));
             }
+          },
+          {
+            items: selectedItems || this.items.filter((i) => i.selected),
+            deleteLocalAfter: this.deleteLocalAfter,
+            syncOtherNotes: this.syncOtherNotes,
+            returnDetails: true
           }
         );
-        this.result = { success: true, count };
+        const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
+        const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
+        const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
+        this.result = { success: true, count, processedItems, failures };
       } else {
-        const count = await this.plugin.executeDownloadNoteDirect(
+        const res = await this.plugin.executeDownloadNoteDirect(
           this.targetFile,
           (cur, total, name) => {
             if (this.progressBar) {
@@ -2416,9 +3117,18 @@ class ActiveNoteActionModal extends Modal {
             if (this.statusText) {
               this.statusText.setText(this.t('activeNoteProcessing', { current: cur, total, name }));
             }
+          },
+          {
+            items: selectedItems || this.items.filter((i) => i.selected),
+            conflictStrategy: this.conflictStrategy,
+            syncOtherNotes: this.syncOtherNotes,
+            returnDetails: true
           }
         );
-        this.result = { success: true, count };
+        const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
+        const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
+        const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
+        this.result = { success: true, count, processedItems, failures };
       }
     } catch (err) {
       this.result = { success: false, message: err.message };
@@ -2479,7 +3189,7 @@ class OrphanWizardModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('orphanStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     if (this.plugin?.isRemoteServerReady?.()) {
@@ -2499,7 +3209,7 @@ class OrphanWizardModal extends Modal {
     const exclFolders = this.plugin.getExcludedLocalFolderList();
     const protInfo = contentEl.createDiv({
       cls: 'fm-section-box',
-      style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
     });
     const exclHint = exclFolders.length ? t('orphanExclHint', { folders: exclFolders.join(', ') }) : '';
     protInfo.createDiv({
@@ -2511,7 +3221,7 @@ class OrphanWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -2572,7 +3282,7 @@ class OrphanWizardModal extends Modal {
     }
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
       this.step = 1;
@@ -2598,8 +3308,11 @@ class OrphanWizardModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('orphanNoneFound'),
-        style: 'text-align: center; padding: 36px 20px;'
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
       });
+      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
       return;
     }
 
@@ -2607,10 +3320,10 @@ class OrphanWizardModal extends Modal {
     for (const item of this.results) {
       const row = listEl.createDiv({ cls: 'fm-list-item' });
       const left = row.createDiv({
-        style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;'
+        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
       });
 
-      const cb = left.createEl('input', { type: 'checkbox', style: 'cursor:pointer;' });
+      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
       cb.checked = item.selected;
       cb.onchange = () => {
         item.selected = cb.checked;
@@ -2618,23 +3331,23 @@ class OrphanWizardModal extends Modal {
 
       renderItemVisualThumb(left, item, this.plugin);
 
-      const infoCol = left.createDiv({ style: 'overflow:hidden; flex:1;' });
-      const topLine = infoCol.createDiv({ style: 'display:flex; align-items:center; gap:6px;' });
+      const infoCol = left.createDiv({ attr: { style: 'overflow:hidden; flex:1;' } });
+      const topLine = infoCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
       topLine.createSpan({
         text: item.source === 'local' ? '💻 Local' : '☁️ Remote',
         cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
       });
       topLine.createSpan({
         text: item.displayPath,
-        style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;'
+        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
       });
 
       const rightBox = row.createDiv({
-        style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;'
+        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
       });
       rightBox.createSpan({
         text: formatBytes(item.size),
-        style: 'color: var(--text-muted); font-size: 12px;'
+        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
       });
 
       if (item.source === 'remote') {
@@ -2657,6 +3370,8 @@ class OrphanWizardModal extends Modal {
     }
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
     const cleanBtn = btnRow.createEl('button', {
       text: t('orphanDeleteSelected', { count: this.results.filter((r) => r.selected).length }),
       cls: 'mod-warning'
@@ -2732,7 +3447,7 @@ class DuplicateWizardModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('dupStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
@@ -2743,7 +3458,7 @@ class DuplicateWizardModal extends Modal {
       const scopes = [
         { key: 'both', label: t('dupCompareCross') },
         { key: 'local', label: t('dupCompareLocal') },
-        { key: 'remote', label: '☁️ Remote Server Only' }
+        { key: 'remote', label: t('dupCompareRemote') }
       ];
 
       for (const s of scopes) {
@@ -2767,10 +3482,10 @@ class DuplicateWizardModal extends Modal {
     const exclFolders = this.plugin.getExcludedLocalFolderList();
     const protBox = contentEl.createDiv({
       cls: 'fm-section-box',
-      style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
     });
     protBox.createDiv({
-      text: `🛡️ Protection Rules: Local excluded folders (${exclFolders.join(', ') || 'none'}) are skipped. Remote files with "🔒 Protected Lock" are prioritized as keep targets and never deleted.`
+      text: t('dupProtRuleHint', { folders: exclFolders.join(', ') || '-' })
     });
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
@@ -2778,7 +3493,7 @@ class DuplicateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -2860,7 +3575,7 @@ class DuplicateWizardModal extends Modal {
     });
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' } });
 
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
@@ -2868,12 +3583,12 @@ class DuplicateWizardModal extends Modal {
       this.render();
     };
 
-    leftTools.createSpan({ text: 'Strategy:', style: 'font-size:13px; font-weight:600; margin-left:4px;' });
-    const modeSelect = leftTools.createEl('select', { style: 'padding: 5px 8px; border-radius: 6px;' });
+    leftTools.createSpan({ text: t('dupStrategyLabel'), attr: { style: 'font-size:13px; font-weight:600; margin-left:4px;' } });
+    const modeSelect = leftTools.createEl('select', { attr: { style: 'padding: 5px 8px; border-radius: 6px;' } });
     const modeOptions = [
-      { value: 'auto', label: '1. Auto-select item to keep (Recommended)' },
-      { value: 'prefer-remote', label: '2. Replace local files with remote copies (Vault Slimming)' },
-      { value: 'prefer-local', label: '3. Keep local files and remove remote duplicates' }
+      { value: 'auto', label: t('dupStrategyAuto') },
+      { value: 'prefer-remote', label: t('dupStrategyPreferRemote') },
+      { value: 'prefer-local', label: t('dupStrategyPreferLocal') }
     ];
     for (const opt of modeOptions) {
       const o = modeSelect.createEl('option', { value: opt.value, text: opt.label });
@@ -2894,8 +3609,8 @@ class DuplicateWizardModal extends Modal {
     if (this.scanStats?.remoteError) {
       contentEl.createDiv({
         cls: 'fm-section-box',
-        text: `⚠️ Remote server could not be reached (${this.scanStats.remoteError}). Showing local vault comparison results only.`,
-        style: 'font-size: 12px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); padding: 10px 14px;'
+        text: t('noticeRemoteUnreachable', { err: this.scanStats.remoteError }),
+        attr: { style: 'font-size: 12px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); padding: 10px 14px;' }
       });
     }
 
@@ -2903,11 +3618,11 @@ class DuplicateWizardModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('dupNoneFound'),
-        style: 'text-align: center; padding: 36px 20px;'
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
       });
       const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const closeBtn = emptyBtnRow.createEl('button', { text: t('closeBtn'), cls: 'mod-cta' });
-      closeBtn.onclick = () => this.close();
+      closeBtn.onclick = () => returnToHub(this);
       return;
     }
 
@@ -2916,21 +3631,20 @@ class DuplicateWizardModal extends Modal {
       const grpBox = listEl.createDiv({ cls: 'fm-dup-group' });
       const grpHead = grpBox.createDiv({ cls: 'fm-dup-group-header' });
       grpHead.createSpan({
-        text: `Duplicate Group #${idx + 1} (SHA-256: ${grp.sha256.slice(0, 12)}... | Size: ${formatBytes(grp.size)})`
+        text: t('dupGroupHeader', { idx: idx + 1, hash: grp.sha256.slice(0, 12), size: formatBytes(grp.size) })
       });
-      grpHead.createSpan({ text: 'Click thumbnail to inspect; click reference count to view notes' });
+      grpHead.createSpan({ text: t('dupGroupSubhint') });
 
       for (const item of grp.items) {
         const isKeep = grp.keepId === item.id;
         const row = grpBox.createDiv({ cls: 'fm-list-item' });
         const left = row.createDiv({
-          style: 'display:flex; align-items:center; gap:8px; flex:1; overflow:hidden;'
+          attr: { style: 'display:flex; align-items:center; gap:8px; flex:1; overflow:hidden;' }
         });
 
         const radio = left.createEl('input', {
           type: 'radio',
-          attr: { name: `dup_grp_${idx}` },
-          style: 'cursor:pointer;'
+          attr: { name: `dup_grp_${idx}`, style: 'cursor:pointer;' }
         });
         radio.checked = isKeep;
         radio.onchange = () => {
@@ -2941,12 +3655,12 @@ class DuplicateWizardModal extends Modal {
         renderItemVisualThumb(left, item, this.plugin);
 
         left.createSpan({
-          text: isKeep ? '✅ Keep' : item.locked ? '🔒 Protected' : '🗑️ Remove',
-          style: `font-size:12px; font-weight:700; color:${isKeep ? '#10b981' : item.locked ? '#f59e0b' : '#ef4444'}; width:68px; flex-shrink:0;`
+          text: isKeep ? t('dupTagKeep') : item.locked ? t('dupTagProtected') : t('dupTagRemove'),
+          attr: { style: `font-size:12px; font-weight:700; color:${isKeep ? '#10b981' : item.locked ? '#f59e0b' : '#ef4444'}; width:68px; flex-shrink:0;` }
         });
 
         left.createSpan({
-          text: item.source === 'local' ? '💻 Local' : '☁️ Remote',
+          text: item.source === 'local' ? t('analyticsBadgeLocal') : t('analyticsBadgeRemote'),
           cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
         });
 
@@ -2959,15 +3673,14 @@ class DuplicateWizardModal extends Modal {
 
         left.createSpan({
           text: item.displayPath,
-          style: 'word-break:break-all; cursor:pointer;',
-          attr: { title: t('dupDesignateKeepTitle') }
+          attr: { title: t('dupDesignateKeepTitle'), attr: { style: 'word-break:break-all; cursor:pointer;' } }
         }).onclick = () => {
           grp.keepId = item.id;
           this.render();
         };
 
         const rightBox = row.createDiv({
-          style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;'
+          attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
         });
 
         const refBadge = rightBox.createSpan({
@@ -2983,6 +3696,8 @@ class DuplicateWizardModal extends Modal {
     });
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
     const execBtn = btnRow.createEl('button', {
       text: t('dupMergeRewrite', { count: totalDupes }),
       cls: 'mod-cta'
@@ -3014,7 +3729,7 @@ class DuplicateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
-    doneBtn.onclick = () => this.close();
+    doneBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
@@ -3071,12 +3786,12 @@ class BatchMigrateWizardModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('migrateStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     const folderBox = contentEl.createDiv({ cls: 'fm-section-box' });
     folderBox.createDiv({ text: t('migrateFolderScope'), cls: 'fm-section-title' });
-    const folderSelect = folderBox.createEl('select', { style: 'width:100%; padding:8px 10px; border-radius:6px;' });
+    const folderSelect = folderBox.createEl('select', { attr: { style: 'width:100%; padding:8px 10px; border-radius:6px;' } });
     folderSelect.createEl('option', {
       value: '',
       text: t('migrateEntireVault')
@@ -3110,7 +3825,7 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const nextBtn = btnRow.createEl('button', { text: t('migrateNextPreview'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -3157,7 +3872,7 @@ class BatchMigrateWizardModal extends Modal {
     });
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
       this.step = 1;
@@ -3181,8 +3896,11 @@ class BatchMigrateWizardModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('migrateNoneFound'),
-        style: 'text-align: center; padding: 36px 20px;'
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
       });
+      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
       return;
     }
 
@@ -3190,9 +3908,9 @@ class BatchMigrateWizardModal extends Modal {
     for (const item of this.items) {
       const row = listEl.createDiv({ cls: 'fm-list-item' });
       const left = row.createDiv({
-        style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;'
+        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
       });
-      const cb = left.createEl('input', { type: 'checkbox', style: 'cursor:pointer;' });
+      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
       cb.checked = item.selected;
       cb.onchange = () => {
         item.selected = cb.checked;
@@ -3202,15 +3920,15 @@ class BatchMigrateWizardModal extends Modal {
 
       left.createSpan({
         text: item.displayPath,
-        style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;'
+        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
       });
 
       const rightBox = row.createDiv({
-        style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;'
+        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
       });
       rightBox.createSpan({
         text: formatBytes(item.size),
-        style: 'color: var(--text-muted); font-size: 12px;'
+        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
       });
 
       const refBadge = rightBox.createSpan({
@@ -3224,12 +3942,14 @@ class BatchMigrateWizardModal extends Modal {
       };
     }
 
-    const progressBox = contentEl.createDiv({ style: 'display:none; margin-bottom:10px;' });
-    const progressText = progressBox.createDiv({ style: 'font-size:12px; color:var(--text-accent);' });
+    const progressBox = contentEl.createDiv({ attr: { style: 'display:none; margin-bottom:10px;' } });
+    const progressText = progressBox.createDiv({ attr: { style: 'font-size:12px; color:var(--text-accent);' } });
     const progressWrap = progressBox.createDiv({ cls: 'fm-progress-wrap' });
     const progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar' });
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
     const runBtn = btnRow.createEl('button', {
       text: t('migrateStart', { count: this.items.filter((i) => i.selected).length }),
       cls: 'mod-cta'
@@ -3278,7 +3998,7 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
-    doneBtn.onclick = () => this.close();
+    doneBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
@@ -3331,7 +4051,7 @@ class HealthCheckModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('healthStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     const box = contentEl.createDiv({ cls: 'fm-section-box' });
@@ -3339,27 +4059,20 @@ class HealthCheckModal extends Modal {
 
     this.createCheckbox(box, t('healthCheckWiki'), 'checkWikiLinks');
     this.createCheckbox(box, t('healthCheckLocal'), 'checkLocalMarkdown');
-    if (this.plugin?.isRemoteServerReady?.()) {
-      this.createCheckbox(box, t('healthCheckRemote'), 'checkRemote');
-    }
-
-    const noticeBox = contentEl.createDiv({
-      cls: 'fm-section-box',
-      style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;'
-    });
-    noticeBox.createDiv({
-      text: t('healthScopeHint')
-    });
+    this.createCheckbox(box, t('healthCheckRemote'), 'checkRemote');
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const startBtn = btnRow.createEl('button', { text: t('healthStartScan'), cls: 'mod-cta' });
     startBtn.onclick = async () => {
+      if (!this.options.checkWikiLinks && !this.options.checkLocalMarkdown && !this.options.checkRemote) {
+        return;
+      }
       startBtn.disabled = true;
       startBtn.setText(t('healthScanning'));
       progressWidget.show();
@@ -3417,7 +4130,7 @@ class HealthCheckModal extends Modal {
     addStat(remoteIssues.length, t('healthStatRemote'), remoteIssues.length > 0 ? '#3b82f6' : undefined);
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('healthRescan') });
     backBtn.onclick = () => {
       this.step = 1;
@@ -3436,18 +4149,18 @@ class HealthCheckModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('healthNoneFound'),
-        style: 'text-align: center; padding: 36px 20px; font-weight: 500;'
+        attr: { style: 'text-align: center; padding: 36px 20px; font-weight: 500;' }
       });
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });
-      closeBtn.onclick = () => this.close();
+      closeBtn.onclick = () => returnToHub(this);
       return;
     }
 
     const filterRow = contentEl.createDiv({
-      style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;'
+      attr: { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;' }
     });
-    const chipBox = filterRow.createDiv({ style: 'display:flex; gap:6px;' });
+    const chipBox = filterRow.createDiv({ attr: { style: 'display:flex; gap:6px;' } });
     const createChip = (id, label, count) => {
       const chip = chipBox.createEl('button', {
         text: `${label} (${count})`,
@@ -3468,19 +4181,19 @@ class HealthCheckModal extends Modal {
       type: 'search',
       placeholder: t('healthSearchPlaceholder'),
       value: this.searchQuery,
-      style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;'
+      attr: { style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;' }
     });
     searchInput.oninput = (e) => {
       this.searchQuery = e.target.value.toLowerCase();
       this.renderIssueList(listEl);
     };
 
-    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list', style: 'max-height: 380px;' });
+    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list', attr: { style: 'max-height: 380px;' } });
     this.renderIssueList(listEl);
 
     const bottomRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const closeBtn = bottomRow.createEl('button', { text: t('closeBtn') });
-    closeBtn.onclick = () => this.close();
+    closeBtn.onclick = () => returnToHub(this);
   }
 
   renderIssueList(listEl) {
@@ -3504,7 +4217,7 @@ class HealthCheckModal extends Modal {
       listEl.createDiv({
         cls: 'fm-section-box',
         text: t('healthNoMatches'),
-        style: 'text-align: center; padding: 24px;'
+        attr: { style: 'text-align: center; padding: 24px;' }
       });
       return;
     }
@@ -3512,10 +4225,10 @@ class HealthCheckModal extends Modal {
     for (const item of filtered) {
       const row = listEl.createDiv({ cls: 'fm-list-item' });
       const leftCol = row.createDiv({
-        style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;'
+        attr: { style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;' }
       });
 
-      const topMeta = leftCol.createDiv({ style: 'display:flex; align-items:center; gap:6px;' });
+      const topMeta = leftCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
       let tagCls = 'fm-tag-error';
       let tagLabel = '🔴 Broken Link';
       if (item.category === 'wikilink') {
@@ -3530,14 +4243,14 @@ class HealthCheckModal extends Modal {
       }
 
       topMeta.createSpan({ text: tagLabel, cls: `fm-tag ${tagCls}` });
-      topMeta.createEl('code', { text: item.target, style: 'font-size: 12px; font-weight: 600;' });
+      topMeta.createEl('code', { text: item.target, attr: { style: 'font-size: 12px; font-weight: 600;' } });
       topMeta.createSpan({
         text: t('healthLine', { line: item.line }),
-        style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;'
+        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;' }
       });
 
       const noteRef = leftCol.createDiv({
-        style: 'font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;'
+        attr: { style: 'font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;' }
       });
       noteRef.createSpan({ text: t('healthInNote', { path: item.sourcePath }) });
 
@@ -3550,7 +4263,7 @@ class HealthCheckModal extends Modal {
 
       const openBtn = row.createEl('button', {
         text: t('healthJumpToLine'),
-        style: 'flex-shrink:0; align-self:center;'
+        attr: { style: 'flex-shrink:0; align-self:center;' }
       });
       openBtn.onclick = async () => {
         await this.plugin.openNoteAtLine(item.sourcePath, item.line);
@@ -3587,7 +4300,7 @@ class VaultAnalyticsModal extends Modal {
     const loadingEl = contentEl.createDiv({
       cls: 'fm-section-box',
       text: t('analyticsLoading'),
-      style: 'text-align: center; padding: 32px 20px;'
+      attr: { style: 'text-align: center; padding: 32px 20px;' }
     });
 
     try {
@@ -3595,7 +4308,7 @@ class VaultAnalyticsModal extends Modal {
       loadingEl.remove();
       this.renderDashboard(contentEl);
     } catch (err) {
-      loadingEl.setText('❌ Failed to compute vault analytics: ' + err.message);
+      loadingEl.setText(t('analyticsFail', { err: err.message }));
     }
   }
 
@@ -3628,16 +4341,16 @@ class VaultAnalyticsModal extends Modal {
     const remotePct = 100 - localPct;
 
     const summaryRow = storageBox.createDiv({
-      style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;'
+      attr: { style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;' }
     });
 
     const localCard = summaryRow.createDiv({
-      style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);'
+      attr: { style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);' }
     });
-    localCard.createDiv({ text: t('analyticsLocalVault'), style: 'font-weight: 600; font-size: 13px;' });
+    localCard.createDiv({ text: t('analyticsLocalVault'), attr: { style: 'font-weight: 600; font-size: 13px;' } });
     localCard.createDiv({
       text: `${s.local.totalCount} · ${formatBytes(s.local.totalBytes)} (${localPct}%)`,
-      style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent);'
+      attr: { style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent);' }
     });
     localCard.createDiv({
       text: t('analyticsLocalStats', {
@@ -3648,39 +4361,39 @@ class VaultAnalyticsModal extends Modal {
         oth: s.local.otherCount,
         othBytes: formatBytes(s.local.otherBytes)
       }),
-      style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;'
+      attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
     });
 
     const remoteCard = summaryRow.createDiv({
-      style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);'
+      attr: { style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);' }
     });
-    remoteCard.createDiv({ text: t('analyticsRemoteServer'), style: 'font-weight: 600; font-size: 13px;' });
+    remoteCard.createDiv({ text: t('analyticsRemoteServer'), attr: { style: 'font-weight: 600; font-size: 13px;' } });
     remoteCard.createDiv({
       text: `${s.remote.totalCount} · ${formatBytes(s.remote.rawBytes)} (${remotePct}%)`,
-      style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981;'
+      attr: { style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981;' }
     });
     remoteCard.createDiv({
       text: t('analyticsRemoteStats', {
         cache: formatBytes(s.remote.cacheBytes),
         locked: s.remote.lockedCount
       }),
-      style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;'
+      attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
     });
 
     if (s.topLargestAttachments.length > 0) {
       const topBox = contentEl.createDiv({ cls: 'fm-section-box' });
       topBox.createDiv({ text: t('analyticsTopLargest'), cls: 'fm-section-title' });
-      const listEl = topBox.createDiv({ cls: 'fm-scroll-list', style: 'max-height: 210px;' });
+      const listEl = topBox.createDiv({ cls: 'fm-scroll-list', attr: { style: 'max-height: 210px;' } });
       for (const item of s.topLargestAttachments) {
         const row = listEl.createDiv({ cls: 'fm-list-item' });
         const badge = item.source === 'local' ? t('analyticsBadgeLocal') : t('analyticsBadgeRemote');
         row.createSpan({
           text: `${badge} · ${item.path}`,
-          style: 'font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+          attr: { style: 'font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' }
         });
         row.createSpan({
           text: formatBytes(item.size),
-          style: 'font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;'
+          attr: { style: 'font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;' }
         });
       }
     }
@@ -3695,7 +4408,7 @@ class VaultAnalyticsModal extends Modal {
     };
 
     const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });
-    closeBtn.onclick = () => this.close();
+    closeBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
@@ -3756,15 +4469,15 @@ class RemoteGalleryModal extends Modal {
     header.createEl('h3', { text: this.t('galleryTitle'), cls: 'fm-step-title' });
 
     if (this.loading) {
-      const box = contentEl.createDiv({ cls: 'fm-section-box', style: 'text-align:center; padding:40px 16px;' });
-      box.createDiv({ text: this.t('galleryLoading'), style: 'font-size:14px; color:var(--text-accent);' });
+      const box = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align:center; padding:40px 16px;' } });
+      box.createDiv({ text: this.t('galleryLoading'), attr: { style: 'font-size:14px; color:var(--text-accent);' } });
       return;
     }
 
     if (this.error) {
       const box = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
       box.createDiv({ cls: 'fm-result-banner-title', text: this.t('galleryLoadFail', { err: this.error }) });
-      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', style: 'margin-top:8px;' });
+      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', attr: { style: 'margin-top:8px;' } });
       retryBtn.onclick = () => this.loadData();
       return;
     }
@@ -3876,7 +4589,7 @@ class RemoteGalleryModal extends Modal {
       containerEl.createDiv({
         cls: 'fm-section-box',
         text: this.t('galleryEmpty'),
-        style: 'grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--text-muted);'
+        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--text-muted);' }
       });
       return;
     }
@@ -3899,12 +4612,12 @@ class RemoteGalleryModal extends Modal {
         });
         img.onerror = () => {
           img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', style: 'font-size:32px;' });
+          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:32px;' } });
         };
       } else {
         thumbWrap.createDiv({
           text: ext.toUpperCase(),
-          style: 'font-size: 16px; font-weight: 700; color: var(--text-muted);'
+          attr: { style: 'font-size: 16px; font-weight: 700; color: var(--text-muted);' }
         });
       }
 
@@ -4042,15 +4755,15 @@ class RemoteGalleryView extends ItemView {
     contentEl.empty();
 
     if (this.loading) {
-      const box = contentEl.createDiv({ cls: 'fm-section-box', style: 'text-align:center; padding:30px 12px;' });
-      box.createDiv({ text: this.t('galleryLoading'), style: 'font-size:12px; color:var(--text-accent);' });
+      const box = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align:center; padding:30px 12px;' } });
+      box.createDiv({ text: this.t('galleryLoading'), attr: { style: 'font-size:12px; color:var(--text-accent);' } });
       return;
     }
 
     if (this.error) {
-      const box = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error', style: 'margin:8px 0;' });
-      box.createDiv({ cls: 'fm-result-banner-title', text: this.t('galleryLoadFail', { err: this.error }), style: 'font-size:12px;' });
-      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', style: 'margin-top:6px;' });
+      const box = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error', attr: { style: 'margin:8px 0;' } });
+      box.createDiv({ cls: 'fm-result-banner-title', text: this.t('galleryLoadFail', { err: this.error }), attr: { style: 'font-size:12px;' } });
+      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', attr: { style: 'margin-top:6px;' } });
       retryBtn.onclick = () => this.loadData();
       return;
     }
@@ -4196,7 +4909,7 @@ class RemoteGalleryView extends ItemView {
       containerEl.createDiv({
         cls: 'fm-section-box',
         text: this.t('galleryEmpty'),
-        style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;'
+        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;' }
       });
       return;
     }
@@ -4219,12 +4932,12 @@ class RemoteGalleryView extends ItemView {
         });
         img.onerror = () => {
           img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', style: 'font-size:24px;' });
+          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
         };
       } else {
         thumbWrap.createDiv({
           text: ext.toUpperCase(),
-          style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);'
+          attr: { style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);' }
         });
       }
 
@@ -4334,39 +5047,31 @@ class FileMasterHubModal extends Modal {
     const heading = header.createDiv();
     heading.createEl('h3', { text: t('hubTitle'), cls: 'fm-step-title' });
     heading.createEl('p', { text: t('hubSubtitle') });
-    const currentEff = this.plugin.getEffectiveLanguage();
-    const langBtn = header.createEl('button', {
-      text: currentEff === 'en' ? '简体中文' : 'English',
-      cls: 'fm-hub-language',
-      attr: { title: t('langName') }
-    });
-    langBtn.onclick = async () => {
-      this.plugin.settings.language = currentEff === 'en' ? 'zh' : 'en';
-      await this.plugin.saveSettings();
-      this.plugin.onLanguageChange();
-      this.onOpen();
-    };
 
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
+    const openFromHub = (modal) => {
+      modal.fromHub = true;
+      this.plugin.openModalSafely(modal);
+    };
 
     const govActions = [
       {
         icon: 'link',
         title: t('actHealthTitle'),
         desc: t('actHealthDesc'),
-        run: () => this.plugin.openModalSafely(new HealthCheckModal(this.app, this.plugin))
+        run: () => openFromHub(new HealthCheckModal(this.app, this.plugin))
       },
       {
         icon: 'files',
         title: t('actDupTitle'),
         desc: t('actDupDesc'),
-        run: () => this.plugin.openModalSafely(new DuplicateWizardModal(this.app, this.plugin))
+        run: () => openFromHub(new DuplicateWizardModal(this.app, this.plugin))
       },
       {
         icon: 'search',
         title: t('actOrphanTitle'),
         desc: t('actOrphanDesc'),
-        run: () => this.plugin.openModalSafely(new OrphanWizardModal(this.app, this.plugin))
+        run: () => openFromHub(new OrphanWizardModal(this.app, this.plugin))
       }
     ];
 
@@ -4374,7 +5079,7 @@ class FileMasterHubModal extends Modal {
       icon: 'bar-chart-3',
       title: t('actAnalyticsTitle'),
       desc: t('actAnalyticsDesc'),
-      run: () => this.plugin.openModalSafely(new VaultAnalyticsModal(this.app, this.plugin))
+      run: () => openFromHub(new VaultAnalyticsModal(this.app, this.plugin))
     });
 
     const sections = [];
@@ -4386,7 +5091,7 @@ class FileMasterHubModal extends Modal {
             icon: 'image',
             title: t('actRemoteGalleryTitle'),
             desc: t('actRemoteGalleryDesc'),
-            run: () => this.plugin.openModalSafely(new RemoteGalleryModal(this.app, this.plugin))
+            run: () => openFromHub(new RemoteGalleryModal(this.app, this.plugin))
           },
           {
             icon: 'panel-right',
@@ -4401,7 +5106,7 @@ class FileMasterHubModal extends Modal {
             icon: 'cloud-upload',
             title: t('actMigrateTitle'),
             desc: t('actMigrateDesc'),
-            run: () => this.plugin.openModalSafely(new BatchMigrateWizardModal(this.app, this.plugin))
+            run: () => openFromHub(new BatchMigrateWizardModal(this.app, this.plugin))
           }
         ]
       });
@@ -4417,13 +5122,13 @@ class FileMasterHubModal extends Modal {
             icon: 'upload',
             title: t('actNoteUpTitle'),
             desc: t('actNoteUpDesc'),
-            run: () => this.plugin.migrateActiveNoteAttachments()
+            run: () => this.plugin.migrateActiveNoteAttachments(null, { fromHub: true })
           },
           {
             icon: 'download',
             title: t('actNoteDownTitle'),
             desc: t('actNoteDownDesc'),
-            run: () => this.plugin.downloadActiveNoteRemoteAttachments()
+            run: () => this.plugin.downloadActiveNoteRemoteAttachments(null, { fromHub: true })
           },
           {
             icon: 'copy',
@@ -4464,13 +5169,194 @@ class FileMasterHubModal extends Modal {
         const textCol = left.createDiv({ cls: 'fm-hub-card-text' });
         textCol.createDiv({ text: act.title, cls: 'fm-hub-card-title' });
         textCol.createDiv({ text: act.desc, cls: 'fm-hub-card-desc' });
-        const arrow = card.createSpan({ cls: 'fm-hub-card-arrow' });
-        setIcon(arrow, 'arrow-up-right');
 
         card.onclick = () => {
           this.close();
           act.run();
         };
+      }
+    }
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
+/**
+ * Operation & Debug Log Viewer/Exporter Modal
+ */
+class OperationLogModal extends Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.filterMode = 'all'; // 'all' | 'errors'
+    this.searchQuery = '';
+  }
+
+  t(k, p) {
+    return this.plugin ? this.plugin.t(k, p) : k;
+  }
+
+  async onOpen() {
+    if (this.plugin?.loadOperationLogs) {
+      await this.plugin.loadOperationLogs();
+    }
+    this.render();
+  }
+
+  render() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass('fm-wizard-modal');
+
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('opLogTitle'), cls: 'fm-step-title' });
+
+    contentEl.createDiv({
+      text: this.t('opLogPathHint', { path: this.plugin?.getLogFilePath?.() || '.obsidian/plugins/file-master/operation.log' }),
+      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' }
+    });
+
+    const allLogs = Array.isArray(this.plugin?.operationLogs) ? [...this.plugin.operationLogs].reverse() : [];
+    const errCount = allLogs.filter((e) => e.level === 'ERROR' || e.level === 'WARN').length;
+
+    const filterRow = contentEl.createDiv({
+      attr: { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;' }
+    });
+    const chipBox = filterRow.createDiv({ attr: { style: 'display:flex; gap:6px;' } });
+
+    const allBtn = chipBox.createEl('button', {
+      text: `${this.t('opLogFilterAll')} (${allLogs.length})`,
+      cls: this.filterMode === 'all' ? 'mod-cta' : ''
+    });
+    allBtn.onclick = () => {
+      this.filterMode = 'all';
+      this.render();
+    };
+
+    const errBtn = chipBox.createEl('button', {
+      text: `${this.t('opLogFilterErrors')} (${errCount})`,
+      cls: this.filterMode === 'errors' ? 'mod-cta' : ''
+    });
+    errBtn.onclick = () => {
+      this.filterMode = 'errors';
+      this.render();
+    };
+
+    const searchInput = filterRow.createEl('input', {
+      type: 'search',
+      placeholder: this.t('opLogSearchPlaceholder'),
+      value: this.searchQuery,
+      attr: { style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 190px;' }
+    });
+
+    const listEl = contentEl.createDiv({
+      cls: 'fm-scroll-list',
+      attr: { style: 'max-height: 360px;' }
+    });
+
+    searchInput.oninput = (e) => {
+      this.searchQuery = e.target.value.toLowerCase();
+      this.renderLogList(listEl, allLogs);
+    };
+
+    this.renderLogList(listEl, allLogs);
+
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row', attr: { style: 'justify-content: space-between; flex-wrap: wrap; gap: 8px;' } });
+    const leftBtns = btnRow.createDiv({ attr: { style: 'display: flex; gap: 8px; flex-wrap: wrap;' } });
+
+    const copyBtn = leftBtns.createEl('button', { text: this.t('opLogCopyAll'), cls: 'mod-cta' });
+    copyBtn.onclick = async () => {
+      const text = this.plugin?.formatLogsForExport?.() || '';
+      await navigator.clipboard.writeText(text);
+      new Notice(this.t('opLogCopiedNotice'));
+    };
+
+    const exportBtn = leftBtns.createEl('button', { text: this.t('opLogExportFile') });
+    exportBtn.onclick = () => {
+      const text = this.plugin?.formatLogsForExport?.() || '';
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      a.href = url;
+      a.download = `file-master-debug-${dateStr}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    };
+
+    const clearBtn = leftBtns.createEl('button', { text: this.t('opLogClear') });
+    clearBtn.onclick = async () => {
+      if (this.plugin?.clearOperationLogs) {
+        await this.plugin.clearOperationLogs();
+      }
+      new Notice(this.t('opLogClearedNotice'));
+      this.render();
+    };
+
+    const closeBtn = btnRow.createEl('button', { text: this.t('closeBtn') });
+    closeBtn.onclick = () => this.close();
+  }
+
+  renderLogList(listEl, allLogs) {
+    listEl.empty();
+    let filtered = allLogs;
+    if (this.filterMode === 'errors') {
+      filtered = filtered.filter((e) => e.level === 'ERROR' || e.level === 'WARN');
+    }
+    if (this.searchQuery) {
+      filtered = filtered.filter((e) => {
+        const hay = `${e.ts || ''} ${e.level || ''} ${e.action || ''} ${e.summary || ''} ${e.details ? JSON.stringify(e.details) : ''}`.toLowerCase();
+        return hay.includes(this.searchQuery);
+      });
+    }
+
+    if (filtered.length === 0) {
+      listEl.createDiv({
+        cls: 'fm-section-box',
+        text: this.t('opLogEmpty'),
+        attr: { style: 'text-align: center; padding: 28px 16px; color: var(--text-muted);' }
+      });
+      return;
+    }
+
+    for (const entry of filtered) {
+      const row = listEl.createDiv({ cls: 'fm-list-item' });
+      const col = row.createDiv({
+        attr: { style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;' }
+      });
+
+      const topRow = col.createDiv({
+        attr: { style: 'display:flex; align-items:center; gap:6px; flex-wrap:wrap;' }
+      });
+      let levelCls = 'fm-tag-info';
+      if (entry.level === 'ERROR') levelCls = 'fm-tag-error';
+      else if (entry.level === 'WARN') levelCls = 'fm-tag-warning';
+
+      topRow.createSpan({ text: entry.level || 'INFO', cls: `fm-tag ${levelCls}` });
+      if (entry.action) {
+        topRow.createEl('code', { text: entry.action, attr: { style: 'font-size: 11px;' } });
+      }
+      topRow.createSpan({
+        text: entry.ts || '',
+        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;' }
+      });
+
+      col.createDiv({
+        text: entry.summary || '',
+        attr: { style: 'font-size: 12px; font-weight: 500; word-break: break-word;' }
+      });
+
+      if (entry.details && Object.keys(entry.details).length > 0) {
+        col.createDiv({
+          text: JSON.stringify(entry.details),
+          cls: 'fm-health-context-quote',
+          attr: { style: 'font-family: var(--font-monospace); font-size: 11px; word-break: break-all;' }
+        });
       }
     }
   }
@@ -4493,8 +5379,97 @@ class FileMasterPlugin extends Plugin {
     return Boolean(this.settings?.enableRemoteServer && this.settings?.serverVerified);
   }
 
+  getLogFilePath() {
+    const dir = this.manifest?.dir || `${this.app?.vault?.configDir || '.obsidian'}/plugins/${this.manifest?.id || 'file-master'}`;
+    return `${dir}/operation.log`;
+  }
+
+  async loadOperationLogs() {
+    if (!Array.isArray(this.operationLogs)) {
+      this.operationLogs = [];
+    }
+    try {
+      const adapter = this.app?.vault?.adapter;
+      const logPath = this.getLogFilePath();
+      if (adapter && (await adapter.exists(logPath))) {
+        const raw = await adapter.read(logPath);
+        const parsed = [];
+        for (const line of String(raw || '').split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            parsed.push(JSON.parse(trimmed));
+          } catch { }
+        }
+        this.operationLogs = parsed.slice(-500);
+      }
+    } catch { }
+    return this.operationLogs;
+  }
+
+  async saveOperationLogs() {
+    try {
+      const adapter = this.app?.vault?.adapter;
+      if (!adapter) return;
+      const logPath = this.getLogFilePath();
+      const lines = (this.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
+      await adapter.write(logPath, lines.join('\n') + (lines.length ? '\n' : ''));
+    } catch { }
+  }
+
+  logOperation(level, action, summary, details = null) {
+    if (!Array.isArray(this.operationLogs)) {
+      this.operationLogs = [];
+    }
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const entry = {
+      ts,
+      level: String(level || 'INFO').toUpperCase(),
+      action: String(action || 'GENERAL'),
+      summary: String(summary || '')
+    };
+    if (details && typeof details === 'object' && Object.keys(details).length > 0) {
+      entry.details = details;
+    }
+    this.operationLogs.push(entry);
+    if (this.operationLogs.length > 500) {
+      this.operationLogs = this.operationLogs.slice(-500);
+    }
+    this.saveOperationLogs();
+  }
+
+  async clearOperationLogs() {
+    this.operationLogs = [];
+    await this.saveOperationLogs();
+  }
+
+  formatLogsForExport() {
+    const version = this.manifest?.version || '1.0.2';
+    const serverStatus = this.lastServerCompatStatus
+      ? `${this.lastServerCompatStatus.status} (server v${this.lastServerCompatStatus.serverVersion || '?'})`
+      : (this.settings?.enableRemoteServer ? 'unverified' : 'disabled');
+    const header = [
+      `# File Master Diagnostic & Operation Logs`,
+      `# Plugin Version: v${version}`,
+      `# Exported At: ${new Date().toISOString()}`,
+      `# Server Status: ${serverStatus}`,
+      `# Excluded Local Folders: ${this.settings?.excludedLocalFolders || '(none)'}`,
+      `# Total Entries: ${(this.operationLogs || []).length}`,
+      `------------------------------------------------------------`
+    ];
+    const body = (this.operationLogs || []).map((e) => {
+      const detailStr = e.details ? ` | ${JSON.stringify(e.details)}` : '';
+      return `[${e.ts}] [${e.level}] [${e.action}] ${e.summary}${detailStr}`;
+    });
+    return [...header, ...body].join('\n');
+  }
+
   async onload() {
     await this.loadSettings();
+    this.operationLogs = [];
+    await this.loadOperationLogs();
     this.heicPreviewCache = new Map();
     this.sidebarRibbonEl = null;
     this.lastServerCompatStatus = null;
@@ -4649,6 +5624,11 @@ class FileMasterPlugin extends Plugin {
         nameKey: 'cmdCopyAstroLinks',
         requiresRemote: true,
         callback: () => this.copyActiveNoteForAstro()
+      },
+      {
+        id: 'open-operation-logs',
+        nameKey: 'cmdOpenOpLogs',
+        callback: () => this.openModalSafely(new OperationLogModal(this.app, this))
       }
     ];
 
@@ -5035,7 +6015,7 @@ class FileMasterPlugin extends Plugin {
         if (localTFile) {
           menu.addItem((item) => {
             item
-              .setTitle(`☁️ FileMaster: Upload local "${localTFile.name}" to cloud (Update links)`)
+              .setTitle(`${this.t('menuUploadCloud')} (${localTFile.name})`)
               .setIcon('upload-cloud')
               .onClick(async () => {
                 await this.migrateSingleLocalFileToRemote(localTFile, {
@@ -5465,7 +6445,7 @@ class FileMasterPlugin extends Plugin {
   }
 
   async buildVaultReferenceSnapshot(scanCtx = {}) {
-    const { signal, onProgress } = scanCtx || {};
+    const { signal, onProgress, freshRead = false } = scanCtx || {};
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
       (f) =>
@@ -5481,7 +6461,9 @@ class FileMasterPlugin extends Plugin {
         onProgress(i + 1, docFiles.length, doc.path);
         await new Promise((r) => setTimeout(r, 0));
       }
-      const rawText = await this.app.vault.cachedRead(doc);
+      const rawText = freshRead
+        ? await this.app.vault.read(doc)
+        : await this.app.vault.cachedRead(doc);
       let decodedText = rawText;
       try {
         decodedText = decodeURIComponent(rawText);
@@ -5494,17 +6476,19 @@ class FileMasterPlugin extends Plugin {
       });
     }
 
-    const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
     const resolvedTargetMap = new Map();
-    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
-      if (isReportFile(sourcePath)) {
-        continue;
-      }
-      for (const targetPath of Object.keys(targets || {})) {
-        if (!resolvedTargetMap.has(targetPath)) {
-          resolvedTargetMap.set(targetPath, new Set());
+    if (!freshRead) {
+      const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
+      for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+        if (isReportFile(sourcePath)) {
+          continue;
         }
-        resolvedTargetMap.get(targetPath).add(sourcePath);
+        for (const targetPath of Object.keys(targets || {})) {
+          if (!resolvedTargetMap.has(targetPath)) {
+            resolvedTargetMap.set(targetPath, new Set());
+          }
+          resolvedTargetMap.get(targetPath).add(sourcePath);
+        }
       }
     }
 
@@ -5522,17 +6506,24 @@ class FileMasterPlugin extends Plugin {
     const baseName = tfile.basename;
     const relPath = tfile.path;
 
+    const stripRemoteUrls = (str) =>
+      String(str || '')
+        .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
+        .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
+
     for (const doc of snapshot.docContents) {
       if (doc.path === tfile.path) continue;
+      const localRaw = stripRemoteUrls(doc.rawText);
+      const localDecoded = stripRemoteUrls(doc.decodedText);
       if (
-        doc.rawText.includes(name) ||
-        doc.decodedText.includes(name) ||
-        doc.rawText.includes(relPath) ||
-        doc.decodedText.includes(relPath) ||
+        localRaw.includes(name) ||
+        localDecoded.includes(name) ||
+        localRaw.includes(relPath) ||
+        localDecoded.includes(relPath) ||
         (tfile.extension === 'md' &&
-          (doc.rawText.includes(`[[${baseName}]]`) ||
-            doc.rawText.includes(`[[${baseName}|`) ||
-            doc.rawText.includes(`[[${baseName}#`)))
+          (localRaw.includes(`[[${baseName}]]`) ||
+            localRaw.includes(`[[${baseName}|`) ||
+            localRaw.includes(`[[${baseName}#`)))
       ) {
         refNotes.add(doc.path);
       }
@@ -5544,16 +6535,24 @@ class FileMasterPlugin extends Plugin {
     const refNotes = new Set();
     const fname = remoteItem.filename;
     const encodedFname = encodeURIComponent(fname);
+    const baseName = getBaseName(fname);
+    const webpName = `${baseName}.webp`;
+    const encodedWebpName = encodeURIComponent(webpName);
     const relKey = `${remoteItem.year}/${remoteItem.month}/${fname}`;
     const encodedRelKey = `${remoteItem.year}/${remoteItem.month}/${encodedFname}`;
+    const pubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${webpName}`;
+    const encodedPubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${encodedWebpName}`;
 
     for (const doc of snapshot.docContents) {
       if (
-        doc.rawText.includes(fname) ||
-        doc.decodedText.includes(fname) ||
-        doc.rawText.includes(encodedFname) ||
         doc.rawText.includes(relKey) ||
-        doc.rawText.includes(encodedRelKey)
+        doc.decodedText.includes(relKey) ||
+        doc.rawText.includes(encodedRelKey) ||
+        doc.rawText.includes(pubRelKey) ||
+        doc.decodedText.includes(pubRelKey) ||
+        doc.rawText.includes(encodedPubRelKey) ||
+        (remoteItem.rawUrl && doc.rawText.includes(remoteItem.rawUrl)) ||
+        (remoteItem.pubUrl && doc.rawText.includes(remoteItem.pubUrl))
       ) {
         refNotes.add(doc.path);
       }
@@ -5733,6 +6732,7 @@ class FileMasterPlugin extends Plugin {
         deletedLocal++;
       } catch (err) {
         console.error('Failed to delete local file:', err);
+        this.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
       }
     }
 
@@ -5742,9 +6742,13 @@ class FileMasterPlugin extends Plugin {
         deletedRemote++;
       } catch (err) {
         new Notice(this.t('noticeRemoteDeleteFailed', { name: item.name, err: err.message }));
+        this.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
       }
     }
 
+    this.logOperation('INFO', 'ORPHAN_CLEANUP', `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
+      files: selectedItems.map((i) => i.displayPath)
+    });
     new Notice(this.t('noticeCleanupComplete', { local: deletedLocal, remote: deletedRemote }));
     if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, total: deletedLocal + deletedRemote });
   }
@@ -5974,7 +6978,10 @@ class FileMasterPlugin extends Plugin {
     const { signal, onProgress } = scanCtx || {};
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
-      (f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name)
+      (f) =>
+        (f.extension === 'md' || f.extension === 'canvas') &&
+        !isReportFile(f.name) &&
+        !this.isLocalPathExcluded(f.path)
     );
 
     const vaultFilePaths = new Set(allFiles.map((f) => f.path));
@@ -6003,7 +7010,7 @@ class FileMasterPlugin extends Plugin {
           const data = JSON.parse(rawText);
           if (Array.isArray(data.nodes)) {
             for (const node of data.nodes) {
-              if (node.type === 'file' && node.file) {
+              if (node.type === 'file' && node.file && options.checkLocalMarkdown !== false) {
                 if (
                   !vaultFilePaths.has(node.file) &&
                   !vaultFileNames.has(node.file.split('/').pop())
@@ -6021,15 +7028,25 @@ class FileMasterPlugin extends Plugin {
                 }
               } else if (node.type === 'text' && node.text) {
                 const subIssues = scanNoteContentForBrokenLinks(doc.path, node.text, vaultIndex, {
-                  checkRemote: false
+                  checkWikiLinks: options.checkWikiLinks !== false,
+                  checkLocalMarkdown: options.checkLocalMarkdown !== false,
+                  checkRemote: options.checkRemote
                 });
-                issues.push(...subIssues);
+                for (const iss of subIssues) {
+                  if (iss.category === 'remote') {
+                    remoteToCheck.push(iss);
+                  } else {
+                    issues.push(iss);
+                  }
+                }
               }
             }
           }
         } catch { }
       } else {
         const docIssues = scanNoteContentForBrokenLinks(doc.path, rawText, vaultIndex, {
+          checkWikiLinks: options.checkWikiLinks !== false,
+          checkLocalMarkdown: options.checkLocalMarkdown !== false,
           checkRemote: options.checkRemote
         });
 
@@ -6075,6 +7092,10 @@ class FileMasterPlugin extends Plugin {
       }
     }
 
+    this.logOperation('INFO', 'HEALTH_SCAN', `Scanned ${docFiles.length} document(s), found ${issues.length} broken link issue(s)`, {
+      docsScanned: docFiles.length,
+      issuesFound: issues.length
+    });
     return { issues, totalDocs: docFiles.length };
   }
 
@@ -6422,6 +7443,7 @@ class FileMasterPlugin extends Plugin {
             `[FileMaster Safety Gate] Blocked deletion of ${rem.displayPath}; dangling references detected in notes:`,
             remainingRefs
           );
+          this.logOperation('WARN', 'DEDUP_SAFETY_GATE', `Kept ${rem.displayPath} because references remain in notes`, { remainingRefs });
           skippedBySafetyGate++;
           continue;
         }
@@ -6435,10 +7457,18 @@ class FileMasterPlugin extends Plugin {
             deletedRemoteCount++;
           } catch (err) {
             new Notice(this.t('noticeRemoteDeleteFailed', { name: rem.name, err: err.message }));
+            this.logOperation('ERROR', 'DEDUP_MERGE', `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
           }
         }
       }
     }
+
+    this.logOperation('INFO', 'DEDUP_MERGE', `Merged duplicates: updated ${modifiedDocsCount} note(s), removed ${deletedLocalCount} local & ${deletedRemoteCount} remote file(s)`, {
+      modifiedDocsCount,
+      deletedLocalCount,
+      deletedRemoteCount,
+      skippedBySafetyGate
+    });
 
     if (skippedBySafetyGate > 0) {
       new Notice(
@@ -6503,7 +7533,7 @@ class FileMasterPlugin extends Plugin {
       }
 
       if (deleteLocal) {
-        const postSnapshot = await this.buildVaultReferenceSnapshot();
+        const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
         const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
         if (remaining.length === 0) {
           await this.app.vault.trash(tfile, true).catch(() => { });
@@ -6524,41 +7554,75 @@ class FileMasterPlugin extends Plugin {
     }
   }
 
-  async downloadSingleRemoteItemToLocal(remoteMatch) {
+  async downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
+    const silent = Boolean(options?.silent);
     try {
       const { year, month, filename } = remoteMatch;
-      new Notice(this.t('noticeDownloadingFile', { name: filename }));
-
-      let remoteObj = null;
-      try {
-        const list = await this.fetchRemoteFileList();
-        remoteObj = list.find(
-          (r) => r.year === year && r.month === month && r.filename === filename
-        );
-      } catch { }
-
-      const downloadUrl = remoteObj
-        ? `${remoteObj.rawUrl}?download=1`
-        : `${remoteMatch.matchedUrl}?download=1`;
-
-      const response = await requestUrl({
-        url: downloadUrl,
-        method: 'GET',
-        headers: { Authorization: `Bearer ${this.settings.apiToken}` },
-        throw: false
-      });
-
-      if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
-        throw new Error(`Failed to download remote file (HTTP ${response.status})`);
+      if (!silent) {
+        new Notice(this.t('noticeDownloadingFile', { name: filename }));
       }
 
-      const activeFile = this.app.workspace.getActiveFile();
+      let remoteObj = remoteMatch.rawObj || null;
+      if (!remoteObj) {
+        try {
+          const list = await this.fetchRemoteFileList();
+          remoteObj = list.find(
+            (r) => r.year === year && r.month === month && r.filename === filename
+          );
+        } catch { }
+      }
+
+      const activeFile = options?.activeFile || this.app.workspace.getActiveFile();
       const sourcePath = activeFile ? activeFile.path : '';
-      const localPath = await this.app.fileManager.getAvailablePathForAttachment(
+      const availablePath = remoteMatch.availablePath || await this.app.fileManager.getAvailablePathForAttachment(
         filename,
         sourcePath
       );
-      const createdFile = await this.app.vault.createBinary(localPath, response.arrayBuffer);
+      const slashIdx = availablePath.lastIndexOf('/');
+      const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : '';
+      const idealPath = remoteMatch.idealPath || (targetDir ? `${targetDir}/${filename}` : filename);
+
+      let existingFile = remoteMatch.existingFile || null;
+      if (!existingFile) {
+        const byName = this.app.vault.getAbstractFileByPath(idealPath);
+        if (byName && !Array.isArray(byName.children)) {
+          existingFile = byName;
+        }
+      }
+      const hasConflict = Boolean(existingFile && !Array.isArray(existingFile.children));
+
+      const conflictStrategy = options?.conflictStrategy || 'rename';
+      let targetLocalFile = null;
+      let action = 'downloaded';
+
+      if (hasConflict && conflictStrategy === 'reuse') {
+        targetLocalFile = existingFile;
+        action = 'reused';
+      } else {
+        const downloadUrl = remoteObj?.rawUrl
+          ? `${remoteObj.rawUrl}?download=1`
+          : `${remoteMatch.matchedUrl}?download=1`;
+
+        const response = await requestUrl({
+          url: downloadUrl,
+          method: 'GET',
+          headers: { Authorization: `Bearer ${this.settings.apiToken}` },
+          throw: false
+        });
+
+        if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
+          throw new Error(`Failed to download remote file (HTTP ${response.status})`);
+        }
+
+        if (hasConflict && conflictStrategy === 'overwrite') {
+          await this.app.vault.modifyBinary(existingFile, response.arrayBuffer);
+          targetLocalFile = existingFile;
+          action = 'overwritten';
+        } else {
+          targetLocalFile = await this.app.vault.createBinary(availablePath, response.arrayBuffer);
+          action = 'downloaded';
+        }
+      }
 
       const removeItem = {
         source: 'remote',
@@ -6576,39 +7640,67 @@ class FileMasterPlugin extends Plugin {
 
       const keepItem = {
         source: 'local',
-        name: createdFile.name,
-        ext: createdFile.extension.toLowerCase(),
-        displayPath: createdFile.path,
-        rawObj: createdFile
+        name: targetLocalFile.name,
+        ext: targetLocalFile.extension.toLowerCase(),
+        displayPath: targetLocalFile.path,
+        rawObj: targetLocalFile
       };
 
-      const allDocs = this.app.vault
-        .getFiles()
-        .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+      const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
+      const allDocs = (syncOtherNotes || !activeFile)
+        ? this.app.vault
+            .getFiles()
+            .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name))
+        : [activeFile];
 
       let modifiedCount = 0;
+      const syncedOtherNotePaths = [];
       for (const doc of allDocs) {
         const modified = await this.safeModifyFileContent(doc, (orig) => {
           return this.rewriteContentLinks(orig, removeItem, keepItem);
         });
-        if (modified) modifiedCount++;
+        if (modified) {
+          modifiedCount++;
+          if (activeFile && doc.path !== activeFile.path) {
+            syncedOtherNotePaths.push(doc.path);
+          }
+        }
       }
 
-      new Notice(
-        this.t('noticeDownloadedToVault', {
-          name: filename,
-          path: createdFile.path,
-          docs: modifiedCount
-        })
-      );
-      return createdFile;
+      if (!silent) {
+        new Notice(
+          this.t('noticeDownloadedToVault', {
+            name: filename,
+            path: targetLocalFile.path,
+            docs: modifiedCount
+          })
+        );
+      }
+
+      if (options?.returnDetails) {
+        return {
+          file: targetLocalFile,
+          name: targetLocalFile.name,
+          originName: filename,
+          displayPath: targetLocalFile.path,
+          remotePath: `${year}/${month}/${filename}`,
+          size: targetLocalFile.stat?.size || remoteObj?.size || 0,
+          action,
+          modifiedDocs: modifiedCount,
+          syncedOtherNotes: syncedOtherNotePaths.length,
+          syncedOtherNotePaths
+        };
+      }
+      return targetLocalFile;
     } catch (err) {
-      new Notice(this.t('noticeDownloadFailed', { err: err.message }));
+      if (!silent) {
+        new Notice(this.t('noticeDownloadFailed', { err: err.message }));
+      }
       throw err;
     }
   }
 
-  async executeDownloadNoteDirect(activeFile, onProgress = null) {
+  async scanActiveNoteRemoteAttachments(activeFile) {
     const content = await this.app.vault.read(activeFile);
     const serverBase = escapeRegExp(this.getCleanServerUrl());
     const re = new RegExp(
@@ -6636,29 +7728,211 @@ class FileMasterPlugin extends Plugin {
     }
 
     if (matchesMap.size === 0) {
-      return 0;
+      return [];
+    }
+
+    let remoteList = [];
+    try {
+      remoteList = await this.fetchRemoteFileList();
+    } catch { }
+
+    const snapshot = await this.buildVaultReferenceSnapshot();
+
+    // Pre-index local attachment files by size for fast SHA-256 content duplicate checks
+    const localFilesBySize = new Map();
+    const localHashCache = new Map();
+    const getLocalFileSha256 = async (tfile) => {
+      if (!tfile || Array.isArray(tfile.children)) return null;
+      if (localHashCache.has(tfile.path)) return localHashCache.get(tfile.path);
+      try {
+        const buf = await this.app.vault.readBinary(tfile);
+        const h = computeSha256Hex(buf);
+        localHashCache.set(tfile.path, h);
+        return h;
+      } catch {
+        return null;
+      }
+    };
+    for (const f of this.app.vault.getFiles()) {
+      if (!isAttachmentExt(f.extension)) continue;
+      if (this.isLocalPathExcluded(f.path)) continue;
+      const sz = f.stat?.size || 0;
+      if (sz <= 0) continue;
+      if (!localFilesBySize.has(sz)) localFilesBySize.set(sz, []);
+      localFilesBySize.get(sz).push(f);
+    }
+
+    const out = [];
+    for (const match of matchesMap.values()) {
+      const { year, month, filename, matchedUrl, routePrefix } = match;
+      const remoteObj = remoteList.find(
+        (r) => r.year === year && r.month === month && r.filename === filename
+      );
+      const availablePath = await this.app.fileManager.getAvailablePathForAttachment(
+        filename,
+        activeFile.path
+      );
+      const slashIdx = availablePath.lastIndexOf('/');
+      const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : '';
+      const idealPath = targetDir ? `${targetDir}/${filename}` : filename;
+      const existingByName = this.app.vault.getAbstractFileByPath(idealPath);
+      const hasSameName = Boolean(existingByName && !Array.isArray(existingByName.children));
+
+      let existingFile = hasSameName ? existingByName : null;
+      let conflictType = null; // 'hash_and_name' | 'hash_only' | 'name_only' | null
+      const remoteSha256 = remoteObj?.sha256 || null;
+      const remoteSize = remoteObj?.size || 0;
+
+      if (remoteSha256) {
+        if (hasSameName) {
+          const sameNameHash = await getLocalFileSha256(existingByName);
+          if (sameNameHash && sameNameHash === remoteSha256) {
+            conflictType = 'hash_and_name';
+            existingFile = existingByName;
+          }
+        }
+        if (!conflictType && remoteSize > 0) {
+          const candidates = localFilesBySize.get(remoteSize) || [];
+          // Prioritize candidates inside targetDir first
+          const sortedCandidates = [...candidates].sort((a, b) => {
+            const aInTarget = (a.parent?.path || '') === targetDir ? 0 : 1;
+            const bInTarget = (b.parent?.path || '') === targetDir ? 0 : 1;
+            return aInTarget - bInTarget;
+          });
+          for (const cand of sortedCandidates) {
+            const candHash = await getLocalFileSha256(cand);
+            if (candHash && candHash === remoteSha256) {
+              conflictType = cand.path === idealPath ? 'hash_and_name' : 'hash_only';
+              existingFile = cand;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!conflictType && hasSameName) {
+        conflictType = 'name_only';
+        existingFile = existingByName;
+      }
+
+      const hasConflict = Boolean(conflictType && existingFile);
+      const refNotes = this.findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
+      const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
+
+      out.push({
+        id: `remote:${year}/${month}/${filename}`,
+        source: 'remote',
+        name: filename,
+        filename,
+        ext: getExt(filename),
+        year,
+        month,
+        matchedUrl,
+        routePrefix,
+        displayPath: `${year}/${month}/${filename}`,
+        size: remoteSize,
+        sha256: remoteSha256,
+        rawObj: remoteObj || {
+          year,
+          month,
+          filename,
+          rawUrl: matchedUrl,
+          pubUrl: `${this.getCleanServerUrl()}/pub/${year}/${month}/${encodeURIComponent(getBaseName(filename))}.webp`
+        },
+        targetDir: targetDir || '/',
+        idealPath,
+        availablePath,
+        existingFile: hasConflict ? existingFile : null,
+        conflictType,
+        hasConflict,
+        refNotes,
+        otherRefNotes,
+        selected: true
+      });
+    }
+    return out;
+  }
+
+  async executeDownloadNoteDirect(activeFile, onProgress = null, options = {}) {
+    let items = Array.isArray(options?.items) ? options.items : null;
+    if (!items) {
+      items = await this.scanActiveNoteRemoteAttachments(activeFile);
+    }
+
+    if (items.length === 0) {
+      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
     }
 
     let count = 0;
-    const items = Array.from(matchesMap.values());
+    const processedItems = [];
+    const failures = [];
+    const conflictStrategy = options?.conflictStrategy || 'rename';
+    const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (onProgress) onProgress(i + 1, items.length, item.filename);
+      if (onProgress) onProgress(i + 1, items.length, item.filename || item.name);
       try {
-        await this.downloadSingleRemoteItemToLocal(item);
+        const detail = await this.downloadSingleRemoteItemToLocal(item, {
+          activeFile,
+          conflictStrategy,
+          syncOtherNotes,
+          silent: true,
+          returnDetails: true
+        });
         count++;
-      } catch { }
+        processedItems.push({
+          source: 'local',
+          name: detail.name,
+          ext: getExt(detail.name),
+          displayPath: detail.displayPath,
+          remotePath: detail.remotePath,
+          size: detail.size,
+          action: detail.action,
+          syncedOtherNotes: detail.syncedOtherNotes || 0,
+          syncedOtherNotePaths: detail.syncedOtherNotePaths || [],
+          rawObj: detail.file
+        });
+      } catch (err) {
+        this.logOperation('ERROR', 'NOTE_DOWNLOAD', `Failed to download ${item.filename || item.name} in ${activeFile.path}: ${err.message}`, {
+          note: activeFile.path,
+          remotePath: item.displayPath
+        });
+        failures.push({
+          name: item.filename || item.name,
+          size: item.size || 0,
+          error: err.message || String(err)
+        });
+      }
     }
-    return count;
+    if (count > 0) {
+      this.logOperation('INFO', 'NOTE_DOWNLOAD', `Processed ${count} server attachment(s) in ${activeFile.path}`, {
+        note: activeFile.path,
+        conflictStrategy,
+        syncOtherNotes,
+        items: processedItems.map((p) => ({
+          name: p.name,
+          localPath: p.displayPath,
+          action: p.action,
+          syncedOtherNotes: p.syncedOtherNotePaths
+        }))
+      });
+    }
+    return options?.returnDetails ? { count, processedItems, failures } : count;
   }
 
-  async downloadActiveNoteRemoteAttachments(targetFile = null) {
+  async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
     if (!activeFile || activeFile.extension !== 'md') {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
-    new ActiveNoteActionModal(this.app, this, activeFile, 'download').open();
+    const modal = new ActiveNoteActionModal(this.app, this, activeFile, 'download', options);
+    if (options?.fromHub) {
+      this.openModalSafely(modal);
+    } else {
+      modal.open();
+    }
   }
 
   /**
@@ -6747,6 +8021,10 @@ class FileMasterPlugin extends Plugin {
         });
       } catch (err) {
         new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
+        this.logOperation('ERROR', 'BATCH_UPLOAD', `Batch upload failed for ${tfile.path}: ${err.message}`, {
+          file: tfile.path,
+          size: tfile.stat?.size || 0
+        });
       }
     }
 
@@ -6773,7 +8051,7 @@ class FileMasterPlugin extends Plugin {
 
     let trashedCount = 0;
     if (options.deleteLocalAfter) {
-      const postSnapshot = await this.buildVaultReferenceSnapshot();
+      const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
       for (const { tfile } of uploadedPairs) {
         const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
         if (remaining.length === 0) {
@@ -6782,6 +8060,12 @@ class FileMasterPlugin extends Plugin {
         }
       }
     }
+
+    this.logOperation('INFO', 'BATCH_UPLOAD', `Batch uploaded ${uploadedPairs.length} file(s), updated ${modifiedDocsCount} note(s), trashed ${trashedCount} local file(s)`, {
+      uploadedCount: uploadedPairs.length,
+      modifiedDocsCount,
+      trashedCount
+    });
 
     const trashedPart = options.deleteLocalAfter
       ? this.t('noticeBatchMigrateTrashedPart', { trashed: trashedCount })
@@ -6802,41 +8086,84 @@ class FileMasterPlugin extends Plugin {
     }
   }
 
-  async executeMigrateNoteDirect(activeFile, onProgress = null) {
-    let content = await this.app.vault.read(activeFile);
-    const wikiRegex = /!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
-    const mdLinkRegex = /!\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
+  async scanActiveNoteLocalAttachments(activeFile) {
+    const content = await this.app.vault.read(activeFile);
+    const wikiRegex = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
+    const mdLinkRegex = /!?\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
 
-    const localFilesToMigrate = new Map();
+    const localFilesMap = new Map();
     let m;
     while ((m = wikiRegex.exec(content)) !== null) {
       const tf = this.app.metadataCache.getFirstLinkpathDest(m[1].trim(), activeFile.path);
       if (tf && isAttachmentExt(tf.extension)) {
-        localFilesToMigrate.set(tf.path, tf);
+        localFilesMap.set(tf.path, tf);
       }
     }
     while ((m = mdLinkRegex.exec(content)) !== null) {
-      const tf = this.app.metadataCache.getFirstLinkpathDest(
-        decodeURIComponent(m[2].trim()),
-        activeFile.path
-      );
+      let rawTarget = m[2].trim().replace(/^<|>$/g, '');
+      try {
+        rawTarget = decodeURIComponent(rawTarget);
+      } catch { }
+      const tf = this.app.metadataCache.getFirstLinkpathDest(rawTarget, activeFile.path);
       if (tf && isAttachmentExt(tf.extension)) {
-        localFilesToMigrate.set(tf.path, tf);
+        localFilesMap.set(tf.path, tf);
       }
     }
 
-    if (localFilesToMigrate.size === 0) {
-      return 0;
+    const snapshot = await this.buildVaultReferenceSnapshot();
+
+    return Array.from(localFilesMap.values()).map((tf) => {
+      const refNotes = this.findReferencingNotesForLocalFile(tf, snapshot);
+      const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
+      return {
+        id: `local:${tf.path}`,
+        source: 'local',
+        name: tf.name,
+        ext: tf.extension.toLowerCase(),
+        displayPath: tf.path,
+        size: tf.stat?.size || 0,
+        rawObj: tf,
+        tfile: tf,
+        refNotes,
+        otherRefNotes,
+        selected: true,
+        locked: false
+      };
+    });
+  }
+
+  async executeMigrateNoteDirect(activeFile, onProgress = null, options = {}) {
+    let content = await this.app.vault.read(activeFile);
+    let items = Array.isArray(options?.items) ? options.items : null;
+    if (!items) {
+      items = await this.scanActiveNoteLocalAttachments(activeFile);
+    }
+
+    if (items.length === 0) {
+      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
     }
 
     let migratedCount = 0;
-    const items = Array.from(localFilesToMigrate.values());
+    const uploadedPairs = [];
+    const processedItems = [];
+    const failures = [];
     for (let i = 0; i < items.length; i++) {
-      const tfile = items[i];
+      const entry = items[i];
+      const tfile = entry.tfile || entry.rawObj || entry;
+      const wantLock = Boolean(entry.locked);
       if (onProgress) onProgress(i + 1, items.length, tfile.name);
       try {
         const buf = await this.app.vault.readBinary(tfile);
         const res = await this.uploadBufferToServer(buf, tfile.name);
+
+        if (wantLock && !res.locked && res.year && res.month && res.filename) {
+          try {
+            await this.toggleRemoteFileLock(res.year, res.month, res.filename, true);
+            res.locked = true;
+          } catch (lockErr) {
+            console.warn(`Failed to lock ${res.filename}:`, lockErr);
+          }
+        }
 
         const removeItem = {
           source: 'local',
@@ -6855,33 +8182,122 @@ class FileMasterPlugin extends Plugin {
 
         content = this.rewriteContentLinks(content, removeItem, keepItem);
         migratedCount++;
+        const otherRefNotes = Array.isArray(entry.otherRefNotes) ? entry.otherRefNotes : [];
+        uploadedPairs.push({ tfile, removeItem, keepItem, otherRefNotes });
+        processedItems.push({
+          source: 'remote',
+          name: res.filename,
+          ext: getExt(res.filename),
+          displayPath: `${res.year}/${res.month}/${res.filename}`,
+          size: tfile.stat?.size || res.size || 0,
+          locked: Boolean(res.locked || wantLock),
+          trashedLocal: false,
+          keptForOtherRefs: 0,
+          keptForOtherRefPaths: [],
+          syncedOtherNotes: 0,
+          syncedOtherNotePaths: [],
+          action: 'uploaded',
+          rawObj: res,
+          localPath: tfile.path
+        });
       } catch (err) {
         console.error(`Failed to migrate ${tfile.name}:`, err);
+        this.logOperation('ERROR', 'NOTE_UPLOAD', `Failed to upload ${tfile.name} in ${activeFile.path}: ${err.message}`, {
+          note: activeFile.path,
+          file: tfile.path,
+          size: tfile.stat?.size || 0
+        });
+        failures.push({
+          name: tfile.name,
+          size: tfile.stat?.size || 0,
+          error: err.message || String(err)
+        });
       }
     }
 
     if (migratedCount > 0) {
       await this.safeModifyFileContent(activeFile, () => content);
-      if (this.settings.deleteLocalAfterMigrate) {
-        const snapshot = await this.buildVaultReferenceSnapshot();
-        for (const tfile of items) {
-          const otherRefs = this.findReferencingNotesForLocalFile(tfile, snapshot);
-          if (otherRefs.length === 0) {
-            await this.app.vault.trash(tfile, true).catch(() => { });
+      const shouldDeleteLocal = options?.deleteLocalAfter !== undefined
+        ? Boolean(options.deleteLocalAfter)
+        : Boolean(this.settings.deleteLocalAfterMigrate);
+      const syncOtherNotes = options?.syncOtherNotes !== undefined
+        ? Boolean(options.syncOtherNotes)
+        : true;
+
+      if (syncOtherNotes) {
+        const otherDocs = this.app.vault
+          .getFiles()
+          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+        for (let i = 0; i < uploadedPairs.length; i++) {
+          const { removeItem, keepItem } = uploadedPairs[i];
+          const syncedPaths = [];
+          for (const doc of otherDocs) {
+            const modified = await this.safeModifyFileContent(doc, (orig) => {
+              return this.rewriteContentLinks(orig, removeItem, keepItem);
+            });
+            if (modified) syncedPaths.push(doc.path);
+          }
+          if (processedItems[i]) {
+            processedItems[i].syncedOtherNotes = syncedPaths.length;
+            processedItems[i].syncedOtherNotePaths = syncedPaths;
           }
         }
       }
+
+      if (shouldDeleteLocal) {
+        const postSnapshot = !syncOtherNotes
+          ? await this.buildVaultReferenceSnapshot({ freshRead: true })
+          : null;
+        for (let i = 0; i < uploadedPairs.length; i++) {
+          const { tfile } = uploadedPairs[i];
+          if (!syncOtherNotes && postSnapshot) {
+            const remainingRefs = this.findReferencingNotesForLocalFile(tfile, postSnapshot).filter(
+              (p) => p !== activeFile.path
+            );
+            if (remainingRefs.length > 0) {
+              if (processedItems[i]) {
+                processedItems[i].keptForOtherRefs = remainingRefs.length;
+                processedItems[i].keptForOtherRefPaths = remainingRefs;
+              }
+              continue;
+            }
+          }
+          await this.app.vault.trash(tfile, true).catch(() => { });
+          if (processedItems[i]) {
+            processedItems[i].trashedLocal = true;
+          }
+        }
+      }
+
+      this.logOperation('INFO', 'NOTE_UPLOAD', `Uploaded ${migratedCount} attachment(s) from ${activeFile.path}`, {
+        note: activeFile.path,
+        deleteLocalAfter: shouldDeleteLocal,
+        syncOtherNotes,
+        items: processedItems.map((p) => ({
+          name: p.name,
+          remotePath: p.displayPath,
+          locked: p.locked,
+          trashedLocal: p.trashedLocal,
+          keptForOtherRefs: p.keptForOtherRefPaths,
+          syncedOtherNotes: p.syncedOtherNotePaths
+        }))
+      });
     }
-    return migratedCount;
+    return options?.returnDetails ? { count: migratedCount, processedItems, failures } : migratedCount;
   }
 
-  async migrateActiveNoteAttachments(targetFile = null) {
+  async migrateActiveNoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
     if (!activeFile || activeFile.extension !== 'md') {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
-    new ActiveNoteActionModal(this.app, this, activeFile, 'migrate').open();
+    const modal = new ActiveNoteActionModal(this.app, this, activeFile, 'migrate', options);
+    if (options?.fromHub) {
+      this.openModalSafely(modal);
+    } else {
+      modal.open();
+    }
   }
 
   async copyActiveNoteForAstro(targetFile = null) {
@@ -6991,6 +8407,10 @@ class FileMasterSettingTab extends PluginSettingTab {
             this.plugin.openModalSafely(new FileMasterHubModal(this.app, this.plugin));
             return;
           }
+          if (page === 'logs') {
+            this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
+            return;
+          }
           this.activePage = page;
           this.display();
           containerEl.scrollTop = 0;
@@ -7014,7 +8434,8 @@ class FileMasterSettingTab extends PluginSettingTab {
       ['exemptions', 'tabExemptions', 'shield']
     ]);
     group('settingsToolsGroup', '🧰', [
-      ['hub', 'openHubName', 'wrench']
+      ['hub', 'openHubName', 'wrench'],
+      ['logs', 'opLogTitle', 'file-text']
     ]);
     group('settingsInfoGroup', 'ℹ️', [
       ['about', 'aboutTitle', 'info']
@@ -7255,7 +8676,7 @@ class FileMasterSettingTab extends PluginSettingTab {
     const repoUrl = 'https://github.com/weichen-ink/file-master';
 
     const intro = new Setting(containerEl)
-      .setName('FileMaster')
+      .setName('File Master')
       .setDesc(this.plugin.t('aboutDesc'));
     intro.controlEl.createSpan({ text: `v${version}` });
 
@@ -7268,6 +8689,14 @@ class FileMasterSettingTab extends PluginSettingTab {
       cls: `fm-about-status ${sCompat?.ok ? 'is-connected' : ''}`,
       text: sCompat ? this.plugin.getCompatibilityMessage(sCompat) : this.plugin.t('aboutServerOffline')
     });
+    new Setting(containerEl)
+      .setName(this.plugin.t('opLogTitle'))
+      .setDesc(this.plugin.t('opLogDesc'))
+      .addButton((btn) =>
+        btn.setButtonText(this.plugin.t('opLogBtnOpen')).onClick(() => {
+          this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
+        })
+      );
     addRow('aboutFeedback').createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
   }
 }

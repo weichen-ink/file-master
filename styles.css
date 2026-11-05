@@ -311,14 +311,6 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.fm-hub-card-arrow {
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-.fm-hub-card-arrow svg { width: 15px; height: 15px; }
-.fm-hub-card:hover .fm-hub-card-arrow {
-  color: var(--interactive-accent);
-}
 .fm-hub-dialog {
   width: min(760px, calc(100vw - 32px));
   max-width: 760px;
@@ -340,7 +332,6 @@
 }
 .fm-hub-header .fm-step-title { font-size: 20px; }
 .fm-hub-header p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
-.fm-hub-language { flex-shrink: 0; font-size: 12px; }
 .fm-hub-section { margin-top: 20px; }
 .fm-hub-section .fm-section-title { margin: 0 0 8px; font-size: 12px; color: var(--text-muted); }
 

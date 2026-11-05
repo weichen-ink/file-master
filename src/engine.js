@@ -282,37 +282,40 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
   if (!rawText) return issues;
 
   // 1. Check WikiLinks: ![[...]] and [[...]]
-  const wikiRegex = /(!?)\[\[([^\]\n\r]+)\]\]/g;
-  let m;
-  while ((m = wikiRegex.exec(rawText)) !== null) {
-    const isEmbed = Boolean(m[1]);
-    const rawInside = m[2].trim();
-    const targetPart = rawInside.split(/[|#]/)[0].trim();
-    if (!targetPart) continue; // Same-page anchor [[#heading]]
+  if (options.checkWikiLinks !== false) {
+    const wikiRegex = /(!?)\[\[([^\]\n\r]+)\]\]/g;
+    let m;
+    while ((m = wikiRegex.exec(rawText)) !== null) {
+      const isEmbed = Boolean(m[1]);
+      const rawInside = m[2].trim();
+      const targetPart = rawInside.split(/[|#]/)[0].trim();
+      if (!targetPart) continue; // Same-page anchor [[#heading]]
 
-    if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
-      const prefix = rawText.substring(0, m.index);
-      const lineNumber = prefix.split('\n').length;
-      const lineStart = prefix.lastIndexOf('\n') + 1;
-      let lineEnd = rawText.indexOf('\n', m.index);
-      if (lineEnd === -1) lineEnd = rawText.length;
-      const lineText = rawText.substring(lineStart, lineEnd).trim();
+      if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
+        const prefix = rawText.substring(0, m.index);
+        const lineNumber = prefix.split('\n').length;
+        const lineStart = prefix.lastIndexOf('\n') + 1;
+        let lineEnd = rawText.indexOf('\n', m.index);
+        if (lineEnd === -1) lineEnd = rawText.length;
+        const lineText = rawText.substring(lineStart, lineEnd).trim();
 
-      issues.push({
-        type: isEmbed ? 'wikilink-embed' : 'wikilink',
-        category: 'wikilink',
-        sourcePath: docPath,
-        target: targetPart,
-        rawText: m[0],
-        line: lineNumber,
-        lineText,
-        reason: isEmbed ? 'Embedded attachment not found in vault' : 'Linked note not found in vault'
-      });
+        issues.push({
+          type: isEmbed ? 'wikilink-embed' : 'wikilink',
+          category: 'wikilink',
+          sourcePath: docPath,
+          target: targetPart,
+          rawText: m[0],
+          line: lineNumber,
+          lineText,
+          reason: isEmbed ? 'Embedded attachment not found in vault' : 'Linked note not found in vault'
+        });
+      }
     }
   }
 
   // 2. Check Standard Markdown Links: ![alt](url) and [alt](url)
   const mdRegex = /(!?)\[([^\]\r\n]*)\]\((\s*<[^>]+>|[^\s)]+)(?:\s+["'][^"']*["'])?\)/g;
+  let m;
   while ((m = mdRegex.exec(rawText)) !== null) {
     const isEmbed = Boolean(m[1]);
     let rawUrl = m[3].trim();
@@ -342,7 +345,7 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
           reason: 'Remote resource unreachable'
         });
       }
-    } else {
+    } else if (options.checkLocalMarkdown !== false) {
       const cleanTarget = rawUrl.split(/[?#]/)[0].trim();
       if (!cleanTarget) continue;
 

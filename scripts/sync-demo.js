@@ -2,7 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 const srcDir = path.resolve(__dirname, '..');
-const demoPluginDir = path.resolve(srcDir, '../demo/.obsidian/plugins/file-master');
+const demoObsidianDir = path.resolve(srcDir, '../demo/.obsidian');
+const demoPluginDir = path.resolve(demoObsidianDir, 'plugins/file-master');
+
+if (srcDir === demoPluginDir || !fs.existsSync(demoObsidianDir)) {
+  console.log('[sync-demo] Already inside demo plugin directory (or no external demo dir), skipping copy.');
+  process.exit(0);
+}
 
 if (!fs.existsSync(demoPluginDir)) {
   fs.mkdirSync(demoPluginDir, { recursive: true });

@@ -1,23 +1,61 @@
 /**
+ * Helper to return from a module modal back to the main File Master Hub modal
+ * when the modal was opened from the Hub; otherwise simply closes the modal.
+ */
+function returnToHub(modal) {
+  modal.close();
+  if (!modal.fromHub) return;
+  if (modal.plugin && typeof modal.plugin.openModalSafely === 'function') {
+    modal.plugin.openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
+  } else if (modal.app && modal.plugin) {
+    new FileMasterHubModal(modal.app, modal.plugin).open();
+  }
+}
+
+/**
+ * Helper to translate raw HTTP/server error strings into localized UI descriptions
+ */
+function formatFriendlyError(modal, rawErr) {
+  const errStr = String(rawErr || '').trim();
+  const t = (k, p) => (modal && typeof modal.t === 'function' ? modal.t(k, p) : modal?.plugin?.t ? modal.plugin.t(k, p) : errStr);
+  if (/file too large|too large|413/i.test(errStr)) {
+    return t('activeNoteFailedTooLarge');
+  }
+  if (/401|unauthorized|invalid.*token/i.test(errStr)) {
+    return t('activeNoteFailedAuth');
+  }
+  if (/404|not found/i.test(errStr)) {
+    return t('activeNoteFailedNotFound');
+  }
+  if (/network|fetch|econnrefused|offline/i.test(errStr)) {
+    return t('activeNoteFailedNetwork');
+  }
+  return errStr;
+}
+
+/**
  * Helper to create a real-time scan progress bar + cancel button inside wizard modals
  */
 function createScanProgressWidget(contentEl, plugin) {
   const abortController = new AbortController();
   const box = contentEl.createDiv({
-    cls: 'fm-section-box',
-    style: 'display:none; margin-top:10px; border-color: rgba(59, 130, 246, 0.45);'
+    cls: 'fm-section-box fm-scan-progress-box',
+    attr: { style: 'display:none; margin-top:10px; border-color: rgba(59, 130, 246, 0.45);' }
   });
+  box.style.display = 'none';
   const topRow = box.createDiv({
-    style: 'display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;'
+    cls: 'fm-scan-progress-top',
+    attr: { style: 'display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; width:100%;' }
   });
   const statusText = topRow.createSpan({
     text: plugin ? plugin.t('scanPreparing') : '⏳ Preparing scan...',
-    style: 'font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'
+    cls: 'fm-scan-progress-text',
+    attr: { style: 'font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;' }
   });
   const cancelScanBtn = topRow.createEl('button', {
     text: plugin ? plugin.t('btnCancelScan') : '⏹ Cancel Scan',
-    cls: 'fm-mini-btn mod-warning',
-    style: 'flex-shrink:0;'
+    cls: 'fm-mini-btn mod-warning fm-scan-cancel-btn',
+    attr: { style: 'flex-shrink:0; margin-left:auto;' }
   });
   cancelScanBtn.onclick = () => {
     abortController.abort();
@@ -140,7 +178,7 @@ class ImageLightboxModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('previewNonImageTip', { ext: ext.toUpperCase() }),
-        style: 'text-align: center; padding: 30px 16px;'
+        attr: { style: 'text-align: center; padding: 30px 16px;' }
       });
     }
 
@@ -308,13 +346,13 @@ class NoteRefsModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('noteRefsNone'),
-        style: 'text-align: center; padding: 24px;'
+        attr: { style: 'text-align: center; padding: 24px;' }
       });
     } else {
       const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
       for (const notePath of this.refNotePaths) {
         const row = listEl.createDiv({ cls: 'fm-list-item' });
-        row.createSpan({ text: `📝 ${notePath}`, style: 'word-break: break-all; font-weight: 500;' });
+        row.createSpan({ text: `📝 ${notePath}`, attr: { style: 'word-break: break-all; font-weight: 500;' } });
         const jumpBtn = row.createEl('button', {
           text: t('btnOpenNote'),
           cls: 'fm-mini-btn mod-cta'
@@ -444,7 +482,7 @@ class IncomingFileModal extends Modal {
       const loadingTip = NEEDS_TRANSCODE_IMAGE_EXTS.has(this.fileInfo.ext)
         ? contentEl.createDiv({
             text: this.t('destTranscodeTip', { ext: this.fileInfo.ext.toUpperCase() }),
-            style: 'font-size: 12px; color: var(--text-accent); text-align: center; margin-bottom: 8px;'
+            attr: { style: 'font-size: 12px; color: var(--text-accent); text-align: center; margin-bottom: 8px;' }
           })
         : null;
 
@@ -460,7 +498,7 @@ class IncomingFileModal extends Modal {
 
     contentEl.createDiv({
       text: this.t('destTypeSize', { ext: this.fileInfo.ext.toUpperCase(), size: formatBytes(this.fileInfo.size) }),
-      style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-align: center;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-align: center;' }
     });
 
     // Filename input
@@ -472,7 +510,7 @@ class IncomingFileModal extends Modal {
     const nameInput = nameBox.createEl('input', {
       type: 'text',
       value: this.fileInfo.defaultBaseName,
-      style: 'width: 100%; padding: 8px 10px; font-size: 14px;'
+      attr: { style: 'width: 100%; padding: 8px 10px; font-size: 14px;' }
     });
 
     const triggerExecute = (target) => {
@@ -527,20 +565,20 @@ class IncomingFileModal extends Modal {
     const { contentEl } = this;
     contentEl.createEl('h3', { text: this.t('destProcessingTitle') });
 
-    const infoBox = contentEl.createDiv({ cls: 'fm-section-box', style: 'margin-bottom: 14px;' });
+    const infoBox = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'margin-bottom: 14px;' } });
     infoBox.createDiv({
       text: `📄 ${this.finalFilename}  (${formatBytes(this.fileInfo.size)})`,
-      style: 'font-weight: 600; margin-bottom: 10px;'
+      attr: { style: 'font-weight: 600; margin-bottom: 10px;' }
     });
 
     const progressWrap = infoBox.createDiv({ cls: 'fm-progress-wrap' });
-    this.progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar', style: 'width: 15%;' });
+    this.progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 15%;' } });
 
     this.statusLabel = infoBox.createDiv({
       text: this.targetLocation === 'remote'
         ? this.t('destProbeChecking')
         : this.t('destSavingLocal'),
-      style: 'font-size: 12px; color: var(--text-accent); margin-top: 8px;'
+      attr: { style: 'font-size: 12px; color: var(--text-accent); margin-top: 8px;' }
     });
   }
 
@@ -575,6 +613,10 @@ class IncomingFileModal extends Modal {
           mdLink,
           inserted: !!editor
         };
+        this.plugin?.logOperation?.('INFO', 'SAVE_LOCAL', `Saved attachment to vault: ${createdFile.path}`, {
+          size: this.fileInfo.size,
+          note: sourcePath || null
+        });
       } else {
         // Remote upload with Instant SHA-256 Probe check
         if (this.progressBar) this.progressBar.style.width = '25%';
@@ -623,12 +665,22 @@ class IncomingFileModal extends Modal {
           isInstant: !!res.isInstant,
           inserted: !!editor
         };
+        this.plugin?.logOperation?.('INFO', 'UPLOAD_REMOTE', `${res.isInstant ? 'Reused existing remote file' : 'Uploaded attachment to server'}: ${this.finalFilename}`, {
+          remotePath: `${res.year}/${res.month}/${res.filename}`,
+          isInstant: !!res.isInstant,
+          size: this.fileInfo.size,
+          note: sourcePath || null
+        });
       }
     } catch (err) {
       this.result = {
         success: false,
         error: err.message || String(err)
       };
+      this.plugin?.logOperation?.('ERROR', 'SAVE_ATTACHMENT', `Failed to process attachment "${this.finalFilename}": ${this.result.error}`, {
+        target: this.targetLocation,
+        size: this.fileInfo.size
+      });
     }
 
     if (this.callback) {
@@ -647,7 +699,7 @@ class IncomingFileModal extends Modal {
       const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
       errBanner.createDiv({
         cls: 'fm-result-banner-title',
-        text: this.t('destProcessingError', { err: this.result.error })
+        text: this.t('destProcessingError', { err: formatFriendlyError(this, this.result.error) })
       });
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const closeBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
@@ -675,7 +727,7 @@ class IncomingFileModal extends Modal {
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
         text: `📄 ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
-        style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);'
+        attr: { style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);' }
       });
 
       const addCopyRow = (label, val) => {
@@ -714,7 +766,7 @@ class IncomingFileModal extends Modal {
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
         text: `📄 ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
-        style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);'
+        attr: { style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);' }
       });
 
       const addCopyRow = (label, val) => {
@@ -760,15 +812,22 @@ class IncomingFileModal extends Modal {
 }
 
 /**
- * Modal to execute active note operations with real-time progress bar & in-window result
+ * Modal to execute active note operations with 2-step preview/options (for migrate & download conflict check),
+ * real-time progress bar & in-window result list
  */
 class ActiveNoteActionModal extends Modal {
-  constructor(app, plugin, targetFile, actionType = 'migrate') {
+  constructor(app, plugin, targetFile, actionType = 'migrate', options = {}) {
     super(app);
     this.plugin = plugin;
     this.targetFile = targetFile;
     this.actionType = actionType; // 'migrate' | 'download'
-    this.step = 'running';
+    this.fromHub = Boolean(options?.fromHub);
+    this.step = 'loading';
+    this.items = [];
+    this.deleteLocalAfter = Boolean(plugin?.settings?.deleteLocalAfterMigrate);
+    this.syncOtherNotes = true;
+    this.conflictStrategy = 'reuse'; // 'reuse' | 'rename' | 'overwrite'
+    this.hadConflictStep = false;
     this.result = null;
   }
 
@@ -776,9 +835,54 @@ class ActiveNoteActionModal extends Modal {
     return this.plugin ? this.plugin.t(k, p) : k;
   }
 
+  getUniqueOtherRefNotes(onlySelected = false) {
+    const set = new Set();
+    for (const item of this.items) {
+      if (onlySelected && !item.selected) continue;
+      for (const p of item.otherRefNotes || []) {
+        set.add(p);
+      }
+    }
+    return [...set];
+  }
+
   async onOpen() {
     this.render();
-    await this.execute();
+    if (this.actionType === 'migrate') {
+      try {
+        this.items = await this.plugin.scanActiveNoteLocalAttachments(this.targetFile);
+        this.step = 'preview';
+      } catch (err) {
+        this.result = { success: false, message: err.message || String(err) };
+        this.step = 'result';
+      }
+      this.render();
+    } else {
+      try {
+        this.items = await this.plugin.scanActiveNoteRemoteAttachments(this.targetFile);
+        if (this.items.length === 0) {
+          this.result = { success: true, count: 0, processedItems: [], failures: [] };
+          this.step = 'result';
+          this.render();
+          return;
+        }
+        const hasConflicts = this.items.some((item) => item.hasConflict);
+        const hasOtherRefs = this.items.some((item) => (item.otherRefNotes?.length || 0) > 0);
+        if (hasConflicts || hasOtherRefs) {
+          this.hadConflictStep = true;
+          this.step = 'conflict';
+          this.render();
+        } else {
+          this.step = 'running';
+          this.render();
+          await this.execute(this.items);
+        }
+      } catch (err) {
+        this.result = { success: false, message: err.message || String(err) };
+        this.step = 'result';
+        this.render();
+      }
+    }
   }
 
   render() {
@@ -787,55 +891,496 @@ class ActiveNoteActionModal extends Modal {
     contentEl.addClass('fm-wizard-modal');
 
     const titleKey = this.actionType === 'migrate' ? 'activeNoteMigrateTitle' : 'activeNoteDownloadTitle';
-    contentEl.createEl('h3', { text: this.t(titleKey) });
+    if (this.actionType === 'migrate' || this.hadConflictStep || this.step === 'conflict') {
+      const stepNum = (this.step === 'loading' || this.step === 'preview' || this.step === 'conflict') ? 1 : 2;
+      const header = contentEl.createDiv({ cls: 'fm-step-header' });
+      header.createSpan({ text: this.t('stepOf', { current: stepNum, total: 2 }), cls: 'fm-step-badge' });
+      header.createEl('h3', { text: this.t(titleKey), cls: 'fm-step-title' });
+    } else {
+      contentEl.createEl('h3', { text: this.t(titleKey) });
+    }
 
     contentEl.createDiv({
       text: `📄 ${this.targetFile.path}`,
-      style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' }
     });
+
+    if (this.step === 'loading') {
+      const box = contentEl.createDiv({ cls: 'fm-section-box' });
+      box.createDiv({
+        text: this.t('activeNoteScanning'),
+        attr: { style: 'font-size: 13px; color: var(--text-accent);' }
+      });
+      return;
+    }
+
+    if (this.step === 'conflict') {
+      const conflictItems = this.items.filter((i) => i.hasConflict);
+      const otherRefNotesAll = this.getUniqueOtherRefNotes(false);
+
+      if (conflictItems.length > 0) {
+        const warnBanner = contentEl.createDiv({
+          cls: 'fm-result-banner fm-result-banner-error',
+          attr: { style: 'margin-bottom: 12px;' }
+        });
+        warnBanner.createDiv({
+          cls: 'fm-result-banner-title',
+          text: this.t('activeNoteDownConflictTitle', { count: conflictItems.length }),
+          attr: { style: 'margin-bottom: 0;' }
+        });
+      } else if (otherRefNotesAll.length > 0) {
+        const infoBanner = contentEl.createDiv({
+          cls: 'fm-result-banner fm-result-banner-instant',
+          attr: { style: 'margin-bottom: 12px;' }
+        });
+        infoBanner.createDiv({
+          cls: 'fm-result-banner-title',
+          text: this.t('activeNoteDownOtherRefsTitle', { count: otherRefNotesAll.length }),
+          attr: { style: 'margin-bottom: 0;' }
+        });
+      }
+
+      const listEl = contentEl.createDiv({
+        cls: 'fm-scroll-list',
+        attr: { style: 'max-height: 220px;' }
+      });
+
+      let runBtn = null;
+      const updateRunBtnLabel = () => {
+        if (!runBtn) return;
+        const selectedCount = this.items.filter((i) => i.selected).length;
+        runBtn.setText(this.t('activeNoteStartDownload', { count: selectedCount }));
+      };
+
+      for (const item of this.items) {
+        const row = listEl.createDiv({ cls: 'fm-list-item' });
+        const left = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+        });
+        const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
+        cb.checked = item.selected;
+        cb.onchange = () => {
+          item.selected = cb.checked;
+          updateRunBtnLabel();
+        };
+
+        renderItemVisualThumb(left, item, this.plugin);
+
+        const nameCol = left.createDiv({
+          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+        });
+        nameCol.createSpan({
+          text: item.name,
+          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+        });
+        const displayPath = (item.hasConflict && item.existingFile)
+          ? item.existingFile.path
+          : item.idealPath;
+        nameCol.createSpan({
+          text: `${displayPath}${item.size ? ' · ' + formatBytes(item.size) : ''}`,
+          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+        });
+
+        const otherRefs = item.otherRefNotes || [];
+        if (otherRefs.length > 0) {
+          const rightBox = row.createDiv({
+            attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
+          });
+          const refBadge = rightBox.createSpan({
+            text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
+            cls: 'fm-tag fm-tag-ref fm-clickable-badge',
+            attr: { title: this.t('activeNoteInspectOtherRefs') }
+          });
+          refBadge.onclick = (e) => {
+            e.stopPropagation();
+            new NoteRefsModal(this.app, item.name, otherRefs, () => this.close(), this.plugin).open();
+          };
+        }
+      }
+
+      if (otherRefNotesAll.length > 0 || conflictItems.length > 0) {
+        const optionsBox = contentEl.createDiv({
+          cls: 'fm-section-box',
+          attr: { style: 'margin-top: 10px; display: flex; flex-direction: column; gap: 10px;' }
+        });
+
+        if (otherRefNotesAll.length > 0) {
+          const syncLabel = optionsBox.createEl('label', {
+            cls: 'fm-check-row',
+            attr: { style: 'margin: 0; cursor: pointer;' }
+          });
+          const syncCb = syncLabel.createEl('input', { type: 'checkbox' });
+          syncCb.checked = this.syncOtherNotes;
+          syncCb.onchange = () => {
+            this.syncOtherNotes = syncCb.checked;
+          };
+          syncLabel.createSpan({
+            text: this.t('activeNoteSyncOtherDownloadOpt', { count: otherRefNotesAll.length })
+          });
+        }
+
+        if (conflictItems.length > 0) {
+          const strategyWrap = optionsBox.createDiv({
+            attr: {
+              style: otherRefNotesAll.length > 0
+                ? 'border-top: 1px solid var(--background-modifier-border); padding-top: 10px;'
+                : ''
+            }
+          });
+          strategyWrap.createDiv({
+            text: this.t('activeNoteDownStrategyTitle'),
+            cls: 'fm-section-title'
+          });
+
+          const strategies = [
+            { value: 'reuse', label: this.t('activeNoteDownOptReuse') },
+            { value: 'rename', label: this.t('activeNoteDownOptRename') },
+            { value: 'overwrite', label: this.t('activeNoteDownOptOverwrite') }
+          ];
+          for (const st of strategies) {
+            const rowLabel = strategyWrap.createEl('label', {
+              cls: 'fm-check-row',
+              attr: { style: 'cursor:pointer;' }
+            });
+            const radio = rowLabel.createEl('input', {
+              type: 'radio',
+              attr: { name: 'fm-down-conflict-strategy', value: st.value }
+            });
+            radio.checked = this.conflictStrategy === st.value;
+            radio.onchange = () => {
+              if (radio.checked) this.conflictStrategy = st.value;
+            };
+            rowLabel.createSpan({ text: st.label });
+          }
+        }
+      }
+
+      const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
+
+      runBtn = btnRow.createEl('button', {
+        text: this.t('activeNoteStartDownload', { count: this.items.filter((i) => i.selected).length }),
+        cls: 'mod-cta'
+      });
+      runBtn.onclick = async () => {
+        const selected = this.items.filter((i) => i.selected);
+        if (selected.length === 0) {
+          new Notice(this.t('activeNoteSelectRequired'));
+          return;
+        }
+        this.step = 'running';
+        this.render();
+        await this.execute(selected);
+      };
+      return;
+    }
+
+    if (this.step === 'preview') {
+      if (this.items.length === 0) {
+        const emptyBanner = contentEl.createDiv({
+          cls: 'fm-section-box',
+          attr: { style: 'text-align: center; padding: 24px 16px;' }
+        });
+        emptyBanner.createDiv({
+          text: this.t('activeNoteNoLocal'),
+          attr: { style: 'font-size: 14px; color: var(--text-muted);' }
+        });
+        const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+        const closeBtn = btnRow.createEl('button', { text: this.t('closeBtn') });
+        closeBtn.onclick = () => returnToHub(this);
+        return;
+      }
+
+      contentEl.createEl('p', {
+        text: this.t('activeNoteStep1Desc', { count: this.items.length }),
+        cls: 'fm-step-desc'
+      });
+
+      const listEl = contentEl.createDiv({
+        cls: 'fm-scroll-list',
+        attr: { style: 'max-height: 240px;' }
+      });
+
+      let runBtn = null;
+      const updateRunBtnLabel = () => {
+        if (!runBtn) return;
+        const selectedCount = this.items.filter((i) => i.selected).length;
+        runBtn.setText(this.t('activeNoteStartUpload', { count: selectedCount }));
+      };
+
+      for (const item of this.items) {
+        const row = listEl.createDiv({ cls: 'fm-list-item' });
+        const left = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+        });
+        const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
+        cb.checked = item.selected;
+        cb.onchange = () => {
+          item.selected = cb.checked;
+          updateRunBtnLabel();
+        };
+
+        renderItemVisualThumb(left, item, this.plugin);
+
+        const nameCol = left.createDiv({
+          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+        });
+        nameCol.createSpan({
+          text: item.name,
+          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+        });
+        nameCol.createSpan({
+          text: `${item.displayPath} · ${formatBytes(item.size)}`,
+          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+        });
+
+        const rightBox = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
+        });
+        const otherRefs = item.otherRefNotes || [];
+        if (otherRefs.length > 0) {
+          const refBadge = rightBox.createSpan({
+            text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
+            cls: 'fm-tag fm-tag-ref fm-clickable-badge',
+            attr: { title: this.t('activeNoteInspectOtherRefs') }
+          });
+          refBadge.onclick = (e) => {
+            e.stopPropagation();
+            new NoteRefsModal(this.app, item.name, otherRefs, () => this.close(), this.plugin).open();
+          };
+        }
+
+        const lockBtn = rightBox.createEl('button', {
+          type: 'button',
+          cls: 'fm-mini-btn',
+          text: item.locked ? this.t('activeNoteBtnLockOn') : this.t('activeNoteBtnLockOff'),
+          attr: {
+            style: item.locked
+              ? 'border-color: var(--interactive-accent); color: var(--text-accent); font-weight: 600;'
+              : 'color: var(--text-muted);'
+          }
+        });
+        lockBtn.onclick = (e) => {
+          e.stopPropagation();
+          item.locked = !item.locked;
+          lockBtn.setText(item.locked ? this.t('activeNoteBtnLockOn') : this.t('activeNoteBtnLockOff'));
+          lockBtn.style.cssText = item.locked
+            ? 'border-color: var(--interactive-accent); color: var(--text-accent); font-weight: 600;'
+            : 'color: var(--text-muted);';
+        };
+      }
+
+      contentEl.createDiv({
+        cls: 'fm-section-box',
+        text: this.t('activeNoteLockExplain'),
+        attr: { style: 'font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 10px;' }
+      });
+
+      const otherRefNotesAll = this.getUniqueOtherRefNotes(false);
+      const optBox = contentEl.createDiv({
+        cls: 'fm-section-box',
+        attr: { style: 'margin-top: 8px; display: flex; flex-direction: column; gap: 10px;' }
+      });
+
+      if (otherRefNotesAll.length > 0) {
+        const syncLabel = optBox.createEl('label', {
+          cls: 'fm-check-row',
+          attr: { style: 'margin: 0; cursor: pointer;' }
+        });
+        const syncCb = syncLabel.createEl('input', { type: 'checkbox' });
+        syncCb.checked = this.syncOtherNotes;
+        syncCb.onchange = () => {
+          this.syncOtherNotes = syncCb.checked;
+        };
+        syncLabel.createSpan({
+          text: this.t('activeNoteSyncOtherUploadOpt', { count: otherRefNotesAll.length })
+        });
+      }
+
+      const delWrap = optBox.createDiv({
+        attr: {
+          style: otherRefNotesAll.length > 0
+            ? 'border-top: 1px solid var(--background-modifier-border); padding-top: 10px;'
+            : ''
+        }
+      });
+      const delLabel = delWrap.createEl('label', {
+        cls: 'fm-check-row',
+        attr: { style: 'margin: 0; cursor: pointer;' }
+      });
+      const delCb = delLabel.createEl('input', { type: 'checkbox' });
+      delCb.checked = this.deleteLocalAfter;
+      delCb.onchange = () => {
+        this.deleteLocalAfter = delCb.checked;
+      };
+      delLabel.createSpan({ text: this.t('activeNoteDeleteLocalOpt') });
+
+      const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
+
+      runBtn = btnRow.createEl('button', {
+        text: this.t('activeNoteStartUpload', { count: this.items.filter((i) => i.selected).length }),
+        cls: 'mod-cta'
+      });
+      runBtn.onclick = async () => {
+        const selected = this.items.filter((i) => i.selected);
+        if (selected.length === 0) {
+          new Notice(this.t('activeNoteSelectRequired'));
+          return;
+        }
+        this.step = 'running';
+        this.render();
+        await this.execute(selected);
+      };
+      return;
+    }
 
     if (this.step === 'running') {
       const box = contentEl.createDiv({ cls: 'fm-section-box' });
       this.statusText = box.createDiv({
         text: this.t('activeNoteScanning'),
-        style: 'font-size: 13px; color: var(--text-accent); margin-bottom: 8px;'
+        attr: { style: 'font-size: 13px; color: var(--text-accent); margin-bottom: 8px;' }
       });
       const wrap = box.createDiv({ cls: 'fm-progress-wrap' });
-      this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', style: 'width: 10%;' });
+      this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 10%;' } });
     } else if (this.step === 'result') {
+      const failures = this.result?.failures || [];
+      const processedItems = this.result?.processedItems || [];
       if (!this.result.success) {
         const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
         errBanner.createDiv({ cls: 'fm-result-banner-title', text: '❌ ' + this.result.message });
-      } else if (this.result.count === 0) {
-        const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', style: 'text-align: center; padding: 24px 16px;' });
-        emptyBanner.createDiv({
-          text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
-          style: 'font-size: 14px; color: var(--text-muted);'
-        });
       } else {
-        const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
-        banner.createDiv({
-          cls: 'fm-result-banner-title',
-          text: this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
-        });
-        banner.createDiv({
-          cls: 'fm-result-banner-desc',
-          text: this.actionType === 'migrate'
-            ? this.t('activeNoteMigrateDoneDesc', { count: this.result.count })
-            : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
-        });
+        if (this.result.count > 0) {
+          const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
+          banner.createDiv({
+            cls: 'fm-result-banner-title',
+            text: this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
+          });
+          banner.createDiv({
+            cls: 'fm-result-banner-desc',
+            text: this.actionType === 'migrate'
+              ? this.t('activeNoteMigrateDoneDesc', { count: this.result.count })
+              : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
+          });
+
+          if (processedItems.length > 0) {
+            const listBox = contentEl.createDiv({
+              cls: 'fm-section-box',
+              attr: { style: 'margin-top: 10px;' }
+            });
+            listBox.createDiv({
+              text: this.t('activeNoteResultListTitle', { count: processedItems.length }),
+              cls: 'fm-section-title'
+            });
+            const listEl = listBox.createDiv({
+              cls: 'fm-scroll-list',
+              attr: { style: 'max-height: 220px; margin-bottom: 0;' }
+            });
+            for (const pItem of processedItems) {
+              const row = listEl.createDiv({ cls: 'fm-list-item' });
+              const left = row.createDiv({
+                attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+              });
+              renderItemVisualThumb(left, pItem, this.plugin);
+              const nameCol = left.createDiv({
+                attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+              });
+              nameCol.createSpan({
+                text: pItem.name,
+                attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+              });
+              nameCol.createSpan({
+                text: `${pItem.displayPath}${pItem.size ? ' · ' + formatBytes(pItem.size) : ''}`,
+                attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+              });
+
+              const rightBox = row.createDiv({
+                attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;' }
+              });
+              if (pItem.syncedOtherNotes > 0) {
+                const syncedPaths = Array.isArray(pItem.syncedOtherNotePaths) ? pItem.syncedOtherNotePaths : [];
+                const syncedBadge = rightBox.createSpan({
+                  text: this.t('activeNoteBadgeSyncedNotes', { count: pItem.syncedOtherNotes }),
+                  cls: syncedPaths.length > 0 ? 'fm-tag fm-tag-ref fm-clickable-badge' : 'fm-tag fm-tag-ref',
+                  attr: syncedPaths.length > 0 ? { title: this.t('activeNoteInspectOtherRefs') } : {}
+                });
+                if (syncedPaths.length > 0) {
+                  syncedBadge.onclick = (e) => {
+                    e.stopPropagation();
+                    new NoteRefsModal(this.app, pItem.name, syncedPaths, () => this.close(), this.plugin).open();
+                  };
+                }
+              }
+              if (pItem.trashedLocal) {
+                rightBox.createSpan({ text: this.t('activeNoteBadgeTrashedLocal'), cls: 'fm-tag fm-tag-info' });
+              } else if (pItem.keptForOtherRefs > 0) {
+                const keptPaths = Array.isArray(pItem.keptForOtherRefPaths) ? pItem.keptForOtherRefPaths : [];
+                const keptBadge = rightBox.createSpan({
+                  text: this.t('activeNoteBadgeKeptForOtherRefs', { count: pItem.keptForOtherRefs }),
+                  cls: keptPaths.length > 0 ? 'fm-tag fm-tag-warning fm-clickable-badge' : 'fm-tag fm-tag-warning',
+                  attr: keptPaths.length > 0 ? { title: this.t('activeNoteInspectOtherRefs') } : {}
+                });
+                if (keptPaths.length > 0) {
+                  keptBadge.onclick = (e) => {
+                    e.stopPropagation();
+                    new NoteRefsModal(this.app, pItem.name, keptPaths, () => this.close(), this.plugin).open();
+                  };
+                }
+              }
+              if (pItem.locked) {
+                rightBox.createSpan({ text: this.t('activeNoteBtnLockOn'), cls: 'fm-tag fm-tag-info' });
+              }
+              let badgeKey = 'activeNoteBadgeDownloaded';
+              if (pItem.action === 'reused') badgeKey = 'activeNoteBadgeReused';
+              else if (pItem.action === 'overwritten') badgeKey = 'activeNoteBadgeOverwritten';
+              else if (pItem.action === 'uploaded') badgeKey = 'activeNoteBadgeUploaded';
+              rightBox.createSpan({
+                text: this.t(badgeKey),
+                cls: 'fm-tag fm-tag-info'
+              });
+            }
+          }
+        } else if (failures.length === 0) {
+          const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align: center; padding: 24px 16px;' } });
+          emptyBanner.createDiv({
+            text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
+            attr: { style: 'font-size: 14px; color: var(--text-muted);' }
+          });
+        }
+
+        if (failures.length > 0) {
+          const failBanner = contentEl.createDiv({
+            cls: 'fm-result-banner fm-result-banner-error',
+            attr: { style: 'margin-top: 10px;' }
+          });
+          const failTitleKey = this.actionType === 'migrate' ? 'activeNoteFailedTitle' : 'activeNoteDownFailedTitle';
+          failBanner.createDiv({
+            cls: 'fm-result-banner-title',
+            text: this.t(failTitleKey, { failed: failures.length })
+          });
+          for (const f of failures) {
+            const reason = formatFriendlyError(this, f.error);
+            failBanner.createDiv({
+              cls: 'fm-result-banner-desc',
+              text: `• ${f.name} (${formatBytes(f.size || 0)}): ${reason}`,
+              attr: { style: 'margin-top: 4px;' }
+            });
+          }
+        }
       }
 
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
-      doneBtn.onclick = () => this.close();
+      doneBtn.onclick = () => returnToHub(this);
     }
   }
 
-  async execute() {
+  async execute(selectedItems = null) {
     try {
       if (this.actionType === 'migrate') {
-        const count = await this.plugin.executeMigrateNoteDirect(
+        const res = await this.plugin.executeMigrateNoteDirect(
           this.targetFile,
           (cur, total, name) => {
             if (this.progressBar) {
@@ -845,11 +1390,20 @@ class ActiveNoteActionModal extends Modal {
             if (this.statusText) {
               this.statusText.setText(this.t('activeNoteProcessing', { current: cur, total, name }));
             }
+          },
+          {
+            items: selectedItems || this.items.filter((i) => i.selected),
+            deleteLocalAfter: this.deleteLocalAfter,
+            syncOtherNotes: this.syncOtherNotes,
+            returnDetails: true
           }
         );
-        this.result = { success: true, count };
+        const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
+        const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
+        const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
+        this.result = { success: true, count, processedItems, failures };
       } else {
-        const count = await this.plugin.executeDownloadNoteDirect(
+        const res = await this.plugin.executeDownloadNoteDirect(
           this.targetFile,
           (cur, total, name) => {
             if (this.progressBar) {
@@ -859,9 +1413,18 @@ class ActiveNoteActionModal extends Modal {
             if (this.statusText) {
               this.statusText.setText(this.t('activeNoteProcessing', { current: cur, total, name }));
             }
+          },
+          {
+            items: selectedItems || this.items.filter((i) => i.selected),
+            conflictStrategy: this.conflictStrategy,
+            syncOtherNotes: this.syncOtherNotes,
+            returnDetails: true
           }
         );
-        this.result = { success: true, count };
+        const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
+        const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
+        const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
+        this.result = { success: true, count, processedItems, failures };
       }
     } catch (err) {
       this.result = { success: false, message: err.message };
@@ -922,7 +1485,7 @@ class OrphanWizardModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('orphanStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     if (this.plugin?.isRemoteServerReady?.()) {
@@ -942,7 +1505,7 @@ class OrphanWizardModal extends Modal {
     const exclFolders = this.plugin.getExcludedLocalFolderList();
     const protInfo = contentEl.createDiv({
       cls: 'fm-section-box',
-      style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
     });
     const exclHint = exclFolders.length ? t('orphanExclHint', { folders: exclFolders.join(', ') }) : '';
     protInfo.createDiv({
@@ -954,7 +1517,7 @@ class OrphanWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -1015,7 +1578,7 @@ class OrphanWizardModal extends Modal {
     }
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
       this.step = 1;
@@ -1041,8 +1604,11 @@ class OrphanWizardModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('orphanNoneFound'),
-        style: 'text-align: center; padding: 36px 20px;'
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
       });
+      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
       return;
     }
 
@@ -1050,10 +1616,10 @@ class OrphanWizardModal extends Modal {
     for (const item of this.results) {
       const row = listEl.createDiv({ cls: 'fm-list-item' });
       const left = row.createDiv({
-        style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;'
+        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
       });
 
-      const cb = left.createEl('input', { type: 'checkbox', style: 'cursor:pointer;' });
+      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
       cb.checked = item.selected;
       cb.onchange = () => {
         item.selected = cb.checked;
@@ -1061,23 +1627,23 @@ class OrphanWizardModal extends Modal {
 
       renderItemVisualThumb(left, item, this.plugin);
 
-      const infoCol = left.createDiv({ style: 'overflow:hidden; flex:1;' });
-      const topLine = infoCol.createDiv({ style: 'display:flex; align-items:center; gap:6px;' });
+      const infoCol = left.createDiv({ attr: { style: 'overflow:hidden; flex:1;' } });
+      const topLine = infoCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
       topLine.createSpan({
         text: item.source === 'local' ? '💻 Local' : '☁️ Remote',
         cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
       });
       topLine.createSpan({
         text: item.displayPath,
-        style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;'
+        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
       });
 
       const rightBox = row.createDiv({
-        style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;'
+        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
       });
       rightBox.createSpan({
         text: formatBytes(item.size),
-        style: 'color: var(--text-muted); font-size: 12px;'
+        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
       });
 
       if (item.source === 'remote') {
@@ -1100,6 +1666,8 @@ class OrphanWizardModal extends Modal {
     }
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
     const cleanBtn = btnRow.createEl('button', {
       text: t('orphanDeleteSelected', { count: this.results.filter((r) => r.selected).length }),
       cls: 'mod-warning'
@@ -1175,7 +1743,7 @@ class DuplicateWizardModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('dupStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
@@ -1186,7 +1754,7 @@ class DuplicateWizardModal extends Modal {
       const scopes = [
         { key: 'both', label: t('dupCompareCross') },
         { key: 'local', label: t('dupCompareLocal') },
-        { key: 'remote', label: '☁️ Remote Server Only' }
+        { key: 'remote', label: t('dupCompareRemote') }
       ];
 
       for (const s of scopes) {
@@ -1210,10 +1778,10 @@ class DuplicateWizardModal extends Modal {
     const exclFolders = this.plugin.getExcludedLocalFolderList();
     const protBox = contentEl.createDiv({
       cls: 'fm-section-box',
-      style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;'
+      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
     });
     protBox.createDiv({
-      text: `🛡️ Protection Rules: Local excluded folders (${exclFolders.join(', ') || 'none'}) are skipped. Remote files with "🔒 Protected Lock" are prioritized as keep targets and never deleted.`
+      text: t('dupProtRuleHint', { folders: exclFolders.join(', ') || '-' })
     });
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
@@ -1221,7 +1789,7 @@ class DuplicateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -1303,7 +1871,7 @@ class DuplicateWizardModal extends Modal {
     });
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' } });
 
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
@@ -1311,12 +1879,12 @@ class DuplicateWizardModal extends Modal {
       this.render();
     };
 
-    leftTools.createSpan({ text: 'Strategy:', style: 'font-size:13px; font-weight:600; margin-left:4px;' });
-    const modeSelect = leftTools.createEl('select', { style: 'padding: 5px 8px; border-radius: 6px;' });
+    leftTools.createSpan({ text: t('dupStrategyLabel'), attr: { style: 'font-size:13px; font-weight:600; margin-left:4px;' } });
+    const modeSelect = leftTools.createEl('select', { attr: { style: 'padding: 5px 8px; border-radius: 6px;' } });
     const modeOptions = [
-      { value: 'auto', label: '1. Auto-select item to keep (Recommended)' },
-      { value: 'prefer-remote', label: '2. Replace local files with remote copies (Vault Slimming)' },
-      { value: 'prefer-local', label: '3. Keep local files and remove remote duplicates' }
+      { value: 'auto', label: t('dupStrategyAuto') },
+      { value: 'prefer-remote', label: t('dupStrategyPreferRemote') },
+      { value: 'prefer-local', label: t('dupStrategyPreferLocal') }
     ];
     for (const opt of modeOptions) {
       const o = modeSelect.createEl('option', { value: opt.value, text: opt.label });
@@ -1337,8 +1905,8 @@ class DuplicateWizardModal extends Modal {
     if (this.scanStats?.remoteError) {
       contentEl.createDiv({
         cls: 'fm-section-box',
-        text: `⚠️ Remote server could not be reached (${this.scanStats.remoteError}). Showing local vault comparison results only.`,
-        style: 'font-size: 12px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); padding: 10px 14px;'
+        text: t('noticeRemoteUnreachable', { err: this.scanStats.remoteError }),
+        attr: { style: 'font-size: 12px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); padding: 10px 14px;' }
       });
     }
 
@@ -1346,11 +1914,11 @@ class DuplicateWizardModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('dupNoneFound'),
-        style: 'text-align: center; padding: 36px 20px;'
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
       });
       const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const closeBtn = emptyBtnRow.createEl('button', { text: t('closeBtn'), cls: 'mod-cta' });
-      closeBtn.onclick = () => this.close();
+      closeBtn.onclick = () => returnToHub(this);
       return;
     }
 
@@ -1359,21 +1927,20 @@ class DuplicateWizardModal extends Modal {
       const grpBox = listEl.createDiv({ cls: 'fm-dup-group' });
       const grpHead = grpBox.createDiv({ cls: 'fm-dup-group-header' });
       grpHead.createSpan({
-        text: `Duplicate Group #${idx + 1} (SHA-256: ${grp.sha256.slice(0, 12)}... | Size: ${formatBytes(grp.size)})`
+        text: t('dupGroupHeader', { idx: idx + 1, hash: grp.sha256.slice(0, 12), size: formatBytes(grp.size) })
       });
-      grpHead.createSpan({ text: 'Click thumbnail to inspect; click reference count to view notes' });
+      grpHead.createSpan({ text: t('dupGroupSubhint') });
 
       for (const item of grp.items) {
         const isKeep = grp.keepId === item.id;
         const row = grpBox.createDiv({ cls: 'fm-list-item' });
         const left = row.createDiv({
-          style: 'display:flex; align-items:center; gap:8px; flex:1; overflow:hidden;'
+          attr: { style: 'display:flex; align-items:center; gap:8px; flex:1; overflow:hidden;' }
         });
 
         const radio = left.createEl('input', {
           type: 'radio',
-          attr: { name: `dup_grp_${idx}` },
-          style: 'cursor:pointer;'
+          attr: { name: `dup_grp_${idx}`, style: 'cursor:pointer;' }
         });
         radio.checked = isKeep;
         radio.onchange = () => {
@@ -1384,12 +1951,12 @@ class DuplicateWizardModal extends Modal {
         renderItemVisualThumb(left, item, this.plugin);
 
         left.createSpan({
-          text: isKeep ? '✅ Keep' : item.locked ? '🔒 Protected' : '🗑️ Remove',
-          style: `font-size:12px; font-weight:700; color:${isKeep ? '#10b981' : item.locked ? '#f59e0b' : '#ef4444'}; width:68px; flex-shrink:0;`
+          text: isKeep ? t('dupTagKeep') : item.locked ? t('dupTagProtected') : t('dupTagRemove'),
+          attr: { style: `font-size:12px; font-weight:700; color:${isKeep ? '#10b981' : item.locked ? '#f59e0b' : '#ef4444'}; width:68px; flex-shrink:0;` }
         });
 
         left.createSpan({
-          text: item.source === 'local' ? '💻 Local' : '☁️ Remote',
+          text: item.source === 'local' ? t('analyticsBadgeLocal') : t('analyticsBadgeRemote'),
           cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
         });
 
@@ -1402,15 +1969,14 @@ class DuplicateWizardModal extends Modal {
 
         left.createSpan({
           text: item.displayPath,
-          style: 'word-break:break-all; cursor:pointer;',
-          attr: { title: t('dupDesignateKeepTitle') }
+          attr: { title: t('dupDesignateKeepTitle'), attr: { style: 'word-break:break-all; cursor:pointer;' } }
         }).onclick = () => {
           grp.keepId = item.id;
           this.render();
         };
 
         const rightBox = row.createDiv({
-          style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;'
+          attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
         });
 
         const refBadge = rightBox.createSpan({
@@ -1426,6 +1992,8 @@ class DuplicateWizardModal extends Modal {
     });
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
     const execBtn = btnRow.createEl('button', {
       text: t('dupMergeRewrite', { count: totalDupes }),
       cls: 'mod-cta'
@@ -1457,7 +2025,7 @@ class DuplicateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
-    doneBtn.onclick = () => this.close();
+    doneBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
@@ -1514,12 +2082,12 @@ class BatchMigrateWizardModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('migrateStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     const folderBox = contentEl.createDiv({ cls: 'fm-section-box' });
     folderBox.createDiv({ text: t('migrateFolderScope'), cls: 'fm-section-title' });
-    const folderSelect = folderBox.createEl('select', { style: 'width:100%; padding:8px 10px; border-radius:6px;' });
+    const folderSelect = folderBox.createEl('select', { attr: { style: 'width:100%; padding:8px 10px; border-radius:6px;' } });
     folderSelect.createEl('option', {
       value: '',
       text: t('migrateEntireVault')
@@ -1553,7 +2121,7 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const nextBtn = btnRow.createEl('button', { text: t('migrateNextPreview'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -1600,7 +2168,7 @@ class BatchMigrateWizardModal extends Modal {
     });
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
       this.step = 1;
@@ -1624,8 +2192,11 @@ class BatchMigrateWizardModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('migrateNoneFound'),
-        style: 'text-align: center; padding: 36px 20px;'
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
       });
+      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
       return;
     }
 
@@ -1633,9 +2204,9 @@ class BatchMigrateWizardModal extends Modal {
     for (const item of this.items) {
       const row = listEl.createDiv({ cls: 'fm-list-item' });
       const left = row.createDiv({
-        style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;'
+        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
       });
-      const cb = left.createEl('input', { type: 'checkbox', style: 'cursor:pointer;' });
+      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
       cb.checked = item.selected;
       cb.onchange = () => {
         item.selected = cb.checked;
@@ -1645,15 +2216,15 @@ class BatchMigrateWizardModal extends Modal {
 
       left.createSpan({
         text: item.displayPath,
-        style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;'
+        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
       });
 
       const rightBox = row.createDiv({
-        style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;'
+        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
       });
       rightBox.createSpan({
         text: formatBytes(item.size),
-        style: 'color: var(--text-muted); font-size: 12px;'
+        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
       });
 
       const refBadge = rightBox.createSpan({
@@ -1667,12 +2238,14 @@ class BatchMigrateWizardModal extends Modal {
       };
     }
 
-    const progressBox = contentEl.createDiv({ style: 'display:none; margin-bottom:10px;' });
-    const progressText = progressBox.createDiv({ style: 'font-size:12px; color:var(--text-accent);' });
+    const progressBox = contentEl.createDiv({ attr: { style: 'display:none; margin-bottom:10px;' } });
+    const progressText = progressBox.createDiv({ attr: { style: 'font-size:12px; color:var(--text-accent);' } });
     const progressWrap = progressBox.createDiv({ cls: 'fm-progress-wrap' });
     const progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar' });
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
     const runBtn = btnRow.createEl('button', {
       text: t('migrateStart', { count: this.items.filter((i) => i.selected).length }),
       cls: 'mod-cta'
@@ -1721,7 +2294,7 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
-    doneBtn.onclick = () => this.close();
+    doneBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
@@ -1774,7 +2347,7 @@ class HealthCheckModal extends Modal {
 
     contentEl.createEl('p', {
       text: t('healthStep1Desc'),
-      style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;'
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
     });
 
     const box = contentEl.createDiv({ cls: 'fm-section-box' });
@@ -1782,27 +2355,20 @@ class HealthCheckModal extends Modal {
 
     this.createCheckbox(box, t('healthCheckWiki'), 'checkWikiLinks');
     this.createCheckbox(box, t('healthCheckLocal'), 'checkLocalMarkdown');
-    if (this.plugin?.isRemoteServerReady?.()) {
-      this.createCheckbox(box, t('healthCheckRemote'), 'checkRemote');
-    }
-
-    const noticeBox = contentEl.createDiv({
-      cls: 'fm-section-box',
-      style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;'
-    });
-    noticeBox.createDiv({
-      text: t('healthScopeHint')
-    });
+    this.createCheckbox(box, t('healthCheckRemote'), 'checkRemote');
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => this.close();
+    cancelBtn.onclick = () => returnToHub(this);
 
     const startBtn = btnRow.createEl('button', { text: t('healthStartScan'), cls: 'mod-cta' });
     startBtn.onclick = async () => {
+      if (!this.options.checkWikiLinks && !this.options.checkLocalMarkdown && !this.options.checkRemote) {
+        return;
+      }
       startBtn.disabled = true;
       startBtn.setText(t('healthScanning'));
       progressWidget.show();
@@ -1860,7 +2426,7 @@ class HealthCheckModal extends Modal {
     addStat(remoteIssues.length, t('healthStatRemote'), remoteIssues.length > 0 ? '#3b82f6' : undefined);
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ style: 'display:flex; gap:8px; align-items:center;' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('healthRescan') });
     backBtn.onclick = () => {
       this.step = 1;
@@ -1879,18 +2445,18 @@ class HealthCheckModal extends Modal {
       contentEl.createDiv({
         cls: 'fm-section-box',
         text: t('healthNoneFound'),
-        style: 'text-align: center; padding: 36px 20px; font-weight: 500;'
+        attr: { style: 'text-align: center; padding: 36px 20px; font-weight: 500;' }
       });
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });
-      closeBtn.onclick = () => this.close();
+      closeBtn.onclick = () => returnToHub(this);
       return;
     }
 
     const filterRow = contentEl.createDiv({
-      style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;'
+      attr: { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;' }
     });
-    const chipBox = filterRow.createDiv({ style: 'display:flex; gap:6px;' });
+    const chipBox = filterRow.createDiv({ attr: { style: 'display:flex; gap:6px;' } });
     const createChip = (id, label, count) => {
       const chip = chipBox.createEl('button', {
         text: `${label} (${count})`,
@@ -1911,19 +2477,19 @@ class HealthCheckModal extends Modal {
       type: 'search',
       placeholder: t('healthSearchPlaceholder'),
       value: this.searchQuery,
-      style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;'
+      attr: { style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;' }
     });
     searchInput.oninput = (e) => {
       this.searchQuery = e.target.value.toLowerCase();
       this.renderIssueList(listEl);
     };
 
-    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list', style: 'max-height: 380px;' });
+    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list', attr: { style: 'max-height: 380px;' } });
     this.renderIssueList(listEl);
 
     const bottomRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const closeBtn = bottomRow.createEl('button', { text: t('closeBtn') });
-    closeBtn.onclick = () => this.close();
+    closeBtn.onclick = () => returnToHub(this);
   }
 
   renderIssueList(listEl) {
@@ -1947,7 +2513,7 @@ class HealthCheckModal extends Modal {
       listEl.createDiv({
         cls: 'fm-section-box',
         text: t('healthNoMatches'),
-        style: 'text-align: center; padding: 24px;'
+        attr: { style: 'text-align: center; padding: 24px;' }
       });
       return;
     }
@@ -1955,10 +2521,10 @@ class HealthCheckModal extends Modal {
     for (const item of filtered) {
       const row = listEl.createDiv({ cls: 'fm-list-item' });
       const leftCol = row.createDiv({
-        style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;'
+        attr: { style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;' }
       });
 
-      const topMeta = leftCol.createDiv({ style: 'display:flex; align-items:center; gap:6px;' });
+      const topMeta = leftCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
       let tagCls = 'fm-tag-error';
       let tagLabel = '🔴 Broken Link';
       if (item.category === 'wikilink') {
@@ -1973,14 +2539,14 @@ class HealthCheckModal extends Modal {
       }
 
       topMeta.createSpan({ text: tagLabel, cls: `fm-tag ${tagCls}` });
-      topMeta.createEl('code', { text: item.target, style: 'font-size: 12px; font-weight: 600;' });
+      topMeta.createEl('code', { text: item.target, attr: { style: 'font-size: 12px; font-weight: 600;' } });
       topMeta.createSpan({
         text: t('healthLine', { line: item.line }),
-        style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;'
+        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;' }
       });
 
       const noteRef = leftCol.createDiv({
-        style: 'font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;'
+        attr: { style: 'font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;' }
       });
       noteRef.createSpan({ text: t('healthInNote', { path: item.sourcePath }) });
 
@@ -1993,7 +2559,7 @@ class HealthCheckModal extends Modal {
 
       const openBtn = row.createEl('button', {
         text: t('healthJumpToLine'),
-        style: 'flex-shrink:0; align-self:center;'
+        attr: { style: 'flex-shrink:0; align-self:center;' }
       });
       openBtn.onclick = async () => {
         await this.plugin.openNoteAtLine(item.sourcePath, item.line);
@@ -2030,7 +2596,7 @@ class VaultAnalyticsModal extends Modal {
     const loadingEl = contentEl.createDiv({
       cls: 'fm-section-box',
       text: t('analyticsLoading'),
-      style: 'text-align: center; padding: 32px 20px;'
+      attr: { style: 'text-align: center; padding: 32px 20px;' }
     });
 
     try {
@@ -2038,7 +2604,7 @@ class VaultAnalyticsModal extends Modal {
       loadingEl.remove();
       this.renderDashboard(contentEl);
     } catch (err) {
-      loadingEl.setText('❌ Failed to compute vault analytics: ' + err.message);
+      loadingEl.setText(t('analyticsFail', { err: err.message }));
     }
   }
 
@@ -2071,16 +2637,16 @@ class VaultAnalyticsModal extends Modal {
     const remotePct = 100 - localPct;
 
     const summaryRow = storageBox.createDiv({
-      style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;'
+      attr: { style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;' }
     });
 
     const localCard = summaryRow.createDiv({
-      style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);'
+      attr: { style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);' }
     });
-    localCard.createDiv({ text: t('analyticsLocalVault'), style: 'font-weight: 600; font-size: 13px;' });
+    localCard.createDiv({ text: t('analyticsLocalVault'), attr: { style: 'font-weight: 600; font-size: 13px;' } });
     localCard.createDiv({
       text: `${s.local.totalCount} · ${formatBytes(s.local.totalBytes)} (${localPct}%)`,
-      style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent);'
+      attr: { style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent);' }
     });
     localCard.createDiv({
       text: t('analyticsLocalStats', {
@@ -2091,39 +2657,39 @@ class VaultAnalyticsModal extends Modal {
         oth: s.local.otherCount,
         othBytes: formatBytes(s.local.otherBytes)
       }),
-      style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;'
+      attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
     });
 
     const remoteCard = summaryRow.createDiv({
-      style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);'
+      attr: { style: 'padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);' }
     });
-    remoteCard.createDiv({ text: t('analyticsRemoteServer'), style: 'font-weight: 600; font-size: 13px;' });
+    remoteCard.createDiv({ text: t('analyticsRemoteServer'), attr: { style: 'font-weight: 600; font-size: 13px;' } });
     remoteCard.createDiv({
       text: `${s.remote.totalCount} · ${formatBytes(s.remote.rawBytes)} (${remotePct}%)`,
-      style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981;'
+      attr: { style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981;' }
     });
     remoteCard.createDiv({
       text: t('analyticsRemoteStats', {
         cache: formatBytes(s.remote.cacheBytes),
         locked: s.remote.lockedCount
       }),
-      style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;'
+      attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
     });
 
     if (s.topLargestAttachments.length > 0) {
       const topBox = contentEl.createDiv({ cls: 'fm-section-box' });
       topBox.createDiv({ text: t('analyticsTopLargest'), cls: 'fm-section-title' });
-      const listEl = topBox.createDiv({ cls: 'fm-scroll-list', style: 'max-height: 210px;' });
+      const listEl = topBox.createDiv({ cls: 'fm-scroll-list', attr: { style: 'max-height: 210px;' } });
       for (const item of s.topLargestAttachments) {
         const row = listEl.createDiv({ cls: 'fm-list-item' });
         const badge = item.source === 'local' ? t('analyticsBadgeLocal') : t('analyticsBadgeRemote');
         row.createSpan({
           text: `${badge} · ${item.path}`,
-          style: 'font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+          attr: { style: 'font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' }
         });
         row.createSpan({
           text: formatBytes(item.size),
-          style: 'font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;'
+          attr: { style: 'font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;' }
         });
       }
     }
@@ -2138,7 +2704,7 @@ class VaultAnalyticsModal extends Modal {
     };
 
     const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });
-    closeBtn.onclick = () => this.close();
+    closeBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
@@ -2199,15 +2765,15 @@ class RemoteGalleryModal extends Modal {
     header.createEl('h3', { text: this.t('galleryTitle'), cls: 'fm-step-title' });
 
     if (this.loading) {
-      const box = contentEl.createDiv({ cls: 'fm-section-box', style: 'text-align:center; padding:40px 16px;' });
-      box.createDiv({ text: this.t('galleryLoading'), style: 'font-size:14px; color:var(--text-accent);' });
+      const box = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align:center; padding:40px 16px;' } });
+      box.createDiv({ text: this.t('galleryLoading'), attr: { style: 'font-size:14px; color:var(--text-accent);' } });
       return;
     }
 
     if (this.error) {
       const box = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
       box.createDiv({ cls: 'fm-result-banner-title', text: this.t('galleryLoadFail', { err: this.error }) });
-      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', style: 'margin-top:8px;' });
+      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', attr: { style: 'margin-top:8px;' } });
       retryBtn.onclick = () => this.loadData();
       return;
     }
@@ -2319,7 +2885,7 @@ class RemoteGalleryModal extends Modal {
       containerEl.createDiv({
         cls: 'fm-section-box',
         text: this.t('galleryEmpty'),
-        style: 'grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--text-muted);'
+        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--text-muted);' }
       });
       return;
     }
@@ -2342,12 +2908,12 @@ class RemoteGalleryModal extends Modal {
         });
         img.onerror = () => {
           img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', style: 'font-size:32px;' });
+          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:32px;' } });
         };
       } else {
         thumbWrap.createDiv({
           text: ext.toUpperCase(),
-          style: 'font-size: 16px; font-weight: 700; color: var(--text-muted);'
+          attr: { style: 'font-size: 16px; font-weight: 700; color: var(--text-muted);' }
         });
       }
 
@@ -2485,15 +3051,15 @@ class RemoteGalleryView extends ItemView {
     contentEl.empty();
 
     if (this.loading) {
-      const box = contentEl.createDiv({ cls: 'fm-section-box', style: 'text-align:center; padding:30px 12px;' });
-      box.createDiv({ text: this.t('galleryLoading'), style: 'font-size:12px; color:var(--text-accent);' });
+      const box = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align:center; padding:30px 12px;' } });
+      box.createDiv({ text: this.t('galleryLoading'), attr: { style: 'font-size:12px; color:var(--text-accent);' } });
       return;
     }
 
     if (this.error) {
-      const box = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error', style: 'margin:8px 0;' });
-      box.createDiv({ cls: 'fm-result-banner-title', text: this.t('galleryLoadFail', { err: this.error }), style: 'font-size:12px;' });
-      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', style: 'margin-top:6px;' });
+      const box = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error', attr: { style: 'margin:8px 0;' } });
+      box.createDiv({ cls: 'fm-result-banner-title', text: this.t('galleryLoadFail', { err: this.error }), attr: { style: 'font-size:12px;' } });
+      const retryBtn = box.createEl('button', { text: this.t('galleryBtnRefresh'), cls: 'fm-mini-btn', attr: { style: 'margin-top:6px;' } });
       retryBtn.onclick = () => this.loadData();
       return;
     }
@@ -2639,7 +3205,7 @@ class RemoteGalleryView extends ItemView {
       containerEl.createDiv({
         cls: 'fm-section-box',
         text: this.t('galleryEmpty'),
-        style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;'
+        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;' }
       });
       return;
     }
@@ -2662,12 +3228,12 @@ class RemoteGalleryView extends ItemView {
         });
         img.onerror = () => {
           img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', style: 'font-size:24px;' });
+          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
         };
       } else {
         thumbWrap.createDiv({
           text: ext.toUpperCase(),
-          style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);'
+          attr: { style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);' }
         });
       }
 
@@ -2777,39 +3343,31 @@ class FileMasterHubModal extends Modal {
     const heading = header.createDiv();
     heading.createEl('h3', { text: t('hubTitle'), cls: 'fm-step-title' });
     heading.createEl('p', { text: t('hubSubtitle') });
-    const currentEff = this.plugin.getEffectiveLanguage();
-    const langBtn = header.createEl('button', {
-      text: currentEff === 'en' ? '简体中文' : 'English',
-      cls: 'fm-hub-language',
-      attr: { title: t('langName') }
-    });
-    langBtn.onclick = async () => {
-      this.plugin.settings.language = currentEff === 'en' ? 'zh' : 'en';
-      await this.plugin.saveSettings();
-      this.plugin.onLanguageChange();
-      this.onOpen();
-    };
 
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
+    const openFromHub = (modal) => {
+      modal.fromHub = true;
+      this.plugin.openModalSafely(modal);
+    };
 
     const govActions = [
       {
         icon: 'link',
         title: t('actHealthTitle'),
         desc: t('actHealthDesc'),
-        run: () => this.plugin.openModalSafely(new HealthCheckModal(this.app, this.plugin))
+        run: () => openFromHub(new HealthCheckModal(this.app, this.plugin))
       },
       {
         icon: 'files',
         title: t('actDupTitle'),
         desc: t('actDupDesc'),
-        run: () => this.plugin.openModalSafely(new DuplicateWizardModal(this.app, this.plugin))
+        run: () => openFromHub(new DuplicateWizardModal(this.app, this.plugin))
       },
       {
         icon: 'search',
         title: t('actOrphanTitle'),
         desc: t('actOrphanDesc'),
-        run: () => this.plugin.openModalSafely(new OrphanWizardModal(this.app, this.plugin))
+        run: () => openFromHub(new OrphanWizardModal(this.app, this.plugin))
       }
     ];
 
@@ -2817,7 +3375,7 @@ class FileMasterHubModal extends Modal {
       icon: 'bar-chart-3',
       title: t('actAnalyticsTitle'),
       desc: t('actAnalyticsDesc'),
-      run: () => this.plugin.openModalSafely(new VaultAnalyticsModal(this.app, this.plugin))
+      run: () => openFromHub(new VaultAnalyticsModal(this.app, this.plugin))
     });
 
     const sections = [];
@@ -2829,7 +3387,7 @@ class FileMasterHubModal extends Modal {
             icon: 'image',
             title: t('actRemoteGalleryTitle'),
             desc: t('actRemoteGalleryDesc'),
-            run: () => this.plugin.openModalSafely(new RemoteGalleryModal(this.app, this.plugin))
+            run: () => openFromHub(new RemoteGalleryModal(this.app, this.plugin))
           },
           {
             icon: 'panel-right',
@@ -2844,7 +3402,7 @@ class FileMasterHubModal extends Modal {
             icon: 'cloud-upload',
             title: t('actMigrateTitle'),
             desc: t('actMigrateDesc'),
-            run: () => this.plugin.openModalSafely(new BatchMigrateWizardModal(this.app, this.plugin))
+            run: () => openFromHub(new BatchMigrateWizardModal(this.app, this.plugin))
           }
         ]
       });
@@ -2860,13 +3418,13 @@ class FileMasterHubModal extends Modal {
             icon: 'upload',
             title: t('actNoteUpTitle'),
             desc: t('actNoteUpDesc'),
-            run: () => this.plugin.migrateActiveNoteAttachments()
+            run: () => this.plugin.migrateActiveNoteAttachments(null, { fromHub: true })
           },
           {
             icon: 'download',
             title: t('actNoteDownTitle'),
             desc: t('actNoteDownDesc'),
-            run: () => this.plugin.downloadActiveNoteRemoteAttachments()
+            run: () => this.plugin.downloadActiveNoteRemoteAttachments(null, { fromHub: true })
           },
           {
             icon: 'copy',
@@ -2907,13 +3465,194 @@ class FileMasterHubModal extends Modal {
         const textCol = left.createDiv({ cls: 'fm-hub-card-text' });
         textCol.createDiv({ text: act.title, cls: 'fm-hub-card-title' });
         textCol.createDiv({ text: act.desc, cls: 'fm-hub-card-desc' });
-        const arrow = card.createSpan({ cls: 'fm-hub-card-arrow' });
-        setIcon(arrow, 'arrow-up-right');
 
         card.onclick = () => {
           this.close();
           act.run();
         };
+      }
+    }
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
+/**
+ * Operation & Debug Log Viewer/Exporter Modal
+ */
+class OperationLogModal extends Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.filterMode = 'all'; // 'all' | 'errors'
+    this.searchQuery = '';
+  }
+
+  t(k, p) {
+    return this.plugin ? this.plugin.t(k, p) : k;
+  }
+
+  async onOpen() {
+    if (this.plugin?.loadOperationLogs) {
+      await this.plugin.loadOperationLogs();
+    }
+    this.render();
+  }
+
+  render() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass('fm-wizard-modal');
+
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('opLogTitle'), cls: 'fm-step-title' });
+
+    contentEl.createDiv({
+      text: this.t('opLogPathHint', { path: this.plugin?.getLogFilePath?.() || '.obsidian/plugins/file-master/operation.log' }),
+      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' }
+    });
+
+    const allLogs = Array.isArray(this.plugin?.operationLogs) ? [...this.plugin.operationLogs].reverse() : [];
+    const errCount = allLogs.filter((e) => e.level === 'ERROR' || e.level === 'WARN').length;
+
+    const filterRow = contentEl.createDiv({
+      attr: { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;' }
+    });
+    const chipBox = filterRow.createDiv({ attr: { style: 'display:flex; gap:6px;' } });
+
+    const allBtn = chipBox.createEl('button', {
+      text: `${this.t('opLogFilterAll')} (${allLogs.length})`,
+      cls: this.filterMode === 'all' ? 'mod-cta' : ''
+    });
+    allBtn.onclick = () => {
+      this.filterMode = 'all';
+      this.render();
+    };
+
+    const errBtn = chipBox.createEl('button', {
+      text: `${this.t('opLogFilterErrors')} (${errCount})`,
+      cls: this.filterMode === 'errors' ? 'mod-cta' : ''
+    });
+    errBtn.onclick = () => {
+      this.filterMode = 'errors';
+      this.render();
+    };
+
+    const searchInput = filterRow.createEl('input', {
+      type: 'search',
+      placeholder: this.t('opLogSearchPlaceholder'),
+      value: this.searchQuery,
+      attr: { style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 190px;' }
+    });
+
+    const listEl = contentEl.createDiv({
+      cls: 'fm-scroll-list',
+      attr: { style: 'max-height: 360px;' }
+    });
+
+    searchInput.oninput = (e) => {
+      this.searchQuery = e.target.value.toLowerCase();
+      this.renderLogList(listEl, allLogs);
+    };
+
+    this.renderLogList(listEl, allLogs);
+
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row', attr: { style: 'justify-content: space-between; flex-wrap: wrap; gap: 8px;' } });
+    const leftBtns = btnRow.createDiv({ attr: { style: 'display: flex; gap: 8px; flex-wrap: wrap;' } });
+
+    const copyBtn = leftBtns.createEl('button', { text: this.t('opLogCopyAll'), cls: 'mod-cta' });
+    copyBtn.onclick = async () => {
+      const text = this.plugin?.formatLogsForExport?.() || '';
+      await navigator.clipboard.writeText(text);
+      new Notice(this.t('opLogCopiedNotice'));
+    };
+
+    const exportBtn = leftBtns.createEl('button', { text: this.t('opLogExportFile') });
+    exportBtn.onclick = () => {
+      const text = this.plugin?.formatLogsForExport?.() || '';
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      a.href = url;
+      a.download = `file-master-debug-${dateStr}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    };
+
+    const clearBtn = leftBtns.createEl('button', { text: this.t('opLogClear') });
+    clearBtn.onclick = async () => {
+      if (this.plugin?.clearOperationLogs) {
+        await this.plugin.clearOperationLogs();
+      }
+      new Notice(this.t('opLogClearedNotice'));
+      this.render();
+    };
+
+    const closeBtn = btnRow.createEl('button', { text: this.t('closeBtn') });
+    closeBtn.onclick = () => this.close();
+  }
+
+  renderLogList(listEl, allLogs) {
+    listEl.empty();
+    let filtered = allLogs;
+    if (this.filterMode === 'errors') {
+      filtered = filtered.filter((e) => e.level === 'ERROR' || e.level === 'WARN');
+    }
+    if (this.searchQuery) {
+      filtered = filtered.filter((e) => {
+        const hay = `${e.ts || ''} ${e.level || ''} ${e.action || ''} ${e.summary || ''} ${e.details ? JSON.stringify(e.details) : ''}`.toLowerCase();
+        return hay.includes(this.searchQuery);
+      });
+    }
+
+    if (filtered.length === 0) {
+      listEl.createDiv({
+        cls: 'fm-section-box',
+        text: this.t('opLogEmpty'),
+        attr: { style: 'text-align: center; padding: 28px 16px; color: var(--text-muted);' }
+      });
+      return;
+    }
+
+    for (const entry of filtered) {
+      const row = listEl.createDiv({ cls: 'fm-list-item' });
+      const col = row.createDiv({
+        attr: { style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;' }
+      });
+
+      const topRow = col.createDiv({
+        attr: { style: 'display:flex; align-items:center; gap:6px; flex-wrap:wrap;' }
+      });
+      let levelCls = 'fm-tag-info';
+      if (entry.level === 'ERROR') levelCls = 'fm-tag-error';
+      else if (entry.level === 'WARN') levelCls = 'fm-tag-warning';
+
+      topRow.createSpan({ text: entry.level || 'INFO', cls: `fm-tag ${levelCls}` });
+      if (entry.action) {
+        topRow.createEl('code', { text: entry.action, attr: { style: 'font-size: 11px;' } });
+      }
+      topRow.createSpan({
+        text: entry.ts || '',
+        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;' }
+      });
+
+      col.createDiv({
+        text: entry.summary || '',
+        attr: { style: 'font-size: 12px; font-weight: 500; word-break: break-word;' }
+      });
+
+      if (entry.details && Object.keys(entry.details).length > 0) {
+        col.createDiv({
+          text: JSON.stringify(entry.details),
+          cls: 'fm-health-context-quote',
+          attr: { style: 'font-family: var(--font-monospace); font-size: 11px; word-break: break-all;' }
+        });
       }
     }
   }
