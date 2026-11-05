@@ -195,7 +195,7 @@ const OTHER_EXTS = new Set([
   'rpm'
 ]);
 
-const OBSIDIAN_NOTE_EXTS = new Set(['md', 'canvas', 'base']);
+const OBSIDIAN_NOTE_EXTS = new Set(['md', 'canvas', 'base', 'excalidraw']);
 const ALL_ATTACHMENT_EXTS = new Set([...IMAGE_EXTS, ...AUDIO_EXTS, ...OTHER_EXTS]);
 
 function isAttachmentExt(ext) {
@@ -1320,7 +1320,7 @@ function getBaseName(filename) {
 
 function getFileTypeGroup(ext) {
   const e = String(ext || '').toLowerCase();
-  if (e === 'md') return 'note';
+  if (e === 'md' || e === 'excalidraw') return 'note';
   if (IMAGE_EXTS.has(e)) return 'image';
   if (AUDIO_EXTS.has(e)) return 'audio';
   return 'other';
@@ -1399,7 +1399,7 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
     const ext = String(f.extension || getExt(f.name)).toLowerCase();
     const size = f.stat?.size ?? f.size ?? 0;
 
-    if (ext === 'md') {
+    if (ext === 'md' || ext === 'excalidraw') {
       noteCount++;
     } else if (ext === 'canvas') {
       canvasCount++;
@@ -1700,6 +1700,169 @@ function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet
     boundary,
     arrayBuffer: combined.buffer
   };
+}
+
+/**
+ * Detects whether text content belongs to an Excalidraw drawing file
+ * Checks frontmatter (excalidraw-plugin: parsed/raw or excalidraw: true)
+ * as well as body markers (# Excalidraw Data, ## Embedded Files).
+ */
+function isExcalidrawContent(content) {
+  if (typeof content !== 'string' || !content) return false;
+  return (
+    /excalidraw-plugin:\s*(?:parsed|raw)/i.test(content) ||
+    /excalidraw:\s*true/i.test(content) ||
+    /#+ Excalidraw Data/i.test(content) ||
+    (content.includes('## Embedded Files') && content.includes('## Text Elements')) ||
+    (content.includes('## Embedded files') && content.includes('## Text elements'))
+  );
+}
+
+/**
+ * Checks whether a file is an Excalidraw drawing note regardless of extension.
+ * Handles .excalidraw.md, .excalidraw, frontmatter cache, and file content.
+ */
+function isExcalidrawFile(file, app = null, content = null) {
+  if (!file) return false;
+  const name = String(file.name || '');
+  const ext = String(file.extension || getExt(name)).toLowerCase();
+  if (name.endsWith('.excalidraw.md') || ext === 'excalidraw') {
+    return true;
+  }
+  if (app && app.metadataCache && typeof app.metadataCache.getFileCache === 'function') {
+    const cache = app.metadataCache.getFileCache(file);
+    const fm = cache?.frontmatter;
+    if (fm && (fm['excalidraw-plugin'] || fm['excalidraw'] === true || (Array.isArray(fm['tags']) && fm['tags'].includes('excalidraw')))) {
+      return true;
+    }
+  }
+  if (typeof content === 'string') {
+    return isExcalidrawContent(content);
+  }
+  return false;
+}
+
+/**
+ * Checks whether a file is a document/note (Markdown, Canvas, or Excalidraw)
+ */
+function isDocFile(file, app = null) {
+  if (!file) return false;
+  const ext = String(file.extension || getExt(file.name)).toLowerCase();
+  return ext === 'md' || ext === 'canvas' || ext === 'excalidraw' || isExcalidrawFile(file, app);
+}
+
+/**
+ * Rewrites image/asset links inside Excalidraw's '## Embedded Files' section.
+ * Excalidraw requires bare URLs (e.g. '<fileId>: https://...'), whereas Markdown bracket
+ * syntax '[alt](url)' breaks Excalidraw parser and renders grey boxes.
+ */
+function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
+  if (typeof content !== 'string' || !content) return content;
+
+  const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
+  const match = sectionRegex.exec(content);
+  if (!match) return content;
+
+  const header = match[1];
+  const sectionBody = match[2];
+  const lines = sectionBody.split(/\r?\n/);
+
+  const localTargets = new Set();
+  const remoteTargets = new Set();
+
+  if (removeItem.source === 'local') {
+    if (removeItem.name) localTargets.add(removeItem.name.toLowerCase());
+    if (removeItem.displayPath) localTargets.add(removeItem.displayPath.toLowerCase());
+    try {
+      if (removeItem.name) {
+        localTargets.add(decodeURIComponent(removeItem.name).toLowerCase());
+        localTargets.add(encodeURIComponent(removeItem.name).toLowerCase());
+      }
+      if (removeItem.displayPath) {
+        localTargets.add(decodeURIComponent(removeItem.displayPath).toLowerCase());
+        localTargets.add(encodeURI(removeItem.displayPath).toLowerCase());
+      }
+    } catch {}
+  } else {
+    const r = removeItem.rawObj || {};
+    if (r.rawUrl) remoteTargets.add(r.rawUrl);
+    if (r.pubUrl) remoteTargets.add(r.pubUrl);
+    const fname = removeItem.filename || removeItem.name;
+    if (fname) {
+      remoteTargets.add(fname);
+      try {
+        remoteTargets.add(decodeURIComponent(fname));
+        remoteTargets.add(encodeURIComponent(fname));
+      } catch {}
+    }
+    const year = r.year || removeItem.year;
+    const month = r.month || removeItem.month;
+    if (year && month && fname) {
+      remoteTargets.add(`${year}/${month}/${fname}`);
+      remoteTargets.add(`${year}/${month}/${encodeURIComponent(fname)}`);
+    }
+  }
+
+  let bodyChanged = false;
+  const updatedLines = lines.map((line) => {
+    const lineMatch = line.match(/^([a-zA-Z0-9_\-]+:\s*)(.*)$/);
+    if (!lineMatch) return line;
+
+    const prefix = lineMatch[1];
+    const val = lineMatch[2].trim();
+    if (!val) return line;
+
+    let isMatch = false;
+
+    if (removeItem.source === 'local') {
+      const wikiM = val.match(/^!?\[\[([^\]|#]+)/);
+      if (wikiM) {
+        let clean = wikiM[1].trim().replace(/^\.\//, '').toLowerCase();
+        let decoded = clean;
+        try { decoded = decodeURIComponent(clean); } catch {}
+        const base = clean.split('/').pop();
+        const baseDecoded = decoded.split('/').pop();
+
+        if (
+          localTargets.has(clean) ||
+          localTargets.has(decoded) ||
+          localTargets.has(base) ||
+          localTargets.has(baseDecoded)
+        ) {
+          isMatch = true;
+        }
+      } else {
+        const cleanVal = val.toLowerCase();
+        for (const t of localTargets) {
+          if (cleanVal.includes(t)) {
+            isMatch = true;
+            break;
+          }
+        }
+      }
+    } else {
+      for (const t of remoteTargets) {
+        if (t && val.includes(t)) {
+          isMatch = true;
+          break;
+        }
+      }
+    }
+
+    if (!isMatch) return line;
+
+    bodyChanged = true;
+    if (keepItem.source === 'remote') {
+      return `${prefix}${keepItem.rawObj.rawUrl}`;
+    } else {
+      return `${prefix}[[${keepItem.displayPath}]]`;
+    }
+  });
+
+  if (!bodyChanged) return content;
+
+  const newSection = header + updatedLines.join('\n');
+  return content.slice(0, match.index) + newSection + content.slice(match.index + match[0].length);
 }
 
 /**
@@ -5758,24 +5921,58 @@ class FileMasterPlugin extends Plugin {
     }
   }
 
+  isDocFile(file) {
+    return isDocFile(file, this.app);
+  }
+
+  isExcalidrawFile(file, content = null) {
+    return isExcalidrawFile(file, this.app, content);
+  }
+
+  reloadOpenExcalidrawViews(filePath) {
+    if (!filePath || !this.app?.workspace) return;
+    try {
+      const leaves = this.app.workspace.getLeavesOfType('excalidraw');
+      for (const leaf of leaves) {
+        const viewFile = leaf.view?.file;
+        if (viewFile && (viewFile.path === filePath || viewFile.name === filePath)) {
+          if (typeof leaf.view.reload === 'function') {
+            leaf.view.reload();
+          } else if (typeof leaf.rebuildView === 'function') {
+            leaf.rebuildView();
+          } else if (typeof leaf.setViewState === 'function') {
+            const state = leaf.getViewState();
+            leaf.setViewState(state);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[FileMaster] Could not reload Excalidraw view:', err);
+    }
+  }
+
   async safeModifyFileContent(tfile, transformFn) {
+    let changed = false;
     if (typeof this.app.vault.process === 'function') {
-      let changed = false;
       await this.app.vault.process(tfile, (data) => {
         const next = transformFn(data);
         if (next !== data) changed = true;
         return next;
       });
-      return changed;
     } else {
       const orig = await this.app.vault.read(tfile);
       const next = transformFn(orig);
       if (next !== orig) {
         await this.app.vault.modify(tfile, next);
-        return true;
+        changed = true;
       }
-      return false;
     }
+
+    if (changed && this.isExcalidrawFile(tfile)) {
+      this.reloadOpenExcalidrawViews(tfile.path);
+    }
+
+    return changed;
   }
 
   openModalSafely(modal) {
@@ -5920,7 +6117,12 @@ class FileMasterPlugin extends Plugin {
           return;
         }
 
-        if (abstractFile.extension === 'md' && this.isRemoteServerReady()) {
+        const isNoteOrExcalidraw =
+          abstractFile.extension === 'md' ||
+          abstractFile.extension === 'excalidraw' ||
+          this.isExcalidrawFile(abstractFile);
+
+        if (isNoteOrExcalidraw && this.isRemoteServerReady()) {
           menu.addItem((item) => {
             item
               .setTitle(this.t('menuActiveNoteMigrate'))
@@ -6449,7 +6651,7 @@ class FileMasterPlugin extends Plugin {
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
       (f) =>
-        (f.extension === 'md' || f.extension === 'canvas') &&
+        (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) &&
         !isReportFile(f.name)
     );
 
@@ -6520,7 +6722,7 @@ class FileMasterPlugin extends Plugin {
         localDecoded.includes(name) ||
         localRaw.includes(relPath) ||
         localDecoded.includes(relPath) ||
-        (tfile.extension === 'md' &&
+        ((tfile.extension === 'md' || tfile.extension === 'excalidraw' || this.isExcalidrawFile(tfile)) &&
           (localRaw.includes(`[[${baseName}]]`) ||
             localRaw.includes(`[[${baseName}|`) ||
             localRaw.includes(`[[${baseName}#`)))
@@ -6979,7 +7181,7 @@ class FileMasterPlugin extends Plugin {
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
       (f) =>
-        (f.extension === 'md' || f.extension === 'canvas') &&
+        (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) &&
         !isReportFile(f.name) &&
         !this.isLocalPathExcluded(f.path)
     );
@@ -7177,7 +7379,7 @@ class FileMasterPlugin extends Plugin {
   async scanVaultAnalytics() {
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
-      (f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name)
+      (f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name)
     );
 
     const docTexts = [];
@@ -7255,6 +7457,10 @@ class FileMasterPlugin extends Plugin {
 
   rewriteContentLinks(content, removeItem, keepItem) {
     let updated = content;
+
+    if (typeof rewriteExcalidrawEmbeddedFiles === 'function') {
+      updated = rewriteExcalidrawEmbeddedFiles(updated, removeItem, keepItem);
+    }
 
     const buildReplacementForWikiEmbed = (aliasOrWidth) => {
       if (keepItem.source === 'local') {
@@ -7385,7 +7591,7 @@ class FileMasterPlugin extends Plugin {
 
     const allDocs = this.app.vault
       .getFiles()
-      .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+      .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
     const localPathsBeingRemoved = new Set();
     for (const { removeItems } of tasks) {
@@ -7522,7 +7728,7 @@ class FileMasterPlugin extends Plugin {
 
       const allDocs = this.app.vault
         .getFiles()
-        .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+        .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
       let modifiedCount = 0;
       for (const doc of allDocs) {
@@ -7650,7 +7856,7 @@ class FileMasterPlugin extends Plugin {
       const allDocs = (syncOtherNotes || !activeFile)
         ? this.app.vault
             .getFiles()
-            .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name))
+            .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name))
         : [activeFile];
 
       let modifiedCount = 0;
@@ -7923,7 +8129,7 @@ class FileMasterPlugin extends Plugin {
 
   async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== 'md') {
+    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
@@ -8035,7 +8241,7 @@ class FileMasterPlugin extends Plugin {
 
     const allDocs = this.app.vault
       .getFiles()
-      .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+      .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
     let modifiedDocsCount = 0;
     for (const doc of allDocs) {
@@ -8227,7 +8433,7 @@ class FileMasterPlugin extends Plugin {
       if (syncOtherNotes) {
         const otherDocs = this.app.vault
           .getFiles()
-          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
         for (let i = 0; i < uploadedPairs.length; i++) {
           const { removeItem, keepItem } = uploadedPairs[i];
           const syncedPaths = [];
@@ -8288,7 +8494,7 @@ class FileMasterPlugin extends Plugin {
 
   async migrateActiveNoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== 'md') {
+    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
@@ -8302,7 +8508,7 @@ class FileMasterPlugin extends Plugin {
 
   async copyActiveNoteForAstro(targetFile = null) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== 'md') {
+    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }

@@ -390,24 +390,58 @@ class FileMasterPlugin extends Plugin {
     }
   }
 
+  isDocFile(file) {
+    return isDocFile(file, this.app);
+  }
+
+  isExcalidrawFile(file, content = null) {
+    return isExcalidrawFile(file, this.app, content);
+  }
+
+  reloadOpenExcalidrawViews(filePath) {
+    if (!filePath || !this.app?.workspace) return;
+    try {
+      const leaves = this.app.workspace.getLeavesOfType('excalidraw');
+      for (const leaf of leaves) {
+        const viewFile = leaf.view?.file;
+        if (viewFile && (viewFile.path === filePath || viewFile.name === filePath)) {
+          if (typeof leaf.view.reload === 'function') {
+            leaf.view.reload();
+          } else if (typeof leaf.rebuildView === 'function') {
+            leaf.rebuildView();
+          } else if (typeof leaf.setViewState === 'function') {
+            const state = leaf.getViewState();
+            leaf.setViewState(state);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[FileMaster] Could not reload Excalidraw view:', err);
+    }
+  }
+
   async safeModifyFileContent(tfile, transformFn) {
+    let changed = false;
     if (typeof this.app.vault.process === 'function') {
-      let changed = false;
       await this.app.vault.process(tfile, (data) => {
         const next = transformFn(data);
         if (next !== data) changed = true;
         return next;
       });
-      return changed;
     } else {
       const orig = await this.app.vault.read(tfile);
       const next = transformFn(orig);
       if (next !== orig) {
         await this.app.vault.modify(tfile, next);
-        return true;
+        changed = true;
       }
-      return false;
     }
+
+    if (changed && this.isExcalidrawFile(tfile)) {
+      this.reloadOpenExcalidrawViews(tfile.path);
+    }
+
+    return changed;
   }
 
   openModalSafely(modal) {
@@ -552,7 +586,12 @@ class FileMasterPlugin extends Plugin {
           return;
         }
 
-        if (abstractFile.extension === 'md' && this.isRemoteServerReady()) {
+        const isNoteOrExcalidraw =
+          abstractFile.extension === 'md' ||
+          abstractFile.extension === 'excalidraw' ||
+          this.isExcalidrawFile(abstractFile);
+
+        if (isNoteOrExcalidraw && this.isRemoteServerReady()) {
           menu.addItem((item) => {
             item
               .setTitle(this.t('menuActiveNoteMigrate'))
@@ -1081,7 +1120,7 @@ class FileMasterPlugin extends Plugin {
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
       (f) =>
-        (f.extension === 'md' || f.extension === 'canvas') &&
+        (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) &&
         !isReportFile(f.name)
     );
 
@@ -1152,7 +1191,7 @@ class FileMasterPlugin extends Plugin {
         localDecoded.includes(name) ||
         localRaw.includes(relPath) ||
         localDecoded.includes(relPath) ||
-        (tfile.extension === 'md' &&
+        ((tfile.extension === 'md' || tfile.extension === 'excalidraw' || this.isExcalidrawFile(tfile)) &&
           (localRaw.includes(`[[${baseName}]]`) ||
             localRaw.includes(`[[${baseName}|`) ||
             localRaw.includes(`[[${baseName}#`)))
@@ -1611,7 +1650,7 @@ class FileMasterPlugin extends Plugin {
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
       (f) =>
-        (f.extension === 'md' || f.extension === 'canvas') &&
+        (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) &&
         !isReportFile(f.name) &&
         !this.isLocalPathExcluded(f.path)
     );
@@ -1809,7 +1848,7 @@ class FileMasterPlugin extends Plugin {
   async scanVaultAnalytics() {
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
-      (f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name)
+      (f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name)
     );
 
     const docTexts = [];
@@ -1887,6 +1926,10 @@ class FileMasterPlugin extends Plugin {
 
   rewriteContentLinks(content, removeItem, keepItem) {
     let updated = content;
+
+    if (typeof rewriteExcalidrawEmbeddedFiles === 'function') {
+      updated = rewriteExcalidrawEmbeddedFiles(updated, removeItem, keepItem);
+    }
 
     const buildReplacementForWikiEmbed = (aliasOrWidth) => {
       if (keepItem.source === 'local') {
@@ -2017,7 +2060,7 @@ class FileMasterPlugin extends Plugin {
 
     const allDocs = this.app.vault
       .getFiles()
-      .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+      .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
     const localPathsBeingRemoved = new Set();
     for (const { removeItems } of tasks) {
@@ -2154,7 +2197,7 @@ class FileMasterPlugin extends Plugin {
 
       const allDocs = this.app.vault
         .getFiles()
-        .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+        .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
       let modifiedCount = 0;
       for (const doc of allDocs) {
@@ -2282,7 +2325,7 @@ class FileMasterPlugin extends Plugin {
       const allDocs = (syncOtherNotes || !activeFile)
         ? this.app.vault
             .getFiles()
-            .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name))
+            .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name))
         : [activeFile];
 
       let modifiedCount = 0;
@@ -2555,7 +2598,7 @@ class FileMasterPlugin extends Plugin {
 
   async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== 'md') {
+    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
@@ -2667,7 +2710,7 @@ class FileMasterPlugin extends Plugin {
 
     const allDocs = this.app.vault
       .getFiles()
-      .filter((f) => (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+      .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
     let modifiedDocsCount = 0;
     for (const doc of allDocs) {
@@ -2859,7 +2902,7 @@ class FileMasterPlugin extends Plugin {
       if (syncOtherNotes) {
         const otherDocs = this.app.vault
           .getFiles()
-          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas') && !isReportFile(f.name));
+          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
         for (let i = 0; i < uploadedPairs.length; i++) {
           const { removeItem, keepItem } = uploadedPairs[i];
           const syncedPaths = [];
@@ -2920,7 +2963,7 @@ class FileMasterPlugin extends Plugin {
 
   async migrateActiveNoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== 'md') {
+    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
@@ -2934,7 +2977,7 @@ class FileMasterPlugin extends Plugin {
 
   async copyActiveNoteForAstro(targetFile = null) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== 'md') {
+    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }

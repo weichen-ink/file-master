@@ -195,7 +195,7 @@ const OTHER_EXTS = new Set([
   'rpm'
 ]);
 
-const OBSIDIAN_NOTE_EXTS = new Set(['md', 'canvas', 'base']);
+const OBSIDIAN_NOTE_EXTS = new Set(['md', 'canvas', 'base', 'excalidraw']);
 const ALL_ATTACHMENT_EXTS = new Set([...IMAGE_EXTS, ...AUDIO_EXTS, ...OTHER_EXTS]);
 
 function isAttachmentExt(ext) {
