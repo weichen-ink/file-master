@@ -81,6 +81,11 @@ function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function formatDateYMD(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /**
  * Sanitizes base filename while preserving CJK characters, normalizing spaces/brackets to underscores
  */
@@ -439,13 +444,74 @@ function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet
  */
 function isExcalidrawContent(content) {
   if (typeof content !== 'string' || !content) return false;
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (fmMatch) {
+    const fm = fmMatch[1];
+    if (
+      /^\s*excalidraw-plugin:\s*(?:parsed|raw)\b/im.test(fm) ||
+      /^\s*excalidraw:\s*true\b/im.test(fm)
+    ) {
+      return true;
+    }
+  }
   return (
-    /excalidraw-plugin:\s*(?:parsed|raw)/i.test(content) ||
-    /excalidraw:\s*true/i.test(content) ||
-    /#+ Excalidraw Data/i.test(content) ||
+    /^#+\s+Excalidraw Data\b/im.test(content) ||
     (content.includes('## Embedded Files') && content.includes('## Text Elements')) ||
     (content.includes('## Embedded files') && content.includes('## Text elements'))
   );
+}
+
+/**
+ * Checks whether a document references a local file without substring false-positives
+ * (e.g., "1.png" must not falsely match "21.png" or "my_1.png").
+ */
+function doesDocumentReferenceLocalFile(rawText, decodedText, tfile, isNoteOrExcalidraw = false) {
+  if (!tfile) return false;
+  const name = String(tfile.name || '');
+  const baseName = String(tfile.basename || getBaseName(name));
+  const relPath = String(tfile.path || name);
+
+  const stripRemoteUrls = (str) =>
+    String(str || '')
+      .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
+      .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
+
+  const localRaw = stripRemoteUrls(rawText);
+  const localDecoded = decodedText ? stripRemoteUrls(decodedText) : localRaw;
+
+  if (
+    isNoteOrExcalidraw &&
+    baseName &&
+    (localRaw.includes(`[[${baseName}]]`) ||
+      localRaw.includes(`[[${baseName}|`) ||
+      localRaw.includes(`[[${baseName}#`) ||
+      localDecoded.includes(`[[${baseName}]]`) ||
+      localDecoded.includes(`[[${baseName}|`) ||
+      localDecoded.includes(`[[${baseName}#`))
+  ) {
+    return true;
+  }
+
+  // Fast pre-filter before running boundary regex
+  if (
+    !localRaw.includes(name) &&
+    !localDecoded.includes(name) &&
+    !localRaw.includes(relPath) &&
+    !localDecoded.includes(relPath)
+  ) {
+    return false;
+  }
+
+  const targets = relPath && relPath !== name ? [relPath, name] : [name];
+  for (const target of targets) {
+    if (!target) continue;
+    const esc = escapeRegExp(target);
+    const boundaryRe = new RegExp(`(?:^|[\\[\\(<"':/\\\\\\s])${esc}(?:$|[\\]\\)>"'|#?\\s])`, 'i');
+    if (boundaryRe.test(localRaw) || boundaryRe.test(localDecoded)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

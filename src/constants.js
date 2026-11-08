@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS = {
   enableRemoteServer: false,
   serverVerified: false,
   serverUrl: 'http://localhost:3000',
-  apiToken: 'filemaster-api-token-888',
+  apiToken: '',
   enableSidebarButton: true,
   enableClipboardMonitor: true,
   saveLocationMode: 'ask', // 'remote' | 'local' | 'ask'

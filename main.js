@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS = {
   enableRemoteServer: false,
   serverVerified: false,
   serverUrl: 'http://localhost:3000',
-  apiToken: 'filemaster-api-token-888',
+  apiToken: '',
   enableSidebarButton: true,
   enableClipboardMonitor: true,
   saveLocationMode: 'ask', // 'remote' | 'local' | 'ask'
@@ -1368,6 +1368,11 @@ function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function formatDateYMD(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /**
  * Sanitizes base filename while preserving CJK characters, normalizing spaces/brackets to underscores
  */
@@ -1726,13 +1731,74 @@ function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet
  */
 function isExcalidrawContent(content) {
   if (typeof content !== 'string' || !content) return false;
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (fmMatch) {
+    const fm = fmMatch[1];
+    if (
+      /^\s*excalidraw-plugin:\s*(?:parsed|raw)\b/im.test(fm) ||
+      /^\s*excalidraw:\s*true\b/im.test(fm)
+    ) {
+      return true;
+    }
+  }
   return (
-    /excalidraw-plugin:\s*(?:parsed|raw)/i.test(content) ||
-    /excalidraw:\s*true/i.test(content) ||
-    /#+ Excalidraw Data/i.test(content) ||
+    /^#+\s+Excalidraw Data\b/im.test(content) ||
     (content.includes('## Embedded Files') && content.includes('## Text Elements')) ||
     (content.includes('## Embedded files') && content.includes('## Text elements'))
   );
+}
+
+/**
+ * Checks whether a document references a local file without substring false-positives
+ * (e.g., "1.png" must not falsely match "21.png" or "my_1.png").
+ */
+function doesDocumentReferenceLocalFile(rawText, decodedText, tfile, isNoteOrExcalidraw = false) {
+  if (!tfile) return false;
+  const name = String(tfile.name || '');
+  const baseName = String(tfile.basename || getBaseName(name));
+  const relPath = String(tfile.path || name);
+
+  const stripRemoteUrls = (str) =>
+    String(str || '')
+      .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
+      .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
+
+  const localRaw = stripRemoteUrls(rawText);
+  const localDecoded = decodedText ? stripRemoteUrls(decodedText) : localRaw;
+
+  if (
+    isNoteOrExcalidraw &&
+    baseName &&
+    (localRaw.includes(`[[${baseName}]]`) ||
+      localRaw.includes(`[[${baseName}|`) ||
+      localRaw.includes(`[[${baseName}#`) ||
+      localDecoded.includes(`[[${baseName}]]`) ||
+      localDecoded.includes(`[[${baseName}|`) ||
+      localDecoded.includes(`[[${baseName}#`))
+  ) {
+    return true;
+  }
+
+  // Fast pre-filter before running boundary regex
+  if (
+    !localRaw.includes(name) &&
+    !localDecoded.includes(name) &&
+    !localRaw.includes(relPath) &&
+    !localDecoded.includes(relPath)
+  ) {
+    return false;
+  }
+
+  const targets = relPath && relPath !== name ? [relPath, name] : [name];
+  for (const target of targets) {
+    if (!target) continue;
+    const esc = escapeRegExp(target);
+    const boundaryRe = new RegExp(`(?:^|[\\[\\(<"':/\\\\\\s])${esc}(?:$|[\\]\\)>"'|#?\\s])`, 'i');
+    if (boundaryRe.test(localRaw) || boundaryRe.test(localDecoded)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -6090,6 +6156,10 @@ class FileMasterPlugin extends Plugin {
     return isDocFile(file, this.app);
   }
 
+  isScannableDocFile(file) {
+    return Boolean(file) && this.isDocFile(file) && !isReportFile(file.name);
+  }
+
   isExcalidrawFile(file, content = null) {
     return isExcalidrawFile(file, this.app, content);
   }
@@ -6814,11 +6884,7 @@ class FileMasterPlugin extends Plugin {
   async buildVaultReferenceSnapshot(scanCtx = {}) {
     const { signal, onProgress, freshRead = false } = scanCtx || {};
     const allFiles = this.app.vault.getFiles();
-    const docFiles = allFiles.filter(
-      (f) =>
-        (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) &&
-        !isReportFile(f.name)
-    );
+    const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
 
     const docContents = [];
     for (let i = 0; i < docFiles.length; i++) {
@@ -6869,29 +6935,12 @@ class FileMasterPlugin extends Plugin {
       fromResolved.forEach((p) => refNotes.add(p));
     }
 
-    const name = tfile.name;
-    const baseName = tfile.basename;
-    const relPath = tfile.path;
-
-    const stripRemoteUrls = (str) =>
-      String(str || '')
-        .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
-        .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
+    const isNoteOrExcalidraw =
+      tfile.extension === 'md' || tfile.extension === 'excalidraw' || this.isExcalidrawFile(tfile);
 
     for (const doc of snapshot.docContents) {
       if (doc.path === tfile.path) continue;
-      const localRaw = stripRemoteUrls(doc.rawText);
-      const localDecoded = stripRemoteUrls(doc.decodedText);
-      if (
-        localRaw.includes(name) ||
-        localDecoded.includes(name) ||
-        localRaw.includes(relPath) ||
-        localDecoded.includes(relPath) ||
-        ((tfile.extension === 'md' || tfile.extension === 'excalidraw' || this.isExcalidrawFile(tfile)) &&
-          (localRaw.includes(`[[${baseName}]]`) ||
-            localRaw.includes(`[[${baseName}|`) ||
-            localRaw.includes(`[[${baseName}#`)))
-      ) {
+      if (doesDocumentReferenceLocalFile(doc.rawText, doc.decodedText, tfile, isNoteOrExcalidraw)) {
         refNotes.add(doc.path);
       }
     }
@@ -7020,7 +7069,7 @@ class FileMasterPlugin extends Plugin {
 
   async exportOrphanReportToRoot(results) {
     const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateYMD(now);
     const reportPath = `Unused_Files_Report_${dateStr}.md`;
 
     const localItems = results.filter((r) => r.source === 'local');
@@ -7283,7 +7332,7 @@ class FileMasterPlugin extends Plugin {
 
   async exportDuplicateReportToRoot(groups) {
     const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateYMD(now);
     const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
 
     const lines = [
@@ -7322,7 +7371,7 @@ class FileMasterPlugin extends Plugin {
   async exportBatchMigrateReportToRoot(summary) {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const dateStr = formatDateYMD(now);
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
 
@@ -7407,10 +7456,7 @@ class FileMasterPlugin extends Plugin {
     const { signal, onProgress } = scanCtx || {};
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter(
-      (f) =>
-        (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) &&
-        !isReportFile(f.name) &&
-        !this.isLocalPathExcluded(f.path)
+      (f) => this.isScannableDocFile(f) && !this.isLocalPathExcluded(f.path)
     );
 
     const vaultFilePaths = new Set(allFiles.map((f) => f.path));
@@ -7530,7 +7576,7 @@ class FileMasterPlugin extends Plugin {
 
   async exportHealthReportToRoot(issues, totalDocsScanned) {
     const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateYMD(now);
     const reportPath = `Broken_Links_Report_${dateStr}.md`;
     const zh = this.getEffectiveLanguage() === 'zh';
     const locale = zh ? 'zh-CN' : 'en-US';
@@ -7605,9 +7651,7 @@ class FileMasterPlugin extends Plugin {
 
   async scanVaultAnalytics() {
     const allFiles = this.app.vault.getFiles();
-    const docFiles = allFiles.filter(
-      (f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name)
-    );
+    const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
 
     const docTexts = [];
     for (const doc of docFiles) {
@@ -7627,7 +7671,7 @@ class FileMasterPlugin extends Plugin {
 
   async exportAnalyticsReportToRoot(stats) {
     const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateYMD(now);
     const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
     const zh = this.getEffectiveLanguage() === 'zh';
     const locale = zh ? 'zh-CN' : 'en-US';
@@ -7818,7 +7862,7 @@ class FileMasterPlugin extends Plugin {
 
     const allDocs = this.app.vault
       .getFiles()
-      .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
+      .filter((f) => this.isScannableDocFile(f));
 
     const localPathsBeingRemoved = new Set();
     for (const { removeItems } of tasks) {
@@ -8083,7 +8127,7 @@ class FileMasterPlugin extends Plugin {
       const allDocs = (syncOtherNotes || !activeFile)
         ? this.app.vault
             .getFiles()
-            .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name))
+            .filter((f) => this.isScannableDocFile(f))
         : [activeFile];
 
       let modifiedCount = 0;
@@ -8356,7 +8400,7 @@ class FileMasterPlugin extends Plugin {
 
   async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
+    if (!activeFile || !this.isDocFile(activeFile)) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
@@ -8490,7 +8534,7 @@ class FileMasterPlugin extends Plugin {
 
     const allDocs = this.app.vault
       .getFiles()
-      .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
+      .filter((f) => this.isScannableDocFile(f));
 
     let modifiedDocsCount = 0;
     const modifiedNotePaths = new Set();
@@ -8694,7 +8738,7 @@ class FileMasterPlugin extends Plugin {
       if (syncOtherNotes) {
         const otherDocs = this.app.vault
           .getFiles()
-          .filter((f) => f.path !== activeFile.path && (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
+          .filter((f) => f.path !== activeFile.path && this.isScannableDocFile(f));
         for (let i = 0; i < uploadedPairs.length; i++) {
           const { removeItem, keepItem } = uploadedPairs[i];
           const syncedPaths = [];
@@ -8755,7 +8799,7 @@ class FileMasterPlugin extends Plugin {
 
   async migrateActiveNoteAttachments(targetFile = null, options = {}) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
+    if (!activeFile || !this.isDocFile(activeFile)) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }
@@ -8769,7 +8813,7 @@ class FileMasterPlugin extends Plugin {
 
   async copyActiveNoteForAstro(targetFile = null) {
     const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || (!this.isDocFile(activeFile) && activeFile.extension !== 'md' && activeFile.extension !== 'excalidraw')) {
+    if (!activeFile || !this.isDocFile(activeFile)) {
       new Notice(this.t('noticeOpenMdFirst'));
       return;
     }

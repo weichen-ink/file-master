@@ -7,9 +7,11 @@ const pluginCode = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
 
 // Extract definitions from bundled main.js
 const getExtMatch = pluginCode.match(/function getExt\([\s\S]*?\n\}/);
+const getBaseNameMatch = pluginCode.match(/function getBaseName\([\s\S]*?\n\}/);
 const imgExtsMatch = pluginCode.match(/const IMAGE_EXTS = new Set\([\s\S]*?\);/);
 const escRegMatch = pluginCode.match(/function escapeRegExp\([\s\S]*?\n\}/);
 const isExcalContentMatch = pluginCode.match(/function isExcalidrawContent\([\s\S]*?\n\}/);
+const doesRefMatch = pluginCode.match(/function doesDocumentReferenceLocalFile\([\s\S]*?\n\}/);
 const isExcalFileMatch = pluginCode.match(/function isExcalidrawFile\([\s\S]*?\n\}/);
 const isDocFileMatch = pluginCode.match(/function isDocFile\([\s\S]*?\n\}/);
 const rewriteExcalMatch = pluginCode.match(/function rewriteExcalidrawEmbeddedFiles\([\s\S]*?\n\}/);
@@ -20,12 +22,14 @@ const getFileTypeGroupMatch = pluginCode.match(/function getFileTypeGroup\([\s\S
 const obsExtsMatch = pluginCode.match(/const OBSIDIAN_NOTE_EXTS = new Set\([\s\S]*?\);/);
 
 assert.ok(getExtMatch, 'getExt must be present');
+assert.ok(getBaseNameMatch, 'getBaseName must be present');
 assert.ok(imgExtsMatch, 'IMAGE_EXTS must be present');
 assert.ok(escRegMatch, 'escapeRegExp must be present');
 assert.ok(isAttachmentExtMatch, 'isAttachmentExt must be present');
 assert.ok(getFileTypeGroupMatch, 'getFileTypeGroup must be present');
 assert.ok(obsExtsMatch, 'OBSIDIAN_NOTE_EXTS must be present');
 assert.ok(isExcalContentMatch, 'isExcalidrawContent must be present');
+assert.ok(doesRefMatch, 'doesDocumentReferenceLocalFile must be present');
 assert.ok(isExcalFileMatch, 'isExcalidrawFile must be present');
 assert.ok(isDocFileMatch, 'isDocFile must be present');
 assert.ok(rewriteExcalMatch, 'rewriteExcalidrawEmbeddedFiles must be present');
@@ -33,12 +37,14 @@ assert.ok(rewriteMatch, 'rewriteContentLinks must be present');
 
 const evalEnv = new Function(
   `${getExtMatch[0]}
+   ${getBaseNameMatch[0]}
    ${imgExtsMatch[0]}
    ${obsExtsMatch[0]}
    ${escRegMatch[0]}
    ${isAttachmentExtMatch[0]}
    ${getFileTypeGroupMatch[0]}
    ${isExcalContentMatch[0]}
+   ${doesRefMatch[0]}
    ${isExcalFileMatch[0]}
    ${isDocFileMatch[0]}
    ${rewriteExcalMatch[0]}
@@ -47,6 +53,7 @@ const evalEnv = new Function(
      isAttachmentExt,
      getFileTypeGroup,
      isExcalidrawContent,
+     doesDocumentReferenceLocalFile,
      isExcalidrawFile,
      isDocFile,
      rewriteExcalidrawEmbeddedFiles,
@@ -58,6 +65,7 @@ const {
   isAttachmentExt,
   getFileTypeGroup,
   isExcalidrawContent,
+  doesDocumentReferenceLocalFile,
   isExcalidrawFile,
   isDocFile,
   rewriteExcalidrawEmbeddedFiles,
@@ -95,8 +103,19 @@ excalidraw: true
 
   const normalMd = `# Project Notes\nThis is a standard markdown note with [[link]] and ![](img.png).`;
   assert.equal(isExcalidrawContent(normalMd), false);
+  const bodyCodeblockMd = `---\ntitle: Config Guide\n---\n# Guide\nIn YAML, set \`excalidraw: true\` to enable.`;
+  assert.equal(isExcalidrawContent(bodyCodeblockMd), false, 'Body text mentioning excalidraw: true must not trigger false positive');
   assert.equal(isExcalidrawContent(''), false);
   assert.equal(isExcalidrawContent(null), false);
+});
+
+test('doesDocumentReferenceLocalFile: avoids substring false positives for short filenames like 1.png', () => {
+  const shortFile = { name: '1.png', basename: '1', path: 'assets/1.png', extension: 'png' };
+  assert.equal(doesDocumentReferenceLocalFile('Here is ![[21.png]] and ![](assets/my_1.png)', null, shortFile), false);
+  assert.equal(doesDocumentReferenceLocalFile('Here is ![[1.png]]', null, shortFile), true);
+  assert.equal(doesDocumentReferenceLocalFile('Here is ![[assets/1.png|300]]', null, shortFile), true);
+  assert.equal(doesDocumentReferenceLocalFile('Here is ![](assets/1.png)', null, shortFile), true);
+  assert.equal(doesDocumentReferenceLocalFile('{"type":"file","file":"assets/1.png"}', null, shortFile), true);
 });
 
 test('isExcalidrawFile: identifies Excalidraw files regardless of extension renaming', () => {
