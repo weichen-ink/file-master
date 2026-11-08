@@ -32,6 +32,9 @@ test('Wizard Modals: Step 3 summary exists for Batch Migration & Deduplication',
 
   // Verify batch migrate step 3 summary
   assert.ok(mainContent.includes('batchResultTitle'), 'batchResultTitle must be rendered in step 3');
+  assert.ok(mainContent.includes('batchExportReport'), 'batchExportReport must be rendered in step 3');
+  assert.ok(mainContent.includes('batchResultListTitle'), 'batchResultListTitle must be rendered in step 3');
+  assert.ok(mainContent.includes('exportBatchMigrateReportToRoot'), 'exportBatchMigrateReportToRoot must exist');
   assert.ok(mainContent.includes('dupResultTitle'), 'dupResultTitle must be rendered in step 3');
   assert.ok(mainContent.includes('orphanResultTitle'), 'orphanResultTitle must be rendered in step 2 banner');
 });
@@ -88,6 +91,14 @@ test('Remote Asset Gallery View: RemoteGalleryView sidebar leaf integration', ()
   assert.ok(mainContent.includes('initGalleryLeaf('), 'initGalleryLeaf helper must exist');
   assert.ok(mainContent.includes('insertMarkdownToActiveEditor('), 'insertMarkdownToActiveEditor helper must exist');
   assert.ok(!mainContent.includes('detachLeavesOfType(VIEW_TYPE_REMOTE_GALLERY)'), 'Must not detach gallery leaf in onunload to persist across sessions');
+});
+
+test('Batch Migration Report: exportBatchMigrateReportToRoot produces structured report', async () => {
+  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
+
+  // Verify function logic exists and produces Batch_Migrate_Report_
+  assert.ok(mainContent.includes('Batch_Migrate_Report_'), 'Must generate Batch_Migrate_Report_');
+  assert.ok(mainContent.includes('writeOrUpdateRootReport'), 'Must call writeOrUpdateRootReport');
 });
 
 

@@ -405,6 +405,10 @@
   background: rgba(16, 185, 129, 0.10);
   border-color: rgba(16, 185, 129, 0.35);
 }
+.fm-result-banner-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+}
 .fm-result-banner-error {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.4);
@@ -423,6 +427,9 @@
 .fm-result-banner-success .fm-result-banner-title,
 .fm-result-banner-local .fm-result-banner-title {
   color: #10b981;
+}
+.fm-result-banner-warning .fm-result-banner-title {
+  color: #f59e0b;
 }
 .fm-result-banner-error .fm-result-banner-title {
   color: #ef4444;

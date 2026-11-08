@@ -1372,6 +1372,39 @@ class ActiveNoteActionModal extends Modal {
       }
 
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      if (this.actionType === 'migrate' && processedItems.length > 0) {
+        let noteReportPath = null;
+        const exportBtn = btnRow.createEl('button', { text: this.t('batchExportReport') });
+        exportBtn.onclick = async () => {
+          exportBtn.disabled = true;
+          try {
+            noteReportPath = await this.plugin.exportBatchMigrateReportToRoot({
+              count: this.result.count,
+              docs: 1,
+              trashed: processedItems.filter((p) => p.trashedLocal).length,
+              processedItems,
+              failures: this.result.failures || [],
+              totalBytes: processedItems.reduce((s, p) => s + (p.size || 0), 0)
+            });
+            exportBtn.setText(this.t('batchReportExported'));
+            if (!btnRow.querySelector('.fm-open-report-btn')) {
+              const openBtn = btnRow.createEl('button', {
+                text: this.t('batchOpenReport'),
+                cls: 'fm-open-report-btn'
+              });
+              openBtn.onclick = () => {
+                if (noteReportPath) {
+                  this.app.workspace.openLinkText(noteReportPath, '', true);
+                }
+                this.close();
+              };
+            }
+          } catch (err) {
+            new Notice('❌ ' + err.message);
+            exportBtn.disabled = false;
+          }
+        };
+      }
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
       doneBtn.onclick = () => returnToHub(this);
     }
@@ -2279,20 +2312,135 @@ class BatchMigrateWizardModal extends Modal {
 
   renderStep3(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    contentEl.createEl('h3', { text: t('batchResultTitle') });
+    const count = this.summary?.count || 0;
+    const failures = this.summary?.failures || [];
+    const processedItems = this.summary?.processedItems || [];
 
-    const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
-    banner.createDiv({ cls: 'fm-result-banner-title', text: t('batchResultTitle') });
+    const isPartial = failures.length > 0 && count > 0;
+    const isError = count === 0 && failures.length > 0;
+    const titleKey = isError
+      ? 'batchResultErrorTitle'
+      : (isPartial ? 'batchResultWarningTitle' : 'batchResultTitle');
+
+    contentEl.createEl('h3', { text: t(titleKey) });
+
+    const bannerCls = isError
+      ? 'fm-result-banner fm-result-banner-error'
+      : (isPartial ? 'fm-result-banner fm-result-banner-warning' : 'fm-result-banner fm-result-banner-success');
+    const banner = contentEl.createDiv({ cls: bannerCls });
+    banner.createDiv({ cls: 'fm-result-banner-title', text: t(titleKey) });
+
+    const trashedText = this.summary?.trashed
+      ? t('noticeBatchMigrateTrashedPart', { trashed: this.summary.trashed })
+      : '';
+    const failText = failures.length > 0
+      ? t('batchResultFailuresPart', { count: failures.length })
+      : '';
+
     banner.createDiv({
       cls: 'fm-result-banner-desc',
       text: t('batchResultDesc', {
-        count: this.summary?.count || 0,
+        count,
         docs: this.summary?.docs || 0,
-        trashed: this.summary?.trashed ? t('noticeBatchMigrateTrashedPart', { trashed: this.summary.trashed }) : ''
-      })
+        trashed: trashedText
+      }) + failText
     });
 
+    if (processedItems.length > 0) {
+      const listBox = contentEl.createDiv({
+        cls: 'fm-section-box',
+        attr: { style: 'margin-top: 10px;' }
+      });
+      listBox.createDiv({
+        text: t('batchResultListTitle', { count: processedItems.length }),
+        cls: 'fm-section-title'
+      });
+      const listEl = listBox.createDiv({
+        cls: 'fm-scroll-list',
+        attr: { style: 'max-height: 220px; margin-bottom: 0;' }
+      });
+      for (const pItem of processedItems) {
+        const row = listEl.createDiv({ cls: 'fm-list-item' });
+        const left = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+        });
+        renderItemVisualThumb(left, pItem, this.plugin);
+        const nameCol = left.createDiv({
+          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+        });
+        nameCol.createSpan({
+          text: pItem.name,
+          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+        });
+        nameCol.createSpan({
+          text: `${pItem.displayPath} · ${formatBytes(pItem.size || 0)}`,
+          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+        });
+
+        const rightBox = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
+        });
+        if (pItem.rawUrl) {
+          const copyBtn = rightBox.createEl('button', {
+            cls: 'clickable-icon',
+            attr: { 'aria-label': t('copyRawUrl') || 'Copy URL' }
+          });
+          setIcon(copyBtn, 'copy');
+          copyBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await navigator.clipboard.writeText(pItem.rawUrl);
+            new Notice(t('noticeCopied'));
+          };
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      const failBox = contentEl.createDiv({
+        cls: 'fm-section-box',
+        attr: { style: 'margin-top: 10px; border-color: rgba(239, 68, 68, 0.4);' }
+      });
+      failBox.createDiv({
+        text: t('batchFailuresTitle', { count: failures.length }),
+        cls: 'fm-section-title',
+        attr: { style: 'color: var(--text-error);' }
+      });
+      for (const f of failures) {
+        failBox.createDiv({
+          cls: 'fm-result-banner-desc',
+          text: `• ${f.path || f.name} (${formatBytes(f.size || 0)}): ${f.error}`,
+          attr: { style: 'font-size: 12px; color: var(--text-muted); margin-top: 2px;' }
+        });
+      }
+    }
+
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    let createdReportPath = null;
+
+    const exportBtn = btnRow.createEl('button', { text: t('batchExportReport') });
+    exportBtn.onclick = async () => {
+      exportBtn.disabled = true;
+      try {
+        createdReportPath = await this.plugin.exportBatchMigrateReportToRoot(this.summary);
+        exportBtn.setText(t('batchReportExported'));
+        if (!btnRow.querySelector('.fm-open-report-btn')) {
+          const openBtn = btnRow.createEl('button', {
+            text: t('batchOpenReport'),
+            cls: 'fm-open-report-btn'
+          });
+          openBtn.onclick = () => {
+            if (createdReportPath) {
+              this.app.workspace.openLinkText(createdReportPath, '', true);
+            }
+            this.close();
+          };
+        }
+      } catch (err) {
+        new Notice('❌ ' + err.message);
+        exportBtn.disabled = false;
+      }
+    };
+
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
     doneBtn.onclick = () => returnToHub(this);
   }

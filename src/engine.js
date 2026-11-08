@@ -103,7 +103,8 @@ function isReportFile(filename) {
     name.startsWith('Unused_Files_Report_') ||
     name.startsWith('Duplicate_Files_Report_') ||
     name.startsWith('Broken_Links_Report_') ||
-    name.startsWith('Vault_Analytics_Report_')
+    name.startsWith('Vault_Analytics_Report_') ||
+    name.startsWith('Batch_Migrate_Report_')
   );
 }
 

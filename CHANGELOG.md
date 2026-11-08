@@ -2,6 +2,17 @@
 
 See root `CHANGELOG.md` for full ecosystem release notes.
 
+## [1.0.3] - 2026-11-08
+- Added native **Excalidraw drawing attachments support**:
+  - Robust Excalidraw drawing detection across `.excalidraw.md`, `.excalidraw`, and renamed `.md` files.
+  - Native hyperlinking syntax in `## Embedded Files`: bare URLs (`fileId: url`) without markdown brackets to prevent parser grey boxes.
+  - Full bidirectional link rewriting for local upload, remote download, and duplicate file merges.
+  - Active Excalidraw view reload protection to avoid in-memory autosave overwrite.
+- Enhanced **Batch Cloud Migration & Active Note Upload UX**:
+  - In-modal result persistence: upload completion details remain visible in the modal window with thumbnails, paths, sizes, and copy URL buttons.
+  - Root directory report generation: added `exportBatchMigrateReportToRoot` to output `Batch_Migrate_Report_YYYY-MM-DD.md`.
+  - Removed duplicate fleeting top-right completion notice.
+
 ## [0.2.5] - 2026-10-30
 - Reworked the Obsidian settings navigation and About page around native setting rows, consistent typography, and bilingual copy.
 - Improved the remote asset gallery, preview actions, and language changes when following Obsidian.

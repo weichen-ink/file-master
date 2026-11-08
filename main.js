@@ -600,7 +600,15 @@ const UI_STRINGS = {
 
     // 向导完成结果与当前笔记窗口
     batchResultTitle: '批量上传完成',
+    batchResultWarningTitle: '批量上传部分完成',
+    batchResultErrorTitle: '批量上传失败',
     batchResultDesc: '已上传 {count} 个附件，更新 {docs} 篇笔记{trashed}。',
+    batchResultFailuresPart: '；另有 {count} 个文件上传失败',
+    batchResultListTitle: '已迁移附件列表 ({count})',
+    batchFailuresTitle: '上传失败项 ({count})',
+    batchExportReport: '📄 导出迁移报告到根目录',
+    batchOpenReport: '📂 打开报告',
+    batchReportExported: '✅ 报告已生成',
     dupResultTitle: '重复文件已合并',
     dupResultDesc: '已更新 {modified} 篇笔记，处理知识库文件 {local} 个、服务器文件 {remote} 个{skipped}。',
     dupResultSkipped: '；另有 {count} 个仍被引用的文件已保留',
@@ -1117,7 +1125,15 @@ const UI_STRINGS = {
 
     // Wizard Results & Active Note Modal
     batchResultTitle: 'Batch upload complete',
+    batchResultWarningTitle: 'Batch upload partially complete',
+    batchResultErrorTitle: 'Batch upload failed',
     batchResultDesc: 'Uploaded {count} attachments and updated {docs} notes{trashed}.',
+    batchResultFailuresPart: '; {count} file(s) failed to upload',
+    batchResultListTitle: 'Migrated Assets ({count})',
+    batchFailuresTitle: 'Upload Failures ({count})',
+    batchExportReport: '📄 Export report to vault root',
+    batchOpenReport: '📂 Open Report',
+    batchReportExported: '✅ Report Generated',
     dupResultTitle: 'Duplicate files merged',
     dupResultDesc: 'Updated {modified} notes and processed {local} vault files and {remote} server files{skipped}.',
     dupResultSkipped: '; kept {count} files that are still referenced',
@@ -1374,7 +1390,8 @@ function isReportFile(filename) {
     name.startsWith('Unused_Files_Report_') ||
     name.startsWith('Duplicate_Files_Report_') ||
     name.startsWith('Broken_Links_Report_') ||
-    name.startsWith('Vault_Analytics_Report_')
+    name.startsWith('Vault_Analytics_Report_') ||
+    name.startsWith('Batch_Migrate_Report_')
   );
 }
 
@@ -3239,6 +3256,39 @@ class ActiveNoteActionModal extends Modal {
       }
 
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      if (this.actionType === 'migrate' && processedItems.length > 0) {
+        let noteReportPath = null;
+        const exportBtn = btnRow.createEl('button', { text: this.t('batchExportReport') });
+        exportBtn.onclick = async () => {
+          exportBtn.disabled = true;
+          try {
+            noteReportPath = await this.plugin.exportBatchMigrateReportToRoot({
+              count: this.result.count,
+              docs: 1,
+              trashed: processedItems.filter((p) => p.trashedLocal).length,
+              processedItems,
+              failures: this.result.failures || [],
+              totalBytes: processedItems.reduce((s, p) => s + (p.size || 0), 0)
+            });
+            exportBtn.setText(this.t('batchReportExported'));
+            if (!btnRow.querySelector('.fm-open-report-btn')) {
+              const openBtn = btnRow.createEl('button', {
+                text: this.t('batchOpenReport'),
+                cls: 'fm-open-report-btn'
+              });
+              openBtn.onclick = () => {
+                if (noteReportPath) {
+                  this.app.workspace.openLinkText(noteReportPath, '', true);
+                }
+                this.close();
+              };
+            }
+          } catch (err) {
+            new Notice('❌ ' + err.message);
+            exportBtn.disabled = false;
+          }
+        };
+      }
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
       doneBtn.onclick = () => returnToHub(this);
     }
@@ -4146,20 +4196,135 @@ class BatchMigrateWizardModal extends Modal {
 
   renderStep3(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    contentEl.createEl('h3', { text: t('batchResultTitle') });
+    const count = this.summary?.count || 0;
+    const failures = this.summary?.failures || [];
+    const processedItems = this.summary?.processedItems || [];
 
-    const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
-    banner.createDiv({ cls: 'fm-result-banner-title', text: t('batchResultTitle') });
+    const isPartial = failures.length > 0 && count > 0;
+    const isError = count === 0 && failures.length > 0;
+    const titleKey = isError
+      ? 'batchResultErrorTitle'
+      : (isPartial ? 'batchResultWarningTitle' : 'batchResultTitle');
+
+    contentEl.createEl('h3', { text: t(titleKey) });
+
+    const bannerCls = isError
+      ? 'fm-result-banner fm-result-banner-error'
+      : (isPartial ? 'fm-result-banner fm-result-banner-warning' : 'fm-result-banner fm-result-banner-success');
+    const banner = contentEl.createDiv({ cls: bannerCls });
+    banner.createDiv({ cls: 'fm-result-banner-title', text: t(titleKey) });
+
+    const trashedText = this.summary?.trashed
+      ? t('noticeBatchMigrateTrashedPart', { trashed: this.summary.trashed })
+      : '';
+    const failText = failures.length > 0
+      ? t('batchResultFailuresPart', { count: failures.length })
+      : '';
+
     banner.createDiv({
       cls: 'fm-result-banner-desc',
       text: t('batchResultDesc', {
-        count: this.summary?.count || 0,
+        count,
         docs: this.summary?.docs || 0,
-        trashed: this.summary?.trashed ? t('noticeBatchMigrateTrashedPart', { trashed: this.summary.trashed }) : ''
-      })
+        trashed: trashedText
+      }) + failText
     });
 
+    if (processedItems.length > 0) {
+      const listBox = contentEl.createDiv({
+        cls: 'fm-section-box',
+        attr: { style: 'margin-top: 10px;' }
+      });
+      listBox.createDiv({
+        text: t('batchResultListTitle', { count: processedItems.length }),
+        cls: 'fm-section-title'
+      });
+      const listEl = listBox.createDiv({
+        cls: 'fm-scroll-list',
+        attr: { style: 'max-height: 220px; margin-bottom: 0;' }
+      });
+      for (const pItem of processedItems) {
+        const row = listEl.createDiv({ cls: 'fm-list-item' });
+        const left = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+        });
+        renderItemVisualThumb(left, pItem, this.plugin);
+        const nameCol = left.createDiv({
+          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
+        });
+        nameCol.createSpan({
+          text: pItem.name,
+          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+        });
+        nameCol.createSpan({
+          text: `${pItem.displayPath} · ${formatBytes(pItem.size || 0)}`,
+          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
+        });
+
+        const rightBox = row.createDiv({
+          attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
+        });
+        if (pItem.rawUrl) {
+          const copyBtn = rightBox.createEl('button', {
+            cls: 'clickable-icon',
+            attr: { 'aria-label': t('copyRawUrl') || 'Copy URL' }
+          });
+          setIcon(copyBtn, 'copy');
+          copyBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await navigator.clipboard.writeText(pItem.rawUrl);
+            new Notice(t('noticeCopied'));
+          };
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      const failBox = contentEl.createDiv({
+        cls: 'fm-section-box',
+        attr: { style: 'margin-top: 10px; border-color: rgba(239, 68, 68, 0.4);' }
+      });
+      failBox.createDiv({
+        text: t('batchFailuresTitle', { count: failures.length }),
+        cls: 'fm-section-title',
+        attr: { style: 'color: var(--text-error);' }
+      });
+      for (const f of failures) {
+        failBox.createDiv({
+          cls: 'fm-result-banner-desc',
+          text: `• ${f.path || f.name} (${formatBytes(f.size || 0)}): ${f.error}`,
+          attr: { style: 'font-size: 12px; color: var(--text-muted); margin-top: 2px;' }
+        });
+      }
+    }
+
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    let createdReportPath = null;
+
+    const exportBtn = btnRow.createEl('button', { text: t('batchExportReport') });
+    exportBtn.onclick = async () => {
+      exportBtn.disabled = true;
+      try {
+        createdReportPath = await this.plugin.exportBatchMigrateReportToRoot(this.summary);
+        exportBtn.setText(t('batchReportExported'));
+        if (!btnRow.querySelector('.fm-open-report-btn')) {
+          const openBtn = btnRow.createEl('button', {
+            text: t('batchOpenReport'),
+            cls: 'fm-open-report-btn'
+          });
+          openBtn.onclick = () => {
+            if (createdReportPath) {
+              this.app.workspace.openLinkText(createdReportPath, '', true);
+            }
+            this.close();
+          };
+        }
+      } catch (err) {
+        new Notice('❌ ' + err.message);
+        exportBtn.disabled = false;
+      }
+    };
+
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
     doneBtn.onclick = () => returnToHub(this);
   }
@@ -7154,6 +7319,68 @@ class FileMasterPlugin extends Plugin {
     new Notice(this.t('noticeReportGenerated', { path: reportPath }));
   }
 
+  async exportBatchMigrateReportToRoot(summary) {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
+
+    const count = summary?.count || 0;
+    const docs = summary?.docs || 0;
+    const totalBytes = summary?.totalBytes || 0;
+    const trashed = summary?.trashed || 0;
+    const items = summary?.processedItems || [];
+    const failures = summary?.failures || [];
+
+    const lines = [
+      `# 🚀 批量云端迁移报告 / Batch Migration Report (${dateStr})`,
+      ``,
+      `> 生成时间 / Generated: ${dateStr} ${timeStr}  |  成功迁移附件 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  更新笔记 / Notes Updated: **${docs}**  |  本地清理 / Trashed: **${trashed}**`,
+      ``,
+      `## 📊 迁移汇总统计 / Summary Statistics`,
+      `- **成功上传文件 (Total Uploaded)**: ${count} 个 (${formatBytes(totalBytes)})`,
+      `- **引用链接已更新笔记 (Notes Updated)**: ${docs} 篇`,
+      `- **本地原文件已移入回收站 (Local Trashed)**: ${trashed} 个`,
+      `- **上传失败项 (Failed Uploads)**: ${failures.length} 个`,
+      ``,
+      `## ☁️ 已迁移附件清单 / Migrated Assets (${items.length})`,
+      ``
+    ];
+
+    if (items.length === 0) {
+      lines.push(`- 无已迁移附件 / No assets were migrated.`);
+    } else {
+      lines.push(`| # | 本地原路径 (Local Path) | 服务器链接 (Remote URL) | 文件大小 (Size) | 引用数 (Refs) |`);
+      lines.push(`|---|---|---|---|---|`);
+      items.forEach((item, idx) => {
+        const localPath = item.displayPath || item.name;
+        const remoteUrl = item.rawUrl || (item.rawObj && item.rawObj.rawUrl) || '';
+        const sizeStr = formatBytes(item.size || 0);
+        const refsCount = item.refNotesCount !== undefined ? `${item.refNotesCount} 篇` : '-';
+        const remoteLink = remoteUrl ? `[${item.name || 'Link'}](${remoteUrl})` : '-';
+        lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
+      });
+    }
+
+    if (failures.length > 0) {
+      lines.push(``);
+      lines.push(`## ⚠️ 上传失败项 / Failed Uploads (${failures.length})`);
+      lines.push(``);
+      failures.forEach((f, idx) => {
+        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因: ${f.error}`);
+      });
+    }
+
+    lines.push(``);
+    lines.push(`---`);
+    lines.push(`*Generated by File Master Obsidian Plugin*`);
+
+    await this.writeOrUpdateRootReport(reportPath, lines.join('\n'));
+    new Notice(this.t('noticeReportGenerated', { path: reportPath }));
+    return reportPath;
+  }
+
   async openNoteAtLine(filePath, lineNumber) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
     if (file && file instanceof TFile) {
@@ -8192,6 +8419,7 @@ class FileMasterPlugin extends Plugin {
 
   async executeBatchMigrateSafely(selectedItems, options, onProgress, onDone) {
     const uploadedPairs = [];
+    const failures = [];
     const total = selectedItems.length;
 
     for (let i = 0; i < total; i++) {
@@ -8210,6 +8438,12 @@ class FileMasterPlugin extends Plugin {
 
         uploadedPairs.push({
           tfile,
+          name: tfile.name,
+          displayPath: tfile.path,
+          size: tfile.stat?.size || 0,
+          rawUrl: res.rawUrl,
+          pubUrl: res.pubUrl,
+          refNotes: item.refNotes || [],
           removeItem: {
             source: 'local',
             name: tfile.name,
@@ -8226,6 +8460,12 @@ class FileMasterPlugin extends Plugin {
           }
         });
       } catch (err) {
+        failures.push({
+          name: tfile.name,
+          path: tfile.path,
+          size: tfile.stat?.size || 0,
+          error: err.message || String(err)
+        });
         new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
         this.logOperation('ERROR', 'BATCH_UPLOAD', `Batch upload failed for ${tfile.path}: ${err.message}`, {
           file: tfile.path,
@@ -8235,7 +8475,16 @@ class FileMasterPlugin extends Plugin {
     }
 
     if (uploadedPairs.length === 0) {
-      if (onDone) onDone();
+      if (onDone) {
+        onDone({
+          count: 0,
+          docs: 0,
+          trashed: 0,
+          processedItems: [],
+          failures,
+          totalBytes: 0
+        });
+      }
       return;
     }
 
@@ -8244,6 +8493,7 @@ class FileMasterPlugin extends Plugin {
       .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
 
     let modifiedDocsCount = 0;
+    const modifiedNotePaths = new Set();
     for (const doc of allDocs) {
       const modified = await this.safeModifyFileContent(doc, (content) => {
         let next = content;
@@ -8252,10 +8502,14 @@ class FileMasterPlugin extends Plugin {
         }
         return next;
       });
-      if (modified) modifiedDocsCount++;
+      if (modified) {
+        modifiedDocsCount++;
+        modifiedNotePaths.add(doc.path);
+      }
     }
 
     let trashedCount = 0;
+    const trashedFiles = [];
     if (options.deleteLocalAfter) {
       const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
       for (const { tfile } of uploadedPairs) {
@@ -8263,6 +8517,7 @@ class FileMasterPlugin extends Plugin {
         if (remaining.length === 0) {
           await this.app.vault.trash(tfile, true).catch(() => { });
           trashedCount++;
+          trashedFiles.push(tfile.path);
         }
       }
     }
@@ -8270,24 +8525,30 @@ class FileMasterPlugin extends Plugin {
     this.logOperation('INFO', 'BATCH_UPLOAD', `Batch uploaded ${uploadedPairs.length} file(s), updated ${modifiedDocsCount} note(s), trashed ${trashedCount} local file(s)`, {
       uploadedCount: uploadedPairs.length,
       modifiedDocsCount,
-      trashedCount
+      trashedCount,
+      failuresCount: failures.length
     });
 
-    const trashedPart = options.deleteLocalAfter
-      ? this.t('noticeBatchMigrateTrashedPart', { trashed: trashedCount })
-      : '';
-    new Notice(
-      this.t('noticeBatchMigrateSuccess', {
-        count: uploadedPairs.length,
-        docs: modifiedDocsCount,
-        trashed: trashedPart
-      })
-    );
     if (onDone) {
       onDone({
         count: uploadedPairs.length,
         docs: modifiedDocsCount,
-        trashed: trashedCount
+        modifiedNotePaths: Array.from(modifiedNotePaths),
+        trashed: trashedCount,
+        trashedFiles,
+        processedItems: uploadedPairs.map((p) => ({
+          name: p.name,
+          displayPath: p.displayPath,
+          size: p.size,
+          rawUrl: p.rawUrl,
+          pubUrl: p.pubUrl,
+          ext: p.keepItem.ext,
+          source: 'remote',
+          rawObj: p.keepItem.rawObj,
+          refNotesCount: Array.isArray(p.refNotes) ? p.refNotes.length : 0
+        })),
+        failures,
+        totalBytes: uploadedPairs.reduce((s, p) => s + (p.size || 0), 0)
       });
     }
   }

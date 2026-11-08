@@ -53,6 +53,7 @@ test('isReportFile: accurately identifies generated reports', () => {
   assert.strictEqual(isReportFile('Duplicate_Files_Report_2026-10-29.md'), true);
   assert.strictEqual(isReportFile('Broken_Links_Report_2026-10-29.md'), true);
   assert.strictEqual(isReportFile('Vault_Analytics_Report_2026-10-29.md'), true);
+  assert.strictEqual(isReportFile('Batch_Migrate_Report_2026-11-08.md'), true);
   assert.strictEqual(isReportFile('My Notes.md'), false);
   assert.strictEqual(isReportFile('Report_Summary.md'), false);
   assert.strictEqual(isReportFile('attachments/photo.png'), false);

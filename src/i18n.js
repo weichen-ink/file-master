@@ -395,7 +395,15 @@ const UI_STRINGS = {
 
     // 向导完成结果与当前笔记窗口
     batchResultTitle: '批量上传完成',
+    batchResultWarningTitle: '批量上传部分完成',
+    batchResultErrorTitle: '批量上传失败',
     batchResultDesc: '已上传 {count} 个附件，更新 {docs} 篇笔记{trashed}。',
+    batchResultFailuresPart: '；另有 {count} 个文件上传失败',
+    batchResultListTitle: '已迁移附件列表 ({count})',
+    batchFailuresTitle: '上传失败项 ({count})',
+    batchExportReport: '📄 导出迁移报告到根目录',
+    batchOpenReport: '📂 打开报告',
+    batchReportExported: '✅ 报告已生成',
     dupResultTitle: '重复文件已合并',
     dupResultDesc: '已更新 {modified} 篇笔记，处理知识库文件 {local} 个、服务器文件 {remote} 个{skipped}。',
     dupResultSkipped: '；另有 {count} 个仍被引用的文件已保留',
@@ -912,7 +920,15 @@ const UI_STRINGS = {
 
     // Wizard Results & Active Note Modal
     batchResultTitle: 'Batch upload complete',
+    batchResultWarningTitle: 'Batch upload partially complete',
+    batchResultErrorTitle: 'Batch upload failed',
     batchResultDesc: 'Uploaded {count} attachments and updated {docs} notes{trashed}.',
+    batchResultFailuresPart: '; {count} file(s) failed to upload',
+    batchResultListTitle: 'Migrated Assets ({count})',
+    batchFailuresTitle: 'Upload Failures ({count})',
+    batchExportReport: '📄 Export report to vault root',
+    batchOpenReport: '📂 Open Report',
+    batchReportExported: '✅ Report Generated',
     dupResultTitle: 'Duplicate files merged',
     dupResultDesc: 'Updated {modified} notes and processed {local} vault files and {remote} server files{skipped}.',
     dupResultSkipped: '; kept {count} files that are still referenced',
