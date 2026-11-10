@@ -988,10 +988,18 @@
 }
 
 /* Incoming Attachment Modal */
+.fm-incoming-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-width: 560px;
+}
 .fm-incoming-modal-dialog {
-  max-width: 440px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .fm-incoming-card {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1065,6 +1073,8 @@
   margin-left: 2px;
 }
 .fm-incoming-dest-grid {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   gap: 10px;
   margin-top: 8px;

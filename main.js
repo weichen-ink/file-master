@@ -2508,6 +2508,8 @@ var IncomingFileModal = class extends import_obsidian4.Modal {
     return this.plugin ? this.plugin.t(k, p) : k;
   }
   onOpen() {
+    var _a, _b;
+    (_b = (_a = this.modalEl) == null ? void 0 : _a.addClass) == null ? void 0 : _b.call(_a, "fm-incoming-dialog");
     this.render();
   }
   render() {

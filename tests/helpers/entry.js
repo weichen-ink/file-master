@@ -20,3 +20,8 @@ export { filterAllowedFiles } from '../../src/plugin/server-client.js';
 export { OrphanWizardModal } from '../../src/modals/orphan-wizard.js';
 export { FileMasterSettingTab } from '../../src/settings-tab.js';
 export { FileMasterHubModal } from '../../src/modals/hub.js';
+export * as scans from '../../src/plugin/vault-scans.js';
+export * as analytics from '../../src/plugin/health-analytics.js';
+export * as attachmentOps from '../../src/plugin/attachment-ops.js';
+export * as serverClient from '../../src/plugin/server-client.js';
+export * as logging from '../../src/plugin/logging.js';

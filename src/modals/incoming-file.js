@@ -78,6 +78,7 @@ export class IncomingFileModal extends Modal {
   }
 
   onOpen() {
+    this.modalEl?.addClass?.('fm-incoming-dialog');
     this.render();
   }
 
