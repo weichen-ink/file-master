@@ -171,7 +171,7 @@ export function registerContextMenus(plugin) {
 export function extractRemoteItemFromLine(plugin, lineText) {
   const serverBase = escapeRegExp(plugin.getCleanServerUrl());
   const re = new RegExp(
-    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    `(${serverBase}\\/([^/\\s)]+)\\/(\\d{4})\\/(\\d{2})\\/([^)\\s]+))`,
     'i'
   );
   const m = re.exec(lineText);

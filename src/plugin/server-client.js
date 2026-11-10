@@ -93,7 +93,7 @@ export async function uploadBufferToServer(plugin,
   mimeType = 'application/octet-stream',
   options = {}
 ) {
-  const opts = typeof options === 'boolean' ? { uploadToProtected: options } : (options || {});
+  const opts = options || {};
   throwIfTransferCancelled(opts.signal);
   const fullSha256 = await computeSha256Hex(arrayBuffer);
   // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)

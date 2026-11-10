@@ -23,7 +23,6 @@ export class BatchMigrateWizardModal extends Modal {
       typeImage: true,
       typeAudio: true,
       typeOther: true,
-      uploadToProtected: false,
       deleteLocalAfter: plugin.settings.deleteLocalAfterMigrate
     };
     this.items = [];

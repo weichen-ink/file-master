@@ -346,7 +346,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   const content = await plugin.app.vault.read(activeFile);
   const serverBase = escapeRegExp(plugin.getCleanServerUrl());
   const re = new RegExp(
-    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    `(${serverBase}\\/([^/\\s)]+)\\/(\\d{4})\\/(\\d{2})\\/([^)\\s]+))`,
     'gi'
   );
 
@@ -682,7 +682,7 @@ export async function copyActiveNoteForAstro(plugin, targetFile = null) {
   }
   const content = await plugin.app.vault.read(activeFile);
   const converted = content.replace(
-    /\/[a-zA-Z0-9_-]+\/((?:protected|\d{4})\/(?:keep|\d{2})\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
+    /\/[a-zA-Z0-9_-]+\/(\d{4}\/\d{2}\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
     '/pub/$1.webp'
   );
   await navigator.clipboard.writeText(converted);

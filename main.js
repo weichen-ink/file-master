@@ -3863,7 +3863,7 @@ async function probeRemoteSha256(plugin, sha256) {
 }
 async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
   var _a;
-  const opts = typeof options === "boolean" ? { uploadToProtected: options } : options || {};
+  const opts = options || {};
   throwIfTransferCancelled(opts.signal);
   const fullSha256 = await computeSha256Hex(arrayBuffer);
   if (!opts.skipProbe) {
@@ -4112,7 +4112,6 @@ var BatchMigrateWizardModal = class extends import_obsidian7.Modal {
       typeImage: true,
       typeAudio: true,
       typeOther: true,
-      uploadToProtected: false,
       deleteLocalAfter: plugin.settings.deleteLocalAfterMigrate
     };
     this.items = [];
@@ -4601,7 +4600,7 @@ function registerContextMenus(plugin) {
 function extractRemoteItemFromLine(plugin, lineText) {
   const serverBase = escapeRegExp(plugin.getCleanServerUrl());
   const re = new RegExp(
-    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    `(${serverBase}\\/([^/\\s)]+)\\/(\\d{4})\\/(\\d{2})\\/([^)\\s]+))`,
     "i"
   );
   const m = re.exec(lineText);
@@ -8348,7 +8347,7 @@ async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   const content = await plugin.app.vault.read(activeFile);
   const serverBase = escapeRegExp(plugin.getCleanServerUrl());
   const re = new RegExp(
-    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    `(${serverBase}\\/([^/\\s)]+)\\/(\\d{4})\\/(\\d{2})\\/([^)\\s]+))`,
     "gi"
   );
   const matchesMap = /* @__PURE__ */ new Map();
@@ -8693,7 +8692,7 @@ async function copyActiveNoteForAstro(plugin, targetFile = null) {
   }
   const content = await plugin.app.vault.read(activeFile);
   const converted = content.replace(
-    /\/[a-zA-Z0-9_-]+\/((?:protected|\d{4})\/(?:keep|\d{2})\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
+    /\/[a-zA-Z0-9_-]+\/(\d{4}\/\d{2}\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
     "/pub/$1.webp"
   );
   await navigator.clipboard.writeText(converted);
