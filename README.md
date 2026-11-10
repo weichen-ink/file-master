@@ -18,7 +18,7 @@
 
 Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced orphan attachments, and broken links.
 
-**FileMaster** bridges your local Obsidian vault with a self-hosted media server ([FileMaster Server](https://github.com/weichen-ink/file-master-server)). It keeps your notes lightweight, eliminates redundancy with SHA-256 deduplication, and lets you manage cloud assets without leaving Obsidian.
+**FileMaster** bridges your local Obsidian vault with a self-hosted media server ([File Master Server](https://github.com/weichen-ink/file-master-server)). It keeps your notes lightweight, eliminates redundancy with SHA-256 deduplication, and lets you manage cloud assets without leaving Obsidian.
 
 ---
 
@@ -81,10 +81,10 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 
 ## ⚙️ Quick Configuration
 
-FileMaster `1.0.7` requires FileMaster Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
+FileMaster `1.0.7` requires File Master Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
 
 1. Open **Settings → FileMaster**.
-2. **Server Access URL**: Enter your self-hosted server address (e.g. `http://192.168.1.100:3000` or `https://img.yourdomain.com`).
+2. **Server Access URL**: Enter your self-hosted server address (e.g. `http://192.168.1.100:3210` or `https://img.yourdomain.com`).
 3. **Global API Token**: Enter the `api_token` configured in your server.
 4. Click **⚡ Test Connection** to verify bidirectional version contract and connectivity.
 
@@ -126,7 +126,7 @@ See [batch processing, integrity semantics, and scale limits](https://github.com
 
 随着知识库日渐庞大，大量的截图附件、未清理的游离素材和重复图片会让库越来越臃肿，甚至出现 404 断链。
 
-**FileMaster** 是一款专为 Obsidian 打造的全平台资产治理与自建多媒体图床管理插件，配合自建后端 [FileMaster Server](https://github.com/weichen-ink/file-master-server)，让你的知识库始终轻盈整洁。
+**FileMaster** 是一款专为 Obsidian 打造的全平台资产治理与自建多媒体图床管理插件，配合自建后端 [File Master Server](https://github.com/weichen-ink/file-master-server)，让你的知识库始终轻盈整洁。
 
 ### ✨ 核心亮点
 
