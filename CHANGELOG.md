@@ -3,6 +3,9 @@
 See root `CHANGELOG.md` for full ecosystem release notes.
 
 ## [1.0.6] - 2026-11-10
+- Build explicit ESM sources with esbuild while keeping the single CommonJS Obsidian entry and three release assets.
+- Replace plugin inheritance layers with ordinary operation modules and a direct Obsidian Plugin subclass.
+- Verify behavior through public test exports and release loading; rebuild and test in release CI.
 - Unify note and batch migrations, preserve concurrent note edits, and verify local content and references before deletion.
 - Index references once per operation and group upload/download link changes by affected document.
 - Retry transient transfer failures; support cancellation, unfinished-item retries, and recovery of the most recent upload after restart.
