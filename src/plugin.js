@@ -305,6 +305,8 @@ class FileMasterPlugin extends Plugin {
       case 'server_outdated': return this.t('compatStatusServerOld', { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
       case 'plugin_outdated': return this.t('compatStatusPluginOld', { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
       case 'auth_failed': return this.t('compatStatusAuthFail');
+      case 'token_missing': return this.t('compatStatusTokenMissing');
+      case 'server_error': return this.t('compatStatusServerError', { code: compat.statusCode || '' });
       default: return this.t('compatStatusOffline', { err: compat.error || '' });
     }
   }
@@ -971,6 +973,8 @@ class FileMasterPlugin extends Plugin {
         error: 'No URL configured',
         serverVersion: null
       };
+      this.settings.serverVerified = false;
+      await this.saveSettings();
       return this.lastServerCompatStatus;
     }
 
@@ -989,6 +993,8 @@ class FileMasterPlugin extends Plugin {
           serverVersion: null,
           error: `HTTP ${verRes.status}`
         };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
         return this.lastServerCompatStatus;
       }
 
@@ -1006,6 +1012,8 @@ class FileMasterPlugin extends Plugin {
           minPluginVersion: minPluginReq,
           features: verData.features || {}
         };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
         return this.lastServerCompatStatus;
       }
 
@@ -1019,6 +1027,8 @@ class FileMasterPlugin extends Plugin {
           minServerVersion: MIN_SERVER_VERSION,
           features: verData.features || {}
         };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
         return this.lastServerCompatStatus;
       }
 
@@ -1656,6 +1666,7 @@ class FileMasterPlugin extends Plugin {
     const trashed = summary?.trashed || 0;
     const items = summary?.processedItems || [];
     const failures = summary?.failures || [];
+    const trashFailures = summary?.trashFailures || [];
 
     const lines = [
       `# 🚀 批量云端迁移报告 / Batch Migration Report (${dateStr})`,
@@ -1667,6 +1678,7 @@ class FileMasterPlugin extends Plugin {
       `- **引用链接已更新笔记 (Notes Updated)**: ${docs} 篇`,
       `- **本地原文件已移入回收站 (Local Trashed)**: ${trashed} 个`,
       `- **上传失败项 (Failed Uploads)**: ${failures.length} 个`,
+      ...(trashFailures.length > 0 ? [`- **本地清理失败项 (Failed Local Cleanups)**: ${trashFailures.length} 个`] : []),
       ``,
       `## ☁️ 已迁移附件清单 / Migrated Assets (${items.length})`,
       ``
@@ -1693,6 +1705,15 @@ class FileMasterPlugin extends Plugin {
       lines.push(``);
       failures.forEach((f, idx) => {
         lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因 / Reason: ${f.error}`);
+      });
+    }
+
+    if (trashFailures.length > 0) {
+      lines.push(``);
+      lines.push(`## ⚠️ 本地清理失败项 / Failed Local Cleanups (${trashFailures.length})`);
+      lines.push(``);
+      trashFailures.forEach((tf, idx) => {
+        lines.push(`- **#${idx + 1}**: \`${tf.path}\` — 错误原因 / Reason: ${tf.error}`);
       });
     }
 
@@ -2710,6 +2731,9 @@ class FileMasterPlugin extends Plugin {
         await new Promise((r) => setTimeout(r, 0));
       }
       if (!isAttachmentExt(f.extension)) continue;
+      if (this.settings.uploadNonImageAttachments === false && !IMAGE_EXTS.has(f.extension.toLowerCase())) {
+        continue;
+      }
       if (prefix) {
         if (f.path !== prefix && !f.path.startsWith(prefix + '/')) continue;
       } else if (this.isLocalPathExcluded(f.path)) {
@@ -2829,6 +2853,7 @@ class FileMasterPlugin extends Plugin {
 
     let trashedCount = 0;
     const trashedFiles = [];
+    const trashFailures = [];
     if (options.deleteLocalAfter) {
       const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
       for (const { tfile } of uploadedPairs) {
@@ -2839,9 +2864,11 @@ class FileMasterPlugin extends Plugin {
             trashedCount++;
             trashedFiles.push(tfile.path);
           } catch (trashErr) {
+            const errStr = trashErr.message || String(trashErr);
             this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
-              error: trashErr.message || String(trashErr)
+              error: errStr
             });
+            trashFailures.push({ path: tfile.path, error: errStr });
           }
         }
       }
@@ -2873,6 +2900,7 @@ class FileMasterPlugin extends Plugin {
           refNotesCount: Array.isArray(p.refNotes) ? p.refNotes.length : 0
         })),
         failures,
+        trashFailures,
         totalBytes: uploadedPairs.reduce((s, p) => s + (p.size || 0), 0)
       });
     }

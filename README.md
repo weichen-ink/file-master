@@ -81,7 +81,7 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 
 ## ⚙️ Quick Configuration
 
-FileMaster `1.0.4` requires FileMaster Server `1.0.0` or newer.
+FileMaster `1.0.5` requires FileMaster Server `1.0.0` or newer.
 
 1. Open **Settings → FileMaster**.
 2. **Server Access URL**: Enter your self-hosted server address (e.g. `http://192.168.1.100:3000` or `https://img.yourdomain.com`).

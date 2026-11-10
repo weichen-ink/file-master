@@ -416,3 +416,47 @@ id_similar_bare: other-diagram.png
   assert.ok(result.includes('id_similar_remote: https://example.test/other-diagram.png'), 'Similar remote URL must NOT be rewritten');
   assert.ok(result.includes('id_similar_bare: other-diagram.png'), 'Similar bare name must NOT be rewritten');
 });
+
+test('rewriteContentLinks in Excalidraw: prevents cross-folder and cross-domain collision on same basename (attachments/a/diagram.png vs attachments/b/diagram.png)', () => {
+  const localItemA = {
+    id: 'local:attachments/a/diagram.png',
+    source: 'local',
+    name: 'diagram.png',
+    displayPath: 'attachments/a/diagram.png',
+    ext: 'png'
+  };
+  const remoteItemA = {
+    id: 'remote:2026/11/diagram.png',
+    source: 'remote',
+    name: 'diagram.png',
+    filename: 'diagram.png',
+    displayPath: '2026/11/diagram.png',
+    ext: 'png',
+    rawObj: {
+      year: '2026',
+      month: '11',
+      filename: 'diagram.png',
+      rawUrl: 'https://cdn.example.com/raw/2026/11/diagram.png'
+    }
+  };
+
+  const doc = `## Embedded Files
+id_target_a: [[attachments/a/diagram.png]]
+id_diff_folder_b: [[attachments/b/diagram.png]]
+id_foreign_url: https://other-domain.org/assets/diagram.png
+`;
+
+  const result = rewriteContentLinks(doc, localItemA, remoteItemA);
+  assert.ok(result.includes('id_target_a: https://cdn.example.com/raw/2026/11/diagram.png'), 'attachments/a/diagram.png must be rewritten');
+  assert.ok(result.includes('id_diff_folder_b: [[attachments/b/diagram.png]]'), 'attachments/b/diagram.png must NOT be rewritten');
+  assert.ok(result.includes('id_foreign_url: https://other-domain.org/assets/diagram.png'), 'Other domain URL must NOT be rewritten');
+
+  // Test reverse direction (remote -> local)
+  const revertDoc = `## Embedded Files
+id_target_cdn: https://cdn.example.com/raw/2026/11/diagram.png
+id_foreign_url: https://other-domain.org/assets/diagram.png
+`;
+  const revertResult = rewriteContentLinks(revertDoc, remoteItemA, localItemA);
+  assert.ok(revertResult.includes('id_target_cdn: [[attachments/a/diagram.png]]'), 'CDN URL must be reverted to local');
+  assert.ok(revertResult.includes('id_foreign_url: https://other-domain.org/assets/diagram.png'), 'Foreign URL must NOT be reverted to local');
+});

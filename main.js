@@ -465,11 +465,13 @@ const UI_STRINGS = {
     compatStatusServerOld: '服务器版本较旧：v{serverVer}；插件需要 v{minServerVer} 或更新版本。请在服务器控制台更新。',
     compatStatusPluginOld: '🔴 插件版本过旧 · 服务端要求插件 >= v{minPluginVer} (当前: v{currentVer}，请更新插件)',
     compatStatusAuthFail: '🔴 认证失败 · API 令牌无效或未授权 (401)',
+    compatStatusTokenMissing: '🔴 缺少 API 令牌 · 请先在设置中填写 API Token',
+    compatStatusServerError: '🔴 服务器响应异常 · HTTP {code}',
     compatStatusOffline: '⚪ 未连接 · 无法连接至该服务端地址 ({err})',
 
     // 上传与链接
     saveLocationName: '附件保存位置',
-    saveLocationDesc: '粘贴或拖入附件时的默认保存位置',
+    saveLocationDesc: '粘贴或拖入附件时的默认保存位置（若选择上传服务器且当前离线，将自动安全回退为本地保存）',
     defaultSaveLocationName: '默认高亮存储位置',
     defaultSaveLocationDesc: '插入附件弹窗中默认选中的存储目标',
     optSaveAsk: '每次询问',
@@ -488,6 +490,7 @@ const UI_STRINGS = {
     uploadNonImageDesc: '开启后，音视频、PDF 等常见附件也将支持本地保存或云端迁移',
     destFixedLocalHint: '📌 已按设置固定保存至本地知识库',
     destFixedRemoteHint: '📌 已按设置固定上传至服务器',
+    destFixedRemoteFallbackHint: '⚠️ 预设为上传至服务器，但当前服务器未连接，已自动切换为保存到本地',
     tagLocked: '已保护',
     remoteServerRequiredNotice: '请先在设置中配置并连接有效的服务器',
 
@@ -679,6 +682,8 @@ const UI_STRINGS = {
     activeNoteBadgeOverwritten: '🔄 已覆盖本地文件',
     activeNoteBadgeUploaded: '☁️ 已上传',
     activeNoteBadgeTrashedLocal: '🗑️ 已删本地原文件',
+    activeNoteBadgeTrashFailed: '⚠️ 清理失败',
+    activeNoteTrashFailedNotice: '⚠️ 上传成功，但有 {count} 个本地原文件清理失败（请检查是否有外部程序占用）',
     activeNoteBadgeKeptForOtherRefs: '🛡️ 其他 {count} 篇笔记仍引用，已保留原文件',
     activeNoteBadgeSyncedNotes: '🔗 同步更新其他 {count} 篇笔记',
     activeNoteScanning: '⏳ 正在解析当前笔记中的附件引用...',
@@ -1008,12 +1013,14 @@ const UI_STRINGS = {
     compatStatusOk: 'Connected · Server v{serverVer} · {count} files',
     compatStatusServerOld: 'Server v{serverVer} is too old. The plugin needs v{minServerVer} or later. Update it in the server console.',
     compatStatusPluginOld: '🔴 Plugin outdated · Server requires plugin >= v{minPluginVer} (Current: v{currentVer}, please update plugin)',
-    compatStatusAuthFail: '🔴 Authentication failed · API token is invalid or missing (401)',
+    compatStatusAuthFail: '🔴 Authentication failed · API token is invalid or unauthorized (401)',
+    compatStatusTokenMissing: '🔴 Missing API Token · Please enter your API Token in settings',
+    compatStatusServerError: '🔴 Server error response · HTTP {code}',
     compatStatusOffline: '⚪ Offline · Unable to reach server at this address ({err})',
 
     // Upload & Links
     saveLocationName: 'Where to save attachments',
-    saveLocationDesc: 'Default destination for pasted or dropped attachments',
+    saveLocationDesc: 'Default destination for pasted or dropped attachments (safely falls back to local vault if server is offline)',
     defaultSaveLocationName: 'Default storage destination',
     defaultSaveLocationDesc: 'Preselected storage destination when prompting to insert attachments',
     optSaveAsk: 'Ask every time',
@@ -1030,8 +1037,9 @@ const UI_STRINGS = {
     namingPatternDesc: 'Variables: {note} Note title, {origin} Original name, {date} YYYYMMDD, {time} HHMMSS, {timestamp} Epoch, {rand:4} Hex, {hash:8} SHA-256',
     uploadNonImageName: 'Process non-image attachments',
     uploadNonImageDesc: 'Support audio, video, PDF and other attachments for local saving or remote migration',
-    destFixedLocalHint: '📌 Saved locally according to settings',
-    destFixedRemoteHint: '📌 Uploaded to server according to settings',
+    destFixedLocalHint: '📌 Configured to save to local vault',
+    destFixedRemoteHint: '📌 Configured to upload to server',
+    destFixedRemoteFallbackHint: '⚠️ Configured to upload to server, but server is offline. Falling back to local vault.',
     tagLocked: 'Locked',
     remoteServerRequiredNotice: 'Please configure and verify a remote server first.',
 
@@ -1223,6 +1231,8 @@ const UI_STRINGS = {
     activeNoteBadgeOverwritten: '🔄 Overwritten',
     activeNoteBadgeUploaded: '☁️ Uploaded',
     activeNoteBadgeTrashedLocal: '🗑️ Local file trashed',
+    activeNoteBadgeTrashFailed: '⚠️ Cleanup failed',
+    activeNoteTrashFailedNotice: '⚠️ Upload succeeded, but {count} local file(s) failed to be moved to trash.',
     activeNoteBadgeKeptForOtherRefs: '🛡️ Kept (used in {count} other note(s))',
     activeNoteBadgeSyncedNotes: '🔗 Updated {count} other note(s)',
     activeNoteScanning: '⏳ Scanning attachments referenced in active note...',
@@ -1388,28 +1398,89 @@ function formatBytes(bytes) {
   return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 1) + ' ' + sizes[i];
 }
 
+function computeSha256Pure(bytes) {
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+  let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+
+  const l = bytes.length;
+  const bitLen = l * 8;
+  const padLen = (l % 64 < 56) ? (56 - (l % 64)) : (120 - (l % 64));
+  const totalLen = l + padLen + 8;
+  const msg = new Uint8Array(totalLen);
+  msg.set(bytes, 0);
+  msg[l] = 0x80;
+
+  const view = new DataView(msg.buffer);
+  view.setUint32(totalLen - 4, bitLen >>> 0, false);
+  view.setUint32(totalLen - 8, Math.floor(bitLen / 0x100000000), false);
+
+  const w = new Uint32Array(64);
+  const rotr = (n, x) => (x >>> n) | (x << (32 - n));
+
+  for (let i = 0; i < totalLen; i += 64) {
+    for (let j = 0; j < 16; j++) {
+      w[j] = view.getUint32(i + j * 4, false);
+    }
+    for (let j = 16; j < 64; j++) {
+      const s0 = rotr(7, w[j - 15]) ^ rotr(18, w[j - 15]) ^ (w[j - 15] >>> 3);
+      const s1 = rotr(17, w[j - 2]) ^ rotr(19, w[j - 2]) ^ (w[j - 2] >>> 10);
+      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) >>> 0;
+    }
+    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+    for (let j = 0; j < 64; j++) {
+      const s1 = rotr(6, e) ^ rotr(11, e) ^ rotr(25, e);
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (h + s1 + ch + K[j] + w[j]) >>> 0;
+      const s0 = rotr(2, a) ^ rotr(13, a) ^ rotr(22, a);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (s0 + maj) >>> 0;
+      h = g; g = f; f = e; e = (d + temp1) >>> 0;
+      d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+    }
+    h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+    h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+  }
+  return [h0, h1, h2, h3, h4, h5, h6, h7].map((x) => x.toString(16).padStart(8, '0')).join('');
+}
+
 async function computeSha256Hex(input) {
   if (!input) return '';
   let buffer = null;
+  let uint8 = null;
   if (input instanceof ArrayBuffer) {
     buffer = input;
+    uint8 = new Uint8Array(input);
   } else if (ArrayBuffer.isView(input)) {
     buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    uint8 = new Uint8Array(buffer);
   } else if (typeof input === 'string') {
-    buffer = new TextEncoder().encode(input).buffer;
+    uint8 = new TextEncoder().encode(input);
+    buffer = uint8.buffer;
   }
-  if (!buffer) return '';
+  if (!buffer || !uint8) return '';
 
   if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
-    const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
-    const bytes = new Uint8Array(hashBuf);
-    let hex = '';
-    for (let i = 0; i < bytes.length; i++) {
-      hex += bytes[i].toString(16).padStart(2, '0');
-    }
-    return hex;
+    try {
+      const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
+      const bytes = new Uint8Array(hashBuf);
+      let hex = '';
+      for (let i = 0; i < bytes.length; i++) {
+        hex += bytes[i].toString(16).padStart(2, '0');
+      }
+      return hex;
+    } catch {}
   }
-  return '';
+  return computeSha256Pure(uint8);
 }
 
 function getRandomHex(len = 4) {
@@ -1946,39 +2017,42 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
   const sectionBody = match[2];
   const lines = sectionBody.split(/\r?\n/);
 
-  const localTargets = new Set();
-  const remoteTargets = new Set();
+  const localPathTargets = new Set();
+  const localNameTargets = new Set();
+  const remoteUrlTargets = new Set();
+  const remotePathTargets = new Set();
 
   if (removeItem.source === 'local') {
-    if (removeItem.name) localTargets.add(removeItem.name.toLowerCase());
-    if (removeItem.displayPath) localTargets.add(removeItem.displayPath.toLowerCase());
-    try {
-      if (removeItem.name) {
-        localTargets.add(decodeURIComponent(removeItem.name).toLowerCase());
-        localTargets.add(encodeURIComponent(removeItem.name).toLowerCase());
-      }
-      if (removeItem.displayPath) {
-        localTargets.add(decodeURIComponent(removeItem.displayPath).toLowerCase());
-        localTargets.add(encodeURI(removeItem.displayPath).toLowerCase());
-      }
-    } catch {}
-  } else {
-    const r = removeItem.rawObj || {};
-    if (r.rawUrl) remoteTargets.add(r.rawUrl);
-    if (r.pubUrl) remoteTargets.add(r.pubUrl);
-    const fname = removeItem.filename || removeItem.name;
-    if (fname) {
-      remoteTargets.add(fname);
+    const disp = (removeItem.displayPath || '').replace(/^\.?\//, '').toLowerCase();
+    const name = (removeItem.name || '').toLowerCase();
+    if (disp) {
+      localPathTargets.add(disp);
       try {
-        remoteTargets.add(decodeURIComponent(fname));
-        remoteTargets.add(encodeURIComponent(fname));
+        localPathTargets.add(decodeURIComponent(disp));
+        localPathTargets.add(encodeURI(disp).toLowerCase());
       } catch {}
     }
+    if (name) {
+      localNameTargets.add(name);
+      try {
+        localNameTargets.add(decodeURIComponent(name));
+        localNameTargets.add(encodeURIComponent(name).toLowerCase());
+      } catch {}
+    }
+  } else {
+    const r = removeItem.rawObj || {};
+    if (r.rawUrl) remoteUrlTargets.add(r.rawUrl.toLowerCase());
+    if (r.pubUrl) remoteUrlTargets.add(r.pubUrl.toLowerCase());
     const year = r.year || removeItem.year;
     const month = r.month || removeItem.month;
+    const fname = (removeItem.filename || removeItem.name || '').toLowerCase();
     if (year && month && fname) {
-      remoteTargets.add(`${year}/${month}/${fname}`);
-      remoteTargets.add(`${year}/${month}/${encodeURIComponent(fname)}`);
+      const p1 = `${year}/${month}/${fname}`.toLowerCase();
+      remotePathTargets.add(p1);
+      try {
+        remotePathTargets.add(decodeURIComponent(p1));
+        remotePathTargets.add(`${year}/${month}/${encodeURIComponent(fname)}`.toLowerCase());
+      } catch {}
     }
   }
 
@@ -1991,52 +2065,62 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
     const val = lineMatch[2].trim();
     if (!val) return line;
 
-    let isMatch = false;
-
-    // Strip markdown image wrapper if any: ![](target)
     let rawRef = val;
     const mdImg = val.match(/^!?\[[^\]]*\]\(([^)]+)\)$/);
     if (mdImg) rawRef = mdImg[1].trim();
 
-    // Strip wikilink wrapper if any: ![[target]] or [[target]]
     const wikiM = rawRef.match(/^!?\[\[([^\]|#]+)/);
     if (wikiM) rawRef = wikiM[1].trim();
 
-    const cleanRef = rawRef.replace(/^\.\//, '').toLowerCase();
-    let decodedRef = cleanRef;
-    try { decodedRef = decodeURIComponent(cleanRef); } catch {}
+    const cleanRef = rawRef.replace(/^\.?\//, '').trim();
+    const cleanRefLower = cleanRef.toLowerCase();
+    let decodedRefLower = cleanRefLower;
+    try { decodedRefLower = decodeURIComponent(cleanRefLower); } catch {}
 
-    let baseName = cleanRef.split('/').pop();
-    let decodedBaseName = decodedRef.split('/').pop();
+    const isUrl = /^https?:\/\//i.test(cleanRef);
+    const hasPathSlash = cleanRef.includes('/');
 
-    if (/^https?:\/\//i.test(rawRef)) {
-      try {
-        const u = new URL(rawRef);
-        const p = u.pathname.replace(/^\//, '').toLowerCase();
-        baseName = p.split('/').pop();
-        try { decodedBaseName = decodeURIComponent(baseName); } catch {}
-      } catch {}
-    }
+    let isMatch = false;
 
     if (removeItem.source === 'local') {
-      if (
-        localTargets.has(cleanRef) ||
-        localTargets.has(decodedRef) ||
-        localTargets.has(baseName) ||
-        localTargets.has(decodedBaseName)
-      ) {
-        isMatch = true;
+      if (isUrl) {
+        isMatch = false;
+      } else if (hasPathSlash) {
+        // Full path matching: prevents attachments/b/diagram.png from matching attachments/a/diagram.png
+        isMatch = localPathTargets.has(cleanRefLower) || localPathTargets.has(decodedRefLower);
+      } else {
+        // Bare filename without path (e.g. [[diagram.png]])
+        isMatch = localNameTargets.has(cleanRefLower) || localNameTargets.has(decodedRefLower);
       }
     } else {
-      if (
-        remoteTargets.has(val) ||
-        remoteTargets.has(rawRef) ||
-        remoteTargets.has(cleanRef) ||
-        remoteTargets.has(decodedRef) ||
-        remoteTargets.has(baseName) ||
-        remoteTargets.has(decodedBaseName)
-      ) {
-        isMatch = true;
+      // removeItem.source === 'remote'
+      if (isUrl) {
+        if (remoteUrlTargets.has(cleanRefLower) || remoteUrlTargets.has(decodedRefLower)) {
+          isMatch = true;
+        } else {
+          try {
+            const u = new URL(cleanRef);
+            const pathPart = u.pathname.replace(/^\/(?:raw|pub)\//i, '').replace(/^\//, '').toLowerCase();
+            let decodedPathPart = pathPart;
+            try { decodedPathPart = decodeURIComponent(pathPart); } catch {}
+            if (remotePathTargets.has(pathPart) || remotePathTargets.has(decodedPathPart)) {
+              const r = removeItem.rawObj || {};
+              const targetUrl = r.rawUrl || r.pubUrl;
+              if (targetUrl) {
+                const targetU = new URL(targetUrl);
+                if (u.origin.toLowerCase() === targetU.origin.toLowerCase()) {
+                  isMatch = true;
+                }
+              }
+            }
+          } catch {}
+        }
+      } else if (hasPathSlash) {
+        const p = cleanRefLower.replace(/^(?:raw|pub)\//, '');
+        const decP = decodedRefLower.replace(/^(?:raw|pub)\//, '');
+        isMatch = remotePathTargets.has(p) || remotePathTargets.has(decP);
+      } else {
+        isMatch = false;
       }
     }
 
@@ -2504,7 +2588,6 @@ class IncomingFileModal extends Modal {
     this.result = null;
     this.isDone = false;
     this.isExecuting = false;
-    this.isExecutionRunning = false;
   }
 
   t(k, p) {
@@ -2585,10 +2668,16 @@ class IncomingFileModal extends Modal {
     );
 
     const isAskMode = this.options.askLocation !== false;
+    let isRemoteFallback = false;
     if (!isAskMode && this.options.fixedLocation === 'local') {
       this.targetLocation = 'local';
     } else if (!isAskMode && this.options.fixedLocation === 'remote') {
-      this.targetLocation = isRemoteReady ? 'remote' : 'local';
+      if (isRemoteReady) {
+        this.targetLocation = 'remote';
+      } else {
+        this.targetLocation = 'local';
+        isRemoteFallback = true;
+      }
     } else if (!this.targetLocation) {
       const userPref = this.plugin?.settings?.defaultSaveLocation || 'remote';
       this.targetLocation = (!isRemoteReady || userPref === 'local') ? 'local' : 'remote';
@@ -2643,11 +2732,17 @@ class IncomingFileModal extends Modal {
     } else {
       localCard.style.cursor = 'default';
       if (remoteCard) remoteCard.style.cursor = 'default';
+      let hintText = '';
+      if (isRemoteFallback) {
+        hintText = this.t('destFixedRemoteFallbackHint');
+      } else if (this.targetLocation === 'local') {
+        hintText = this.t('destFixedLocalHint');
+      } else {
+        hintText = this.t('destFixedRemoteHint');
+      }
       contentEl.createDiv({
         cls: 'fm-incoming-fixed-hint',
-        text: this.targetLocation === 'local'
-          ? (this.t('destFixedLocalHint') || '📌 已按设置固定保存至本地仓库')
-          : (this.t('destFixedRemoteHint') || '📌 已按设置固定上传至远程服务器'),
+        text: hintText,
         attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
       });
     }
@@ -2715,8 +2810,6 @@ class IncomingFileModal extends Modal {
   }
 
   async runExecution() {
-    if (this.isExecutionRunning) return;
-    this.isExecutionRunning = true;
     try {
       const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
       const editor = this.options.editor;
@@ -2820,7 +2913,6 @@ class IncomingFileModal extends Modal {
       }
     } catch (err) {
       this.isExecuting = false;
-      this.isExecutionRunning = false;
       this.result = {
         success: false,
         error: err.message || String(err)
@@ -3432,6 +3524,17 @@ class ActiveNoteActionModal extends Modal {
               : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
           });
 
+          const trashFailedList = processedItems.filter((p) => p.trashError);
+          if (trashFailedList.length > 0) {
+            const warnBox = contentEl.createDiv({
+              cls: 'fm-alert fm-alert-warning',
+              attr: { style: 'margin-top: 10px; margin-bottom: 6px; font-size: 12px;' }
+            });
+            warnBox.createSpan({
+              text: this.t('activeNoteTrashFailedNotice', { count: trashFailedList.length })
+            });
+          }
+
           if (processedItems.length > 0) {
             const listBox = contentEl.createDiv({
               cls: 'fm-section-box',
@@ -3482,6 +3585,12 @@ class ActiveNoteActionModal extends Modal {
               }
               if (pItem.trashedLocal) {
                 rightBox.createSpan({ text: this.t('activeNoteBadgeTrashedLocal'), cls: 'fm-tag fm-tag-info' });
+              } else if (pItem.trashError) {
+                rightBox.createSpan({
+                  text: this.t('activeNoteBadgeTrashFailed'),
+                  cls: 'fm-tag fm-tag-danger',
+                  attr: { title: String(pItem.trashError) }
+                });
               } else if (pItem.keptForOtherRefs > 0) {
                 const keptPaths = Array.isArray(pItem.keptForOtherRefPaths) ? pItem.keptForOtherRefPaths : [];
                 const keptBadge = rightBox.createSpan({
@@ -3627,8 +3736,6 @@ class ActiveNoteActionModal extends Modal {
         this.result = { success: true, count, processedItems, failures };
       }
     } catch (err) {
-      this.isExecuting = false;
-      this.isExecutionRunning = false;
       this.result = { success: false, message: err.message };
     }
     this.step = 'result';
@@ -4505,6 +4612,10 @@ class BatchMigrateWizardModal extends Modal {
     const failText = failures.length > 0
       ? t('batchResultFailuresPart', { count: failures.length })
       : '';
+    const trashFailures = this.summary?.trashFailures || [];
+    const trashFailText = trashFailures.length > 0
+      ? `  |  ⚠️ ${trashFailures.length} 个本地原文件清理失败`
+      : '';
 
     banner.createDiv({
       cls: 'fm-result-banner-desc',
@@ -4512,7 +4623,7 @@ class BatchMigrateWizardModal extends Modal {
         count,
         docs: this.summary?.docs || 0,
         trashed: trashedText
-      }) + failText
+      }) + failText + trashFailText
     });
 
     if (processedItems.length > 0) {
@@ -6286,6 +6397,8 @@ class FileMasterPlugin extends Plugin {
       case 'server_outdated': return this.t('compatStatusServerOld', { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
       case 'plugin_outdated': return this.t('compatStatusPluginOld', { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
       case 'auth_failed': return this.t('compatStatusAuthFail');
+      case 'token_missing': return this.t('compatStatusTokenMissing');
+      case 'server_error': return this.t('compatStatusServerError', { code: compat.statusCode || '' });
       default: return this.t('compatStatusOffline', { err: compat.error || '' });
     }
   }
@@ -6952,6 +7065,8 @@ class FileMasterPlugin extends Plugin {
         error: 'No URL configured',
         serverVersion: null
       };
+      this.settings.serverVerified = false;
+      await this.saveSettings();
       return this.lastServerCompatStatus;
     }
 
@@ -6970,6 +7085,8 @@ class FileMasterPlugin extends Plugin {
           serverVersion: null,
           error: `HTTP ${verRes.status}`
         };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
         return this.lastServerCompatStatus;
       }
 
@@ -6987,6 +7104,8 @@ class FileMasterPlugin extends Plugin {
           minPluginVersion: minPluginReq,
           features: verData.features || {}
         };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
         return this.lastServerCompatStatus;
       }
 
@@ -7000,6 +7119,8 @@ class FileMasterPlugin extends Plugin {
           minServerVersion: MIN_SERVER_VERSION,
           features: verData.features || {}
         };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
         return this.lastServerCompatStatus;
       }
 
@@ -7637,6 +7758,7 @@ class FileMasterPlugin extends Plugin {
     const trashed = summary?.trashed || 0;
     const items = summary?.processedItems || [];
     const failures = summary?.failures || [];
+    const trashFailures = summary?.trashFailures || [];
 
     const lines = [
       `# 🚀 批量云端迁移报告 / Batch Migration Report (${dateStr})`,
@@ -7648,6 +7770,7 @@ class FileMasterPlugin extends Plugin {
       `- **引用链接已更新笔记 (Notes Updated)**: ${docs} 篇`,
       `- **本地原文件已移入回收站 (Local Trashed)**: ${trashed} 个`,
       `- **上传失败项 (Failed Uploads)**: ${failures.length} 个`,
+      ...(trashFailures.length > 0 ? [`- **本地清理失败项 (Failed Local Cleanups)**: ${trashFailures.length} 个`] : []),
       ``,
       `## ☁️ 已迁移附件清单 / Migrated Assets (${items.length})`,
       ``
@@ -7674,6 +7797,15 @@ class FileMasterPlugin extends Plugin {
       lines.push(``);
       failures.forEach((f, idx) => {
         lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因 / Reason: ${f.error}`);
+      });
+    }
+
+    if (trashFailures.length > 0) {
+      lines.push(``);
+      lines.push(`## ⚠️ 本地清理失败项 / Failed Local Cleanups (${trashFailures.length})`);
+      lines.push(``);
+      trashFailures.forEach((tf, idx) => {
+        lines.push(`- **#${idx + 1}**: \`${tf.path}\` — 错误原因 / Reason: ${tf.error}`);
       });
     }
 
@@ -8691,6 +8823,9 @@ class FileMasterPlugin extends Plugin {
         await new Promise((r) => setTimeout(r, 0));
       }
       if (!isAttachmentExt(f.extension)) continue;
+      if (this.settings.uploadNonImageAttachments === false && !IMAGE_EXTS.has(f.extension.toLowerCase())) {
+        continue;
+      }
       if (prefix) {
         if (f.path !== prefix && !f.path.startsWith(prefix + '/')) continue;
       } else if (this.isLocalPathExcluded(f.path)) {
@@ -8810,6 +8945,7 @@ class FileMasterPlugin extends Plugin {
 
     let trashedCount = 0;
     const trashedFiles = [];
+    const trashFailures = [];
     if (options.deleteLocalAfter) {
       const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
       for (const { tfile } of uploadedPairs) {
@@ -8820,9 +8956,11 @@ class FileMasterPlugin extends Plugin {
             trashedCount++;
             trashedFiles.push(tfile.path);
           } catch (trashErr) {
+            const errStr = trashErr.message || String(trashErr);
             this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
-              error: trashErr.message || String(trashErr)
+              error: errStr
             });
+            trashFailures.push({ path: tfile.path, error: errStr });
           }
         }
       }
@@ -8854,6 +8992,7 @@ class FileMasterPlugin extends Plugin {
           refNotesCount: Array.isArray(p.refNotes) ? p.refNotes.length : 0
         })),
         failures,
+        trashFailures,
         totalBytes: uploadedPairs.reduce((s, p) => s + (p.size || 0), 0)
       });
     }

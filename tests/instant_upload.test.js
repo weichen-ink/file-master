@@ -1,24 +1,45 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const nodeCrypto = require('node:crypto');
 
-async function computeSha256Hex(input) {
-  if (!input) return '';
-  let buffer = null;
-  if (input instanceof ArrayBuffer) {
-    buffer = input;
-  } else if (ArrayBuffer.isView(input)) {
-    buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+// Extract and evaluate the real computeSha256Pure and computeSha256Hex from src/engine.js
+const engineCode = fs.readFileSync(path.resolve(__dirname, '../src/engine.js'), 'utf8');
+const shaPureMatch = engineCode.match(/function computeSha256Pure\([\s\S]*?\n\}/);
+const shaHexMatch = engineCode.match(/async function computeSha256Hex\([\s\S]*?\n\}/);
+
+assert.ok(shaPureMatch, 'computeSha256Pure must be in engine.js');
+assert.ok(shaHexMatch, 'computeSha256Hex must be in engine.js');
+
+const { computeSha256Pure, computeSha256Hex } = new Function(`
+  ${shaPureMatch[0]}
+  ${shaHexMatch[0]}
+  return { computeSha256Pure, computeSha256Hex };
+`)();
+
+// Test the real computeSha256Hex and pure JS fallback
+test('computeSha256Hex & computeSha256Pure: exact SHA-256 vectors with and without Web Crypto', async () => {
+  const testCases = [
+    '',
+    'hello',
+    'The quick brown fox jumps over the lazy dog',
+    'Obsidian FileMaster Mobile Verification 2026'
+  ];
+
+  for (const text of testCases) {
+    const buf = Buffer.from(text);
+    const expected = nodeCrypto.createHash('sha256').update(buf).digest('hex');
+
+    // 1. Pure JS algorithm
+    const pureHex = computeSha256Pure(new Uint8Array(buf));
+    assert.strictEqual(pureHex, expected, `Pure JS SHA-256 must match node crypto for "${text}"`);
+
+    // 2. Real async computeSha256Hex (Web Crypto)
+    const webHex = await computeSha256Hex(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+    assert.strictEqual(webHex, expected, `Web Crypto SHA-256 must match node crypto for "${text}"`);
   }
-  if (!buffer) return '';
-  const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
-  const bytes = new Uint8Array(hashBuf);
-  let hex = '';
-  for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0');
-  }
-  return hex;
-}
+});
 
 // Simulate FileMasterPlugin instance
 class MockPlugin {
@@ -72,7 +93,7 @@ class MockPlugin {
 test('Instant Upload: reuses existing remote file on probe match (0-payload upload)', async () => {
   const plugin = new MockPlugin();
   const testBytes = Buffer.from('hello-world-image-content-bytes');
-  const expectedHash = crypto.createHash('sha256').update(testBytes).digest('hex');
+  const expectedHash = nodeCrypto.createHash('sha256').update(testBytes).digest('hex');
 
   let probeCalledWith = null;
   let uploadCalled = false;

@@ -446,7 +446,6 @@ class IncomingFileModal extends Modal {
     this.result = null;
     this.isDone = false;
     this.isExecuting = false;
-    this.isExecutionRunning = false;
   }
 
   t(k, p) {
@@ -527,10 +526,16 @@ class IncomingFileModal extends Modal {
     );
 
     const isAskMode = this.options.askLocation !== false;
+    let isRemoteFallback = false;
     if (!isAskMode && this.options.fixedLocation === 'local') {
       this.targetLocation = 'local';
     } else if (!isAskMode && this.options.fixedLocation === 'remote') {
-      this.targetLocation = isRemoteReady ? 'remote' : 'local';
+      if (isRemoteReady) {
+        this.targetLocation = 'remote';
+      } else {
+        this.targetLocation = 'local';
+        isRemoteFallback = true;
+      }
     } else if (!this.targetLocation) {
       const userPref = this.plugin?.settings?.defaultSaveLocation || 'remote';
       this.targetLocation = (!isRemoteReady || userPref === 'local') ? 'local' : 'remote';
@@ -585,11 +590,17 @@ class IncomingFileModal extends Modal {
     } else {
       localCard.style.cursor = 'default';
       if (remoteCard) remoteCard.style.cursor = 'default';
+      let hintText = '';
+      if (isRemoteFallback) {
+        hintText = this.t('destFixedRemoteFallbackHint');
+      } else if (this.targetLocation === 'local') {
+        hintText = this.t('destFixedLocalHint');
+      } else {
+        hintText = this.t('destFixedRemoteHint');
+      }
       contentEl.createDiv({
         cls: 'fm-incoming-fixed-hint',
-        text: this.targetLocation === 'local'
-          ? (this.t('destFixedLocalHint') || '📌 已按设置固定保存至本地仓库')
-          : (this.t('destFixedRemoteHint') || '📌 已按设置固定上传至远程服务器'),
+        text: hintText,
         attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
       });
     }
@@ -657,8 +668,6 @@ class IncomingFileModal extends Modal {
   }
 
   async runExecution() {
-    if (this.isExecutionRunning) return;
-    this.isExecutionRunning = true;
     try {
       const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
       const editor = this.options.editor;
@@ -762,7 +771,6 @@ class IncomingFileModal extends Modal {
       }
     } catch (err) {
       this.isExecuting = false;
-      this.isExecutionRunning = false;
       this.result = {
         success: false,
         error: err.message || String(err)
@@ -1374,6 +1382,17 @@ class ActiveNoteActionModal extends Modal {
               : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
           });
 
+          const trashFailedList = processedItems.filter((p) => p.trashError);
+          if (trashFailedList.length > 0) {
+            const warnBox = contentEl.createDiv({
+              cls: 'fm-alert fm-alert-warning',
+              attr: { style: 'margin-top: 10px; margin-bottom: 6px; font-size: 12px;' }
+            });
+            warnBox.createSpan({
+              text: this.t('activeNoteTrashFailedNotice', { count: trashFailedList.length })
+            });
+          }
+
           if (processedItems.length > 0) {
             const listBox = contentEl.createDiv({
               cls: 'fm-section-box',
@@ -1424,6 +1443,12 @@ class ActiveNoteActionModal extends Modal {
               }
               if (pItem.trashedLocal) {
                 rightBox.createSpan({ text: this.t('activeNoteBadgeTrashedLocal'), cls: 'fm-tag fm-tag-info' });
+              } else if (pItem.trashError) {
+                rightBox.createSpan({
+                  text: this.t('activeNoteBadgeTrashFailed'),
+                  cls: 'fm-tag fm-tag-danger',
+                  attr: { title: String(pItem.trashError) }
+                });
               } else if (pItem.keptForOtherRefs > 0) {
                 const keptPaths = Array.isArray(pItem.keptForOtherRefPaths) ? pItem.keptForOtherRefPaths : [];
                 const keptBadge = rightBox.createSpan({
@@ -1569,8 +1594,6 @@ class ActiveNoteActionModal extends Modal {
         this.result = { success: true, count, processedItems, failures };
       }
     } catch (err) {
-      this.isExecuting = false;
-      this.isExecutionRunning = false;
       this.result = { success: false, message: err.message };
     }
     this.step = 'result';
@@ -2447,6 +2470,10 @@ class BatchMigrateWizardModal extends Modal {
     const failText = failures.length > 0
       ? t('batchResultFailuresPart', { count: failures.length })
       : '';
+    const trashFailures = this.summary?.trashFailures || [];
+    const trashFailText = trashFailures.length > 0
+      ? `  |  ⚠️ ${trashFailures.length} 个本地原文件清理失败`
+      : '';
 
     banner.createDiv({
       cls: 'fm-result-banner-desc',
@@ -2454,7 +2481,7 @@ class BatchMigrateWizardModal extends Modal {
         count,
         docs: this.summary?.docs || 0,
         trashed: trashedText
-      }) + failText
+      }) + failText + trashFailText
     });
 
     if (processedItems.length > 0) {
