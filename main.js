@@ -227,7 +227,7 @@ const UI_STRINGS = {
     // 快捷控制中心
     hubBadge: '文件工具',
     hubTitle: 'File Master',
-    hubSubtitle: '告别冗余附件与失效链接，云端秒传加速、零断链迁移，让知识库始终轻量整洁',
+    hubSubtitle: '告别冗余附件与失效链接，云端秒传加速、迁移后校验引用，让知识库始终轻量整洁',
     catFiles: '服务器文件',
     catGovernance: '知识库整理',
     catActiveNote: '当前笔记',
@@ -792,7 +792,7 @@ const UI_STRINGS = {
     // Quick Hub
     hubBadge: 'File tools',
     hubTitle: 'File Master',
-    hubSubtitle: 'Eliminate redundant attachments and broken links — instant cloud acceleration and zero-broken-link migration keep your vault fast and clean.',
+    hubSubtitle: 'Eliminate redundant attachments and broken links — instant cloud acceleration and verified migration keep your vault fast and clean.',
     catGovernance: 'Organize vault',
     catFiles: 'Server files',
     catActiveNote: 'Current note',
@@ -4815,7 +4815,7 @@ class DuplicateWizardModal extends Modal {
 /**
  * Wizard 3: Batch Cloud Migration Wizard
  * Step 1: Select migration folder scope, attachment types, and trash policy (with real-time scan progress + cancel button)
- * Step 2: Preview list, progress bar, upload, and zero-broken-link safe rewrite
+ * Step 2: Preview list, progress bar, upload, and verified safe rewrite
  */
 class BatchMigrateWizardModal extends Modal {
   constructor(app, plugin, initialFolder = '') {

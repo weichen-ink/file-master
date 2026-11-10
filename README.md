@@ -7,7 +7,7 @@
 [![Tests](https://img.shields.io/badge/Tests-Passing-success)](tests/)
 
 > **Enterprise-grade Obsidian asset governance & self-hosted image hosting hub.**  
-> *Desktop & Mobile (iOS / Android) · Zero Broken Links · SHA-256 Instant Upload · Canvas & Excalidraw Ready*
+> *Desktop & Mobile (iOS / Android) · Verified Link Rewrites · SHA-256 Instant Upload · Canvas & Excalidraw Ready*
 
 [English](#english) | [简体中文](#简体中文)
 
@@ -97,7 +97,7 @@ FileMaster `1.0.6` requires FileMaster Server `1.0.1` or newer. Update both repo
 | **Naming Strategy** | `Keep original` | Strategy for incoming attachments: `Keep original`, `Auto-rename pattern`, or `Prompt each time` |
 | **Auto-Rename Pattern** | `{note}_{date}_{rand:4}` | Rule for naming attachments (`{note}`, `{date}`, `{time}`, `{rand:4}`, `{hash:8}`) |
 | **Handle Non-Image Attachments** | `true` | Enables local saving and cloud migration for audio, video, and PDF attachments |
-| **Delete Local After Migrate** | `true` | Safely removes local file once cloud migration and zero-broken-link check succeed |
+| **Delete Local After Migrate** | `true` | Safely removes local file once cloud migration and reference check succeed |
 | **Excluded Local Folders** | `templates, assets/protected` | Comma-separated paths skipped during orphan/dedup scans |
 
 ---

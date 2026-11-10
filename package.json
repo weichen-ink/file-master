@@ -1,7 +1,7 @@
 {
   "name": "file-master",
   "version": "1.0.6",
-  "description": "Obsidian plugin for self-hosted vault attachment & image management: clipboard auto-upload, SHA-256 deduplication, zero-broken-link batch migration, and unused file cleanup.",
+  "description": "Obsidian plugin for self-hosted vault attachment & image management: clipboard auto-upload, SHA-256 deduplication, verified batch migration, and unused file cleanup.",
   "main": "main.js",
   "scripts": {
     "test": "node --test tests/*.test.js",

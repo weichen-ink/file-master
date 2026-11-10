@@ -2225,7 +2225,7 @@ class DuplicateWizardModal extends Modal {
 /**
  * Wizard 3: Batch Cloud Migration Wizard
  * Step 1: Select migration folder scope, attachment types, and trash policy (with real-time scan progress + cancel button)
- * Step 2: Preview list, progress bar, upload, and zero-broken-link safe rewrite
+ * Step 2: Preview list, progress bar, upload, and verified safe rewrite
  */
 class BatchMigrateWizardModal extends Modal {
   constructor(app, plugin, initialFolder = '') {
