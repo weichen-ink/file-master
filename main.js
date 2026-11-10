@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
   enableSidebarButton: true,
   enableClipboardMonitor: true,
   saveLocationMode: 'ask', // 'remote' | 'local' | 'ask'
+  defaultSaveLocation: 'remote', // 'remote' | 'local' (default preselected destination when asking)
   namingMode: 'keep',      // 'keep' (keep original) | 'rule' (auto-rename pattern) | 'prompt' (manual rename modal)
   namingPattern: '{note}_{date}_{rand:4}',
   uploadNonImageAttachments: true,
@@ -248,6 +249,7 @@ const UI_STRINGS = {
     stepOf: '第 {current} / {total} 步',
     btnBack: '⬅ 上一步',
     btnCancel: '取消',
+    btnInsert: '插入',
     btnNext: '下一步 ➔',
     btnSelectAll: '全选或取消全选',
     btnExportReport: '导出报告到知识库根目录',
@@ -256,11 +258,21 @@ const UI_STRINGS = {
     scanProgress: '⏳ 正在扫描 ({current}/{total}): {label}',
 
     // 新素材保存弹窗 (DestinationModal)
-    destTitle: '保存新附件',
+    destBadge: '附件插入',
+    destTitle: '插入附件',
+    destSubtitle: '选择附件存储位置',
     destTypeSize: '类型：.{ext}  |  大小：{size}',
-    destFilenameLabel: '文件名（自动保留 .{ext} 扩展名）：',
-    destSaveLocal: '保存到知识库',
-    destSaveRemote: '上传到服务器',
+    destFilenameLabel: '文件名',
+    destFilenameHint: '输入文件名',
+    destTargetNote: '目标笔记：{note}',
+    destDestTitle: '存储位置',
+    destRenameTitle: '重命名',
+    destRenameOptional: '修改文件名（可选）',
+    destSaveLocal: '💻 本地知识库',
+    destSaveLocalDesc: '保存在本地附件文件夹',
+    destSaveRemote: '☁️ 远程服务器',
+    destSaveRemoteDesc: '上传至远程服务器',
+    destInsertSuccess: '✅ 附件已保存并插入笔记',
     destTranscodeTip: '⏳ 正在解码 .{ext} 预览...',
     destTranscodeFail: '⚠️ 本地预览暂不可用；上传时服务端将自动转码',
 
@@ -405,7 +417,7 @@ const UI_STRINGS = {
     noticeCopiedWebp: '⚡ 已复制 WebP 优化链接: {name}',
     noticeExclAdded: '🛡️ 已将目录 \"{path}\" 加入扫描排除名单',
     noticeExclRemoved: '🔓 已将目录 \"{path}\" 从扫描排除名单移除',
-    noticeOpenMdFirst: '请先在编辑器中打开一篇 Markdown 笔记',
+    noticeOpenMdFirst: '请先在编辑器中打开一篇笔记（Markdown、Canvas 或 Excalidraw）',
     noticeNoRemoteInActive: '当前笔记中没有服务器文件链接',
     noticeNoLocalInActive: '当前笔记中未找到本地附件引用',
     noticeAstroCopied: '✅ 已将包含公开 WebP 链接的笔记内容复制至剪贴板！',
@@ -413,13 +425,13 @@ const UI_STRINGS = {
     // 设置面板标签
     settingsTitle: 'File Master 设置',
     settingsBack: '返回设置首页',
-    settingsSetupGroup: '开始使用',
-    settingsPreferencesGroup: '使用偏好',
+    settingsCoreGroup: '核心功能',
+    settingsPreferencesGroup: '系统偏好',
     settingsToolsGroup: '文件工具',
     settingsInfoGroup: '插件信息',
-    tabGeneral: '常规设置',
+    tabGeneral: '常规偏好',
     tabServer: '服务器连接',
-    tabUpload: '附件与链接',
+    tabUpload: '附件处理',
     tabExemptions: '保护与排除',
 
     // 常规与语言
@@ -459,6 +471,8 @@ const UI_STRINGS = {
     // 上传与链接
     saveLocationName: '附件保存位置',
     saveLocationDesc: '粘贴或拖入附件时的默认保存位置',
+    defaultSaveLocationName: '默认高亮存储位置',
+    defaultSaveLocationDesc: '插入附件弹窗中默认选中的存储目标',
     optSaveAsk: '每次询问',
     optSaveRemote: '上传到服务器',
     optSaveLocal: '保存到知识库',
@@ -471,6 +485,12 @@ const UI_STRINGS = {
     optNamingPrompt: '每次询问',
     namingPatternName: '自动重命名模板规则',
     namingPatternDesc: '支持变量：{note} 笔记标题, {origin} 原名, {date} 年月日, {time} 时分秒, {timestamp} 时间戳, {rand:4} 随机字符, {hash:8} 哈希',
+    uploadNonImageName: '处理非图片附件',
+    uploadNonImageDesc: '开启后，音视频、PDF 等常见附件也将支持本地保存或云端迁移',
+    destFixedLocalHint: '📌 已按设置固定保存至本地知识库',
+    destFixedRemoteHint: '📌 已按设置固定上传至服务器',
+    tagLocked: '已保护',
+    remoteServerRequiredNotice: '请先在设置中配置并连接有效的服务器',
 
     // 保护与规则
     excludedFoldersName: '不扫描的目录',
@@ -773,6 +793,7 @@ const UI_STRINGS = {
     stepOf: 'Step {current} of {total}',
     btnBack: '⬅ Back',
     btnCancel: 'Cancel',
+    btnInsert: 'Insert',
     btnNext: 'Next ➔',
     btnSelectAll: 'Select or deselect all',
     btnExportReport: 'Export report to vault root',
@@ -781,11 +802,21 @@ const UI_STRINGS = {
     scanProgress: '⏳ Scanning ({current}/{total}): {label}',
 
     // Destination Modal
-    destTitle: 'Save attachment',
+    destBadge: 'Insert Attachment',
+    destTitle: 'Insert attachment',
+    destSubtitle: 'Choose storage location',
     destTypeSize: 'Type: .{ext}  |  Size: {size}',
-    destFilenameLabel: 'Filename (extension .{ext} preserved automatically):',
-    destSaveLocal: 'Save to vault',
-    destSaveRemote: 'Upload to server',
+    destFilenameLabel: 'Filename',
+    destFilenameHint: 'Enter filename',
+    destTargetNote: 'Target note: {note}',
+    destDestTitle: 'Storage location',
+    destRenameTitle: 'Rename',
+    destRenameOptional: 'Edit filename (optional)',
+    destSaveLocal: '💻 Local vault',
+    destSaveLocalDesc: 'Save to local attachment folder',
+    destSaveRemote: '☁️ Remote server',
+    destSaveRemoteDesc: 'Upload to remote server',
+    destInsertSuccess: '✅ Attachment saved and inserted into note',
     destTranscodeTip: '⏳ Decoding .{ext} preview...',
     destTranscodeFail: '⚠️ Local preview unavailable; server will auto-transcode upon upload',
 
@@ -930,7 +961,7 @@ const UI_STRINGS = {
     noticeCopiedWebp: '⚡ Copied optimized WebP link: {name}',
     noticeExclAdded: '🛡️ Added folder \"{path}\" to scan exclusion list (ignored in scans)',
     noticeExclRemoved: '🔓 Removed folder \"{path}\" from scan exclusion list',
-    noticeOpenMdFirst: 'Please open a Markdown note first.',
+    noticeOpenMdFirst: 'Please open an active note (Markdown, Canvas, or Excalidraw) first.',
     noticeNoRemoteInActive: 'No server file links in this note.',
     noticeNoLocalInActive: 'No local attachments found to migrate in active note.',
     noticeAstroCopied: '✅ Copied active note text with public WebP links to clipboard!',
@@ -938,14 +969,14 @@ const UI_STRINGS = {
     // Settings Tabs
     settingsTitle: 'File Master settings',
     settingsBack: 'Back to settings',
-    settingsSetupGroup: 'Get started',
+    settingsCoreGroup: 'Core Features',
     settingsPreferencesGroup: 'Preferences',
-    settingsToolsGroup: 'File tools',
-    settingsInfoGroup: 'Plugin information',
+    settingsToolsGroup: 'Tools & Logs',
+    settingsInfoGroup: 'Plugin Information',
     tabGeneral: 'General',
-    tabServer: 'Server connection',
-    tabUpload: 'Attachments & links',
-    tabExemptions: 'Protection & exclusions',
+    tabServer: 'Server Connection',
+    tabUpload: 'Attachments',
+    tabExemptions: 'Exemptions & Protection',
 
     // General & Language
     langName: 'Interface Language',
@@ -966,7 +997,7 @@ const UI_STRINGS = {
     serverUrlName: 'Server URL',
     serverUrlDesc: 'Server address, such as http://localhost:3000',
     apiTokenName: 'API token',
-    apiTokenDesc: 'API token from FileMaster Server',
+    apiTokenDesc: 'API token from File Master Server',
     showToken: 'Show token',
     hideToken: 'Hide token',
     btnTestConn: 'Test connection',
@@ -984,6 +1015,8 @@ const UI_STRINGS = {
     // Upload & Links
     saveLocationName: 'Where to save attachments',
     saveLocationDesc: 'Default destination for pasted or dropped attachments',
+    defaultSaveLocationName: 'Default storage destination',
+    defaultSaveLocationDesc: 'Preselected storage destination when prompting to insert attachments',
     optSaveAsk: 'Ask every time',
     optSaveRemote: 'Upload to server',
     optSaveLocal: 'Save to vault',
@@ -996,6 +1029,12 @@ const UI_STRINGS = {
     optNamingPrompt: 'Ask each time',
     namingPatternName: 'Auto-Rename Pattern Template',
     namingPatternDesc: 'Variables: {note} Note title, {origin} Original name, {date} YYYYMMDD, {time} HHMMSS, {timestamp} Epoch, {rand:4} Hex, {hash:8} SHA-256',
+    uploadNonImageName: 'Process non-image attachments',
+    uploadNonImageDesc: 'Support audio, video, PDF and other attachments for local saving or remote migration',
+    destFixedLocalHint: '📌 Saved locally according to settings',
+    destFixedRemoteHint: '📌 Uploaded to server according to settings',
+    tagLocked: 'Locked',
+    remoteServerRequiredNotice: 'Please configure and verify a remote server first.',
 
     // Protection & Rules
     excludedFoldersName: 'Folders to skip',
@@ -1897,38 +1936,50 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
 
     let isMatch = false;
 
-    if (removeItem.source === 'local') {
-      const wikiM = val.match(/^!?\[\[([^\]|#]+)/);
-      if (wikiM) {
-        let clean = wikiM[1].trim().replace(/^\.\//, '').toLowerCase();
-        let decoded = clean;
-        try { decoded = decodeURIComponent(clean); } catch {}
-        const base = clean.split('/').pop();
-        const baseDecoded = decoded.split('/').pop();
+    // Strip markdown image wrapper if any: ![](target)
+    let rawRef = val;
+    const mdImg = val.match(/^!?\[[^\]]*\]\(([^)]+)\)$/);
+    if (mdImg) rawRef = mdImg[1].trim();
 
-        if (
-          localTargets.has(clean) ||
-          localTargets.has(decoded) ||
-          localTargets.has(base) ||
-          localTargets.has(baseDecoded)
-        ) {
-          isMatch = true;
-        }
-      } else {
-        const cleanVal = val.toLowerCase();
-        for (const t of localTargets) {
-          if (cleanVal.includes(t)) {
-            isMatch = true;
-            break;
-          }
-        }
+    // Strip wikilink wrapper if any: ![[target]] or [[target]]
+    const wikiM = rawRef.match(/^!?\[\[([^\]|#]+)/);
+    if (wikiM) rawRef = wikiM[1].trim();
+
+    const cleanRef = rawRef.replace(/^\.\//, '').toLowerCase();
+    let decodedRef = cleanRef;
+    try { decodedRef = decodeURIComponent(cleanRef); } catch {}
+
+    let baseName = cleanRef.split('/').pop();
+    let decodedBaseName = decodedRef.split('/').pop();
+
+    if (/^https?:\/\//i.test(rawRef)) {
+      try {
+        const u = new URL(rawRef);
+        const p = u.pathname.replace(/^\//, '').toLowerCase();
+        baseName = p.split('/').pop();
+        try { decodedBaseName = decodeURIComponent(baseName); } catch {}
+      } catch {}
+    }
+
+    if (removeItem.source === 'local') {
+      if (
+        localTargets.has(cleanRef) ||
+        localTargets.has(decodedRef) ||
+        localTargets.has(baseName) ||
+        localTargets.has(decodedBaseName)
+      ) {
+        isMatch = true;
       }
     } else {
-      for (const t of remoteTargets) {
-        if (t && val.includes(t)) {
-          isMatch = true;
-          break;
-        }
+      if (
+        remoteTargets.has(val) ||
+        remoteTargets.has(rawRef) ||
+        remoteTargets.has(cleanRef) ||
+        remoteTargets.has(decodedRef) ||
+        remoteTargets.has(baseName) ||
+        remoteTargets.has(decodedBaseName)
+      ) {
+        isMatch = true;
       }
     }
 
@@ -2379,22 +2430,24 @@ class IncomingFileModal extends Modal {
   constructor(app, fileInfo, options, callback = null) {
     super(app);
     this.fileInfo = fileInfo; // { arrayBuffer, defaultBaseName, ext, size, mimeType, sha256 }
-    this.options = options;   // { askLocation, fixedLocation, promptRename, plugin, editor, activeFile }
+    this.options = options || {};   // { askLocation, fixedLocation, promptRename, plugin, editor, activeFile }
     this.callback = callback;
-    this.plugin = options.plugin;
+    this.plugin = this.options.plugin;
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
-    if (!isRemote) {
-      this.options.askLocation = false;
-      this.options.fixedLocation = 'local';
+    if (this.options.fixedLocation === 'local') {
       this.targetLocation = 'local';
-      this.step = this.options.promptRename ? 'input' : 'executing';
+    } else if (this.options.fixedLocation === 'remote') {
+      this.targetLocation = isRemote ? 'remote' : 'local';
     } else {
-      this.step = (options.askLocation || options.promptRename) ? 'input' : 'executing';
+      const userPref = this.plugin?.settings?.defaultSaveLocation || 'remote';
+      this.targetLocation = (!isRemote || userPref === 'local') ? 'local' : 'remote';
     }
     this.finalFilename = `${fileInfo.defaultBaseName}.${fileInfo.ext}`;
-    this.targetLocation = this.options.fixedLocation || (isRemote ? 'remote' : 'local');
+    this.step = 'input';
     this.result = null;
     this.isDone = false;
+    this.isExecuting = false;
+    this.isExecutionRunning = false;
   }
 
   t(k, p) {
@@ -2403,15 +2456,13 @@ class IncomingFileModal extends Modal {
 
   onOpen() {
     this.render();
-    if (this.step === 'executing') {
-      this.runExecution();
-    }
   }
 
   render() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass('fm-wizard-modal');
+    contentEl.addClass('fm-incoming-modal-dialog');
 
     if (this.step === 'input') {
       this.renderInputStep();
@@ -2424,49 +2475,131 @@ class IncomingFileModal extends Modal {
 
   renderInputStep() {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.t('destTitle') });
 
-    // Render thumbnail preview for images (including HEIC/HEIF/TIFF)
+    // 1. Clean Title Header
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('destTitle'), cls: 'fm-step-title' });
+
+    // 2. Asset Card (Thumbnail + Integrated Input + Size)
+    const card = contentEl.createDiv({ cls: 'fm-incoming-card' });
+    const thumbWrap = card.createDiv({ cls: 'fm-incoming-thumb-wrap' });
+
     if (IMAGE_EXTS.has(this.fileInfo.ext)) {
-      const img = contentEl.createEl('img', { cls: 'fm-preview-thumb' });
-      const loadingTip = NEEDS_TRANSCODE_IMAGE_EXTS.has(this.fileInfo.ext)
-        ? contentEl.createDiv({
-            text: this.t('destTranscodeTip', { ext: this.fileInfo.ext.toUpperCase() }),
-            attr: { style: 'font-size: 12px; color: var(--text-accent); text-align: center; margin-bottom: 8px;' }
-          })
-        : null;
-
+      const img = thumbWrap.createEl('img', { cls: 'fm-incoming-thumb-img' });
       convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin)
         .then((url) => {
-          img.src = url;
-          if (loadingTip) loadingTip.remove();
+          if (url) img.src = url;
         })
-        .catch(() => {
-          if (loadingTip) loadingTip.setText(this.t('destTranscodeFail'));
-        });
+        .catch(() => {});
+    } else {
+      const ext = this.fileInfo.ext;
+      const icon = ext === 'md' ? '📝' : AUDIO_EXTS.has(ext) ? '🎵' : ['mp4', 'webm', 'mov', 'mkv'].includes(ext) ? '🎬' : ext === 'pdf' ? '📄' : '📦';
+      thumbWrap.createSpan({ text: icon, attr: { style: 'font-size: 24px;' } });
+    }
+
+    const editCol = card.createDiv({ cls: 'fm-incoming-edit-col' });
+    const inputRow = editCol.createDiv({ cls: 'fm-incoming-input-row' });
+    const nameInput = inputRow.createEl('input', {
+      type: 'text',
+      value: this.fileInfo.defaultBaseName,
+      cls: 'fm-incoming-name-input',
+      attr: {
+        placeholder: this.t('destFilenameHint'),
+        spellcheck: 'false'
+      }
+    });
+    inputRow.createSpan({ text: `.${this.fileInfo.ext}`, cls: 'fm-incoming-ext-badge' });
+    editCol.createDiv({
+      cls: 'fm-incoming-sub-meta',
+      text: formatBytes(this.fileInfo.size)
+    });
+
+    if (this.options.promptRename) {
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+      }, 40);
+    }
+
+    // 3. Location Selection
+    const isRemoteReady = Boolean(
+      this.plugin?.settings?.enableRemoteServer &&
+      this.plugin?.isRemoteServerReady?.()
+    );
+
+    const isAskMode = this.options.askLocation !== false;
+    if (!isAskMode && this.options.fixedLocation === 'local') {
+      this.targetLocation = 'local';
+    } else if (!isAskMode && this.options.fixedLocation === 'remote') {
+      this.targetLocation = isRemoteReady ? 'remote' : 'local';
+    } else if (!this.targetLocation) {
+      const userPref = this.plugin?.settings?.defaultSaveLocation || 'remote';
+      this.targetLocation = (!isRemoteReady || userPref === 'local') ? 'local' : 'remote';
     }
 
     contentEl.createDiv({
-      text: this.t('destTypeSize', { ext: this.fileInfo.ext.toUpperCase(), size: formatBytes(this.fileInfo.size) }),
-      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-align: center;' }
+      cls: 'fm-section-title',
+      text: this.t('destDestTitle'),
+      attr: { style: 'margin-top: 14px; margin-bottom: 8px;' }
     });
 
-    // Filename input
-    const nameBox = contentEl.createDiv({ cls: 'fm-section-box' });
-    nameBox.createDiv({
-      text: this.t('destFilenameLabel', { ext: this.fileInfo.ext }),
-      cls: 'fm-section-title'
-    });
-    const nameInput = nameBox.createEl('input', {
-      type: 'text',
-      value: this.fileInfo.defaultBaseName,
-      attr: { style: 'width: 100%; padding: 8px 10px; font-size: 14px;' }
-    });
+    const grid = contentEl.createDiv({ cls: 'fm-incoming-dest-grid' });
 
-    const triggerExecute = (target) => {
+    // Local Option Card
+    const localCard = grid.createDiv({
+      cls: `fm-incoming-dest-card ${this.targetLocation === 'local' ? 'is-selected' : ''}`
+    });
+    const localTitle = localCard.createDiv({ cls: 'fm-incoming-dest-card-title' });
+    localTitle.createSpan({ text: this.t('destSaveLocal') });
+    const localCheck = localCard.createSpan({ cls: 'fm-incoming-dest-card-check' });
+    setIcon(localCheck, 'check');
+
+    // Remote Option Card (only rendered if remote server is enabled and ready)
+    let remoteCard = null;
+    let remoteCheck = null;
+    if (isRemoteReady) {
+      remoteCard = grid.createDiv({
+        cls: `fm-incoming-dest-card ${this.targetLocation === 'remote' ? 'is-selected' : ''}`
+      });
+      const remoteTitle = remoteCard.createDiv({ cls: 'fm-incoming-dest-card-title' });
+      remoteTitle.createSpan({ text: this.t('destSaveRemote') });
+      remoteCheck = remoteCard.createSpan({ cls: 'fm-incoming-dest-card-check' });
+      setIcon(remoteCheck, 'check');
+    }
+
+    const updateSelection = (loc) => {
+      this.targetLocation = loc;
+      if (loc === 'local') {
+        localCard.addClass('is-selected');
+        if (remoteCard) remoteCard.removeClass('is-selected');
+      } else {
+        localCard.removeClass('is-selected');
+        if (remoteCard) remoteCard.addClass('is-selected');
+      }
+    };
+
+    if (isAskMode) {
+      localCard.onclick = () => updateSelection('local');
+      if (remoteCard) {
+        remoteCard.onclick = () => updateSelection('remote');
+      }
+    } else {
+      localCard.style.cursor = 'default';
+      if (remoteCard) remoteCard.style.cursor = 'default';
+      contentEl.createDiv({
+        cls: 'fm-incoming-fixed-hint',
+        text: this.targetLocation === 'local'
+          ? (this.t('destFixedLocalHint') || '📌 已按设置固定保存至本地仓库')
+          : (this.t('destFixedRemoteHint') || '📌 已按设置固定上传至远程服务器'),
+        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
+      });
+    }
+
+    const triggerExecute = () => {
+      if (this.isExecuting) return;
+      this.isExecuting = true;
       const cleanBase = sanitizeCleanBaseName(nameInput.value, this.fileInfo.defaultBaseName);
       this.finalFilename = `${cleanBase}.${this.fileInfo.ext}`;
-      this.targetLocation = target;
       this.step = 'executing';
       this.render();
       this.runExecution();
@@ -2475,11 +2608,22 @@ class IncomingFileModal extends Modal {
     nameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        triggerExecute(this.options.askLocation ? 'remote' : this.options.fixedLocation);
+        e.stopPropagation();
+        triggerExecute();
       }
     });
 
-    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    contentEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        if (tag === 'textarea' || tag === 'button' || tag === 'input') return;
+        e.preventDefault();
+        triggerExecute();
+      }
+    });
+
+    // 4. Action Buttons (Cancel & Insert)
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row', attr: { style: 'margin-top: 18px;' } });
     const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
     cancelBtn.onclick = () => {
       this.isDone = true;
@@ -2487,33 +2631,14 @@ class IncomingFileModal extends Modal {
       if (this.callback) this.callback({ target: null });
     };
 
-    if (this.options.askLocation) {
-      const localBtn = btnRow.createEl('button', { text: this.t('destSaveLocal') });
-      localBtn.onclick = () => triggerExecute('local');
-
-      const remoteBtn = btnRow.createEl('button', {
-        text: this.t('destSaveRemote'),
-        cls: 'mod-cta'
-      });
-      remoteBtn.onclick = () => triggerExecute('remote');
-    } else {
-      const label =
-        this.options.fixedLocation === 'local'
-          ? this.t('destSaveLocal')
-          : this.t('destSaveRemote');
-      const okBtn = btnRow.createEl('button', { text: label, cls: 'mod-cta' });
-      okBtn.onclick = () => triggerExecute(this.options.fixedLocation);
-    }
-
-    setTimeout(() => {
-      nameInput.focus();
-      nameInput.select();
-    }, 30);
+    const insertBtn = btnRow.createEl('button', { text: this.t('btnInsert') || '插入', cls: 'mod-cta' });
+    insertBtn.onclick = () => triggerExecute();
   }
 
   renderExecutingStep() {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.t('destProcessingTitle') });
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('destProcessingTitle'), cls: 'fm-step-title' });
 
     const infoBox = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'margin-bottom: 14px;' } });
     infoBox.createDiv({
@@ -2533,15 +2658,17 @@ class IncomingFileModal extends Modal {
   }
 
   async runExecution() {
+    if (this.isExecutionRunning) return;
+    this.isExecutionRunning = true;
     try {
       const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
       const editor = this.options.editor;
+      const sourcePath = activeFile ? activeFile.path : '';
 
       if (this.targetLocation === 'local') {
         if (this.progressBar) this.progressBar.style.width = '40%';
         if (this.statusLabel) this.statusLabel.setText(this.t('destSavingLocal'));
 
-        const sourcePath = activeFile ? activeFile.path : '';
         const localPath = await this.app.fileManager.getAvailablePathForAttachment(
           this.finalFilename,
           sourcePath
@@ -2549,7 +2676,12 @@ class IncomingFileModal extends Modal {
 
         if (this.progressBar) this.progressBar.style.width = '75%';
         const createdFile = await this.app.vault.createBinary(localPath, this.fileInfo.arrayBuffer);
-        const mdLink = this.app.fileManager.generateMarkdownLink(createdFile, sourcePath);
+        let mdLink = this.app.fileManager.generateMarkdownLink(createdFile, sourcePath);
+
+        // Prepend exclamation mark for image previews if not already present
+        if (IMAGE_EXTS.has(this.fileInfo.ext) && !mdLink.startsWith('!')) {
+          mdLink = `!${mdLink}`;
+        }
 
         if (editor) {
           editor.replaceSelection(mdLink + '\n');
@@ -2601,7 +2733,14 @@ class IncomingFileModal extends Modal {
           res.optimizationEnabled !== false &&
           res.category === 'image' &&
           res.pubUrl;
-        const finalMarkdown = useOpt ? `![](${res.pubUrl})` : res.markdown;
+        let finalMarkdown = useOpt
+          ? `![](${res.pubUrl})`
+          : (res.markdown || `[${this.finalFilename}](${res.rawUrl})`);
+
+        // Prepend exclamation mark for image previews if not already present
+        if (IMAGE_EXTS.has(this.fileInfo.ext) && !finalMarkdown.startsWith('!')) {
+          finalMarkdown = `!${finalMarkdown}`;
+        }
 
         if (editor) {
           editor.replaceSelection(finalMarkdown + '\n');
@@ -2623,6 +2762,8 @@ class IncomingFileModal extends Modal {
         });
       }
     } catch (err) {
+      this.isExecuting = false;
+      this.isExecutionRunning = false;
       this.result = {
         success: false,
         error: err.message || String(err)
@@ -2637,13 +2778,32 @@ class IncomingFileModal extends Modal {
       this.callback({ target: this.targetLocation, finalFilename: this.finalFilename, result: this.result });
     }
 
-    this.step = 'result';
-    this.render();
+    // Auto close modal if inserted directly into active note editor
+    if (this.result?.success && this.result?.inserted) {
+      const noticeMsg = this.result.target === 'remote'
+        ? (this.plugin ? this.plugin.t('noticeUploadedRemote', { name: this.finalFilename }) : `已上传到服务器并插入链接：${this.finalFilename}`)
+        : this.t('destInsertSuccess');
+      new Notice(noticeMsg);
+      this.isDone = true;
+      this.close();
+      return;
+    } else if (this.result?.success) {
+      new Notice(this.t('destInsertSuccess'));
+      this.isDone = true;
+      this.close();
+      return;
+    } else {
+      new Notice(`❌ ${this.result?.error || 'Insert failed'}`);
+      this.isDone = true;
+      this.close();
+      return;
+    }
   }
 
   renderResultStep() {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.t('destResultTitle') });
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('destResultTitle'), cls: 'fm-step-title' });
 
     if (!this.result.success) {
       const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
@@ -3410,6 +3570,8 @@ class ActiveNoteActionModal extends Modal {
         this.result = { success: true, count, processedItems, failures };
       }
     } catch (err) {
+      this.isExecuting = false;
+      this.isExecutionRunning = false;
       this.result = { success: false, message: err.message };
     }
     this.step = 'result';
@@ -6789,29 +6951,69 @@ class FileMasterPlugin extends Plugin {
 
       // 3. Test API Auth token against image-host list
       let assetCount = 0;
-      if (this.settings.apiToken) {
-        try {
-          const listRes = await requestUrl({
-            url: `${serverUrl}/api/modules/image-host/list`,
-            method: 'GET',
-            headers: { Authorization: `Bearer ${this.settings.apiToken}` },
-            throw: false
-          });
-          if (listRes.status === 401 || listRes.status === 403) {
-            this.lastServerCompatStatus = {
-              ok: false,
-              status: 'auth_failed',
-              serverVersion: serverVer,
-              pluginVersion: pluginVer,
-              features: verData.features || {}
-            };
-            return this.lastServerCompatStatus;
-          }
-          if (listRes.status === 200) {
-            assetCount = (listRes.json?.images || []).length;
-          }
-        } catch { }
+      const token = (this.settings.apiToken || '').trim();
+      if (!token) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'token_missing',
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          features: verData.features || {}
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
       }
+
+      let listRes;
+      try {
+        listRes = await requestUrl({
+          url: `${serverUrl}/api/modules/image-host/list`,
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+          throw: false
+        });
+      } catch (netErr) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'offline',
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          error: netErr.message || String(netErr)
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
+      }
+
+      if (listRes.status === 401 || listRes.status === 403) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'auth_failed',
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          features: verData.features || {}
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
+      }
+
+      if (listRes.status !== 200) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'server_error',
+          statusCode: listRes.status,
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          features: verData.features || {}
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
+      }
+
+      assetCount = (listRes.json?.images || []).length;
 
       this.lastServerCompatStatus = {
         ok: true,
@@ -7417,7 +7619,7 @@ class FileMasterPlugin extends Plugin {
       lines.push(`## ⚠️ 上传失败项 / Failed Uploads (${failures.length})`);
       lines.push(``);
       failures.forEach((f, idx) => {
-        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因: ${f.error}`);
+        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因 / Reason: ${f.error}`);
       });
     }
 
@@ -8559,9 +8761,15 @@ class FileMasterPlugin extends Plugin {
       for (const { tfile } of uploadedPairs) {
         const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
         if (remaining.length === 0) {
-          await this.app.vault.trash(tfile, true).catch(() => { });
-          trashedCount++;
-          trashedFiles.push(tfile.path);
+          try {
+            await this.app.vault.trash(tfile, true);
+            trashedCount++;
+            trashedFiles.push(tfile.path);
+          } catch (trashErr) {
+            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
+              error: trashErr.message || String(trashErr)
+            });
+          }
         }
       }
     }
@@ -8773,9 +8981,19 @@ class FileMasterPlugin extends Plugin {
               continue;
             }
           }
-          await this.app.vault.trash(tfile, true).catch(() => { });
-          if (processedItems[i]) {
-            processedItems[i].trashedLocal = true;
+          try {
+            await this.app.vault.trash(tfile, true);
+            if (processedItems[i]) {
+              processedItems[i].trashedLocal = true;
+            }
+          } catch (trashErr) {
+            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
+              error: trashErr.message || String(trashErr)
+            });
+            if (processedItems[i]) {
+              processedItems[i].trashedLocal = false;
+              processedItems[i].trashError = trashErr.message || String(trashErr);
+            }
           }
         }
       }
@@ -8936,9 +9154,9 @@ class FileMasterSettingTab extends PluginSettingTab {
       }
     };
 
-    group('settingsSetupGroup', '🧭', [
-      ['server', 'tabServer', 'server'],
-      ['upload', 'tabUpload', 'paperclip']
+    group('settingsCoreGroup', '⚡', [
+      ['upload', 'tabUpload', 'paperclip'],
+      ['server', 'tabServer', 'server']
     ]);
     group('settingsPreferencesGroup', '⚙️', [
       ['general', 'tabGeneral', 'sliders-horizontal'],
@@ -8979,16 +9197,6 @@ class FileMasterSettingTab extends PluginSettingTab {
           this.plugin.settings.enableSidebarButton = value;
           await this.plugin.saveSettings();
           this.plugin.updateSidebarRibbonButton();
-        })
-      );
-
-    new Setting(containerEl)
-      .setName(this.plugin.t('clipboardMonitorName'))
-      .setDesc(this.plugin.t('clipboardMonitorDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
-          this.plugin.settings.enableClipboardMonitor = value;
-          await this.plugin.saveSettings();
         })
       );
   }
@@ -9097,6 +9305,16 @@ class FileMasterSettingTab extends PluginSettingTab {
 
   renderUploadSettings(containerEl) {
     new Setting(containerEl)
+      .setName(this.plugin.t('clipboardMonitorName'))
+      .setDesc(this.plugin.t('clipboardMonitorDesc'))
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
+          this.plugin.settings.enableClipboardMonitor = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
       .setName(this.plugin.t('saveLocationName'))
       .setDesc(this.plugin.t('saveLocationDesc'))
       .addDropdown((drop) =>
@@ -9112,6 +9330,20 @@ class FileMasterSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName(this.plugin.t('defaultSaveLocationName'))
+      .setDesc(this.plugin.t('defaultSaveLocationDesc'))
+      .addDropdown((drop) =>
+        drop
+          .addOption('remote', this.plugin.t('destSaveRemote'))
+          .addOption('local', this.plugin.t('destSaveLocal'))
+          .setValue(this.plugin.settings.defaultSaveLocation || 'remote')
+          .onChange(async (value) => {
+            this.plugin.settings.defaultSaveLocation = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName(this.plugin.t('insertOptimizedName'))
       .setDesc(this.plugin.t('insertOptimizedDesc'))
       .addToggle((toggle) =>
@@ -9121,6 +9353,7 @@ class FileMasterSettingTab extends PluginSettingTab {
         })
       );
 
+    let patternSetting = null;
     new Setting(containerEl)
       .setName(this.plugin.t('namingStrategyName'))
       .setDesc(this.plugin.t('namingStrategyDesc'))
@@ -9129,28 +9362,41 @@ class FileMasterSettingTab extends PluginSettingTab {
           .addOption('keep', this.plugin.t('optNamingKeep'))
           .addOption('rule', this.plugin.t('optNamingRule'))
           .addOption('prompt', this.plugin.t('optNamingPrompt'))
-          .setValue(this.plugin.settings.namingMode)
+          .setValue(this.plugin.settings.namingMode || 'keep')
           .onChange(async (value) => {
             this.plugin.settings.namingMode = value;
             await this.plugin.saveSettings();
-            this.display();
+            if (patternSetting && patternSetting.settingEl) {
+              patternSetting.settingEl.style.display = value === 'rule' ? '' : 'none';
+            }
           })
       );
 
-    if (this.plugin.settings.namingMode === 'rule') {
-      new Setting(containerEl)
-        .setName(this.plugin.t('namingPatternName'))
-        .setDesc(this.plugin.t('namingPatternDesc'))
-        .addText((text) =>
-          text
-            .setPlaceholder('{note}_{date}_{rand:4}')
-            .setValue(this.plugin.settings.namingPattern)
-            .onChange(async (value) => {
-              this.plugin.settings.namingPattern = value.trim() || '{origin}';
-              await this.plugin.saveSettings();
-            })
-        );
+    patternSetting = new Setting(containerEl)
+      .setName(this.plugin.t('namingPatternName'))
+      .setDesc(this.plugin.t('namingPatternDesc'))
+      .addText((text) =>
+        text
+          .setPlaceholder('{note}_{date}_{rand:4}')
+          .setValue(this.plugin.settings.namingPattern || '{note}_{date}_{rand:4}')
+          .onChange(async (value) => {
+            this.plugin.settings.namingPattern = value.trim() || '{note}_{date}_{rand:4}';
+            await this.plugin.saveSettings();
+          })
+      );
+    if (patternSetting.settingEl) {
+      patternSetting.settingEl.style.display = this.plugin.settings.namingMode === 'rule' ? '' : 'none';
     }
+
+    new Setting(containerEl)
+      .setName(this.plugin.t('uploadNonImageName'))
+      .setDesc(this.plugin.t('uploadNonImageDesc'))
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
+          this.plugin.settings.uploadNonImageAttachments = value;
+          await this.plugin.saveSettings();
+        })
+      );
   }
 
   renderExemptionsSettings(containerEl) {

@@ -429,22 +429,24 @@ class IncomingFileModal extends Modal {
   constructor(app, fileInfo, options, callback = null) {
     super(app);
     this.fileInfo = fileInfo; // { arrayBuffer, defaultBaseName, ext, size, mimeType, sha256 }
-    this.options = options;   // { askLocation, fixedLocation, promptRename, plugin, editor, activeFile }
+    this.options = options || {};   // { askLocation, fixedLocation, promptRename, plugin, editor, activeFile }
     this.callback = callback;
-    this.plugin = options.plugin;
+    this.plugin = this.options.plugin;
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
-    if (!isRemote) {
-      this.options.askLocation = false;
-      this.options.fixedLocation = 'local';
+    if (this.options.fixedLocation === 'local') {
       this.targetLocation = 'local';
-      this.step = this.options.promptRename ? 'input' : 'executing';
+    } else if (this.options.fixedLocation === 'remote') {
+      this.targetLocation = isRemote ? 'remote' : 'local';
     } else {
-      this.step = (options.askLocation || options.promptRename) ? 'input' : 'executing';
+      const userPref = this.plugin?.settings?.defaultSaveLocation || 'remote';
+      this.targetLocation = (!isRemote || userPref === 'local') ? 'local' : 'remote';
     }
     this.finalFilename = `${fileInfo.defaultBaseName}.${fileInfo.ext}`;
-    this.targetLocation = this.options.fixedLocation || (isRemote ? 'remote' : 'local');
+    this.step = 'input';
     this.result = null;
     this.isDone = false;
+    this.isExecuting = false;
+    this.isExecutionRunning = false;
   }
 
   t(k, p) {
@@ -453,15 +455,13 @@ class IncomingFileModal extends Modal {
 
   onOpen() {
     this.render();
-    if (this.step === 'executing') {
-      this.runExecution();
-    }
   }
 
   render() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass('fm-wizard-modal');
+    contentEl.addClass('fm-incoming-modal-dialog');
 
     if (this.step === 'input') {
       this.renderInputStep();
@@ -474,49 +474,131 @@ class IncomingFileModal extends Modal {
 
   renderInputStep() {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.t('destTitle') });
 
-    // Render thumbnail preview for images (including HEIC/HEIF/TIFF)
+    // 1. Clean Title Header
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('destTitle'), cls: 'fm-step-title' });
+
+    // 2. Asset Card (Thumbnail + Integrated Input + Size)
+    const card = contentEl.createDiv({ cls: 'fm-incoming-card' });
+    const thumbWrap = card.createDiv({ cls: 'fm-incoming-thumb-wrap' });
+
     if (IMAGE_EXTS.has(this.fileInfo.ext)) {
-      const img = contentEl.createEl('img', { cls: 'fm-preview-thumb' });
-      const loadingTip = NEEDS_TRANSCODE_IMAGE_EXTS.has(this.fileInfo.ext)
-        ? contentEl.createDiv({
-            text: this.t('destTranscodeTip', { ext: this.fileInfo.ext.toUpperCase() }),
-            attr: { style: 'font-size: 12px; color: var(--text-accent); text-align: center; margin-bottom: 8px;' }
-          })
-        : null;
-
+      const img = thumbWrap.createEl('img', { cls: 'fm-incoming-thumb-img' });
       convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin)
         .then((url) => {
-          img.src = url;
-          if (loadingTip) loadingTip.remove();
+          if (url) img.src = url;
         })
-        .catch(() => {
-          if (loadingTip) loadingTip.setText(this.t('destTranscodeFail'));
-        });
+        .catch(() => {});
+    } else {
+      const ext = this.fileInfo.ext;
+      const icon = ext === 'md' ? '📝' : AUDIO_EXTS.has(ext) ? '🎵' : ['mp4', 'webm', 'mov', 'mkv'].includes(ext) ? '🎬' : ext === 'pdf' ? '📄' : '📦';
+      thumbWrap.createSpan({ text: icon, attr: { style: 'font-size: 24px;' } });
+    }
+
+    const editCol = card.createDiv({ cls: 'fm-incoming-edit-col' });
+    const inputRow = editCol.createDiv({ cls: 'fm-incoming-input-row' });
+    const nameInput = inputRow.createEl('input', {
+      type: 'text',
+      value: this.fileInfo.defaultBaseName,
+      cls: 'fm-incoming-name-input',
+      attr: {
+        placeholder: this.t('destFilenameHint'),
+        spellcheck: 'false'
+      }
+    });
+    inputRow.createSpan({ text: `.${this.fileInfo.ext}`, cls: 'fm-incoming-ext-badge' });
+    editCol.createDiv({
+      cls: 'fm-incoming-sub-meta',
+      text: formatBytes(this.fileInfo.size)
+    });
+
+    if (this.options.promptRename) {
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+      }, 40);
+    }
+
+    // 3. Location Selection
+    const isRemoteReady = Boolean(
+      this.plugin?.settings?.enableRemoteServer &&
+      this.plugin?.isRemoteServerReady?.()
+    );
+
+    const isAskMode = this.options.askLocation !== false;
+    if (!isAskMode && this.options.fixedLocation === 'local') {
+      this.targetLocation = 'local';
+    } else if (!isAskMode && this.options.fixedLocation === 'remote') {
+      this.targetLocation = isRemoteReady ? 'remote' : 'local';
+    } else if (!this.targetLocation) {
+      const userPref = this.plugin?.settings?.defaultSaveLocation || 'remote';
+      this.targetLocation = (!isRemoteReady || userPref === 'local') ? 'local' : 'remote';
     }
 
     contentEl.createDiv({
-      text: this.t('destTypeSize', { ext: this.fileInfo.ext.toUpperCase(), size: formatBytes(this.fileInfo.size) }),
-      attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-align: center;' }
+      cls: 'fm-section-title',
+      text: this.t('destDestTitle'),
+      attr: { style: 'margin-top: 14px; margin-bottom: 8px;' }
     });
 
-    // Filename input
-    const nameBox = contentEl.createDiv({ cls: 'fm-section-box' });
-    nameBox.createDiv({
-      text: this.t('destFilenameLabel', { ext: this.fileInfo.ext }),
-      cls: 'fm-section-title'
-    });
-    const nameInput = nameBox.createEl('input', {
-      type: 'text',
-      value: this.fileInfo.defaultBaseName,
-      attr: { style: 'width: 100%; padding: 8px 10px; font-size: 14px;' }
-    });
+    const grid = contentEl.createDiv({ cls: 'fm-incoming-dest-grid' });
 
-    const triggerExecute = (target) => {
+    // Local Option Card
+    const localCard = grid.createDiv({
+      cls: `fm-incoming-dest-card ${this.targetLocation === 'local' ? 'is-selected' : ''}`
+    });
+    const localTitle = localCard.createDiv({ cls: 'fm-incoming-dest-card-title' });
+    localTitle.createSpan({ text: this.t('destSaveLocal') });
+    const localCheck = localCard.createSpan({ cls: 'fm-incoming-dest-card-check' });
+    setIcon(localCheck, 'check');
+
+    // Remote Option Card (only rendered if remote server is enabled and ready)
+    let remoteCard = null;
+    let remoteCheck = null;
+    if (isRemoteReady) {
+      remoteCard = grid.createDiv({
+        cls: `fm-incoming-dest-card ${this.targetLocation === 'remote' ? 'is-selected' : ''}`
+      });
+      const remoteTitle = remoteCard.createDiv({ cls: 'fm-incoming-dest-card-title' });
+      remoteTitle.createSpan({ text: this.t('destSaveRemote') });
+      remoteCheck = remoteCard.createSpan({ cls: 'fm-incoming-dest-card-check' });
+      setIcon(remoteCheck, 'check');
+    }
+
+    const updateSelection = (loc) => {
+      this.targetLocation = loc;
+      if (loc === 'local') {
+        localCard.addClass('is-selected');
+        if (remoteCard) remoteCard.removeClass('is-selected');
+      } else {
+        localCard.removeClass('is-selected');
+        if (remoteCard) remoteCard.addClass('is-selected');
+      }
+    };
+
+    if (isAskMode) {
+      localCard.onclick = () => updateSelection('local');
+      if (remoteCard) {
+        remoteCard.onclick = () => updateSelection('remote');
+      }
+    } else {
+      localCard.style.cursor = 'default';
+      if (remoteCard) remoteCard.style.cursor = 'default';
+      contentEl.createDiv({
+        cls: 'fm-incoming-fixed-hint',
+        text: this.targetLocation === 'local'
+          ? (this.t('destFixedLocalHint') || '📌 已按设置固定保存至本地仓库')
+          : (this.t('destFixedRemoteHint') || '📌 已按设置固定上传至远程服务器'),
+        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
+      });
+    }
+
+    const triggerExecute = () => {
+      if (this.isExecuting) return;
+      this.isExecuting = true;
       const cleanBase = sanitizeCleanBaseName(nameInput.value, this.fileInfo.defaultBaseName);
       this.finalFilename = `${cleanBase}.${this.fileInfo.ext}`;
-      this.targetLocation = target;
       this.step = 'executing';
       this.render();
       this.runExecution();
@@ -525,11 +607,22 @@ class IncomingFileModal extends Modal {
     nameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        triggerExecute(this.options.askLocation ? 'remote' : this.options.fixedLocation);
+        e.stopPropagation();
+        triggerExecute();
       }
     });
 
-    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    contentEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        if (tag === 'textarea' || tag === 'button' || tag === 'input') return;
+        e.preventDefault();
+        triggerExecute();
+      }
+    });
+
+    // 4. Action Buttons (Cancel & Insert)
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row', attr: { style: 'margin-top: 18px;' } });
     const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
     cancelBtn.onclick = () => {
       this.isDone = true;
@@ -537,33 +630,14 @@ class IncomingFileModal extends Modal {
       if (this.callback) this.callback({ target: null });
     };
 
-    if (this.options.askLocation) {
-      const localBtn = btnRow.createEl('button', { text: this.t('destSaveLocal') });
-      localBtn.onclick = () => triggerExecute('local');
-
-      const remoteBtn = btnRow.createEl('button', {
-        text: this.t('destSaveRemote'),
-        cls: 'mod-cta'
-      });
-      remoteBtn.onclick = () => triggerExecute('remote');
-    } else {
-      const label =
-        this.options.fixedLocation === 'local'
-          ? this.t('destSaveLocal')
-          : this.t('destSaveRemote');
-      const okBtn = btnRow.createEl('button', { text: label, cls: 'mod-cta' });
-      okBtn.onclick = () => triggerExecute(this.options.fixedLocation);
-    }
-
-    setTimeout(() => {
-      nameInput.focus();
-      nameInput.select();
-    }, 30);
+    const insertBtn = btnRow.createEl('button', { text: this.t('btnInsert') || '插入', cls: 'mod-cta' });
+    insertBtn.onclick = () => triggerExecute();
   }
 
   renderExecutingStep() {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.t('destProcessingTitle') });
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('destProcessingTitle'), cls: 'fm-step-title' });
 
     const infoBox = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'margin-bottom: 14px;' } });
     infoBox.createDiv({
@@ -583,15 +657,17 @@ class IncomingFileModal extends Modal {
   }
 
   async runExecution() {
+    if (this.isExecutionRunning) return;
+    this.isExecutionRunning = true;
     try {
       const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
       const editor = this.options.editor;
+      const sourcePath = activeFile ? activeFile.path : '';
 
       if (this.targetLocation === 'local') {
         if (this.progressBar) this.progressBar.style.width = '40%';
         if (this.statusLabel) this.statusLabel.setText(this.t('destSavingLocal'));
 
-        const sourcePath = activeFile ? activeFile.path : '';
         const localPath = await this.app.fileManager.getAvailablePathForAttachment(
           this.finalFilename,
           sourcePath
@@ -599,7 +675,12 @@ class IncomingFileModal extends Modal {
 
         if (this.progressBar) this.progressBar.style.width = '75%';
         const createdFile = await this.app.vault.createBinary(localPath, this.fileInfo.arrayBuffer);
-        const mdLink = this.app.fileManager.generateMarkdownLink(createdFile, sourcePath);
+        let mdLink = this.app.fileManager.generateMarkdownLink(createdFile, sourcePath);
+
+        // Prepend exclamation mark for image previews if not already present
+        if (IMAGE_EXTS.has(this.fileInfo.ext) && !mdLink.startsWith('!')) {
+          mdLink = `!${mdLink}`;
+        }
 
         if (editor) {
           editor.replaceSelection(mdLink + '\n');
@@ -651,7 +732,14 @@ class IncomingFileModal extends Modal {
           res.optimizationEnabled !== false &&
           res.category === 'image' &&
           res.pubUrl;
-        const finalMarkdown = useOpt ? `![](${res.pubUrl})` : res.markdown;
+        let finalMarkdown = useOpt
+          ? `![](${res.pubUrl})`
+          : (res.markdown || `[${this.finalFilename}](${res.rawUrl})`);
+
+        // Prepend exclamation mark for image previews if not already present
+        if (IMAGE_EXTS.has(this.fileInfo.ext) && !finalMarkdown.startsWith('!')) {
+          finalMarkdown = `!${finalMarkdown}`;
+        }
 
         if (editor) {
           editor.replaceSelection(finalMarkdown + '\n');
@@ -673,6 +761,8 @@ class IncomingFileModal extends Modal {
         });
       }
     } catch (err) {
+      this.isExecuting = false;
+      this.isExecutionRunning = false;
       this.result = {
         success: false,
         error: err.message || String(err)
@@ -687,13 +777,32 @@ class IncomingFileModal extends Modal {
       this.callback({ target: this.targetLocation, finalFilename: this.finalFilename, result: this.result });
     }
 
-    this.step = 'result';
-    this.render();
+    // Auto close modal if inserted directly into active note editor
+    if (this.result?.success && this.result?.inserted) {
+      const noticeMsg = this.result.target === 'remote'
+        ? (this.plugin ? this.plugin.t('noticeUploadedRemote', { name: this.finalFilename }) : `已上传到服务器并插入链接：${this.finalFilename}`)
+        : this.t('destInsertSuccess');
+      new Notice(noticeMsg);
+      this.isDone = true;
+      this.close();
+      return;
+    } else if (this.result?.success) {
+      new Notice(this.t('destInsertSuccess'));
+      this.isDone = true;
+      this.close();
+      return;
+    } else {
+      new Notice(`❌ ${this.result?.error || 'Insert failed'}`);
+      this.isDone = true;
+      this.close();
+      return;
+    }
   }
 
   renderResultStep() {
     const { contentEl } = this;
-    contentEl.createEl('h3', { text: this.t('destResultTitle') });
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createEl('h3', { text: this.t('destResultTitle'), cls: 'fm-step-title' });
 
     if (!this.result.success) {
       const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
@@ -1460,6 +1569,8 @@ class ActiveNoteActionModal extends Modal {
         this.result = { success: true, count, processedItems, failures };
       }
     } catch (err) {
+      this.isExecuting = false;
+      this.isExecutionRunning = false;
       this.result = { success: false, message: err.message };
     }
     this.step = 'result';

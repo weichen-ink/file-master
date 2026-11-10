@@ -379,3 +379,40 @@ abc12345: [[attachments/photo.png]]
   const downloadedAgain = rewriteContentLinks(downloaded, remoteItem, localItem);
   assert.equal(downloaded, downloadedAgain);
 });
+
+test('rewriteContentLinks in Excalidraw: avoids substring false positive for similar filenames (diagram.png vs other-diagram.png)', () => {
+  const localItem = {
+    id: 'local:attachments/diagram.png',
+    source: 'local',
+    name: 'diagram.png',
+    displayPath: 'attachments/diagram.png',
+    ext: 'png'
+  };
+  const remoteItem = {
+    id: 'remote:2026/11/diagram.png',
+    source: 'remote',
+    name: 'diagram.png',
+    filename: 'diagram.png',
+    displayPath: '2026/11/diagram.png',
+    ext: 'png',
+    rawObj: {
+      year: '2026',
+      month: '11',
+      filename: 'diagram.png',
+      rawUrl: 'https://cdn.example.com/raw/2026/11/diagram.png'
+    }
+  };
+
+  const doc = `## Embedded Files
+id_target: [[attachments/diagram.png]]
+id_similar_local: [[attachments/other-diagram.png]]
+id_similar_remote: https://example.test/other-diagram.png
+id_similar_bare: other-diagram.png
+`;
+
+  const result = rewriteContentLinks(doc, localItem, remoteItem);
+  assert.ok(result.includes('id_target: https://cdn.example.com/raw/2026/11/diagram.png'), 'Exact target must be rewritten');
+  assert.ok(result.includes('id_similar_local: [[attachments/other-diagram.png]]'), 'Similar local name must NOT be rewritten');
+  assert.ok(result.includes('id_similar_remote: https://example.test/other-diagram.png'), 'Similar remote URL must NOT be rewritten');
+  assert.ok(result.includes('id_similar_bare: other-diagram.png'), 'Similar bare name must NOT be rewritten');
+});

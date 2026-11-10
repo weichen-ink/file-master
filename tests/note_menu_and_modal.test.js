@@ -101,5 +101,24 @@ test('Batch Migration Report: exportBatchMigrateReportToRoot produces structured
   assert.ok(mainContent.includes('writeOrUpdateRootReport'), 'Must call writeOrUpdateRootReport');
 });
 
+test('Incoming Attachment Flow: unified modal style, image embed ! prefix, and seamless auto-insert', () => {
+  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(__dirname, '../styles.css'), 'utf8');
 
+  // 1. Check IncomingFileModal opens on incoming file
+  assert.ok(mainContent.includes("this.step = 'input'"), "IncomingFileModal must always start at step 'input'");
+  assert.ok(mainContent.includes('new IncomingFileModal(this.app, fileInfo, modalOptions).open()'), 'Must open IncomingFileModal on incoming files');
+
+  // 2. Check image link always includes ! prefix for preview
+  assert.ok(mainContent.includes("!mdLink.startsWith('!')"), 'Must ensure local image wikilink starts with !');
+  assert.ok(mainContent.includes("!finalMarkdown.startsWith('!')"), 'Must ensure remote image markdown starts with !');
+
+  // 3. Check auto close when inserted into editor
+  assert.ok(mainContent.includes('this.result?.success && this.result?.inserted'), 'Must auto-close modal when inserted into editor');
+
+  // 4. Check unified CSS classes for incoming modal
+  assert.ok(styles.includes('.fm-incoming-modal-dialog'), 'styles.css must define .fm-incoming-modal-dialog');
+  assert.ok(styles.includes('.fm-incoming-dest-grid'), 'styles.css must define .fm-incoming-dest-grid');
+  assert.ok(styles.includes('.fm-incoming-dest-card'), 'styles.css must define .fm-incoming-dest-card');
+});
 

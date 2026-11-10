@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
   enableSidebarButton: true,
   enableClipboardMonitor: true,
   saveLocationMode: 'ask', // 'remote' | 'local' | 'ask'
+  defaultSaveLocation: 'remote', // 'remote' | 'local' (default preselected destination when asking)
   namingMode: 'keep',      // 'keep' (keep original) | 'rule' (auto-rename pattern) | 'prompt' (manual rename modal)
   namingPattern: '{note}_{date}_{rand:4}',
   uploadNonImageAttachments: true,

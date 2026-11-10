@@ -1027,29 +1027,69 @@ class FileMasterPlugin extends Plugin {
 
       // 3. Test API Auth token against image-host list
       let assetCount = 0;
-      if (this.settings.apiToken) {
-        try {
-          const listRes = await requestUrl({
-            url: `${serverUrl}/api/modules/image-host/list`,
-            method: 'GET',
-            headers: { Authorization: `Bearer ${this.settings.apiToken}` },
-            throw: false
-          });
-          if (listRes.status === 401 || listRes.status === 403) {
-            this.lastServerCompatStatus = {
-              ok: false,
-              status: 'auth_failed',
-              serverVersion: serverVer,
-              pluginVersion: pluginVer,
-              features: verData.features || {}
-            };
-            return this.lastServerCompatStatus;
-          }
-          if (listRes.status === 200) {
-            assetCount = (listRes.json?.images || []).length;
-          }
-        } catch { }
+      const token = (this.settings.apiToken || '').trim();
+      if (!token) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'token_missing',
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          features: verData.features || {}
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
       }
+
+      let listRes;
+      try {
+        listRes = await requestUrl({
+          url: `${serverUrl}/api/modules/image-host/list`,
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+          throw: false
+        });
+      } catch (netErr) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'offline',
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          error: netErr.message || String(netErr)
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
+      }
+
+      if (listRes.status === 401 || listRes.status === 403) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'auth_failed',
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          features: verData.features || {}
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
+      }
+
+      if (listRes.status !== 200) {
+        this.lastServerCompatStatus = {
+          ok: false,
+          status: 'server_error',
+          statusCode: listRes.status,
+          serverVersion: serverVer,
+          pluginVersion: pluginVer,
+          features: verData.features || {}
+        };
+        this.settings.serverVerified = false;
+        await this.saveSettings();
+        return this.lastServerCompatStatus;
+      }
+
+      assetCount = (listRes.json?.images || []).length;
 
       this.lastServerCompatStatus = {
         ok: true,
@@ -1655,7 +1695,7 @@ class FileMasterPlugin extends Plugin {
       lines.push(`## ⚠️ 上传失败项 / Failed Uploads (${failures.length})`);
       lines.push(``);
       failures.forEach((f, idx) => {
-        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因: ${f.error}`);
+        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因 / Reason: ${f.error}`);
       });
     }
 
@@ -2797,9 +2837,15 @@ class FileMasterPlugin extends Plugin {
       for (const { tfile } of uploadedPairs) {
         const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
         if (remaining.length === 0) {
-          await this.app.vault.trash(tfile, true).catch(() => { });
-          trashedCount++;
-          trashedFiles.push(tfile.path);
+          try {
+            await this.app.vault.trash(tfile, true);
+            trashedCount++;
+            trashedFiles.push(tfile.path);
+          } catch (trashErr) {
+            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
+              error: trashErr.message || String(trashErr)
+            });
+          }
         }
       }
     }
@@ -3011,9 +3057,19 @@ class FileMasterPlugin extends Plugin {
               continue;
             }
           }
-          await this.app.vault.trash(tfile, true).catch(() => { });
-          if (processedItems[i]) {
-            processedItems[i].trashedLocal = true;
+          try {
+            await this.app.vault.trash(tfile, true);
+            if (processedItems[i]) {
+              processedItems[i].trashedLocal = true;
+            }
+          } catch (trashErr) {
+            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
+              error: trashErr.message || String(trashErr)
+            });
+            if (processedItems[i]) {
+              processedItems[i].trashedLocal = false;
+              processedItems[i].trashError = trashErr.message || String(trashErr);
+            }
           }
         }
       }
@@ -3174,9 +3230,9 @@ class FileMasterSettingTab extends PluginSettingTab {
       }
     };
 
-    group('settingsSetupGroup', '🧭', [
-      ['server', 'tabServer', 'server'],
-      ['upload', 'tabUpload', 'paperclip']
+    group('settingsCoreGroup', '⚡', [
+      ['upload', 'tabUpload', 'paperclip'],
+      ['server', 'tabServer', 'server']
     ]);
     group('settingsPreferencesGroup', '⚙️', [
       ['general', 'tabGeneral', 'sliders-horizontal'],
@@ -3217,16 +3273,6 @@ class FileMasterSettingTab extends PluginSettingTab {
           this.plugin.settings.enableSidebarButton = value;
           await this.plugin.saveSettings();
           this.plugin.updateSidebarRibbonButton();
-        })
-      );
-
-    new Setting(containerEl)
-      .setName(this.plugin.t('clipboardMonitorName'))
-      .setDesc(this.plugin.t('clipboardMonitorDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
-          this.plugin.settings.enableClipboardMonitor = value;
-          await this.plugin.saveSettings();
         })
       );
   }
@@ -3335,6 +3381,16 @@ class FileMasterSettingTab extends PluginSettingTab {
 
   renderUploadSettings(containerEl) {
     new Setting(containerEl)
+      .setName(this.plugin.t('clipboardMonitorName'))
+      .setDesc(this.plugin.t('clipboardMonitorDesc'))
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
+          this.plugin.settings.enableClipboardMonitor = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
       .setName(this.plugin.t('saveLocationName'))
       .setDesc(this.plugin.t('saveLocationDesc'))
       .addDropdown((drop) =>
@@ -3350,6 +3406,20 @@ class FileMasterSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName(this.plugin.t('defaultSaveLocationName'))
+      .setDesc(this.plugin.t('defaultSaveLocationDesc'))
+      .addDropdown((drop) =>
+        drop
+          .addOption('remote', this.plugin.t('destSaveRemote'))
+          .addOption('local', this.plugin.t('destSaveLocal'))
+          .setValue(this.plugin.settings.defaultSaveLocation || 'remote')
+          .onChange(async (value) => {
+            this.plugin.settings.defaultSaveLocation = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName(this.plugin.t('insertOptimizedName'))
       .setDesc(this.plugin.t('insertOptimizedDesc'))
       .addToggle((toggle) =>
@@ -3359,6 +3429,7 @@ class FileMasterSettingTab extends PluginSettingTab {
         })
       );
 
+    let patternSetting = null;
     new Setting(containerEl)
       .setName(this.plugin.t('namingStrategyName'))
       .setDesc(this.plugin.t('namingStrategyDesc'))
@@ -3367,28 +3438,41 @@ class FileMasterSettingTab extends PluginSettingTab {
           .addOption('keep', this.plugin.t('optNamingKeep'))
           .addOption('rule', this.plugin.t('optNamingRule'))
           .addOption('prompt', this.plugin.t('optNamingPrompt'))
-          .setValue(this.plugin.settings.namingMode)
+          .setValue(this.plugin.settings.namingMode || 'keep')
           .onChange(async (value) => {
             this.plugin.settings.namingMode = value;
             await this.plugin.saveSettings();
-            this.display();
+            if (patternSetting && patternSetting.settingEl) {
+              patternSetting.settingEl.style.display = value === 'rule' ? '' : 'none';
+            }
           })
       );
 
-    if (this.plugin.settings.namingMode === 'rule') {
-      new Setting(containerEl)
-        .setName(this.plugin.t('namingPatternName'))
-        .setDesc(this.plugin.t('namingPatternDesc'))
-        .addText((text) =>
-          text
-            .setPlaceholder('{note}_{date}_{rand:4}')
-            .setValue(this.plugin.settings.namingPattern)
-            .onChange(async (value) => {
-              this.plugin.settings.namingPattern = value.trim() || '{origin}';
-              await this.plugin.saveSettings();
-            })
-        );
+    patternSetting = new Setting(containerEl)
+      .setName(this.plugin.t('namingPatternName'))
+      .setDesc(this.plugin.t('namingPatternDesc'))
+      .addText((text) =>
+        text
+          .setPlaceholder('{note}_{date}_{rand:4}')
+          .setValue(this.plugin.settings.namingPattern || '{note}_{date}_{rand:4}')
+          .onChange(async (value) => {
+            this.plugin.settings.namingPattern = value.trim() || '{note}_{date}_{rand:4}';
+            await this.plugin.saveSettings();
+          })
+      );
+    if (patternSetting.settingEl) {
+      patternSetting.settingEl.style.display = this.plugin.settings.namingMode === 'rule' ? '' : 'none';
     }
+
+    new Setting(containerEl)
+      .setName(this.plugin.t('uploadNonImageName'))
+      .setDesc(this.plugin.t('uploadNonImageDesc'))
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
+          this.plugin.settings.uploadNonImageAttachments = value;
+          await this.plugin.saveSettings();
+        })
+      );
   }
 
   renderExemptionsSettings(containerEl) {

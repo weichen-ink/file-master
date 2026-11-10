@@ -610,38 +610,50 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
 
     let isMatch = false;
 
-    if (removeItem.source === 'local') {
-      const wikiM = val.match(/^!?\[\[([^\]|#]+)/);
-      if (wikiM) {
-        let clean = wikiM[1].trim().replace(/^\.\//, '').toLowerCase();
-        let decoded = clean;
-        try { decoded = decodeURIComponent(clean); } catch {}
-        const base = clean.split('/').pop();
-        const baseDecoded = decoded.split('/').pop();
+    // Strip markdown image wrapper if any: ![](target)
+    let rawRef = val;
+    const mdImg = val.match(/^!?\[[^\]]*\]\(([^)]+)\)$/);
+    if (mdImg) rawRef = mdImg[1].trim();
 
-        if (
-          localTargets.has(clean) ||
-          localTargets.has(decoded) ||
-          localTargets.has(base) ||
-          localTargets.has(baseDecoded)
-        ) {
-          isMatch = true;
-        }
-      } else {
-        const cleanVal = val.toLowerCase();
-        for (const t of localTargets) {
-          if (cleanVal.includes(t)) {
-            isMatch = true;
-            break;
-          }
-        }
+    // Strip wikilink wrapper if any: ![[target]] or [[target]]
+    const wikiM = rawRef.match(/^!?\[\[([^\]|#]+)/);
+    if (wikiM) rawRef = wikiM[1].trim();
+
+    const cleanRef = rawRef.replace(/^\.\//, '').toLowerCase();
+    let decodedRef = cleanRef;
+    try { decodedRef = decodeURIComponent(cleanRef); } catch {}
+
+    let baseName = cleanRef.split('/').pop();
+    let decodedBaseName = decodedRef.split('/').pop();
+
+    if (/^https?:\/\//i.test(rawRef)) {
+      try {
+        const u = new URL(rawRef);
+        const p = u.pathname.replace(/^\//, '').toLowerCase();
+        baseName = p.split('/').pop();
+        try { decodedBaseName = decodeURIComponent(baseName); } catch {}
+      } catch {}
+    }
+
+    if (removeItem.source === 'local') {
+      if (
+        localTargets.has(cleanRef) ||
+        localTargets.has(decodedRef) ||
+        localTargets.has(baseName) ||
+        localTargets.has(decodedBaseName)
+      ) {
+        isMatch = true;
       }
     } else {
-      for (const t of remoteTargets) {
-        if (t && val.includes(t)) {
-          isMatch = true;
-          break;
-        }
+      if (
+        remoteTargets.has(val) ||
+        remoteTargets.has(rawRef) ||
+        remoteTargets.has(cleanRef) ||
+        remoteTargets.has(decodedRef) ||
+        remoteTargets.has(baseName) ||
+        remoteTargets.has(decodedBaseName)
+      ) {
+        isMatch = true;
       }
     }
 

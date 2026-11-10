@@ -23,7 +23,7 @@
 
 - ⚡ **Instant Upload & Clipboard Monitor (秒传)**:
   - Intercepts pasted screenshots and dragged attachments.
-  - Computes content SHA-256 locally; reuses existing remote assets in **<5ms with 0 network payload** if already uploaded.
+  - Computes content SHA-256 locally; lightweight probe query instantly reuses existing remote assets without re-uploading file bytes if already present on server.
   - Supports custom naming patterns (e.g. `{note}_{date}_{rand:4}`).
 
 - 🛡️ **Zero Broken Links Guarantee**:
@@ -74,7 +74,7 @@
 
 ## ⚙️ Quick Configuration
 
-FileMaster `1.0.2` requires FileMaster Server `1.0.0` or newer.
+FileMaster `1.0.4` requires FileMaster Server `1.0.0` or newer.
 
 1. Open **Settings → FileMaster**.
 2. **Server Access URL**: Enter your self-hosted server address (e.g., `http://192.168.1.100:3000` or your reverse-proxy domain `https://img.yourdomain.com`).
@@ -86,7 +86,10 @@ FileMaster `1.0.2` requires FileMaster Server `1.0.0` or newer.
 | **Interface Language** | `Follow Obsidian (Auto)` | Auto-detects Obsidian language, or choose `简体中文` / `English` |
 | **Show Sidebar Ribbon Button** | `true` | Left sidebar icon for 1-click quick hub access |
 | **Attachment Destination** | `Prompt each time` | `Prompt each time`, `Auto-upload to cloud`, or `Save to local vault` |
+| **Default Destination Target** | `Auto-upload to cloud` | Default preselected destination card in attachment insert modal (`Cloud` or `Local Vault`) |
+| **Naming Strategy** | `Keep original` | Strategy for incoming attachments: `Keep original`, `Auto-rename pattern`, or `Prompt each time` |
 | **Auto-Rename Pattern** | `{note}_{date}_{rand:4}` | Rule for naming attachments (`{note}`, `{date}`, `{time}`, `{rand:4}`, `{hash:8}`) |
+| **Handle Non-Image Attachments** | `true` | Enables local saving and cloud migration for audio, video, and PDF attachments |
 | **Delete Local After Migrate** | `true` | Safely removes local file once cloud migration and zero-broken-link check succeed |
 | **Excluded Local Folders** | `templates, assets/protected` | Comma-separated paths skipped during orphan/dedup scans |
 
@@ -108,7 +111,7 @@ FileMaster `1.0.2` requires FileMaster Server `1.0.0` or newer.
 **FileMaster** 是一款专为 Obsidian 打造的企业级资产治理与自建多媒体图床管理插件。
 
 ### ✨ 核心功能
-* **⚡ SHA-256 毫秒级秒传**: 粘贴截图或拖入附件时，本地计算哈希预检。云端已有相同文件时 0 流量瞬间秒传复用。
+* **⚡ SHA-256 毫秒级秒传**: 粘贴截图或拖入附件时，本地计算哈希轻量预检。云端已有相同文件时无需重复上传文件体，秒级复用。
 * **🛡️ 零断链安全保障**: 独创“全库引用重写 + 独立快照校验安全闸门”两阶段流程，确保任何文件清理绝对不造成 404 断链。
 * **🔗 404 断链与健康体检**: 一键扫描全库悬空 WikiLink、缺失本地附件及失效远程链接，支持一键行跳转与导出 Markdown 报告。
 * **🔍 内容哈希查重向导**: 精准识别跨本地与图床的重复素材，合并冗余并自动重写全库双链。

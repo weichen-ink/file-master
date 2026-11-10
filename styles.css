@@ -987,7 +987,147 @@
   .fm-settings-about .setting-item-control { text-align: left; }
 }
 
-
-
+/* Incoming Attachment Modal */
+.fm-incoming-modal-dialog {
+  max-width: 440px;
+}
+.fm-incoming-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.fm-incoming-thumb-wrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--background-primary-alt);
+  border: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.fm-incoming-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.fm-incoming-edit-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fm-incoming-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.fm-incoming-input-row input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 4px 8px !important;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+.fm-incoming-input-row input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+.fm-incoming-ext-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  padding: 3px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.fm-incoming-sub-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+.fm-incoming-dest-grid {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+.fm-incoming-dest-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+.fm-incoming-dest-card:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+.fm-incoming-dest-card.is-selected {
+  border-color: var(--interactive-accent);
+  background: rgba(var(--interactive-accent-rgb), 0.12);
+  color: var(--interactive-accent);
+  font-weight: 600;
+}
+.fm-incoming-dest-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.fm-incoming-dest-card-check {
+  display: none;
+  width: 14px;
+  height: 14px;
+  color: var(--interactive-accent);
+  flex-shrink: 0;
+}
+.fm-incoming-dest-card-check svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+}
+.fm-incoming-dest-card.is-selected .fm-incoming-dest-card-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 500px) {
+  .fm-incoming-dest-grid {
+    flex-direction: column;
+  }
+}
 
 
