@@ -7141,7 +7141,6 @@ var FileMasterHubModal = class extends import_obsidian19.Modal {
             title: t2("actRemoteGalleryViewTitle"),
             desc: t2("actRemoteGalleryViewDesc"),
             run: () => {
-              this.close();
               activateGalleryView(this.plugin);
             }
           },
@@ -7208,7 +7207,10 @@ var FileMasterHubModal = class extends import_obsidian19.Modal {
         const textCol = left.createDiv({ cls: "fm-hub-card-text" });
         textCol.createDiv({ text: act.title, cls: "fm-hub-card-title" });
         textCol.createDiv({ text: act.desc, cls: "fm-hub-card-desc" });
-        card.onclick = () => {
+        card.onclick = (e) => {
+          var _a2, _b2;
+          (_a2 = e == null ? void 0 : e.preventDefault) == null ? void 0 : _a2.call(e);
+          (_b2 = e == null ? void 0 : e.stopPropagation) == null ? void 0 : _b2.call(e);
           this.close();
           act.run();
         };
@@ -7275,15 +7277,35 @@ async function safeModifyFileContent(plugin, tfile, transformFn) {
   return changed;
 }
 function openModalSafely(modal) {
+  if (!modal) return;
+  const origClose = modal.close ? modal.close.bind(modal) : null;
+  let dismissLocked = true;
+  const unlockTimer = setTimeout(() => {
+    dismissLocked = false;
+  }, 350);
+  if (origClose) {
+    modal.close = function(...args) {
+      if (dismissLocked) {
+        return;
+      }
+      clearTimeout(unlockTimer);
+      return origClose(...args);
+    };
+  }
   setTimeout(() => {
     modal.open();
-    if (modal.bgEl) {
-      modal.bgEl.style.pointerEvents = "none";
-      setTimeout(() => {
-        if (modal.bgEl) modal.bgEl.style.pointerEvents = "";
-      }, 250);
+    if (modal.containerEl) {
+      modal.containerEl.style.pointerEvents = "none";
     }
-  }, 40);
+    if (modal.modalEl) {
+      modal.modalEl.style.pointerEvents = "auto";
+    }
+    setTimeout(() => {
+      if (modal.containerEl) {
+        modal.containerEl.style.pointerEvents = "";
+      }
+    }, 300);
+  }, 50);
 }
 function updateSidebarRibbonButton(plugin) {
   if (plugin.sidebarRibbonEl) {

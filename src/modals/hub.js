@@ -82,7 +82,6 @@ export class FileMasterHubModal extends Modal {
             title: t('actRemoteGalleryViewTitle'),
             desc: t('actRemoteGalleryViewDesc'),
             run: () => {
-              this.close();
               activateGalleryView(this.plugin);
             }
           },
@@ -154,7 +153,9 @@ export class FileMasterHubModal extends Modal {
         textCol.createDiv({ text: act.title, cls: 'fm-hub-card-title' });
         textCol.createDiv({ text: act.desc, cls: 'fm-hub-card-desc' });
 
-        card.onclick = () => {
+        card.onclick = (e) => {
+          e?.preventDefault?.();
+          e?.stopPropagation?.();
           this.close();
           act.run();
         };

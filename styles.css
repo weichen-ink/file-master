@@ -1,5 +1,6 @@
 .fm-wizard-modal {
   padding: 6px 4px;
+  min-width: min(620px, calc(100vw - 32px));
 }
 .fm-step-header {
   display: flex;

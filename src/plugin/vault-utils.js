@@ -63,15 +63,38 @@ export async function safeModifyFileContent(plugin, tfile, transformFn) {
 }
 
 export function openModalSafely(modal) {
+  if (!modal) return;
+
+  const origClose = modal.close ? modal.close.bind(modal) : null;
+  let dismissLocked = true;
+  const unlockTimer = setTimeout(() => {
+    dismissLocked = false;
+  }, 350);
+
+  if (origClose) {
+    modal.close = function(...args) {
+      if (dismissLocked) {
+        return;
+      }
+      clearTimeout(unlockTimer);
+      return origClose(...args);
+    };
+  }
+
   setTimeout(() => {
     modal.open();
-    if (modal.bgEl) {
-      modal.bgEl.style.pointerEvents = 'none';
-      setTimeout(() => {
-        if (modal.bgEl) modal.bgEl.style.pointerEvents = '';
-      }, 250);
+    if (modal.containerEl) {
+      modal.containerEl.style.pointerEvents = 'none';
     }
-  }, 40);
+    if (modal.modalEl) {
+      modal.modalEl.style.pointerEvents = 'auto';
+    }
+    setTimeout(() => {
+      if (modal.containerEl) {
+        modal.containerEl.style.pointerEvents = '';
+      }
+    }, 300);
+  }, 50);
 }
 
 export function updateSidebarRibbonButton(plugin) {
