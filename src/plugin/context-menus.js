@@ -1,4 +1,10 @@
-class FileMasterContextMenus extends FileMasterVaultUtils {
+import { NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from '../constants.js';
+import { convertBufferToPreviewUrl, escapeRegExp, getBaseName, getExt } from '../engine.js';
+import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
+import { FileMasterVaultUtils } from './vault-utils.js';
+import { Notice } from 'obsidian';
+
+export class FileMasterContextMenus extends FileMasterVaultUtils {
   registerContextMenus() {
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, abstractFile) => {

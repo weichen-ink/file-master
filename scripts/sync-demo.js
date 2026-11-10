@@ -5,9 +5,10 @@ const srcDir = path.resolve(__dirname, '..');
 const demoObsidianDir = path.resolve(srcDir, '../demo/.obsidian');
 const demoPluginDir = path.resolve(demoObsidianDir, 'plugins/file-master');
 
+function syncDemo() {
 if (srcDir === demoPluginDir || !fs.existsSync(demoObsidianDir)) {
   console.log('[sync-demo] Already inside demo plugin directory (or no external demo dir), skipping copy.');
-  process.exit(0);
+  return;
 }
 
 if (!fs.existsSync(demoPluginDir)) {
@@ -25,3 +26,7 @@ for (const file of files) {
 }
 console.log('[sync-demo] Done.');
 
+}
+
+if (require.main === module) syncDemo();
+module.exports = { syncDemo };

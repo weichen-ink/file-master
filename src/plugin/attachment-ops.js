@@ -1,4 +1,14 @@
-class FileMasterAttachmentOps extends FileMasterLinkRewrite {
+import { IMAGE_EXTS, isAttachmentExt } from '../constants.js';
+import { computeSha256Hex, escapeRegExp, formatBytes, getBaseName, getExt, getFileTypeGroup } from '../engine.js';
+import { ActiveNoteActionModal } from '../modals/active-note.js';
+import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
+import { ConfirmActionModal } from '../modals/dialogs.js';
+import { addReference, createTextReferenceMatcher } from '../references.js';
+import { migrateLocalAttachments, migrationCheckpointPath, requestWithBackoff, rewriteAttachmentPairs, runAttachmentOperation, throwIfTransferCancelled } from '../transfers.js';
+import { FileMasterLinkRewrite } from './link-rewrite.js';
+import { Notice, requestUrl } from 'obsidian';
+
+export class FileMasterAttachmentOps extends FileMasterLinkRewrite {
   async executeDuplicateMergeSafely(groups, onComplete) {
     return runAttachmentOperation(this, () => this.mergeDuplicateGroups(groups, onComplete));
   }

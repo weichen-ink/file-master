@@ -1,4 +1,8 @@
-class FileMasterLinkRewrite extends FileMasterHealthAnalytics {
+import { IMAGE_EXTS } from '../constants.js';
+import { escapeRegExp, isExcalidrawContent, rewriteExcalidrawEmbeddedFiles } from '../engine.js';
+import { FileMasterHealthAnalytics } from './health-analytics.js';
+
+export class FileMasterLinkRewrite extends FileMasterHealthAnalytics {
   rewriteContentLinks(content, removeItem, keepItem, docPathOrContext = '') {
     if (typeof content !== 'string' || !content) return content;
 

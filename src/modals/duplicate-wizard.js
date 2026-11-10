@@ -1,9 +1,15 @@
+import { formatBytes } from '../engine.js';
+import { createScanProgressWidget, returnToHub } from './common.js';
+import { NoteRefsModal } from './dialogs.js';
+import { renderItemVisualThumb } from './incoming-file.js';
+import { Modal, Notice } from 'obsidian';
+
 /**
  * Wizard 2: Duplicate Finder Wizard
  * Step 1: Select duplicate comparison scope (with real-time scan progress + cancel button)
  * Step 2: Display duplicate groups, thumbnail previews, note references, and resolution strategies
  */
-class DuplicateWizardModal extends Modal {
+export class DuplicateWizardModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;

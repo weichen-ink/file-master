@@ -1,8 +1,10 @@
+import { getLanguage } from 'obsidian';
+
 /**
  * Bilingual UI Strings (zh-CN / en) for FileMaster Obsidian Plugin
  * Pure user-centric terminology without technical variable pollution or bracketed language mixing.
  */
-const UI_STRINGS = {
+export const UI_STRINGS = {
   zh: {
     pagePrevious: "上一页",
     pageNext: "下一页",
@@ -1135,7 +1137,7 @@ const UI_STRINGS = {
   }
 };
 
-function getEffectiveLanguage(lang) {
+export function getEffectiveLanguage(lang) {
   if (lang === 'zh' || lang === 'en') {
     return lang;
   }
@@ -1150,7 +1152,7 @@ function getEffectiveLanguage(lang) {
   }
 }
 
-function translateUi(lang, key, params = {}) {
+export function translateUi(lang, key, params = {}) {
   const effective = getEffectiveLanguage(lang);
   const dict = UI_STRINGS[effective] || UI_STRINGS.zh;
   let str = dict[key] || UI_STRINGS.en[key] || UI_STRINGS.zh[key] || key;

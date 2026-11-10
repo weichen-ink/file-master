@@ -3,27 +3,11 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 
-// Extract UI_STRINGS and helper functions from main.js or src/i18n.js
-const i18nCode = fs.readFileSync(path.resolve(__dirname, '../src/i18n.js'), 'utf8');
-
-// Evaluate in sandbox context
-const sandbox = {
-  UI_STRINGS: null,
-  getEffectiveLanguage: null,
-  translateUi: null,
-  window: { localStorage: { getItem: () => null } }
-};
-const fn = new Function('sandbox', `
-  with(sandbox) {
-    ${i18nCode}
-    sandbox.UI_STRINGS = UI_STRINGS;
-    sandbox.getEffectiveLanguage = getEffectiveLanguage;
-    sandbox.translateUi = translateUi;
-  }
-`);
-fn(sandbox);
-
-const { UI_STRINGS, getEffectiveLanguage, translateUi } = sandbox;
+const sandbox = { window: { localStorage: { getItem: () => null } }, document: {}, getLanguage: undefined };
+// The host callback reads sandbox dynamically; browser objects are stable references.
+const { UI_STRINGS, getEffectiveLanguage, translateUi } = require('./helpers/load-plugin').loadPlugin(undefined, {
+  window: sandbox.window, document: sandbox.document, getLanguage: () => sandbox.getLanguage?.()
+});
 
 test('i18n: language resolution follows Obsidian language when auto', () => {
   // 1. Explicit languages
@@ -52,7 +36,7 @@ test('i18n: language resolution follows Obsidian language when auto', () => {
   assert.strictEqual(getEffectiveLanguage('auto'), 'en');
   sandbox.getLanguage = undefined;
   sandbox.window.localStorage.getItem = () => null;
-  sandbox.document = { documentElement: { lang: 'zh-CN' } };
+  sandbox.document.documentElement = { lang: 'zh-CN' };
   assert.strictEqual(getEffectiveLanguage('auto'), 'zh');
 });
 

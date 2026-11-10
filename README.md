@@ -159,3 +159,9 @@ See [batch processing, integrity semantics, and scale limits](https://github.com
 
 ### 📄 许可证
 [MIT License](LICENSE)
+
+### Development / 开发
+
+Run `npm ci`, then `npm test` (builds first), or `npm run build`. Sources use explicit ESM imports; esbuild is a development dependency and emits the existing CommonJS `main.js` for Obsidian. `obsidian` stays external and browser builds reject Node-only dependencies. `npm run package` creates the same three-file release archive. Release CI rebuilds, tests, and verifies the committed bundle before publishing.
+
+运行 `npm ci` 后使用 `npm test`（先构建再测试）或 `npm run build`。源码使用显式导入导出；构建依赖仅供开发，发布仍为 `main.js`、`manifest.json`、`styles.css`。插件类的公开行为由最终产物加载测试验证，工具函数通过独立测试入口导出。

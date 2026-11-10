@@ -1,7 +1,10 @@
+import { createScanProgressWidget, returnToHub } from './common.js';
+import { Modal, Notice } from 'obsidian';
+
 /**
  * Vault Link Health Check Modal (404 & Dangling WikiLink Finder)
  */
-class HealthCheckModal extends Modal {
+export class HealthCheckModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;

@@ -1,7 +1,9 @@
+import { Modal, Notice } from 'obsidian';
+
 /**
  * Operation & Debug Log Viewer/Exporter Modal
  */
-class OperationLogModal extends Modal {
+export class OperationLogModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;

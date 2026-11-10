@@ -1,4 +1,10 @@
-class FileMasterVaultUtils extends FileMasterLifecycle {
+import { IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS } from '../constants.js';
+import { convertBufferToPreviewUrl, getExt, isDocFile, isExcalidrawFile, isReportFile } from '../engine.js';
+import { FileMasterHubModal } from '../modals/hub.js';
+import { FileMasterLifecycle } from './lifecycle.js';
+import { Notice } from 'obsidian';
+
+export class FileMasterVaultUtils extends FileMasterLifecycle {
   isDocFile(file) {
     return isDocFile(file, this.app);
   }

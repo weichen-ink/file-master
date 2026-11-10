@@ -1,9 +1,12 @@
+import { AUDIO_EXTS, IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from './constants.js';
+import { requestUrl } from 'obsidian';
+
 /**
  * Transcodes HEIC/HEIF/TIFF buffers into browser-renderable JPEG Blob URLs.
  * Standard images render immediately via browser Blob URL;
  * Special raw formats (HEIC/TIFF) delegate safely to FileMaster Server transcode API (/api/image/preview-transcode).
  */
-async function convertBufferToPreviewUrl(arrayBuffer, ext = 'heic', plugin = null) {
+export async function convertBufferToPreviewUrl(arrayBuffer, ext = 'heic', plugin = null) {
   const cleanExt = String(ext || '').toLowerCase();
   if (!NEEDS_TRANSCODE_IMAGE_EXTS.has(cleanExt)) {
     const blob = new Blob([arrayBuffer], { type: `image/${cleanExt === 'jpg' ? 'jpeg' : cleanExt}` });
@@ -37,17 +40,17 @@ async function convertBufferToPreviewUrl(arrayBuffer, ext = 'heic', plugin = nul
   throw new Error('No remote HEIC/TIFF decoder available');
 }
 
-function getExt(filename) {
+export function getExt(filename) {
   const idx = String(filename || '').lastIndexOf('.');
   return idx > -1 ? filename.slice(idx + 1).toLowerCase() : '';
 }
 
-function getBaseName(filename) {
+export function getBaseName(filename) {
   const idx = String(filename || '').lastIndexOf('.');
   return idx > -1 ? filename.slice(0, idx) : String(filename || '');
 }
 
-function getFileTypeGroup(ext) {
+export function getFileTypeGroup(ext) {
   const e = String(ext || '').toLowerCase();
   if (e === 'md' || e === 'excalidraw') return 'note';
   if (IMAGE_EXTS.has(e)) return 'image';
@@ -55,7 +58,7 @@ function getFileTypeGroup(ext) {
   return 'other';
 }
 
-function formatBytes(bytes) {
+export function formatBytes(bytes) {
   if (!bytes) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
@@ -63,7 +66,7 @@ function formatBytes(bytes) {
   return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 1) + ' ' + sizes[i];
 }
 
-function computeSha256Pure(bytes) {
+export function computeSha256Pure(bytes) {
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -118,7 +121,7 @@ function computeSha256Pure(bytes) {
   return [h0, h1, h2, h3, h4, h5, h6, h7].map((x) => x.toString(16).padStart(8, '0')).join('');
 }
 
-async function computeSha256Hex(input) {
+export async function computeSha256Hex(input) {
   if (!input) return '';
   let buffer = null;
   let uint8 = null;
@@ -148,7 +151,7 @@ async function computeSha256Hex(input) {
   return computeSha256Pure(uint8);
 }
 
-function getRandomHex(len = 4) {
+export function getRandomHex(len = 4) {
   const bytesCount = Math.ceil(len / 2);
   const bytes = new Uint8Array(bytesCount);
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -165,7 +168,7 @@ function getRandomHex(len = 4) {
   return hex.slice(0, len);
 }
 
-function normalizePosixPath(filePath) {
+export function normalizePosixPath(filePath) {
   if (!filePath) return '';
   const isAbsolute = filePath.startsWith('/');
   const segments = filePath.split('/');
@@ -186,7 +189,7 @@ function normalizePosixPath(filePath) {
   return isAbsolute ? `/${joined}` : (joined || '.');
 }
 
-function compareSemver(v1, v2) {
+export function compareSemver(v1, v2) {
   const p1 = String(v1 || '0.0.0').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
   const p2 = String(v2 || '0.0.0').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
   for (let i = 0; i < 3; i++) {
@@ -196,11 +199,11 @@ function compareSemver(v1, v2) {
   return 0;
 }
 
-function escapeRegExp(str) {
+export function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function formatDateYMD(date = new Date()) {
+export function formatDateYMD(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
@@ -208,7 +211,7 @@ function formatDateYMD(date = new Date()) {
 /**
  * Sanitizes base filename while preserving CJK characters, normalizing spaces/brackets to underscores
  */
-function sanitizeCleanBaseName(str, fallback = 'file') {
+export function sanitizeCleanBaseName(str, fallback = 'file') {
   return (
     String(str || '')
       .replace(/[\/\\?%*:|"<>#\0]/g, '_')
@@ -221,7 +224,7 @@ function sanitizeCleanBaseName(str, fallback = 'file') {
 /**
  * Checks if a file is an auto-generated inspection report
  */
-function isReportFile(filename) {
+export function isReportFile(filename) {
   const name = String(filename || '');
   return (
     name.startsWith('Unused_Files_Report_') ||
@@ -235,7 +238,7 @@ function isReportFile(filename) {
 /**
  * Pure analytics engine for Vault Wrapped & Storage Analytics Dashboard
  */
-function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
+export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
   let noteCount = 0;
   let canvasCount = 0;
   let totalWords = 0;
@@ -347,7 +350,7 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
 /**
  * Resolves WikiLink target note or attachment against vault index
  */
-function resolveWikiTarget(target, docPath, vaultIndex) {
+export function resolveWikiTarget(target, docPath, vaultIndex) {
   if (!target) return true;
   let decoded = target;
   try {
@@ -373,7 +376,7 @@ function resolveWikiTarget(target, docPath, vaultIndex) {
 /**
  * Resolves standard markdown file/image target against vault index
  */
-function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
+export function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
   if (!target) return true;
   let decoded = target;
   try {
@@ -402,7 +405,7 @@ function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
 /**
  * Scans markdown text content for broken WikiLinks and missing local markdown files
  */
-function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {}) {
+export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {}) {
   const issues = [];
   if (!rawText) return issues;
 
@@ -502,7 +505,7 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
 /**
  * Generates base filename from dynamic naming pattern (excluding extension)
  */
-function applyNamingPattern(pattern, { noteName, originBase, sha256 }) {
+export function applyNamingPattern(pattern, { noteName, originBase, sha256 }) {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
@@ -530,7 +533,7 @@ function applyNamingPattern(pattern, { noteName, originBase, sha256 }) {
 /**
  * Constructs multipart/form-data ArrayBuffer payload
  */
-function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet-stream') {
+export function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet-stream') {
   const boundary = '----FileMasterBoundary' + Date.now().toString(16);
   const enc = new TextEncoder();
   const safeName = String(filename || 'file.png').replace(/"/g, '_');
@@ -561,7 +564,7 @@ function buildMultipartBuffer(fileBytes, filename, mimeType = 'application/octet
  * Checks frontmatter (excalidraw-plugin: parsed/raw or excalidraw: true)
  * as well as body markers (# Excalidraw Data, ## Embedded Files).
  */
-function isExcalidrawContent(content) {
+export function isExcalidrawContent(content) {
   if (typeof content !== 'string' || !content) return false;
   const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (fmMatch) {
@@ -588,7 +591,7 @@ function isExcalidrawContent(content) {
  * Checks whether a file is an Excalidraw drawing note regardless of extension.
  * Handles .excalidraw.md, .excalidraw, frontmatter cache, and file content.
  */
-function isExcalidrawFile(file, app = null, content = null) {
+export function isExcalidrawFile(file, app = null, content = null) {
   if (!file) return false;
   const name = String(file.name || '');
   const ext = String(file.extension || getExt(name)).toLowerCase();
@@ -611,7 +614,7 @@ function isExcalidrawFile(file, app = null, content = null) {
 /**
  * Checks whether a file is a document/note (Markdown, Canvas, or Excalidraw)
  */
-function isDocFile(file, app = null) {
+export function isDocFile(file, app = null) {
   if (!file) return false;
   const ext = String(file.extension || getExt(file.name)).toLowerCase();
   return ext === 'md' || ext === 'canvas' || ext === 'excalidraw' || isExcalidrawFile(file, app);
@@ -622,7 +625,7 @@ function isDocFile(file, app = null) {
  * Excalidraw requires bare URLs (e.g. '<fileId>: https://...'), whereas Markdown bracket
  * syntax '[alt](url)' breaks Excalidraw parser and renders grey boxes.
  */
-function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, context = {}) {
+export function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, context = {}) {
   if (typeof content !== 'string' || !content) return content;
 
   const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;

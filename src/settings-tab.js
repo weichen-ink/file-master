@@ -1,4 +1,9 @@
-class FileMasterSettingTab extends PluginSettingTab {
+import { MIN_SERVER_VERSION } from './constants.js';
+import { FileMasterHubModal } from './modals/hub.js';
+import { OperationLogModal } from './modals/operation-log.js';
+import { Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
+
+export class FileMasterSettingTab extends PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;

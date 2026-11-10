@@ -1,7 +1,11 @@
+import { formatBytes } from '../engine.js';
+import { returnToHub } from './common.js';
+import { Modal } from 'obsidian';
+
 /**
  * Vault Wrapped & Storage Analytics Dashboard Modal
  */
-class VaultAnalyticsModal extends Modal {
+export class VaultAnalyticsModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;

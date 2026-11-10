@@ -1,7 +1,15 @@
+import { BatchMigrateWizardModal } from './batch-migrate-wizard.js';
+import { DuplicateWizardModal } from './duplicate-wizard.js';
+import { HealthCheckModal } from './health-check.js';
+import { OrphanWizardModal } from './orphan-wizard.js';
+import { RemoteGalleryModal } from './remote-gallery.js';
+import { VaultAnalyticsModal } from './vault-analytics.js';
+import { Modal, setIcon } from 'obsidian';
+
 /**
  * Quick Action Hub Modal opened from the left sidebar ribbon button (Bilingual zh-CN / en)
  */
-class FileMasterHubModal extends Modal {
+export class FileMasterHubModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;

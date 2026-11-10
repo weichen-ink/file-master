@@ -17,6 +17,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install build dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: npm test
+
+      - name: Verify committed bundle
+        run: git diff --exit-code -- main.js
+
       - name: Generate Artifact Attestations
         uses: actions/attest-build-provenance@v2
         with:

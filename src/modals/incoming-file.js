@@ -1,7 +1,14 @@
+import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
+import { computeSha256Hex, convertBufferToPreviewUrl, formatBytes, getExt, sanitizeCleanBaseName } from '../engine.js';
+import { translateUi } from '../i18n.js';
+import { formatFriendlyError } from './common.js';
+import { ImageLightboxModal } from './dialogs.js';
+import { Modal, Notice, setIcon } from 'obsidian';
+
 /**
  * Renders a 44x44 thumbnail or icon in wizard lists (click to inspect)
  */
-function renderItemVisualThumb(parentEl, item, plugin) {
+export function renderItemVisualThumb(parentEl, item, plugin) {
   const t = (k, p) => (plugin ? plugin.t(k, p) : translateUi('auto', k, p));
   const ext = getExt(item.name);
   if (IMAGE_EXTS.has(ext)) {
@@ -42,7 +49,7 @@ function renderItemVisualThumb(parentEl, item, plugin) {
   }
 }
 
-class IncomingFileModal extends Modal {
+export class IncomingFileModal extends Modal {
   constructor(app, fileInfo, options, callback = null) {
     super(app);
     this.fileInfo = fileInfo; // { arrayBuffer, defaultBaseName, ext, size, mimeType, sha256 }

@@ -1,8 +1,10 @@
+import { FileMasterHubModal } from './hub.js';
+
 /**
  * Helper to return from a module modal back to the main File Master Hub modal
  * when the modal was opened from the Hub; otherwise simply closes the modal.
  */
-function returnToHub(modal) {
+export function returnToHub(modal) {
   modal.close();
   if (!modal.fromHub) return;
   if (modal.plugin && typeof modal.plugin.openModalSafely === 'function') {
@@ -15,7 +17,7 @@ function returnToHub(modal) {
 /**
  * Helper to translate raw HTTP/server error strings into localized UI descriptions
  */
-function formatFriendlyError(modal, rawErr) {
+export function formatFriendlyError(modal, rawErr) {
   const errStr = String(rawErr || '').trim();
   const t = (k, p) => (modal && typeof modal.t === 'function' ? modal.t(k, p) : modal?.plugin?.t ? modal.plugin.t(k, p) : errStr);
   if (/file too large|too large|413/i.test(errStr)) {
@@ -36,7 +38,7 @@ function formatFriendlyError(modal, rawErr) {
 /**
  * Helper to create a real-time scan progress bar + cancel button inside wizard modals
  */
-function createScanProgressWidget(contentEl, plugin) {
+export function createScanProgressWidget(contentEl, plugin) {
   const abortController = new AbortController();
   const box = contentEl.createDiv({
     cls: 'fm-section-box fm-scan-progress-box',

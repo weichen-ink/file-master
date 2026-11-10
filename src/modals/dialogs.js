@@ -1,7 +1,12 @@
+import { IMAGE_EXTS } from '../constants.js';
+import { formatBytes, getExt } from '../engine.js';
+import { translateUi } from '../i18n.js';
+import { Modal, Notice, setIcon } from 'obsidian';
+
 /**
  * Confirmation modal for critical actions like remote file deletion
  */
-class ConfirmActionModal extends Modal {
+export class ConfirmActionModal extends Modal {
   constructor(app, title, message, confirmText = 'Confirm', onConfirm, plugin = null) {
     super(app);
     this.title = title;
@@ -49,7 +54,7 @@ class ConfirmActionModal extends Modal {
 /**
  * High-res lightbox modal for asset inspection
  */
-class ImageLightboxModal extends Modal {
+export class ImageLightboxModal extends Modal {
   constructor(app, plugin, item, onActionChanged = null) {
     super(app);
     this.plugin = plugin;
@@ -237,7 +242,7 @@ class ImageLightboxModal extends Modal {
 /**
  * Modal listing all notes referencing the selected asset
  */
-class NoteRefsModal extends Modal {
+export class NoteRefsModal extends Modal {
   constructor(app, itemName, refNotePaths, onJump, plugin = null) {
     super(app);
     this.itemName = itemName;

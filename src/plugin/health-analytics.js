@@ -1,4 +1,8 @@
-class FileMasterHealthAnalytics extends FileMasterVaultScans {
+import { computeVaultStatsFromEntries, formatBytes, formatDateYMD, scanNoteContentForBrokenLinks } from '../engine.js';
+import { FileMasterVaultScans } from './vault-scans.js';
+import { Notice, requestUrl } from 'obsidian';
+
+export class FileMasterHealthAnalytics extends FileMasterVaultScans {
   /**
    * Scans vault notes and canvas files for broken links (supports progress + abortSignal)
    */

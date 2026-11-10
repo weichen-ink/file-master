@@ -1,8 +1,12 @@
+import { VIEW_TYPE_REMOTE_GALLERY } from '../constants.js';
+import { filterRemoteGallery, renderRemoteGallery } from '../gallery.js';
+import { ItemView, Modal, setIcon } from 'obsidian';
+
 /**
  * Remote Asset Gallery & Media Album Modal
  * Enables browsing, searching, previewing, and managing remote files directly inside Obsidian
  */
-class RemoteGalleryModal extends Modal {
+export class RemoteGalleryModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
@@ -157,7 +161,7 @@ class RemoteGalleryModal extends Modal {
 /**
  * Remote Media Gallery Sidebar View (Bilingual zh-CN / en)
  */
-class RemoteGalleryView extends ItemView {
+export class RemoteGalleryView extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;

@@ -1,19 +1,6 @@
-const {
-  Plugin,
-  PluginSettingTab,
-  Setting,
-  Notice,
-  Modal,
-  requestUrl,
-  MarkdownView,
-  ItemView,
-  setIcon,
-  TFile,
-  getLanguage,
-  Platform
-} = require('obsidian');
 
-const DEFAULT_SETTINGS = {
+
+export const DEFAULT_SETTINGS = {
   language: 'auto', // 'auto' | 'zh' | 'en'
   enableRemoteServer: false,
   serverVerified: false,
@@ -32,11 +19,11 @@ const DEFAULT_SETTINGS = {
   excludeLockedRemoteFiles: true
 };
 
-const MIN_SERVER_VERSION = '1.0.1';
-const VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery';
+export const MIN_SERVER_VERSION = '1.0.1';
+export const VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery';
 
 // Comprehensive image extensions (Apple HEIC/HEIF, TIFF, BMP, Camera RAW, etc.)
-const IMAGE_EXTS = new Set([
+export const IMAGE_EXTS = new Set([
   'png',
   'jpg',
   'jpeg',
@@ -64,10 +51,10 @@ const IMAGE_EXTS = new Set([
 ]);
 
 // Formats requiring JPEG preview transcoding for Electron/Chromium <img> rendering
-const NEEDS_TRANSCODE_IMAGE_EXTS = new Set(['heic', 'heif', 'tif', 'tiff']);
+export const NEEDS_TRANSCODE_IMAGE_EXTS = new Set(['heic', 'heif', 'tif', 'tiff']);
 
 // Comprehensive audio extension support
-const AUDIO_EXTS = new Set([
+export const AUDIO_EXTS = new Set([
   'mp3',
   'm4a',
   'wav',
@@ -89,7 +76,7 @@ const AUDIO_EXTS = new Set([
 ]);
 
 // Comprehensive video, document, archive, and design asset extensions
-const OTHER_EXTS = new Set([
+export const OTHER_EXTS = new Set([
   'pdf',
   'mp4',
   'webm',
@@ -195,10 +182,10 @@ const OTHER_EXTS = new Set([
   'rpm'
 ]);
 
-const OBSIDIAN_NOTE_EXTS = new Set(['md', 'canvas', 'base', 'excalidraw']);
-const ALL_ATTACHMENT_EXTS = new Set([...IMAGE_EXTS, ...AUDIO_EXTS, ...OTHER_EXTS]);
+export const OBSIDIAN_NOTE_EXTS = new Set(['md', 'canvas', 'base', 'excalidraw']);
+export const ALL_ATTACHMENT_EXTS = new Set([...IMAGE_EXTS, ...AUDIO_EXTS, ...OTHER_EXTS]);
 
-function isAttachmentExt(ext) {
+export function isAttachmentExt(ext) {
   const e = String(ext || '').toLowerCase();
   return Boolean(e) && !OBSIDIAN_NOTE_EXTS.has(e);
 }

@@ -3,53 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const pluginCode = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-// Extract pure functions
-const imageExtsMatch = pluginCode.match(/const IMAGE_EXTS = new Set\([\s\S]*?\);/);
-const audioExtsMatch = pluginCode.match(/const AUDIO_EXTS = new Set\([\s\S]*?\);/);
-const obsidianExtsMatch = pluginCode.match(/const OBSIDIAN_NOTE_EXTS = new Set\([\s\S]*?\);/);
-const isAttachmentExtMatch = pluginCode.match(/function isAttachmentExt\([\s\S]*?\n\}/);
-const getExtMatch = pluginCode.match(/function getExt\([\s\S]*?\n\}/);
-const getFileTypeGroupMatch = pluginCode.match(/function getFileTypeGroup\([\s\S]*?\n\}/);
-const isReportMatch = pluginCode.match(/function isReportFile\([\s\S]*?\n\}/);
-const normalizePosixPathMatch = pluginCode.match(/function normalizePosixPath\([\s\S]*?\n\}/);
-const computeStatsMatch = pluginCode.match(/function computeVaultStatsFromEntries\([\s\S]*?\n\}/);
-const resolveWikiMatch = pluginCode.match(/function resolveWikiTarget\([\s\S]*?\n\}/);
-const resolveLocalMdMatch = pluginCode.match(/function resolveLocalMarkdownTarget\([\s\S]*?\n\}/);
-const scanNoteMatch = pluginCode.match(/function scanNoteContentForBrokenLinks\([\s\S]*?\n\}/);
-
-assert.ok(isReportMatch, 'isReportFile must be found in main.js');
-assert.ok(normalizePosixPathMatch, 'normalizePosixPath must be found in main.js');
-assert.ok(computeStatsMatch, 'computeVaultStatsFromEntries must be found in main.js');
-assert.ok(resolveWikiMatch, 'resolveWikiTarget must be found in main.js');
-assert.ok(resolveLocalMdMatch, 'resolveLocalMarkdownTarget must be found in main.js');
-assert.ok(scanNoteMatch, 'scanNoteContentForBrokenLinks must be found in main.js');
-
-const evalEnv = new Function(
-  'path',
-  `${imageExtsMatch[0]}
-   ${audioExtsMatch[0]}
-   ${obsidianExtsMatch[0]}
-   ${isAttachmentExtMatch[0]}
-   ${getExtMatch[0]}
-   ${getFileTypeGroupMatch[0]}
-   ${isReportMatch[0]}
-   ${normalizePosixPathMatch[0]}
-   ${computeStatsMatch[0]}
-   ${resolveWikiMatch[0]}
-   ${resolveLocalMdMatch[0]}
-   ${scanNoteMatch[0]}
-   return { isReportFile, computeVaultStatsFromEntries, resolveWikiTarget, resolveLocalMarkdownTarget, scanNoteContentForBrokenLinks };`
-);
-
-const {
-  isReportFile,
-  computeVaultStatsFromEntries,
-  resolveWikiTarget,
-  resolveLocalMarkdownTarget,
-  scanNoteContentForBrokenLinks
-} = evalEnv(path);
+const { isReportFile, computeVaultStatsFromEntries, resolveWikiTarget,
+  resolveLocalMarkdownTarget, scanNoteContentForBrokenLinks } = require('./helpers/load-plugin').loadPlugin();
 
 test('isReportFile: accurately identifies generated reports', () => {
   assert.strictEqual(isReportFile('Unused_Files_Report_2026-10-29.md'), true);

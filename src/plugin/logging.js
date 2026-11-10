@@ -1,4 +1,7 @@
-class FileMasterLogging extends Plugin {
+import { getEffectiveLanguage, translateUi } from '../i18n.js';
+import { Plugin } from 'obsidian';
+
+export class FileMasterLogging extends Plugin {
   getEffectiveLanguage() {
     return getEffectiveLanguage(this.settings?.language);
   }

@@ -1,6 +1,11 @@
-const REMOTE_GALLERY_PAGE_SIZE = 60;
+import { IMAGE_EXTS } from './constants.js';
+import { formatBytes, getExt, getFileTypeGroup } from './engine.js';
+import { ImageLightboxModal } from './modals/dialogs.js';
+import { Notice, setIcon } from 'obsidian';
 
-function filterRemoteGallery(view) {
+export const REMOTE_GALLERY_PAGE_SIZE = 60;
+
+export function filterRemoteGallery(view) {
   return view.items.filter((item) => {
     if (view.selectedBucket !== 'all' && `${item.year}/${item.month}` !== view.selectedBucket) return false;
     if (view.selectedType !== 'all' && getFileTypeGroup(getExt(item.name || item.filename)) !== view.selectedType) return false;
@@ -8,7 +13,7 @@ function filterRemoteGallery(view) {
   });
 }
 
-function getRemoteGalleryPage(view, filtered) {
+export function getRemoteGalleryPage(view, filtered) {
   const key = `${view.selectedBucket}:${view.selectedType}:${view.searchQuery}`;
   if (key !== view.galleryFilterKey) { view.galleryPage = 0; view.galleryFilterKey = key; }
   const totalPages = Math.max(1, Math.ceil(filtered.length / REMOTE_GALLERY_PAGE_SIZE));
@@ -17,7 +22,7 @@ function getRemoteGalleryPage(view, filtered) {
     items: filtered.slice(view.galleryPage * REMOTE_GALLERY_PAGE_SIZE, (view.galleryPage + 1) * REMOTE_GALLERY_PAGE_SIZE) };
 }
 
-function renderRemoteGallery(view, containerEl, countLabel) {
+export function renderRemoteGallery(view, containerEl, countLabel) {
   containerEl.empty();
   if (view.layoutMode === 'list') {
     containerEl.addClass('is-list');

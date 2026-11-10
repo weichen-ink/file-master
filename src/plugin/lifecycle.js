@@ -1,4 +1,17 @@
-class FileMasterLifecycle extends FileMasterLogging {
+import { VIEW_TYPE_REMOTE_GALLERY } from '../constants.js';
+import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
+import { DuplicateWizardModal } from '../modals/duplicate-wizard.js';
+import { HealthCheckModal } from '../modals/health-check.js';
+import { FileMasterHubModal } from '../modals/hub.js';
+import { OperationLogModal } from '../modals/operation-log.js';
+import { OrphanWizardModal } from '../modals/orphan-wizard.js';
+import { RemoteGalleryModal, RemoteGalleryView } from '../modals/remote-gallery.js';
+import { VaultAnalyticsModal } from '../modals/vault-analytics.js';
+import { FileMasterSettingTab } from '../settings-tab.js';
+import { FileMasterLogging } from './logging.js';
+import { MarkdownView, Notice } from 'obsidian';
+
+export class FileMasterLifecycle extends FileMasterLogging {
   async onload() {
     await this.loadSettings();
     this.operationLogs = [];

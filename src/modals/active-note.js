@@ -1,8 +1,14 @@
+import { formatBytes } from '../engine.js';
+import { formatFriendlyError, returnToHub } from './common.js';
+import { NoteRefsModal } from './dialogs.js';
+import { renderItemVisualThumb } from './incoming-file.js';
+import { Modal, Notice } from 'obsidian';
+
 /**
  * Modal to execute active note operations with 2-step preview/options (for migrate & download conflict check),
  * real-time progress bar & in-window result list
  */
-class ActiveNoteActionModal extends Modal {
+export class ActiveNoteActionModal extends Modal {
   constructor(app, plugin, targetFile, actionType = 'migrate', options = {}) {
     super(app);
     this.plugin = plugin;

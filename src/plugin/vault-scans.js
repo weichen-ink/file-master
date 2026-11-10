@@ -1,4 +1,11 @@
-class FileMasterVaultScans extends FileMasterServerClient {
+import { computeSha256Hex, formatBytes, formatDateYMD, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
+import { ConfirmActionModal } from '../modals/dialogs.js';
+import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, stripRemoteReferenceText } from '../references.js';
+import { runAttachmentOperation } from '../transfers.js';
+import { FileMasterServerClient } from './server-client.js';
+import { Notice, TFile } from 'obsidian';
+
+export class FileMasterVaultScans extends FileMasterServerClient {
   async buildVaultReferenceSnapshot(scanCtx = {}) {
     const { signal, onProgress, freshRead = false } = scanCtx || {};
     const revision = this.referenceRevision || 0;

@@ -1,4 +1,11 @@
-class FileMasterServerClient extends FileMasterContextMenus {
+import { IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt } from '../constants.js';
+import { applyNamingPattern, buildMultipartBuffer, compareSemver, computeSha256Hex, getBaseName, getExt, sanitizeCleanBaseName } from '../engine.js';
+import { IncomingFileModal } from '../modals/incoming-file.js';
+import { requestWithBackoff, throwIfTransferCancelled } from '../transfers.js';
+import { FileMasterContextMenus } from './context-menus.js';
+import { requestUrl } from 'obsidian';
+
+export class FileMasterServerClient extends FileMasterContextMenus {
   filterAllowedFiles(fileList) {
     const out = [];
     for (let i = 0; i < fileList.length; i++) {

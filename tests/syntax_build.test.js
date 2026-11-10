@@ -11,16 +11,12 @@ test('main.js bundle syntax and integrity', () => {
   // Verify node syntax check passes
   execFileSync(process.execPath, ['-c', mainPath]);
 
-  const content = fs.readFileSync(mainPath, 'utf8');
-  assert.ok(content.includes('class FileMasterPlugin'), 'must contain FileMasterPlugin class');
-  assert.ok(content.includes('class FileMasterSettingTab'), 'must contain FileMasterSettingTab class');
-  assert.ok(content.includes('class FileMasterHubModal'), 'must contain FileMasterHubModal class');
-  assert.ok(content.includes('class IncomingFileModal'), 'must contain IncomingFileModal class');
-  assert.ok(content.includes('class OrphanWizardModal'), 'must contain OrphanWizardModal class');
-  assert.ok(content.includes('class DuplicateWizardModal'), 'must contain DuplicateWizardModal class');
-  assert.ok(content.includes('class BatchMigrateWizardModal'), 'must contain BatchMigrateWizardModal class');
-  assert.ok(content.includes('class HealthCheckModal'), 'must contain HealthCheckModal class');
-  assert.ok(content.includes('class VaultAnalyticsModal'), 'must contain VaultAnalyticsModal class');
+  const { Plugin } = require('./helpers/load-plugin').loadPlugin();
+  assert.strictEqual(typeof Plugin, 'function');
+  for (const method of ['onload', 'onunload', 'rewriteContentLinks', 'executeBatchMigrateSafely']) {
+    assert.strictEqual(typeof Plugin.prototype[method], 'function', `release entry must expose ${method}`);
+  }
+
 });
 
 test('mobile compatibility: manifest isDesktopOnly is false and main.js has no Node.js dependencies', () => {

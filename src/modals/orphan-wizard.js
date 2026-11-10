@@ -1,9 +1,14 @@
+import { formatBytes } from '../engine.js';
+import { createScanProgressWidget, returnToHub } from './common.js';
+import { renderItemVisualThumb } from './incoming-file.js';
+import { Modal, Notice } from 'obsidian';
+
 /**
  * Wizard 1: Orphan Finder Wizard
  * Step 1: Select location scope and file types (with real-time scan progress + cancel button)
  * Step 2: Display results, export report, and safely clean selected items
  */
-class OrphanWizardModal extends Modal {
+export class OrphanWizardModal extends Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;

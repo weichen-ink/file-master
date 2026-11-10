@@ -7,7 +7,8 @@
     "test": "node --test tests/*.test.js",
     "sync-demo": "node scripts/sync-demo.js",
     "build": "node scripts/build.js",
-    "package": "node scripts/package-release.js"
+    "package": "node scripts/package-release.js",
+    "pretest": "npm run build"
   },
   "keywords": [
     "obsidian",
@@ -18,5 +19,8 @@
     "asset-management"
   ],
   "author": "weichen-ink <https://github.com/weichen-ink>",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
 }

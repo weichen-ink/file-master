@@ -1,8 +1,10 @@
-function throwIfTransferCancelled(signal) {
+import { computeSha256Hex, getExt } from './engine.js';
+
+export function throwIfTransferCancelled(signal) {
   if (signal?.aborted) throw Object.assign(new Error('TRANSFER_CANCELLED'), { name: 'AbortError' });
 }
 
-function transferDelay(ms, signal) {
+export function transferDelay(ms, signal) {
   return new Promise((resolve, reject) => {
     const cancelled = () => {
       clearTimeout(timer);
@@ -14,7 +16,7 @@ function transferDelay(ms, signal) {
   });
 }
 
-async function requestWithBackoff(request, { signal, delay = transferDelay, maxRetries = 4 } = {}) {
+export async function requestWithBackoff(request, { signal, delay = transferDelay, maxRetries = 4 } = {}) {
   for (let attempt = 0; ; attempt++) {
     throwIfTransferCancelled(signal);
     let response;
@@ -36,7 +38,7 @@ async function requestWithBackoff(request, { signal, delay = transferDelay, maxR
   }
 }
 
-async function runAttachmentOperation(plugin, task, signal) {
+export async function runAttachmentOperation(plugin, task, signal) {
   if (plugin.attachmentOperationRunning) throw new Error(plugin.t('transferBusy'));
   plugin.attachmentOperationRunning = true;
   const controller = new AbortController();
@@ -53,7 +55,7 @@ async function runAttachmentOperation(plugin, task, signal) {
 }
 
 /** One read/atomic transform per affected document, against its latest contents. */
-async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
+export async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
   const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
   const remoteItems = pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj);
   if (remoteItems.length) await plugin.indexRemoteReferences(remoteItems, snapshot);
@@ -93,11 +95,11 @@ async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
   return { modified, changedPaths };
 }
 
-function migrationCheckpointPath(plugin) {
+export function migrationCheckpointPath(plugin) {
   return plugin.getLogFilePath().replace(/operation\.log$/, 'migration-pending.json');
 }
 
-async function saveMigrationCheckpoint(plugin, items, options) {
+export async function saveMigrationCheckpoint(plugin, items, options) {
   const adapter = plugin.app.vault.adapter;
   if (!adapter) return;
   const path = migrationCheckpointPath(plugin);
@@ -110,7 +112,7 @@ async function saveMigrationCheckpoint(plugin, items, options) {
     items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) })) }));
 }
 
-async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
+export async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
   await saveMigrationCheckpoint(plugin, items, options);
   const uploaded = [], failures = [], retryItems = [];
   for (let i = 0; i < items.length; i++) {

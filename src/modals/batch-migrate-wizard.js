@@ -1,9 +1,15 @@
+import { formatBytes } from '../engine.js';
+import { createScanProgressWidget, returnToHub } from './common.js';
+import { NoteRefsModal } from './dialogs.js';
+import { renderItemVisualThumb } from './incoming-file.js';
+import { Modal, Notice, setIcon } from 'obsidian';
+
 /**
  * Wizard 3: Batch Cloud Migration Wizard
  * Step 1: Select migration folder scope, attachment types, and trash policy (with real-time scan progress + cancel button)
  * Step 2: Preview list, progress bar, upload, and verified safe rewrite
  */
-class BatchMigrateWizardModal extends Modal {
+export class BatchMigrateWizardModal extends Modal {
   constructor(app, plugin, initialFolder = '') {
     super(app);
     this.plugin = plugin;

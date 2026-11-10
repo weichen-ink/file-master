@@ -3,69 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const pluginCode = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-// Extract definitions from bundled main.js
-const getExtMatch = pluginCode.match(/function getExt\([\s\S]*?\n\}/);
-const getBaseNameMatch = pluginCode.match(/function getBaseName\([\s\S]*?\n\}/);
-const imgExtsMatch = pluginCode.match(/const IMAGE_EXTS = new Set\([\s\S]*?\);/);
-const escRegMatch = pluginCode.match(/function escapeRegExp\([\s\S]*?\n\}/);
-const isExcalContentMatch = pluginCode.match(/function isExcalidrawContent\([\s\S]*?\n\}/);
-const isExcalFileMatch = pluginCode.match(/function isExcalidrawFile\([\s\S]*?\n\}/);
-const isDocFileMatch = pluginCode.match(/function isDocFile\([\s\S]*?\n\}/);
-const rewriteExcalMatch = pluginCode.match(/function rewriteExcalidrawEmbeddedFiles\([\s\S]*?\n\}/);
-const rewriteMatch = pluginCode.match(/^  rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/m);
-
-const isAttachmentExtMatch = pluginCode.match(/function isAttachmentExt\([\s\S]*?\n\}/);
-const getFileTypeGroupMatch = pluginCode.match(/function getFileTypeGroup\([\s\S]*?\n\}/);
-const obsExtsMatch = pluginCode.match(/const OBSIDIAN_NOTE_EXTS = new Set\([\s\S]*?\);/);
-
-assert.ok(getExtMatch, 'getExt must be present');
-assert.ok(getBaseNameMatch, 'getBaseName must be present');
-assert.ok(imgExtsMatch, 'IMAGE_EXTS must be present');
-assert.ok(escRegMatch, 'escapeRegExp must be present');
-assert.ok(isAttachmentExtMatch, 'isAttachmentExt must be present');
-assert.ok(getFileTypeGroupMatch, 'getFileTypeGroup must be present');
-assert.ok(obsExtsMatch, 'OBSIDIAN_NOTE_EXTS must be present');
-assert.ok(isExcalContentMatch, 'isExcalidrawContent must be present');
-assert.ok(isExcalFileMatch, 'isExcalidrawFile must be present');
-assert.ok(isDocFileMatch, 'isDocFile must be present');
-assert.ok(rewriteExcalMatch, 'rewriteExcalidrawEmbeddedFiles must be present');
-assert.ok(rewriteMatch, 'rewriteContentLinks must be present');
-
-const evalEnv = new Function(
-  `${getExtMatch[0]}
-   ${getBaseNameMatch[0]}
-   ${imgExtsMatch[0]}
-   ${obsExtsMatch[0]}
-   ${escRegMatch[0]}
-   ${isAttachmentExtMatch[0]}
-   ${getFileTypeGroupMatch[0]}
-   ${isExcalContentMatch[0]}
-   ${isExcalFileMatch[0]}
-   ${isDocFileMatch[0]}
-   ${rewriteExcalMatch[0]}
-   const plugin = { ${rewriteMatch[0]} };
-   return {
-     isAttachmentExt,
-     getFileTypeGroup,
-     isExcalidrawContent,
-     isExcalidrawFile,
-     isDocFile,
-     rewriteExcalidrawEmbeddedFiles,
-     rewriteContentLinks: (content, rem, keep, context) => plugin.rewriteContentLinks(content, rem, keep, context)
-   };`
-);
-
-const {
-  isAttachmentExt,
-  getFileTypeGroup,
-  isExcalidrawContent,
-  isExcalidrawFile,
-  isDocFile,
-  rewriteExcalidrawEmbeddedFiles,
-  rewriteContentLinks
-} = evalEnv();
+const { loadPlugin } = require('./helpers/load-plugin');
+const { isAttachmentExt, getFileTypeGroup, isExcalidrawContent, isExcalidrawFile,
+  isDocFile, rewriteExcalidrawEmbeddedFiles, rewriteContentLinks } = loadPlugin();
 
 test('isExcalidrawContent: robustly detects Excalidraw content across multiple formats', () => {
   const standardExcal = `---

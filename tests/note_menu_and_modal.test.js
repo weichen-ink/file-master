@@ -1,124 +1,119 @@
 const { test } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
+const assert = require('node:assert/strict');
+const { loadPlugin } = require('./helpers/load-plugin');
 
-test('Menu Integration: file-menu handles Markdown files for top-right note header menu', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
+function menuFixture() {
+  const loaded = loadPlugin();
+  const handlers = new Map();
+  const plugin = new loaded.Plugin({ workspace: { on: (event, callback) => handlers.set(event, callback) } });
+  plugin.settings = { enableRemoteServer: true, serverVerified: true, serverUrl: 'https://example.com', apiToken: 'test' };
+  plugin.registerEvent = () => {};
+  plugin.t = (key) => key;
+  plugin.registerContextMenus();
+  const entries = [];
+  const menu = { addItem(callback) {
+    const entry = { setTitle(title) { this.title = title; return this; }, setIcon() { return this; }, onClick(fn) { this.click = fn; return this; } };
+    callback(entry); entries.push(entry);
+  } };
+  return { ...loaded, plugin, handlers, entries, menu };
+}
 
-  // Verify file-menu handles .md files
-  assert.ok(mainContent.includes("abstractFile.extension === 'md'"), 'Must handle abstractFile.extension === md');
-  assert.ok(mainContent.includes('menuActiveNoteMigrate'), 'Must register menuActiveNoteMigrate');
-  assert.ok(mainContent.includes('menuActiveNoteDownload'), 'Must register menuActiveNoteDownload');
-  assert.ok(mainContent.includes('menuActiveNoteAstro'), 'Must register menuActiveNoteAstro');
+test('Menu Integration: Markdown actions invoke migration, download and public-link commands', () => {
+  const f = menuFixture();
+  const file = { path: 'note.md', extension: 'md' };
+  const invoked = [];
+  for (const name of ['migrateActiveNoteAttachments', 'downloadActiveNoteRemoteAttachments', 'copyActiveNoteForAstro']) {
+    f.plugin[name] = (target) => invoked.push([name, target]);
+  }
+  f.handlers.get('file-menu')(f.menu, file);
+  assert.deepEqual(f.entries.map((e) => e.title), ['menuActiveNoteMigrate', 'menuActiveNoteDownload', 'menuActiveNoteAstro']);
+  f.entries.forEach((entry) => entry.click());
+  assert.equal(invoked.length, 3);
+  assert.ok(invoked.every(([, target]) => target === file));
 });
 
-test('In-Modal Result UX: IncomingFileModal & ActiveNoteActionModal exist in main bundle', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-  // Verify modal classes
-  assert.ok(mainContent.includes('class IncomingFileModal extends Modal'), 'IncomingFileModal must be defined');
-  assert.ok(mainContent.includes('class ActiveNoteActionModal extends Modal'), 'ActiveNoteActionModal must be defined');
-
-  // Verify in-modal result banner & copy row usage
-  assert.ok(mainContent.includes('fm-result-banner'), 'fm-result-banner must be used in modals');
-  assert.ok(mainContent.includes('destInstantBadge'), 'destInstantBadge must be used for instant deduplication');
-  assert.ok(mainContent.includes('destBtnDone'), 'destBtnDone must be used as primary confirmation');
-  assert.ok(mainContent.includes('destLabelRawUrl'), 'destLabelRawUrl must be rendered with copy button');
+test('In-modal result: local image insertion preserves embed syntax and closes the modal', async () => {
+  const { IncomingFileModal } = loadPlugin();
+  let inserted;
+  const app = { workspace: { getActiveFile: () => null },
+    fileManager: { getAvailablePathForAttachment: async () => 'a.png', generateMarkdownLink: () => '[[a.png]]' },
+    vault: { createBinary: async () => ({ path: 'a.png' }) } };
+  const modal = new IncomingFileModal(app, { defaultBaseName: 'a', ext: 'png', arrayBuffer: new ArrayBuffer(1) },
+    { editor: { replaceSelection: (value) => { inserted = value; } } });
+  let closed = false;
+  modal.close = () => { closed = true; };
+  await modal.runExecution();
+  assert.equal(closed, true);
+  assert.equal(inserted, '![[a.png]]\n');
+  assert.equal(modal.result.success, true);
 });
 
-test('Wizard Modals: Step 3 summary exists for Batch Migration & Deduplication', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-  // Verify batch migrate step 3 summary
-  assert.ok(mainContent.includes('batchResultTitle'), 'batchResultTitle must be rendered in step 3');
-  assert.ok(mainContent.includes('batchExportReport'), 'batchExportReport must be rendered in step 3');
-  assert.ok(mainContent.includes('batchResultListTitle'), 'batchResultListTitle must be rendered in step 3');
-  assert.ok(mainContent.includes('exportBatchMigrateReportToRoot'), 'exportBatchMigrateReportToRoot must exist');
-  assert.ok(mainContent.includes('dupResultTitle'), 'dupResultTitle must be rendered in step 3');
-  assert.ok(mainContent.includes('orphanResultTitle'), 'orphanResultTitle must be rendered in step 2 banner');
+test('Wizard result steps dispatch to batch and duplicate summaries', () => {
+  const { BatchMigrateWizardModal, DuplicateWizardModal } = loadPlugin();
+  for (const Wizard of [BatchMigrateWizardModal, DuplicateWizardModal]) {
+    const modal = new Wizard({}, { settings: {} });
+    const el = { empty() {}, addClass() {} };
+    modal.contentEl = el;
+    modal.step = 3;
+    let rendered = false;
+    modal.renderStep3 = (target) => { assert.equal(target, el); rendered = true; };
+    modal.render();
+    assert.equal(rendered, true);
+  }
 });
 
-test('Remote Server Gating: enableRemoteServer switch & isRemoteServerReady gates remote features', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-  // Check isRemoteServerReady definition
-  assert.ok(mainContent.includes('isRemoteServerReady()'), 'isRemoteServerReady must be defined');
-  assert.ok(mainContent.includes('enableRemoteServer: false'), 'enableRemoteServer default must be false');
-  assert.ok(mainContent.includes('serverVerified: false'), 'serverVerified default must be false');
-
-  // Verify menus are gated with isRemoteServerReady
-  assert.ok(mainContent.includes('this.isRemoteServerReady()'), 'Menus must check isRemoteServerReady');
-  assert.ok(mainContent.includes('enableRemoteServerName'), 'enableRemoteServer setting toggle must exist');
+test('Remote gating: unverified servers expose no remote note actions', () => {
+  const f = menuFixture();
+  f.plugin.settings.serverVerified = false;
+  f.handlers.get('file-menu')(f.menu, { extension: 'md' });
+  assert.deepEqual(f.entries, []);
+  assert.equal(f.plugin.isRemoteServerReady(), false);
 });
 
-test('Remote Asset Gallery: RemoteGalleryModal exists and is registered', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-  // Verify class definition
-  assert.ok(mainContent.includes('class RemoteGalleryModal extends Modal'), 'RemoteGalleryModal must be defined');
-
-  // Verify command registration
-  assert.ok(mainContent.includes("id: 'open-remote-gallery'"), 'open-remote-gallery command must be registered');
-  assert.ok(mainContent.includes("nameKey: 'cmdRemoteGallery'"), 'cmdRemoteGallery name key must be used');
-
-  // Verify Hub card integration
-  assert.ok(mainContent.includes('actRemoteGalleryTitle'), 'actRemoteGalleryTitle must be in Hub card');
-
-  // Verify key gallery features in modal
-  assert.ok(mainContent.includes('gallerySearchPlaceholder'), 'Search input must exist');
-  assert.ok(mainContent.includes('galleryBtnInsert'), 'Insert to editor button must exist');
-  assert.ok(mainContent.includes('galleryBtnLock'), 'Lock toggle button must exist');
-  assert.ok(mainContent.includes('galleryBtnDelete'), 'Delete file button must exist');
+test('Remote gallery command is registered and gated by server readiness', () => {
+  const { plugin } = menuFixture();
+  const commands = [];
+  plugin.addCommand = (command) => commands.push(command);
+  plugin.registerPluginCommands();
+  const gallery = commands.find((command) => command.id === 'open-remote-gallery');
+  assert.ok(gallery);
+  assert.equal(gallery.checkCallback(true), true);
+  plugin.settings.enableRemoteServer = false;
+  assert.equal(gallery.checkCallback(true), false);
 });
 
-test('Remote Asset Gallery View: RemoteGalleryView sidebar leaf integration', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-  // Verify view class definition
-  assert.ok(mainContent.includes('class RemoteGalleryView extends ItemView'), 'RemoteGalleryView must extend ItemView');
-
-  // Verify view constant and registration
-  assert.ok(mainContent.includes("VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery'"), 'VIEW_TYPE_REMOTE_GALLERY constant must be defined');
-  assert.ok(mainContent.includes('this.registerView(') && mainContent.includes('VIEW_TYPE_REMOTE_GALLERY'), 'View must be registered in onload');
-
-  // Verify view command and Hub card
-  assert.ok(mainContent.includes("id: 'open-remote-gallery-view'"), 'open-remote-gallery-view command must be registered');
-  assert.ok(mainContent.includes('activateGalleryView()'), 'activateGalleryView method must be defined');
-  assert.ok(mainContent.includes('actRemoteGalleryViewTitle'), 'actRemoteGalleryViewTitle must be in Hub card');
-
-  // Verify calendar-like persistence and cursor insertion helper
-  assert.ok(mainContent.includes('initGalleryLeaf('), 'initGalleryLeaf helper must exist');
-  assert.ok(mainContent.includes('insertMarkdownToActiveEditor('), 'insertMarkdownToActiveEditor helper must exist');
-  assert.ok(!mainContent.includes('detachLeavesOfType(VIEW_TYPE_REMOTE_GALLERY)'), 'Must not detach gallery leaf in onunload to persist across sessions');
+test('Gallery lifecycle: commands activate sidebar and unload preserves docked leaves', () => {
+  const { plugin } = menuFixture();
+  const commands = [];
+  let activated = false, aborted = false;
+  plugin.addCommand = (command) => commands.push(command);
+  plugin.activateGalleryView = () => { activated = true; };
+  plugin.activeTransferController = { abort: () => { aborted = true; } };
+  plugin.app.workspace.detachLeavesOfType = () => { throw new Error('must preserve docked gallery'); };
+  plugin.registerPluginCommands();
+  commands.find((command) => command.id === 'open-remote-gallery-view').checkCallback(false);
+  assert.equal(activated, true);
+  plugin.onunload();
+  assert.equal(aborted, true);
 });
 
-test('Batch Migration Report: exportBatchMigrateReportToRoot produces structured report', async () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-  // Verify function logic exists and produces Batch_Migrate_Report_
-  assert.ok(mainContent.includes('Batch_Migrate_Report_'), 'Must generate Batch_Migrate_Report_');
-  assert.ok(mainContent.includes('writeOrUpdateRootReport'), 'Must call writeOrUpdateRootReport');
+test('Batch report includes uploaded files and failures', async () => {
+  const { Plugin } = loadPlugin();
+  const plugin = new Plugin({});
+  plugin.settings = { language: 'en' };
+  let output;
+  plugin.writeOrUpdateRootReport = async (name, contents) => { output = { name, contents }; };
+  await plugin.exportBatchMigrateReportToRoot({ count: 1, docs: 2,
+    processedItems: [{ name: 'a.png', rawUrl: 'https://example.com/a.png', size: 5 }], failures: [{ path: 'b.png', error: 'offline' }] });
+  assert.match(output.name, /^Batch_Migrate_Report_/);
+  assert.ok(output.contents.includes('https://example.com/a.png'));
+  assert.ok(output.contents.includes('offline'));
 });
 
-test('Incoming Attachment Flow: unified modal style, image embed ! prefix, and seamless auto-insert', () => {
-  const mainContent = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-  const styles = fs.readFileSync(path.join(__dirname, '../styles.css'), 'utf8');
-
-  // 1. Check IncomingFileModal opens on incoming file
-  assert.ok(mainContent.includes("this.step = 'input'"), "IncomingFileModal must always start at step 'input'");
-  assert.ok(mainContent.includes('new IncomingFileModal(this.app, fileInfo, modalOptions).open()'), 'Must open IncomingFileModal on incoming files');
-
-  // 2. Check image link always includes ! prefix for preview
-  assert.ok(mainContent.includes("!mdLink.startsWith('!')"), 'Must ensure local image wikilink starts with !');
-  assert.ok(mainContent.includes("!finalMarkdown.startsWith('!')"), 'Must ensure remote image markdown starts with !');
-
-  // 3. Check auto close when inserted into editor
-  assert.ok(mainContent.includes('this.result?.success && this.result?.inserted'), 'Must auto-close modal when inserted into editor');
-
-  // 4. Check unified CSS classes for incoming modal
-  assert.ok(styles.includes('.fm-incoming-modal-dialog'), 'styles.css must define .fm-incoming-modal-dialog');
-  assert.ok(styles.includes('.fm-incoming-dest-grid'), 'styles.css must define .fm-incoming-dest-grid');
-  assert.ok(styles.includes('.fm-incoming-dest-card'), 'styles.css must define .fm-incoming-dest-card');
+test('Incoming attachment: unavailable remote destination falls back to local input', () => {
+  const { IncomingFileModal } = loadPlugin();
+  const modal = new IncomingFileModal({}, { defaultBaseName: 'a', ext: 'png' }, { fixedLocation: 'remote' });
+  assert.equal(modal.step, 'input');
+  assert.equal(modal.targetLocation, 'local');
+  assert.equal(modal.finalFilename, 'a.png');
 });
-

@@ -3,21 +3,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const pluginCode = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-
-// Extract pure functions and definitions from main.js
-const imgExtsMatch = pluginCode.match(/const IMAGE_EXTS = new Set\([\s\S]*?\);/);
-const escRegMatch = pluginCode.match(/function escapeRegExp\([\s\S]*?\n\}/);
-const rewriteMatch = pluginCode.match(/^  rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/m);
-
-assert.ok(imgExtsMatch, 'IMAGE_EXTS must be found in main.js');
-assert.ok(escRegMatch, 'escapeRegExp must be found in main.js');
-assert.ok(rewriteMatch, 'rewriteContentLinks must be found in main.js');
-
-const rewriteContentLinks = new Function(
-  'content, removeItem, keepItem, docPathOrContext',
-  imgExtsMatch[0] + '\n' + escRegMatch[0] + '\nconst self = {' + rewriteMatch[0] + '};\nreturn self.rewriteContentLinks(content, removeItem, keepItem, docPathOrContext);'
-);
+const { rewriteContentLinks } = require('./helpers/load-plugin').loadPlugin();
 
 test('rewriteContentLinks: WikiLink image embed replacement', () => {
   const localItem = {

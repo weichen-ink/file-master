@@ -1,5 +1,7 @@
+import { getBaseName } from './engine.js';
+
 /** Match all reference candidates in one pass through each document. */
-function createTextReferenceMatcher(patterns) {
+export function createTextReferenceMatcher(patterns) {
   const nodes = [{ next: new Map(), fail: 0, outputs: [] }];
   for (const pattern of patterns) {
     const value = String(pattern.value || '').toLowerCase();
@@ -50,13 +52,13 @@ function createTextReferenceMatcher(patterns) {
   };
 }
 
-function stripRemoteReferenceText(input) {
+export function stripRemoteReferenceText(input) {
   return String(input || '')
     .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
     .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
 }
 
-function createLocalReferenceMatcher(files, isDrawing) {
+export function createLocalReferenceMatcher(files, isDrawing) {
   const patterns = [];
   for (const file of files) {
     for (const value of new Set([file.path, file.name])) {
@@ -69,7 +71,7 @@ function createLocalReferenceMatcher(files, isDrawing) {
   return createTextReferenceMatcher(patterns);
 }
 
-function addReference(index, target, source) {
+export function addReference(index, target, source) {
   if (target === source) return;
   if (!index.has(target)) index.set(target, new Set());
   index.get(target).add(source);
