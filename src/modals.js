@@ -730,7 +730,6 @@ class IncomingFileModal extends Modal {
             this.fileInfo.arrayBuffer,
             this.finalFilename,
             this.fileInfo.mimeType || 'application/octet-stream',
-            false,
             { skipProbe: true }
           );
           if (this.progressBar) this.progressBar.style.width = '100%';
@@ -2472,7 +2471,7 @@ class BatchMigrateWizardModal extends Modal {
       : '';
     const trashFailures = this.summary?.trashFailures || [];
     const trashFailText = trashFailures.length > 0
-      ? `  |  ⚠️ ${trashFailures.length} 个本地原文件清理失败`
+      ? t('batchResultTrashFailuresPart', { count: trashFailures.length })
       : '';
 
     banner.createDiv({

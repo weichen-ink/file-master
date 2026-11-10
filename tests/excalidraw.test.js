@@ -15,7 +15,7 @@ const doesRefMatch = pluginCode.match(/function doesDocumentReferenceLocalFile\(
 const isExcalFileMatch = pluginCode.match(/function isExcalidrawFile\([\s\S]*?\n\}/);
 const isDocFileMatch = pluginCode.match(/function isDocFile\([\s\S]*?\n\}/);
 const rewriteExcalMatch = pluginCode.match(/function rewriteExcalidrawEmbeddedFiles\([\s\S]*?\n\}/);
-const rewriteMatch = pluginCode.match(/rewriteContentLinks\(content, removeItem, keepItem\) {[\s\S]*?\n  \}/);
+const rewriteMatch = pluginCode.match(/rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/);
 
 const isAttachmentExtMatch = pluginCode.match(/function isAttachmentExt\([\s\S]*?\n\}/);
 const getFileTypeGroupMatch = pluginCode.match(/function getFileTypeGroup\([\s\S]*?\n\}/);
@@ -57,7 +57,7 @@ const evalEnv = new Function(
      isExcalidrawFile,
      isDocFile,
      rewriteExcalidrawEmbeddedFiles,
-     rewriteContentLinks: (content, rem, keep) => plugin.rewriteContentLinks(content, rem, keep)
+     rewriteContentLinks: (content, rem, keep, context) => plugin.rewriteContentLinks(content, rem, keep, context)
    };`
 );
 
@@ -459,4 +459,43 @@ id_foreign_url: https://other-domain.org/assets/diagram.png
   const revertResult = rewriteContentLinks(revertDoc, remoteItemA, localItemA);
   assert.ok(revertResult.includes('id_target_cdn: [[attachments/a/diagram.png]]'), 'CDN URL must be reverted to local');
   assert.ok(revertResult.includes('id_foreign_url: https://other-domain.org/assets/diagram.png'), 'Foreign URL must NOT be reverted to local');
+});
+
+test('rewriteContentLinks in Excalidraw: bare link [[diagram.png]] uses resolveLink to disambiguate identical filenames', () => {
+  const localItemA = {
+    id: 'local:attachments/a/diagram.png',
+    source: 'local',
+    name: 'diagram.png',
+    displayPath: 'attachments/a/diagram.png',
+    ext: 'png'
+  };
+  const remoteItemA = {
+    id: 'remote:2026/11/diagram.png',
+    source: 'remote',
+    name: 'diagram.png',
+    filename: 'diagram.png',
+    displayPath: '2026/11/diagram.png',
+    ext: 'png',
+    rawObj: {
+      rawUrl: 'https://cdn.example.com/raw/2026/11/diagram.png'
+    }
+  };
+
+  const doc = `## Embedded Files
+id_bare: [[diagram.png]]
+`;
+
+  // Case 1: resolveLink resolves bare link to attachments/b/diagram.png (different file) -> must NOT rewrite
+  const contextResolvesToB = {
+    resolveLink: (ref) => (ref === 'diagram.png' ? 'attachments/b/diagram.png' : null)
+  };
+  const resultB = rewriteContentLinks(doc, localItemA, remoteItemA, contextResolvesToB);
+  assert.ok(resultB.includes('id_bare: [[diagram.png]]'), 'Bare link resolving to b must NOT be rewritten when migrating a');
+
+  // Case 2: resolveLink resolves bare link to attachments/a/diagram.png (target file) -> must rewrite
+  const contextResolvesToA = {
+    resolveLink: (ref) => (ref === 'diagram.png' ? 'attachments/a/diagram.png' : null)
+  };
+  const resultA = rewriteContentLinks(doc, localItemA, remoteItemA, contextResolvesToA);
+  assert.ok(resultA.includes('id_bare: https://cdn.example.com/raw/2026/11/diagram.png'), 'Bare link resolving to a must be rewritten');
 });

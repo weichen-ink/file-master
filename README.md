@@ -31,9 +31,9 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
   Paste screenshots or drag attachments into your notes. FileMaster checks the content SHA-256 via a lightweight probe query and reuses existing cloud assets instantly without re-uploading file bytes.
 
 - 🎨 **Markdown, Canvas & Excalidraw Compatible**:
-  First-class citizen support for standard notes, `.canvas` whiteboards, and Excalidraw drawings (`## Embedded Files`). Safe link rewriting guarantees no drawing corruption.
+  First-class citizen support for standard notes, `.canvas` whiteboards, and Excalidraw drawings (`## Embedded Files`). Engineered to safely preserve drawing embed structures.
 
-- 🛡️ **Zero Broken Links Guarantee**:
+- 🛡️ **Robust Link Safety Gate**:
   Every migration and deduplication action follows a strict 2-phase workflow:
   1. Rewrites all backlinks across notes, Canvas, and Excalidraw files.
   2. Runs a **Safety Gate snapshot verification** before any local file can be removed. Lingering references halt deletion automatically.
@@ -123,9 +123,9 @@ FileMaster `1.0.5` requires FileMaster Server `1.0.0` or newer.
 ### ✨ 核心亮点
 
 * 📱 **全平台原生支持**：不依赖任何 Node.js 运行时，在 **Mac、Windows、Linux、iOS、iPadOS 和 Android** 上均可流畅运行。
-* ⚡ **SHA-256 毫秒级秒传**：粘贴或拖入附件时，本地哈希轻量预检；云端已有相同时 0 流量瞬间秒传复用。
-* 🎨 **深度兼容 Canvas 与 Excalidraw**：除标准 Markdown 外，独创支持 Obsidian 白板与 Excalidraw 手绘图（`## Embedded Files`）链接双向无损重写，绝不损坏绘图。
-* 🛡️ **零断链安全保障**：“双阶段重写 + 快照安全闸门”，任何引用残留都会自动拦截删除，杜绝 404 断链。
+* ⚡ **SHA-256 秒传复用**：粘贴或拖入附件时，本地哈希轻量预检；云端已有相同时直接复用，免去重复上传文件体。
+* 🎨 **深度兼容 Canvas 与 Excalidraw**：除标准 Markdown 外，支持 Obsidian 白板与 Excalidraw 手绘图（`## Embedded Files`）链接双向重写，保护手绘图内嵌数据结构。
+* 🛡️ **断链防御安全闸门**：“双阶段重写 + 快照安全闸门”，任何引用残留都会自动拦截删除，有效预防 404 断链。
 * 🖼️ **云端资产侧边栏图库**：拥有专属侧边栏视图与弹出图库，直观翻阅云端素材，一键插图到光标处。
 * 🧹 **资产治理三件套**：
   * **内容哈希查重**：跨本地库与云端深度查重，一键合并多份冗余并重定向双链。

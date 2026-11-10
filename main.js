@@ -626,6 +626,7 @@ const UI_STRINGS = {
     batchResultErrorTitle: '批量上传失败',
     batchResultDesc: '已上传 {count} 个附件，更新 {docs} 篇笔记{trashed}。',
     batchResultFailuresPart: '；另有 {count} 个文件上传失败',
+    batchResultTrashFailuresPart: '  |  ⚠️ {count} 个本地原文件清理失败',
     batchResultListTitle: '已迁移附件列表 ({count})',
     batchFailuresTitle: '上传失败项 ({count})',
     batchExportReport: '📄 导出迁移报告到根目录',
@@ -1175,6 +1176,7 @@ const UI_STRINGS = {
     batchResultErrorTitle: 'Batch upload failed',
     batchResultDesc: 'Uploaded {count} attachments and updated {docs} notes{trashed}.',
     batchResultFailuresPart: '; {count} file(s) failed to upload',
+    batchResultTrashFailuresPart: '  |  ⚠️ Failed to remove {count} local file(s)',
     batchResultListTitle: 'Migrated Assets ({count})',
     batchFailuresTitle: 'Upload Failures ({count})',
     batchExportReport: '📄 Export report to vault root',
@@ -2006,7 +2008,7 @@ function isDocFile(file, app = null) {
  * Excalidraw requires bare URLs (e.g. '<fileId>: https://...'), whereas Markdown bracket
  * syntax '[alt](url)' breaks Excalidraw parser and renders grey boxes.
  */
-function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
+function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, context = {}) {
   if (typeof content !== 'string' || !content) return content;
 
   const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
@@ -2041,8 +2043,16 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
     }
   } else {
     const r = removeItem.rawObj || {};
-    if (r.rawUrl) remoteUrlTargets.add(r.rawUrl.toLowerCase());
-    if (r.pubUrl) remoteUrlTargets.add(r.pubUrl.toLowerCase());
+    if (r.rawUrl) {
+      const u1 = r.rawUrl.toLowerCase();
+      remoteUrlTargets.add(u1);
+      remoteUrlTargets.add(u1.split(/[?#]/)[0]);
+    }
+    if (r.pubUrl) {
+      const u2 = r.pubUrl.toLowerCase();
+      remoteUrlTargets.add(u2);
+      remoteUrlTargets.add(u2.split(/[?#]/)[0]);
+    }
     const year = r.year || removeItem.year;
     const month = r.month || removeItem.month;
     const fname = (removeItem.filename || removeItem.name || '').toLowerCase();
@@ -2090,12 +2100,32 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
         isMatch = localPathTargets.has(cleanRefLower) || localPathTargets.has(decodedRefLower);
       } else {
         // Bare filename without path (e.g. [[diagram.png]])
-        isMatch = localNameTargets.has(cleanRefLower) || localNameTargets.has(decodedRefLower);
+        if (typeof context?.resolveLink === 'function') {
+          const resolved = context.resolveLink(cleanRef);
+          if (resolved) {
+            const resLower = resolved.toLowerCase().replace(/^\.?\//, '');
+            let decodedResLower = resLower;
+            try { decodedResLower = decodeURIComponent(resLower); } catch {}
+            isMatch = localPathTargets.has(resLower) || localPathTargets.has(decodedResLower);
+          } else {
+            // Cannot resolve or ambiguous destination -> preserve link safely
+            isMatch = false;
+          }
+        } else {
+          isMatch = localNameTargets.has(cleanRefLower) || localNameTargets.has(decodedRefLower);
+        }
       }
     } else {
       // removeItem.source === 'remote'
+      const cleanRefWithoutQuery = cleanRefLower.split(/[?#]/)[0];
+      const decodedRefWithoutQuery = decodedRefLower.split(/[?#]/)[0];
       if (isUrl) {
-        if (remoteUrlTargets.has(cleanRefLower) || remoteUrlTargets.has(decodedRefLower)) {
+        if (
+          remoteUrlTargets.has(cleanRefLower) ||
+          remoteUrlTargets.has(decodedRefLower) ||
+          remoteUrlTargets.has(cleanRefWithoutQuery) ||
+          remoteUrlTargets.has(decodedRefWithoutQuery)
+        ) {
           isMatch = true;
         } else {
           try {
@@ -2116,8 +2146,8 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
           } catch {}
         }
       } else if (hasPathSlash) {
-        const p = cleanRefLower.replace(/^(?:raw|pub)\//, '');
-        const decP = decodedRefLower.replace(/^(?:raw|pub)\//, '');
+        const p = cleanRefWithoutQuery.replace(/^(?:raw|pub)\//, '');
+        const decP = decodedRefWithoutQuery.replace(/^(?:raw|pub)\//, '');
         isMatch = remotePathTargets.has(p) || remotePathTargets.has(decP);
       } else {
         isMatch = false;
@@ -2872,7 +2902,6 @@ class IncomingFileModal extends Modal {
             this.fileInfo.arrayBuffer,
             this.finalFilename,
             this.fileInfo.mimeType || 'application/octet-stream',
-            false,
             { skipProbe: true }
           );
           if (this.progressBar) this.progressBar.style.width = '100%';
@@ -4614,7 +4643,7 @@ class BatchMigrateWizardModal extends Modal {
       : '';
     const trashFailures = this.summary?.trashFailures || [];
     const trashFailText = trashFailures.length > 0
-      ? `  |  ⚠️ ${trashFailures.length} 个本地原文件清理失败`
+      ? t('batchResultTrashFailuresPart', { count: trashFailures.length })
       : '';
 
     banner.createDiv({
@@ -6991,8 +7020,9 @@ class FileMasterPlugin extends Plugin {
     mimeType = 'application/octet-stream',
     options = {}
   ) {
+    const opts = typeof options === 'boolean' ? { uploadToProtected: options } : (options || {});
     // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
-    if (!options.skipProbe) {
+    if (!opts.skipProbe) {
       try {
         const fullSha256 = await computeSha256Hex(arrayBuffer);
         const probed = await this.probeRemoteSha256(fullSha256);
@@ -8114,11 +8144,36 @@ class FileMasterPlugin extends Plugin {
     new Notice(this.t('noticeReportGenerated', { path: reportPath }));
   }
 
-  rewriteContentLinks(content, removeItem, keepItem) {
-    let updated = content;
+  rewriteContentLinks(content, removeItem, keepItem, docPathOrContext = '') {
+    if (typeof content !== 'string' || !content) return content;
 
-    if (typeof rewriteExcalidrawEmbeddedFiles === 'function') {
-      updated = rewriteExcalidrawEmbeddedFiles(updated, removeItem, keepItem);
+    const docPath = typeof docPathOrContext === 'string' ? docPathOrContext : (docPathOrContext?.docPath || '');
+    const customResolve = typeof docPathOrContext === 'object' && typeof docPathOrContext?.resolveLink === 'function'
+      ? docPathOrContext.resolveLink
+      : null;
+
+    const resolveLink = (ref) => {
+      if (customResolve) return customResolve(ref);
+      if (this.app?.metadataCache?.getFirstLinkpathDest) {
+        const tfile = this.app.metadataCache.getFirstLinkpathDest(ref, docPath || '');
+        return tfile ? tfile.path : null;
+      }
+      return null;
+    };
+
+    let excalSection = null;
+    let preSection = content;
+    let postSection = '';
+    const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
+    const match = sectionRegex.exec(content);
+    if (match) {
+      if (typeof rewriteExcalidrawEmbeddedFiles === 'function') {
+        excalSection = rewriteExcalidrawEmbeddedFiles(match[0], removeItem, keepItem, { docPath, resolveLink });
+      } else {
+        excalSection = match[0];
+      }
+      preSection = content.slice(0, match.index);
+      postSection = content.slice(match.index + match[0].length);
     }
 
     const buildReplacementForWikiEmbed = (aliasOrWidth) => {
@@ -8155,60 +8210,99 @@ class FileMasterPlugin extends Plugin {
       }
     };
 
-    if (removeItem.source === 'local') {
-      const candidates = new Set([
-        removeItem.displayPath,
-        removeItem.name,
-        encodeURI(removeItem.displayPath),
-        encodeURI(removeItem.name),
-        encodeURIComponent(removeItem.name)
-      ]);
+    const rewriteMarkdownFragment = (fragment) => {
+      if (!fragment) return fragment;
+      let updated = fragment;
 
-      for (const cand of candidates) {
-        const esc = escapeRegExp(cand);
-        const wikiEmbedRe = new RegExp(`!\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, 'g');
-        updated = updated.replace(wikiEmbedRe, (_, alias) => buildReplacementForWikiEmbed(alias));
+      if (removeItem.source === 'local') {
+        const candidates = new Set([
+          removeItem.displayPath,
+          removeItem.name,
+          encodeURI(removeItem.displayPath),
+          encodeURI(removeItem.name),
+          encodeURIComponent(removeItem.name)
+        ]);
 
-        const wikiLinkRe = new RegExp(`(?<!!)\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, 'g');
-        updated = updated.replace(wikiLinkRe, (_, alias) => buildReplacementForWikiLink(alias));
+        const isBareCandidate = (c) => !c.includes('/');
 
-        const mdLinkRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(<?(?:\\.\\.?\\/)*${esc}(?:[?#][^)\\s>]*)?>?\\)`, 'g');
-        updated = updated.replace(mdLinkRe, (_, bang, alt) =>
-          buildReplacementForMdLink(bang === '!', alt)
-        );
-      }
+        for (const cand of candidates) {
+          const esc = escapeRegExp(cand);
+          const isBare = isBareCandidate(cand);
 
-      if (keepItem.source === 'local') {
-        updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.displayPath}"`);
+          const checkBareMatchAllowed = () => {
+            if (!isBare) return true;
+            if (resolveLink) {
+              const dest = resolveLink(cand);
+              if (dest) {
+                const destPath = dest.toLowerCase().replace(/^\.?\//, '');
+                const targetPath = (removeItem.displayPath || '').toLowerCase().replace(/^\.?\//, '');
+                return destPath === targetPath;
+              } else if (customResolve) {
+                return false;
+              }
+            }
+            return true;
+          };
+
+          const wikiEmbedRe = new RegExp(`!\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, 'g');
+          updated = updated.replace(wikiEmbedRe, (m, alias) => {
+            if (!checkBareMatchAllowed()) return m;
+            return buildReplacementForWikiEmbed(alias);
+          });
+
+          const wikiLinkRe = new RegExp(`(?<!!)\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, 'g');
+          updated = updated.replace(wikiLinkRe, (m, alias) => {
+            if (!checkBareMatchAllowed()) return m;
+            return buildReplacementForWikiLink(alias);
+          });
+
+          const mdLinkRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(<?(?:\\.\\.?\\/)*${esc}(?:[?#][^)\\s>]*)?>?\\)`, 'g');
+          updated = updated.replace(mdLinkRe, (m, bang, alt) => {
+            if (!checkBareMatchAllowed()) return m;
+            return buildReplacementForMdLink(bang === '!', alt);
+          });
+        }
+
+        if (keepItem.source === 'local') {
+          updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.displayPath}"`);
+        } else {
+          updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.rawObj.rawUrl}"`);
+        }
       } else {
-        updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.rawObj.rawUrl}"`);
-      }
-    } else {
-      const r = removeItem.rawObj;
-      const encodedName = encodeURIComponent(r.filename);
-      const urlPatterns = new Set([
-        r.rawUrl,
-        r.pubUrl,
-        `${r.year}/${r.month}/${r.filename}`,
-        `${r.year}/${r.month}/${encodedName}`
-      ]);
+        const r = removeItem.rawObj;
+        const encodedName = encodeURIComponent(r.filename);
+        const urlPatterns = new Set([
+          r.rawUrl,
+          r.pubUrl,
+          `${r.year}/${r.month}/${r.filename}`,
+          `${r.year}/${r.month}/${encodedName}`
+        ]);
 
-      for (const pat of urlPatterns) {
-        if (!pat) continue;
-        const esc = escapeRegExp(pat);
-        const remoteMdRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(([^)\\s]*${esc})\\)`, 'g');
-        updated = updated.replace(remoteMdRe, (_, bang, alt) =>
-          buildReplacementForMdLink(bang === '!', alt)
-        );
+        for (const pat of urlPatterns) {
+          if (!pat) continue;
+          const esc = escapeRegExp(pat);
+          const remoteMdRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(([^)\\s]*${esc})(?:[?#][^)\\s]*)?\\)`, 'g');
+          updated = updated.replace(remoteMdRe, (_, bang, alt) =>
+            buildReplacementForMdLink(bang === '!', alt)
+          );
+        }
+
+        if (keepItem.source === 'remote') {
+          if (r.rawUrl) updated = updated.split(r.rawUrl).join(keepItem.rawObj.rawUrl);
+          if (r.pubUrl) updated = updated.split(r.pubUrl).join(keepItem.rawObj.pubUrl);
+        }
       }
 
-      if (keepItem.source === 'remote') {
-        if (r.rawUrl) updated = updated.split(r.rawUrl).join(keepItem.rawObj.rawUrl);
-        if (r.pubUrl) updated = updated.split(r.pubUrl).join(keepItem.rawObj.pubUrl);
-      }
+      return updated;
+    };
+
+    const rewrittenPre = rewriteMarkdownFragment(preSection);
+    const rewrittenPost = rewriteMarkdownFragment(postSection);
+
+    if (match && excalSection !== null) {
+      return rewrittenPre + excalSection + rewrittenPost;
     }
-
-    return updated;
+    return rewrittenPre;
   }
 
   async executeDuplicateMergeSafely(groups, onComplete) {
@@ -8268,7 +8362,7 @@ class FileMasterPlugin extends Plugin {
         let next = content;
         for (const { keepItem, removeItems } of tasks) {
           for (const rem of removeItems) {
-            next = this.rewriteContentLinks(next, rem, keepItem);
+            next = this.rewriteContentLinks(next, rem, keepItem, doc.path);
           }
         }
         return next;
@@ -8392,7 +8486,7 @@ class FileMasterPlugin extends Plugin {
       let modifiedCount = 0;
       for (const doc of allDocs) {
         const modified = await this.safeModifyFileContent(doc, (orig) => {
-          return this.rewriteContentLinks(orig, removeItem, keepItem);
+          return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
         });
         if (modified) modifiedCount++;
       }
@@ -8522,7 +8616,7 @@ class FileMasterPlugin extends Plugin {
       const syncedOtherNotePaths = [];
       for (const doc of allDocs) {
         const modified = await this.safeModifyFileContent(doc, (orig) => {
-          return this.rewriteContentLinks(orig, removeItem, keepItem);
+          return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
         });
         if (modified) {
           modifiedCount++;
@@ -8576,14 +8670,16 @@ class FileMasterPlugin extends Plugin {
     const matchesMap = new Map();
     let m;
     while ((m = re.exec(content)) !== null) {
-      let filename = m[5];
+      const fullUrl = m[1];
+      let filename = m[5].split(/[?#]/)[0];
       try {
         filename = decodeURIComponent(filename);
       } catch { }
       const key = `${m[3]}/${m[4]}/${filename}`;
       if (!matchesMap.has(key)) {
         matchesMap.set(key, {
-          matchedUrl: m[1],
+          matchedUrl: fullUrl,
+          cleanUrl: fullUrl.split(/[?#]/)[0],
           routePrefix: m[2],
           year: m[3],
           month: m[4],
@@ -8933,7 +9029,7 @@ class FileMasterPlugin extends Plugin {
       const modified = await this.safeModifyFileContent(doc, (content) => {
         let next = content;
         for (const { removeItem, keepItem } of uploadedPairs) {
-          next = this.rewriteContentLinks(next, removeItem, keepItem);
+          next = this.rewriteContentLinks(next, removeItem, keepItem, doc.path);
         }
         return next;
       });
@@ -9092,7 +9188,7 @@ class FileMasterPlugin extends Plugin {
           rawObj: res
         };
 
-        content = this.rewriteContentLinks(content, removeItem, keepItem);
+        content = this.rewriteContentLinks(content, removeItem, keepItem, activeFile.path);
         migratedCount++;
         const otherRefNotes = Array.isArray(entry.otherRefNotes) ? entry.otherRefNotes : [];
         uploadedPairs.push({ tfile, removeItem, keepItem, otherRefNotes });
@@ -9145,7 +9241,7 @@ class FileMasterPlugin extends Plugin {
           const syncedPaths = [];
           for (const doc of otherDocs) {
             const modified = await this.safeModifyFileContent(doc, (orig) => {
-              return this.rewriteContentLinks(orig, removeItem, keepItem);
+              return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
             });
             if (modified) syncedPaths.push(doc.path);
           }

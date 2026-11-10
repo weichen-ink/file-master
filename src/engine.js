@@ -671,7 +671,7 @@ function isDocFile(file, app = null) {
  * Excalidraw requires bare URLs (e.g. '<fileId>: https://...'), whereas Markdown bracket
  * syntax '[alt](url)' breaks Excalidraw parser and renders grey boxes.
  */
-function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
+function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, context = {}) {
   if (typeof content !== 'string' || !content) return content;
 
   const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
@@ -706,8 +706,16 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
     }
   } else {
     const r = removeItem.rawObj || {};
-    if (r.rawUrl) remoteUrlTargets.add(r.rawUrl.toLowerCase());
-    if (r.pubUrl) remoteUrlTargets.add(r.pubUrl.toLowerCase());
+    if (r.rawUrl) {
+      const u1 = r.rawUrl.toLowerCase();
+      remoteUrlTargets.add(u1);
+      remoteUrlTargets.add(u1.split(/[?#]/)[0]);
+    }
+    if (r.pubUrl) {
+      const u2 = r.pubUrl.toLowerCase();
+      remoteUrlTargets.add(u2);
+      remoteUrlTargets.add(u2.split(/[?#]/)[0]);
+    }
     const year = r.year || removeItem.year;
     const month = r.month || removeItem.month;
     const fname = (removeItem.filename || removeItem.name || '').toLowerCase();
@@ -755,12 +763,32 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
         isMatch = localPathTargets.has(cleanRefLower) || localPathTargets.has(decodedRefLower);
       } else {
         // Bare filename without path (e.g. [[diagram.png]])
-        isMatch = localNameTargets.has(cleanRefLower) || localNameTargets.has(decodedRefLower);
+        if (typeof context?.resolveLink === 'function') {
+          const resolved = context.resolveLink(cleanRef);
+          if (resolved) {
+            const resLower = resolved.toLowerCase().replace(/^\.?\//, '');
+            let decodedResLower = resLower;
+            try { decodedResLower = decodeURIComponent(resLower); } catch {}
+            isMatch = localPathTargets.has(resLower) || localPathTargets.has(decodedResLower);
+          } else {
+            // Cannot resolve or ambiguous destination -> preserve link safely
+            isMatch = false;
+          }
+        } else {
+          isMatch = localNameTargets.has(cleanRefLower) || localNameTargets.has(decodedRefLower);
+        }
       }
     } else {
       // removeItem.source === 'remote'
+      const cleanRefWithoutQuery = cleanRefLower.split(/[?#]/)[0];
+      const decodedRefWithoutQuery = decodedRefLower.split(/[?#]/)[0];
       if (isUrl) {
-        if (remoteUrlTargets.has(cleanRefLower) || remoteUrlTargets.has(decodedRefLower)) {
+        if (
+          remoteUrlTargets.has(cleanRefLower) ||
+          remoteUrlTargets.has(decodedRefLower) ||
+          remoteUrlTargets.has(cleanRefWithoutQuery) ||
+          remoteUrlTargets.has(decodedRefWithoutQuery)
+        ) {
           isMatch = true;
         } else {
           try {
@@ -781,8 +809,8 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem) {
           } catch {}
         }
       } else if (hasPathSlash) {
-        const p = cleanRefLower.replace(/^(?:raw|pub)\//, '');
-        const decP = decodedRefLower.replace(/^(?:raw|pub)\//, '');
+        const p = cleanRefWithoutQuery.replace(/^(?:raw|pub)\//, '');
+        const decP = decodedRefWithoutQuery.replace(/^(?:raw|pub)\//, '');
         isMatch = remotePathTargets.has(p) || remotePathTargets.has(decP);
       } else {
         isMatch = false;
