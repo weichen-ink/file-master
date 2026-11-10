@@ -1,16 +1,16 @@
 import { getEffectiveLanguage as helperGetEffectiveLanguage, translateUi } from '../i18n.js';
 
 // The plugin owns host state; these operations receive it explicitly.
-export function getEffectiveLanguage(plugin) {
-  return helperGetEffectiveLanguage(plugin.settings?.language);
+export function getEffectiveLanguage(settings) {
+  return helperGetEffectiveLanguage(settings?.language);
 }
 
 export function t(plugin, key, params = {}) {
-  return translateUi(plugin.getEffectiveLanguage(), key, params);
+  return translateUi(getEffectiveLanguage(plugin.settings), key, params);
 }
 
-export function isRemoteServerReady(plugin) {
-  return Boolean(plugin.settings?.enableRemoteServer && plugin.settings?.serverVerified);
+export function isRemoteServerReady(settings) {
+  return Boolean(settings?.enableRemoteServer && settings?.serverVerified);
 }
 
 export function getLogFilePath(plugin) {
@@ -24,7 +24,7 @@ export async function loadOperationLogs(plugin) {
   }
   try {
     const adapter = plugin.app?.vault?.adapter;
-    const logPath = plugin.getLogFilePath();
+    const logPath = getLogFilePath(plugin);
     if (adapter && (await adapter.exists(logPath))) {
       const raw = await adapter.read(logPath);
       const parsed = [];
@@ -45,7 +45,7 @@ export async function saveOperationLogs(plugin) {
   try {
     const adapter = plugin.app?.vault?.adapter;
     if (!adapter) return;
-    const logPath = plugin.getLogFilePath();
+    const logPath = getLogFilePath(plugin);
     const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
     await adapter.write(logPath, lines.join('\n') + (lines.length ? '\n' : ''));
   } catch { }
@@ -71,12 +71,12 @@ export function logOperation(plugin, level, action, summary, details = null) {
   if (plugin.operationLogs.length > 500) {
     plugin.operationLogs = plugin.operationLogs.slice(-500);
   }
-  plugin.saveOperationLogs();
+  saveOperationLogs(plugin);
 }
 
 export async function clearOperationLogs(plugin) {
   plugin.operationLogs = [];
-  await plugin.saveOperationLogs();
+  await saveOperationLogs(plugin);
 }
 
 export function formatLogsForExport(plugin) {

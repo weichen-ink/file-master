@@ -1,3 +1,4 @@
+import { insertMarkdownToActiveEditor } from './plugin/lifecycle.js';
 import { IMAGE_EXTS } from './constants.js';
 import { formatBytes, getExt, getFileTypeGroup } from './engine.js';
 import { ImageLightboxModal } from './modals/dialogs.js';
@@ -150,7 +151,7 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
     insertBtn.onclick = () => {
       const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
       const noticeMsg = isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw');
-      view.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
+      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg);
     };
   }
 

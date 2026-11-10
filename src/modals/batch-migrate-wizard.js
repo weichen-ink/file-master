@@ -1,3 +1,6 @@
+import { getAllVaultFolderPaths } from '../plugin/vault-utils.js';
+import { scanLocalAttachmentsForBatchMigrate } from '../plugin/attachment-ops.js';
+import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
@@ -63,7 +66,7 @@ export class BatchMigrateWizardModal extends Modal {
       text: t('migrateEntireVault')
     });
 
-    const allFolders = this.plugin.getAllVaultFolderPaths();
+    const allFolders = getAllVaultFolderPaths(this.plugin.app);
     for (const fp of allFolders) {
       const opt = folderSelect.createEl('option', { value: fp, text: `📁 ${fp}/` });
       if (fp === this.options.folderPrefix) opt.selected = true;
@@ -109,7 +112,7 @@ export class BatchMigrateWizardModal extends Modal {
       nextBtn.setText(t('migrateScanning'));
       progressWidget.show();
       try {
-        this.items = await this.plugin.scanLocalAttachmentsForBatchMigrate(this.options, {
+        this.items = await scanLocalAttachmentsForBatchMigrate(this.plugin, this.options, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -386,7 +389,7 @@ export class BatchMigrateWizardModal extends Modal {
     exportBtn.onclick = async () => {
       exportBtn.disabled = true;
       try {
-        createdReportPath = await this.plugin.exportBatchMigrateReportToRoot(this.summary);
+        createdReportPath = await exportBatchMigrateReportToRoot(this.plugin, this.summary);
         exportBtn.setText(t('batchReportExported'));
         if (!btnRow.querySelector('.fm-open-report-btn')) {
           const openBtn = btnRow.createEl('button', {

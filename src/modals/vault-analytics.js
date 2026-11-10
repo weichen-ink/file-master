@@ -1,3 +1,4 @@
+import { scanVaultAnalytics, exportAnalyticsReportToRoot } from '../plugin/health-analytics.js';
 import { formatBytes } from '../engine.js';
 import { returnToHub } from './common.js';
 import { Modal } from 'obsidian';
@@ -29,7 +30,7 @@ export class VaultAnalyticsModal extends Modal {
     });
 
     try {
-      this.stats = await this.plugin.scanVaultAnalytics();
+      this.stats = await scanVaultAnalytics(this.plugin);
       loadingEl.remove();
       this.renderDashboard(contentEl);
     } catch (err) {
@@ -129,7 +130,7 @@ export class VaultAnalyticsModal extends Modal {
       cls: 'mod-cta'
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportAnalyticsReportToRoot(s);
+      await exportAnalyticsReportToRoot(this.plugin, s);
     };
 
     const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });

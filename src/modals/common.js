@@ -1,3 +1,4 @@
+import { openModalSafely } from '../plugin/vault-utils.js';
 import { FileMasterHubModal } from './hub.js';
 
 /**
@@ -7,10 +8,8 @@ import { FileMasterHubModal } from './hub.js';
 export function returnToHub(modal) {
   modal.close();
   if (!modal.fromHub) return;
-  if (modal.plugin && typeof modal.plugin.openModalSafely === 'function') {
-    modal.plugin.openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
-  } else if (modal.app && modal.plugin) {
-    new FileMasterHubModal(modal.app, modal.plugin).open();
+  if (modal.app && modal.plugin) {
+    openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
   }
 }
 

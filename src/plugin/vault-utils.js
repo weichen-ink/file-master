@@ -4,16 +4,16 @@ import { FileMasterHubModal } from '../modals/hub.js';
 import { Notice } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
-export function isDocFile(plugin, file) {
-  return helperIsDocFile(file, plugin.app);
+export function isDocFile(app, file) {
+  return helperIsDocFile(file, app);
 }
 
 export function isScannableDocFile(plugin, file) {
-  return Boolean(file) && plugin.isDocFile(file) && !isReportFile(file.name);
+  return Boolean(file) && isDocFile(plugin.app, file) && !isReportFile(file.name);
 }
 
-export function isExcalidrawFile(plugin, file, content = null) {
-  return helperIsExcalidrawFile(file, plugin.app, content);
+export function isExcalidrawFile(app, file, content = null) {
+  return helperIsExcalidrawFile(file, app, content);
 }
 
 export function reloadOpenExcalidrawViews(plugin, filePath) {
@@ -55,14 +55,14 @@ export async function safeModifyFileContent(plugin, tfile, transformFn) {
     }
   }
 
-  if (changed && plugin.isExcalidrawFile(tfile)) {
-    plugin.reloadOpenExcalidrawViews(tfile.path);
+  if (changed && isExcalidrawFile(plugin.app, tfile)) {
+    reloadOpenExcalidrawViews(plugin, tfile.path);
   }
 
   return changed;
 }
 
-export function openModalSafely(plugin, modal) {
+export function openModalSafely(modal) {
   setTimeout(() => {
     modal.open();
     if (modal.bgEl) {
@@ -86,28 +86,28 @@ export function updateSidebarRibbonButton(plugin) {
     'layers',
     plugin.t('hubTitle'),
     () => {
-      plugin.openModalSafely(new FileMasterHubModal(plugin.app, plugin));
+      openModalSafely(new FileMasterHubModal(plugin.app, plugin));
     }
   );
 }
 
-export function getExcludedLocalFolderList(plugin) {
-  return String(plugin.settings.excludedLocalFolders || '')
+export function getExcludedLocalFolderList(settings) {
+  return String(settings.excludedLocalFolders || '')
     .split(/[,;\n]+/)
     .map((s) => s.trim().replace(/^\/+|\/+$/g, ''))
     .filter(Boolean);
 }
 
-export function isLocalPathExcluded(plugin, filePath) {
+export function isLocalPathExcluded(settings, filePath) {
   const p = String(filePath || '').replace(/^\/+/, '');
-  const list = plugin.getExcludedLocalFolderList();
+  const list = getExcludedLocalFolderList(settings);
   return list.some((folder) => p === folder || p.startsWith(folder + '/'));
 }
 
 export async function toggleLocalFolderExclusion(plugin, folderPath) {
   const clean = String(folderPath || '').replace(/^\/+|\/+$/g, '');
   if (!clean) return;
-  const list = plugin.getExcludedLocalFolderList();
+  const list = getExcludedLocalFolderList(plugin.settings);
   const idx = list.indexOf(clean);
   if (idx > -1) {
     list.splice(idx, 1);
@@ -120,9 +120,9 @@ export async function toggleLocalFolderExclusion(plugin, folderPath) {
   await plugin.saveSettings();
 }
 
-export function getAllVaultFolderPaths(plugin) {
+export function getAllVaultFolderPaths(app) {
   const folderSet = new Set();
-  for (const f of plugin.app.vault.getFiles()) {
+  for (const f of app.vault.getFiles()) {
     const parentPath = f.parent?.path;
     if (parentPath && parentPath !== '/') {
       folderSet.add(parentPath);

@@ -1,3 +1,6 @@
+import { openModalSafely } from '../plugin/vault-utils.js';
+import { activateGalleryView } from '../plugin/lifecycle.js';
+import { migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from '../plugin/attachment-ops.js';
 import { BatchMigrateWizardModal } from './batch-migrate-wizard.js';
 import { DuplicateWizardModal } from './duplicate-wizard.js';
 import { HealthCheckModal } from './health-check.js';
@@ -32,7 +35,7 @@ export class FileMasterHubModal extends Modal {
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
     const openFromHub = (modal) => {
       modal.fromHub = true;
-      this.plugin.openModalSafely(modal);
+      openModalSafely(modal);
     };
 
     const govActions = [
@@ -80,7 +83,7 @@ export class FileMasterHubModal extends Modal {
             desc: t('actRemoteGalleryViewDesc'),
             run: () => {
               this.close();
-              this.plugin.activateGalleryView();
+              activateGalleryView(this.plugin);
             }
           },
           {
@@ -103,19 +106,19 @@ export class FileMasterHubModal extends Modal {
             icon: 'upload',
             title: t('actNoteUpTitle'),
             desc: t('actNoteUpDesc'),
-            run: () => this.plugin.migrateActiveNoteAttachments(null, { fromHub: true })
+            run: () => migrateActiveNoteAttachments(this.plugin, null, { fromHub: true })
           },
           {
             icon: 'download',
             title: t('actNoteDownTitle'),
             desc: t('actNoteDownDesc'),
-            run: () => this.plugin.downloadActiveNoteRemoteAttachments(null, { fromHub: true })
+            run: () => downloadActiveNoteRemoteAttachments(this.plugin, null, { fromHub: true })
           },
           {
             icon: 'copy',
             title: t('actNoteAstroTitle'),
             desc: t('actNoteAstroDesc'),
-            run: () => this.plugin.copyActiveNoteForAstro()
+            run: () => copyActiveNoteForAstro(this.plugin)
           }
         ]
       });

@@ -1,3 +1,5 @@
+import { getExcludedLocalFolderList } from '../plugin/vault-utils.js';
+import { scanUnusedFiles, exportOrphanReportToRoot, cleanSelectedOrphans } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, returnToHub } from './common.js';
 import { renderItemVisualThumb } from './incoming-file.js';
@@ -67,7 +69,7 @@ export class OrphanWizardModal extends Modal {
     this.createCheckbox(typeBox, t('orphanTypeAudio'), 'typeAudio');
     this.createCheckbox(typeBox, t('orphanTypeOther'), 'typeOther');
 
-    const exclFolders = this.plugin.getExcludedLocalFolderList();
+    const exclFolders = getExcludedLocalFolderList(this.plugin.settings);
     const protInfo = contentEl.createDiv({
       cls: 'fm-section-box',
       attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
@@ -98,7 +100,7 @@ export class OrphanWizardModal extends Modal {
       nextBtn.setText(t('orphanScanning'));
       progressWidget.show();
       try {
-        this.results = await this.plugin.scanUnusedFiles(this.options, {
+        this.results = await scanUnusedFiles(this.plugin, this.options, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -162,7 +164,7 @@ export class OrphanWizardModal extends Modal {
       cls: 'mod-cta'
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportOrphanReportToRoot(this.results);
+      await exportOrphanReportToRoot(this.plugin, this.results);
     };
 
     if (this.results.length === 0) {
@@ -243,7 +245,7 @@ export class OrphanWizardModal extends Modal {
         new Notice(this.plugin.t('orphanSelectRequired'));
         return;
       }
-      await this.plugin.cleanSelectedOrphans(selected, (summary) => {
+      await cleanSelectedOrphans(this.plugin, selected, (summary) => {
         const removedIds = new Set(selected.map((s) => s.id));
         this.results = this.results.filter((r) => !removedIds.has(r.id));
         this.lastCleanSummary = summary;

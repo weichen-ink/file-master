@@ -1,3 +1,5 @@
+import { isLocalPathExcluded, toggleLocalFolderExclusion, isExcalidrawFile } from './vault-utils.js';
+import { migrateSingleLocalFileToRemote, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
 import { NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { convertBufferToPreviewUrl, escapeRegExp, getBaseName, getExt } from '../engine.js';
 import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
@@ -24,13 +26,13 @@ export function registerContextMenus(plugin) {
           });
         }
 
-        const isExcluded = plugin.isLocalPathExcluded(folderPath);
+        const isExcluded = isLocalPathExcluded(plugin.settings, folderPath);
         menu.addItem((item) => {
           item
             .setTitle(isExcluded ? plugin.t('menuRemoveExclusion') : plugin.t('menuAddExclusion'))
             .setIcon('shield')
             .onClick(() => {
-              plugin.toggleLocalFolderExclusion(folderPath);
+              toggleLocalFolderExclusion(plugin, folderPath);
             });
         });
         return;
@@ -43,7 +45,7 @@ export function registerContextMenus(plugin) {
               .setTitle(plugin.t('menuUploadCloud'))
               .setIcon('upload-cloud')
               .onClick(async () => {
-                await plugin.migrateSingleLocalFileToRemote(abstractFile, {
+                await migrateSingleLocalFileToRemote(plugin, abstractFile, {
                   deleteLocal: plugin.settings.deleteLocalAfterMigrate
                 });
               });
@@ -55,7 +57,7 @@ export function registerContextMenus(plugin) {
       const isNoteOrExcalidraw =
         abstractFile.extension === 'md' ||
         abstractFile.extension === 'excalidraw' ||
-        plugin.isExcalidrawFile(abstractFile);
+        isExcalidrawFile(plugin.app, abstractFile);
 
       if (isNoteOrExcalidraw && plugin.isRemoteServerReady()) {
         menu.addItem((item) => {
@@ -63,7 +65,7 @@ export function registerContextMenus(plugin) {
             .setTitle(plugin.t('menuActiveNoteMigrate'))
             .setIcon('upload-cloud')
             .onClick(() => {
-              plugin.migrateActiveNoteAttachments(abstractFile);
+              return migrateActiveNoteAttachments(plugin, abstractFile);
             });
         });
 
@@ -72,7 +74,7 @@ export function registerContextMenus(plugin) {
             .setTitle(plugin.t('menuActiveNoteDownload'))
             .setIcon('download-cloud')
             .onClick(() => {
-              plugin.downloadActiveNoteRemoteAttachments(abstractFile);
+              return downloadActiveNoteRemoteAttachments(plugin, abstractFile);
             });
         });
 
@@ -81,7 +83,7 @@ export function registerContextMenus(plugin) {
             .setTitle(plugin.t('menuActiveNoteAstro'))
             .setIcon('external-link')
             .onClick(() => {
-              plugin.copyActiveNoteForAstro(abstractFile);
+              return copyActiveNoteForAstro(plugin, abstractFile);
             });
         });
       }
@@ -95,7 +97,7 @@ export function registerContextMenus(plugin) {
       const lineText = editor.getLine(cursor.line) || '';
       if (!lineText.trim()) return;
 
-      const remoteMatch = plugin.extractRemoteItemFromLine(lineText);
+      const remoteMatch = extractRemoteItemFromLine(plugin, lineText);
       if (remoteMatch) {
         menu.addItem((item) => {
           item
@@ -148,14 +150,14 @@ export function registerContextMenus(plugin) {
         });
       }
 
-      const localTFile = plugin.extractLocalAttachmentFromLine(lineText);
+      const localTFile = extractLocalAttachmentFromLine(plugin, lineText);
       if (localTFile) {
         menu.addItem((item) => {
           item
             .setTitle(`${plugin.t('menuUploadCloud')} (${localTFile.name})`)
             .setIcon('upload-cloud')
             .onClick(async () => {
-              await plugin.migrateSingleLocalFileToRemote(localTFile, {
+              await migrateSingleLocalFileToRemote(plugin, localTFile, {
                 toProtected: false,
                 deleteLocal: plugin.settings.deleteLocalAfterMigrate
               });
@@ -220,7 +222,7 @@ export function setupHeicInlinePreviewObserver(plugin) {
       if (el.dataset.fmHeicStatus === 'done' || el.dataset.fmHeicStatus === 'loading') return;
 
       el.dataset.fmHeicStatus = 'loading';
-      plugin.renderSingleHeicEmbed(el, cleanSrc, ext).catch(() => {
+      renderSingleHeicEmbed(plugin, el, cleanSrc, ext).catch(() => {
         el.dataset.fmHeicStatus = 'error';
       });
     });

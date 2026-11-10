@@ -1,3 +1,6 @@
+import { openModalSafely, updateSidebarRibbonButton } from './plugin/vault-utils.js';
+import { onLanguageChange, getCompatibilityMessage } from './plugin/lifecycle.js';
+import { checkServerCompatibility } from './plugin/server-client.js';
 import { MIN_SERVER_VERSION } from './constants.js';
 import { FileMasterHubModal } from './modals/hub.js';
 import { OperationLogModal } from './modals/operation-log.js';
@@ -83,11 +86,11 @@ export class FileMasterSettingTab extends PluginSettingTab {
         setIcon(setting.controlEl.createSpan({ cls: 'fm-settings-nav-chevron' }), 'chevron-right');
         const open = () => {
           if (page === 'hub') {
-            this.plugin.openModalSafely(new FileMasterHubModal(this.app, this.plugin));
+            openModalSafely(new FileMasterHubModal(this.app, this.plugin));
             return;
           }
           if (page === 'logs') {
-            this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
+            openModalSafely(new OperationLogModal(this.app, this.plugin));
             return;
           }
           this.activePage = page;
@@ -134,7 +137,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.language = value;
             await this.plugin.saveSettings();
-            this.plugin.onLanguageChange();
+            onLanguageChange(this.plugin);
             this.display();
           })
       );
@@ -146,7 +149,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
           this.plugin.settings.enableSidebarButton = value;
           await this.plugin.saveSettings();
-          this.plugin.updateSidebarRibbonButton();
+          updateSidebarRibbonButton(this.plugin);
         })
       );
   }
@@ -197,7 +200,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
       statusBox.dataset.status = !compat
         ? (this.plugin.settings.serverVerified ? 'success' : 'pending')
         : (compat.ok ? 'success' : compat.status === 'server_outdated' ? 'pending' : 'error');
-      statusBox.textContent = this.plugin.getCompatibilityMessage(compat);
+      statusBox.textContent = getCompatibilityMessage(this.plugin, compat);
     };
 
     let tokenInput;
@@ -241,9 +244,9 @@ export class FileMasterSettingTab extends PluginSettingTab {
 
           let compat;
           try {
-            compat = await this.plugin.checkServerCompatibility();
+            compat = await checkServerCompatibility(this.plugin);
             updateStatusBox(compat);
-            new Notice(this.plugin.getCompatibilityMessage(compat));
+            new Notice(getCompatibilityMessage(this.plugin, compat));
           } finally {
             btn.disabled = false;
             btn.setButtonText(this.plugin.t('btnTestConn'));
@@ -394,14 +397,14 @@ export class FileMasterSettingTab extends PluginSettingTab {
     const sCompat = this.plugin.lastServerCompatStatus;
     addRow('aboutServerStatus').createSpan({
       cls: `fm-about-status ${sCompat?.ok ? 'is-connected' : ''}`,
-      text: sCompat ? this.plugin.getCompatibilityMessage(sCompat) : this.plugin.t('aboutServerOffline')
+      text: sCompat ? getCompatibilityMessage(this.plugin, sCompat) : this.plugin.t('aboutServerOffline')
     });
     new Setting(containerEl)
       .setName(this.plugin.t('opLogTitle'))
       .setDesc(this.plugin.t('opLogDesc'))
       .addButton((btn) =>
         btn.setButtonText(this.plugin.t('opLogBtnOpen')).onClick(() => {
-          this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
+          openModalSafely(new OperationLogModal(this.app, this.plugin));
         })
       );
     addRow('aboutFeedback').createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });

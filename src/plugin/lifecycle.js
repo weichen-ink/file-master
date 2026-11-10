@@ -1,3 +1,8 @@
+import { loadOperationLogs } from './logging.js';
+import { isScannableDocFile, updateSidebarRibbonButton, openModalSafely, safeModifyFileContent } from './vault-utils.js';
+import { checkServerCompatibility, filterAllowedFiles, handleIncomingBrowserFile } from './server-client.js';
+import { setupHeicInlinePreviewObserver, registerContextMenus } from './context-menus.js';
+import { resumePendingMigration, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
 import { VIEW_TYPE_REMOTE_GALLERY } from '../constants.js';
 import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
 import { DuplicateWizardModal } from '../modals/duplicate-wizard.js';
@@ -14,7 +19,7 @@ import { MarkdownView, Notice } from 'obsidian';
 export async function onload(plugin) {
   await plugin.loadSettings();
   plugin.operationLogs = [];
-  await plugin.loadOperationLogs();
+  await loadOperationLogs(plugin);
   plugin.heicPreviewCache = new Map();
   plugin.sidebarRibbonEl = null;
   plugin.lastServerCompatStatus = null;
@@ -22,12 +27,12 @@ export async function onload(plugin) {
   plugin.referenceRevision = 0;
   for (const event of ['create', 'modify', 'delete', 'rename']) {
     plugin.registerEvent(plugin.app.vault.on(event, (file) => {
-      if (plugin.isScannableDocFile(file)) plugin.referenceRevision++;
+      if (isScannableDocFile(plugin, file)) plugin.referenceRevision++;
     }));
   }
 
   // Initialize configurable left sidebar ribbon button
-  plugin.updateSidebarRibbonButton();
+  updateSidebarRibbonButton(plugin);
 
   // Register remote asset gallery sidebar view
   plugin.registerView(
@@ -58,12 +63,12 @@ export async function onload(plugin) {
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
-    plugin.initGalleryLeaf(false);
+    initGalleryLeaf(plugin, false);
   });
 
   // Background non-blocking handshake to verify version contract and connectivity
   setTimeout(() => {
-    plugin.checkServerCompatibility().catch(() => {});
+    checkServerCompatibility(plugin).catch(() => {});
   }, 1200);
 
   // 1. Listen for clipboard paste events
@@ -73,12 +78,12 @@ export async function onload(plugin) {
       const files = evt.clipboardData?.files;
       if (!files || files.length === 0) return;
 
-      const targetFiles = plugin.filterAllowedFiles(files);
+      const targetFiles = filterAllowedFiles(plugin.settings, files);
       if (targetFiles.length === 0) return;
 
       evt.preventDefault();
       for (const f of targetFiles) {
-        await plugin.handleIncomingBrowserFile(f, editor);
+        await handleIncomingBrowserFile(plugin, f, editor);
       }
     })
   );
@@ -90,24 +95,24 @@ export async function onload(plugin) {
       const files = evt.dataTransfer?.files;
       if (!files || files.length === 0) return;
 
-      const targetFiles = plugin.filterAllowedFiles(files);
+      const targetFiles = filterAllowedFiles(plugin.settings, files);
       if (targetFiles.length === 0) return;
 
       evt.preventDefault();
       for (const f of targetFiles) {
-        await plugin.handleIncomingBrowserFile(f, editor);
+        await handleIncomingBrowserFile(plugin, f, editor);
       }
     })
   );
 
   // 3. Render inline previews for local ![[xxx.heic]], ![[xxx.heif]], and ![[xxx.tiff]] embeds
-  plugin.setupHeicInlinePreviewObserver();
+  setupHeicInlinePreviewObserver(plugin);
 
   // 4. Register file tree context menu items
-  plugin.registerContextMenus();
+  registerContextMenus(plugin);
 
   // 5. Register core commands
-  plugin.registerPluginCommands();
+  registerPluginCommands(plugin);
 
   plugin.addSettingTab(new FileMasterSettingTab(plugin.app, plugin));
   console.log('[FileMaster] Plugin loaded successfully');
@@ -119,73 +124,73 @@ export function registerPluginCommands(plugin) {
       id: 'resume-pending-upload',
       nameKey: 'cmdResumeUpload',
       requiresRemote: true,
-      callback: () => plugin.resumePendingMigration().catch((err) => new Notice(err.message))
+      callback: () => resumePendingMigration(plugin).catch((err) => new Notice(err.message))
     },
     {
       id: 'open-control-center',
       nameKey: 'cmdOpenHub',
-      callback: () => plugin.openModalSafely(new FileMasterHubModal(plugin.app, plugin))
+      callback: () => openModalSafely(new FileMasterHubModal(plugin.app, plugin))
     },
     {
       id: 'open-health-check-wizard',
       nameKey: 'cmdScanHealth',
-      callback: () => plugin.openModalSafely(new HealthCheckModal(plugin.app, plugin))
+      callback: () => openModalSafely(new HealthCheckModal(plugin.app, plugin))
     },
     {
       id: 'open-orphan-wizard',
       nameKey: 'cmdScanOrphan',
-      callback: () => plugin.openModalSafely(new OrphanWizardModal(plugin.app, plugin))
+      callback: () => openModalSafely(new OrphanWizardModal(plugin.app, plugin))
     },
     {
       id: 'open-duplicate-wizard',
       nameKey: 'cmdScanDuplicate',
-      callback: () => plugin.openModalSafely(new DuplicateWizardModal(plugin.app, plugin))
+      callback: () => openModalSafely(new DuplicateWizardModal(plugin.app, plugin))
     },
     {
       id: 'open-remote-gallery',
       nameKey: 'cmdRemoteGallery',
       requiresRemote: true,
-      callback: () => plugin.openModalSafely(new RemoteGalleryModal(plugin.app, plugin))
+      callback: () => openModalSafely(new RemoteGalleryModal(plugin.app, plugin))
     },
     {
       id: 'open-remote-gallery-view',
       nameKey: 'cmdRemoteGalleryView',
       requiresRemote: true,
-      callback: () => plugin.activateGalleryView()
+      callback: () => activateGalleryView(plugin)
     },
     {
       id: 'open-batch-migrate-wizard',
       nameKey: 'cmdBatchMigrate',
       requiresRemote: true,
-      callback: () => plugin.openModalSafely(new BatchMigrateWizardModal(plugin.app, plugin))
+      callback: () => openModalSafely(new BatchMigrateWizardModal(plugin.app, plugin))
     },
     {
       id: 'open-vault-analytics-dashboard',
       nameKey: 'cmdVaultAnalytics',
-      callback: () => plugin.openModalSafely(new VaultAnalyticsModal(plugin.app, plugin))
+      callback: () => openModalSafely(new VaultAnalyticsModal(plugin.app, plugin))
     },
     {
       id: 'migrate-current-note-attachments',
       nameKey: 'cmdMigrateActiveNote',
       requiresRemote: true,
-      callback: () => plugin.migrateActiveNoteAttachments()
+      callback: () => migrateActiveNoteAttachments(plugin)
     },
     {
       id: 'download-current-note-remote-attachments',
       nameKey: 'cmdDownloadActiveNote',
       requiresRemote: true,
-      callback: () => plugin.downloadActiveNoteRemoteAttachments()
+      callback: () => downloadActiveNoteRemoteAttachments(plugin)
     },
     {
       id: 'copy-note-with-astro-pub-links',
       nameKey: 'cmdCopyAstroLinks',
       requiresRemote: true,
-      callback: () => plugin.copyActiveNoteForAstro()
+      callback: () => copyActiveNoteForAstro(plugin)
     },
     {
       id: 'open-operation-logs',
       nameKey: 'cmdOpenOpLogs',
-      callback: () => plugin.openModalSafely(new OperationLogModal(plugin.app, plugin))
+      callback: () => openModalSafely(new OperationLogModal(plugin.app, plugin))
     }
   ];
 
@@ -216,8 +221,8 @@ export function updateCommandNames(plugin) {
 }
 
 export function onLanguageChange(plugin) {
-  plugin.updateSidebarRibbonButton();
-  plugin.updateCommandNames();
+  updateSidebarRibbonButton(plugin);
+  updateCommandNames(plugin);
   for (const leaf of plugin.app?.workspace?.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || []) {
     leaf.view?.render?.();
   }
@@ -276,7 +281,7 @@ export async function activateGalleryView(plugin) {
     new Notice(plugin.t('remoteServerRequiredNotice') || 'Remote server not ready');
     return;
   }
-  await plugin.initGalleryLeaf(true);
+  await initGalleryLeaf(plugin, true);
 }
 
 export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
@@ -311,7 +316,7 @@ export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
     if (successNotice) new Notice(successNotice);
     return true;
   } else {
-    plugin.safeModifyFileContent(activeFile, (content) => content + '\n' + mdSnippet).then(() => {
+    safeModifyFileContent(plugin, activeFile, (content) => content + '\n' + mdSnippet).then(() => {
       if (successNotice) new Notice(successNotice);
     });
     return true;

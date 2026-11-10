@@ -35,11 +35,11 @@ test('mobile compatibility: manifest isDesktopOnly is false and main.js has no N
 });
 
 // Host inheritance is the only inheritance needed; services have explicit inputs.
-test('Plugin directly extends the Obsidian host and preserves public command methods', () => {
+test('Plugin directly extends the Obsidian host and preserves stable operation boundaries', () => {
   const { Plugin, HostPlugin } = require('./helpers/load-plugin').loadPlugin();
   assert.strictEqual(Object.getPrototypeOf(Plugin.prototype), HostPlugin.prototype);
-  for (const name of ['registerPluginCommands', 'registerContextMenus', 'buildVaultReferenceSnapshot',
-    'uploadBufferToServer', 'resumePendingMigration', 'scanVaultLinkHealth', 'loadSettings', 'saveSettings']) {
+  for (const name of ['buildVaultReferenceSnapshot', 'uploadBufferToServer', 'probeRemoteSha256',
+    'executeMigrateNoteDirect', 'executeDownloadNoteDirect', 'loadSettings', 'saveSettings']) {
     assert.strictEqual(typeof Plugin.prototype[name], 'function');
   }
 });

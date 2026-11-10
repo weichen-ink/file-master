@@ -5,22 +5,22 @@ import { requestWithBackoff, throwIfTransferCancelled } from '../transfers.js';
 import { requestUrl } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
-export function filterAllowedFiles(plugin, fileList) {
+export function filterAllowedFiles(settings, fileList) {
   const out = [];
   for (let i = 0; i < fileList.length; i++) {
     const f = fileList[i];
     const ext = getExt(f.name) || (f.type.startsWith('image/') ? 'png' : '');
     if (IMAGE_EXTS.has(ext)) {
       out.push(f);
-    } else if (plugin.settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
+    } else if (settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
       out.push(f);
     }
   }
   return out;
 }
 
-export function getCleanServerUrl(plugin) {
-  return String(plugin.settings.serverUrl || 'http://localhost:3000').replace(/\/+$/, '');
+export function getCleanServerUrl(settings) {
+  return String(settings.serverUrl || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
 export async function handleIncomingBrowserFile(plugin, file, editor) {

@@ -1,3 +1,6 @@
+import { getExcludedLocalFolderList } from '../plugin/vault-utils.js';
+import { scanDuplicateGroups, exportDuplicateReportToRoot } from '../plugin/vault-scans.js';
+import { executeDuplicateMergeSafely } from '../plugin/attachment-ops.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
@@ -86,7 +89,7 @@ export class DuplicateWizardModal extends Modal {
     this.createTypeCheckbox(typeBox, t('dupTypeOther'), 'typeOther');
     this.createTypeCheckbox(typeBox, t('dupTypeNote'), 'typeNote');
 
-    const exclFolders = this.plugin.getExcludedLocalFolderList();
+    const exclFolders = getExcludedLocalFolderList(this.plugin.settings);
     const protBox = contentEl.createDiv({
       cls: 'fm-section-box',
       attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
@@ -117,7 +120,7 @@ export class DuplicateWizardModal extends Modal {
       nextBtn.setText(t('dupComparing'));
       progressWidget.show();
       try {
-        const res = await this.plugin.scanDuplicateGroups(this.scope, this.fileTypes, {
+        const res = await scanDuplicateGroups(this.plugin, this.scope, this.fileTypes, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -210,7 +213,7 @@ export class DuplicateWizardModal extends Modal {
       text: t('btnExportReport')
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportDuplicateReportToRoot(this.groups);
+      await exportDuplicateReportToRoot(this.plugin, this.groups);
     };
 
     if (this.scanStats?.remoteError) {
@@ -310,7 +313,7 @@ export class DuplicateWizardModal extends Modal {
       cls: 'mod-cta'
     });
     execBtn.onclick = async () => {
-      await this.plugin.executeDuplicateMergeSafely(this.groups, (summary) => {
+      await executeDuplicateMergeSafely(this.plugin, this.groups, (summary) => {
         this.step = 3;
         this.summary = summary;
         this.render();

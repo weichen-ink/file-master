@@ -7,7 +7,11 @@ let helpersSource;
 /** Load release integration code and explicit unit-test exports with the same host boundary. */
 function loadPlugin(requestUrl = async () => { throw new Error('Unexpected network request'); }, globals = {}) {
   class Base { constructor(app) { this.app = app; } }
-  const obsidian = new Proxy({ requestUrl, getLanguage: () => globals.getLanguage?.(), Platform: { isMobile: false } }, {
+  class HostModal extends Base {
+    open() { globals.onModalOpen?.(this); }
+    close() {}
+  }
+  const obsidian = new Proxy({ Modal: HostModal, requestUrl, getLanguage: () => globals.getLanguage?.(), Platform: { isMobile: false }, ...globals.host }, {
     get: (target, key) => key in target ? target[key] : Base
   });
   function evaluate(source) {

@@ -2009,6 +2009,178 @@ function translateUi(lang, key, params = {}) {
   return str;
 }
 
+// src/plugin/logging.js
+function getEffectiveLanguage2(settings) {
+  return getEffectiveLanguage(settings == null ? void 0 : settings.language);
+}
+function t(plugin, key, params = {}) {
+  return translateUi(getEffectiveLanguage2(plugin.settings), key, params);
+}
+function isRemoteServerReady(settings) {
+  return Boolean((settings == null ? void 0 : settings.enableRemoteServer) && (settings == null ? void 0 : settings.serverVerified));
+}
+function getLogFilePath(plugin) {
+  var _a, _b, _c, _d;
+  const dir = ((_a = plugin.manifest) == null ? void 0 : _a.dir) || `${((_c = (_b = plugin.app) == null ? void 0 : _b.vault) == null ? void 0 : _c.configDir) || ".obsidian"}/plugins/${((_d = plugin.manifest) == null ? void 0 : _d.id) || "file-master"}`;
+  return `${dir}/operation.log`;
+}
+async function loadOperationLogs(plugin) {
+  var _a, _b;
+  if (!Array.isArray(plugin.operationLogs)) {
+    plugin.operationLogs = [];
+  }
+  try {
+    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
+    const logPath = getLogFilePath(plugin);
+    if (adapter && await adapter.exists(logPath)) {
+      const raw = await adapter.read(logPath);
+      const parsed = [];
+      for (const line of String(raw || "").split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          parsed.push(JSON.parse(trimmed));
+        } catch (e) {
+        }
+      }
+      plugin.operationLogs = parsed.slice(-500);
+    }
+  } catch (e) {
+  }
+  return plugin.operationLogs;
+}
+async function saveOperationLogs(plugin) {
+  var _a, _b;
+  try {
+    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
+    if (!adapter) return;
+    const logPath = getLogFilePath(plugin);
+    const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
+    await adapter.write(logPath, lines.join("\n") + (lines.length ? "\n" : ""));
+  } catch (e) {
+  }
+}
+function logOperation(plugin, level, action, summary, details = null) {
+  if (!Array.isArray(plugin.operationLogs)) {
+    plugin.operationLogs = [];
+  }
+  const now = /* @__PURE__ */ new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const entry = {
+    ts,
+    level: String(level || "INFO").toUpperCase(),
+    action: String(action || "GENERAL"),
+    summary: String(summary || "")
+  };
+  if (details && typeof details === "object" && Object.keys(details).length > 0) {
+    entry.details = details;
+  }
+  plugin.operationLogs.push(entry);
+  if (plugin.operationLogs.length > 500) {
+    plugin.operationLogs = plugin.operationLogs.slice(-500);
+  }
+  saveOperationLogs(plugin);
+}
+async function clearOperationLogs(plugin) {
+  plugin.operationLogs = [];
+  await saveOperationLogs(plugin);
+}
+function formatLogsForExport(plugin) {
+  var _a, _b, _c;
+  const version = ((_a = plugin.manifest) == null ? void 0 : _a.version) || "1.0.2";
+  const serverStatus = plugin.lastServerCompatStatus ? `${plugin.lastServerCompatStatus.status} (server v${plugin.lastServerCompatStatus.serverVersion || "?"})` : ((_b = plugin.settings) == null ? void 0 : _b.enableRemoteServer) ? "unverified" : "disabled";
+  const header = [
+    `# File Master Diagnostic & Operation Logs`,
+    `# Plugin Version: v${version}`,
+    `# Exported At: ${(/* @__PURE__ */ new Date()).toISOString()}`,
+    `# Server Status: ${serverStatus}`,
+    `# Excluded Local Folders: ${((_c = plugin.settings) == null ? void 0 : _c.excludedLocalFolders) || "(none)"}`,
+    `# Total Entries: ${(plugin.operationLogs || []).length}`,
+    `------------------------------------------------------------`
+  ];
+  const body = (plugin.operationLogs || []).map((e) => {
+    const detailStr = e.details ? ` | ${JSON.stringify(e.details)}` : "";
+    return `[${e.ts}] [${e.level}] [${e.action}] ${e.summary}${detailStr}`;
+  });
+  return [...header, ...body].join("\n");
+}
+
+// src/modals/common.js
+function returnToHub(modal) {
+  modal.close();
+  if (!modal.fromHub) return;
+  if (modal.app && modal.plugin) {
+    openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
+  }
+}
+function formatFriendlyError(modal, rawErr) {
+  const errStr = String(rawErr || "").trim();
+  const t2 = (k, p) => {
+    var _a;
+    return modal && typeof modal.t === "function" ? modal.t(k, p) : ((_a = modal == null ? void 0 : modal.plugin) == null ? void 0 : _a.t) ? modal.plugin.t(k, p) : errStr;
+  };
+  if (/file too large|too large|413/i.test(errStr)) {
+    return t2("activeNoteFailedTooLarge");
+  }
+  if (/401|unauthorized|invalid.*token/i.test(errStr)) {
+    return t2("activeNoteFailedAuth");
+  }
+  if (/404|not found/i.test(errStr)) {
+    return t2("activeNoteFailedNotFound");
+  }
+  if (/network|fetch|econnrefused|offline/i.test(errStr)) {
+    return t2("activeNoteFailedNetwork");
+  }
+  return errStr;
+}
+function createScanProgressWidget(contentEl, plugin) {
+  const abortController = new AbortController();
+  const box = contentEl.createDiv({
+    cls: "fm-section-box fm-scan-progress-box",
+    attr: { style: "display:none; margin-top:10px; border-color: rgba(59, 130, 246, 0.45);" }
+  });
+  box.style.display = "none";
+  const topRow = box.createDiv({
+    cls: "fm-scan-progress-top",
+    attr: { style: "display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; width:100%;" }
+  });
+  const statusText = topRow.createSpan({
+    text: plugin ? plugin.t("scanPreparing") : "\u23F3 Preparing scan...",
+    cls: "fm-scan-progress-text",
+    attr: { style: "font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" }
+  });
+  const cancelScanBtn = topRow.createEl("button", {
+    text: plugin ? plugin.t("btnCancelScan") : "\u23F9 Cancel Scan",
+    cls: "fm-mini-btn mod-warning fm-scan-cancel-btn",
+    attr: { style: "flex-shrink:0; margin-left:auto;" }
+  });
+  cancelScanBtn.onclick = () => {
+    abortController.abort();
+    cancelScanBtn.disabled = true;
+  };
+  const wrap = box.createDiv({ cls: "fm-progress-wrap" });
+  const bar = wrap.createDiv({ cls: "fm-progress-bar" });
+  return {
+    signal: abortController.signal,
+    show() {
+      box.style.display = "block";
+    },
+    hide() {
+      box.style.display = "none";
+    },
+    abort() {
+      abortController.abort();
+    },
+    update(current, total, label = "") {
+      const pct = Math.min(100, Math.round(current / Math.max(1, total) * 100));
+      bar.style.width = `${pct}%`;
+      const msg = plugin ? plugin.t("scanProgress", { current, total, label }) : `\u23F3 Scanning (${current}/${total}): ${label}`;
+      statusText.setText(msg);
+    }
+  };
+}
+
 // src/modals/dialogs.js
 var import_obsidian3 = require("obsidian");
 var ConfirmActionModal = class extends import_obsidian3.Modal {
@@ -2082,7 +2254,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
     const isImg = IMAGE_EXTS.has(ext);
     if (isImg) {
       const img = contentEl.createEl("img", { cls: "fm-lightbox-img" });
-      const url = await this.plugin.getItemPreviewUrl(this.item);
+      const url = await getItemPreviewUrl(this.plugin, this.item);
       if (url) img.src = url;
     } else {
       contentEl.createDiv({
@@ -2159,12 +2331,12 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
         e.preventDefault();
       };
       insertBtn.onclick = () => {
-        var _a, _b, _c;
+        var _a, _b;
         const targetUrl = ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.insertOptimizedLinkOnUpload) && remote.pubUrl ? remote.pubUrl : remote.rawUrl || remote.pubUrl;
         const mdSnippet = isImg ? `![${fn}](${targetUrl})
 ` : `[${fn}](${targetUrl})
 `;
-        const ok = (_c = this.plugin) == null ? void 0 : _c.insertMarkdownToActiveEditor(mdSnippet, t2("galleryInserted"));
+        const ok = this.plugin == null ? void 0 : insertMarkdownToActiveEditor(this.plugin, mdSnippet, t2("galleryInserted"));
         if (ok) this.close();
       };
       const lockBtn = rightActions.createEl("button", { cls: "fm-lightbox-management-btn" });
@@ -2291,7 +2463,7 @@ function renderItemVisualThumb(parentEl, item, plugin) {
       e.stopPropagation();
       new ImageLightboxModal(plugin.app, plugin, item).open();
     };
-    plugin.getItemPreviewUrl(item).then((url) => {
+    getItemPreviewUrl(plugin, item).then((url) => {
       if (url) img.src = url;
     });
   } else {
@@ -2734,9 +2906,1163 @@ var IncomingFileModal = class extends import_obsidian4.Modal {
   }
 };
 
-// src/modals/batch-migrate-wizard.js
+// src/references.js
+function createTextReferenceMatcher(patterns) {
+  const nodes = [{ next: /* @__PURE__ */ new Map(), fail: 0, outputs: [] }];
+  for (const pattern of patterns) {
+    const value = String(pattern.value || "").toLowerCase();
+    if (!value) continue;
+    let state = 0;
+    for (let i = 0; i < value.length; i++) {
+      const char = value[i];
+      if (!nodes[state].next.has(char)) {
+        nodes[state].next.set(char, nodes.length);
+        nodes.push({ next: /* @__PURE__ */ new Map(), fail: 0, outputs: [] });
+      }
+      state = nodes[state].next.get(char);
+    }
+    nodes[state].outputs.push({ ...pattern, length: value.length });
+  }
+  const queue = [...nodes[0].next.values()];
+  for (let head = 0; head < queue.length; head++) {
+    const state = queue[head];
+    for (const [char, next] of nodes[state].next) {
+      queue.push(next);
+      let fallback = nodes[state].fail;
+      while (fallback && !nodes[fallback].next.has(char)) fallback = nodes[fallback].fail;
+      nodes[next].fail = nodes[fallback].next.get(char) || 0;
+      nodes[next].outputs = nodes[next].outputs.concat(nodes[nodes[next].fail].outputs);
+    }
+  }
+  return (input) => {
+    const text = String(input || "").toLowerCase();
+    const found = /* @__PURE__ */ new Set();
+    let state = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      while (state && !nodes[state].next.has(char)) state = nodes[state].fail;
+      state = nodes[state].next.get(char) || 0;
+      for (const pattern of nodes[state].outputs) {
+        const start = i + 1 - pattern.length;
+        if (pattern.wiki) {
+          if (!/[\]|#]/.test(text[i + 1] || "")) continue;
+        } else if (pattern.boundary) {
+          if (start > 0 && !/[\[\(<"':/\\\s]/.test(text[start - 1])) continue;
+          if (i + 1 < text.length && !/[\]\)>"'|#?\s]/.test(text[i + 1])) continue;
+        }
+        found.add(pattern.id);
+      }
+    }
+    return found;
+  };
+}
+function stripRemoteReferenceText(input) {
+  return String(input || "").replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, "").replace(/https?:\/\/[^\s)"'\]>]+/gi, "");
+}
+function createLocalReferenceMatcher(files, isDrawing) {
+  const patterns = [];
+  for (const file of files) {
+    for (const value of /* @__PURE__ */ new Set([file.path, file.name])) {
+      patterns.push({ value, id: file.path, boundary: true });
+    }
+    if (file.extension === "md" || file.extension === "excalidraw" || isDrawing(file)) {
+      patterns.push({ value: `[[${file.basename || getBaseName(file.name)}`, id: file.path, wiki: true });
+    }
+  }
+  return createTextReferenceMatcher(patterns);
+}
+function addReference(index, target, source) {
+  if (target === source) return;
+  if (!index.has(target)) index.set(target, /* @__PURE__ */ new Set());
+  index.get(target).add(source);
+}
+
+// src/plugin/vault-scans.js
 var import_obsidian5 = require("obsidian");
-var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
+async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
+  const { signal, onProgress, freshRead = false } = scanCtx || {};
+  const revision = plugin.referenceRevision || 0;
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
+  const matchLocal = createLocalReferenceMatcher(allFiles, (file) => isExcalidrawFile2(plugin.app, file));
+  const localReferences = /* @__PURE__ */ new Map();
+  const docContents = [];
+  for (let i = 0; i < docFiles.length; i++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const doc = docFiles[i];
+    if (i % 25 === 0) {
+      onProgress == null ? void 0 : onProgress(i + 1, docFiles.length, doc.path);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    const rawText = freshRead ? await plugin.app.vault.read(doc) : await plugin.app.vault.cachedRead(doc);
+    let decodedText = rawText;
+    try {
+      decodedText = decodeURIComponent(rawText);
+    } catch (e) {
+    }
+    for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
+    if (decodedText !== rawText) {
+      for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+    }
+    docContents.push({
+      file: doc,
+      path: doc.path,
+      rawText,
+      decodedText
+    });
+  }
+  if (!freshRead) {
+    const resolvedLinks = plugin.app.metadataCache.resolvedLinks || {};
+    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+      if (isReportFile(sourcePath)) {
+        continue;
+      }
+      for (const targetPath of Object.keys(targets || {})) {
+        addReference(localReferences, targetPath, sourcePath);
+      }
+    }
+  }
+  return {
+    docContents,
+    localReferences,
+    revision,
+    signal,
+    stable: revision === (plugin.referenceRevision || 0)
+  };
+}
+function isReferenceSnapshotCurrent(plugin, snapshot) {
+  return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
+}
+async function indexRemoteReferences(items, snapshot) {
+  var _a;
+  const patterns = [];
+  for (const item of items) {
+    const id = `${item.year}/${item.month}/${item.filename}`;
+    const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
+    for (const value of /* @__PURE__ */ new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+      if (value) patterns.push({ value, id });
+    }
+  }
+  const match = createTextReferenceMatcher(patterns);
+  snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, /* @__PURE__ */ new Set()]));
+  for (let i = 0; i < snapshot.docContents.length; i++) {
+    if ((_a = snapshot.signal) == null ? void 0 : _a.aborted) throw new Error("SCAN_ABORTED");
+    if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+    const doc = snapshot.docContents[i];
+    for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
+    if (doc.decodedText !== doc.rawText) {
+      for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+    }
+  }
+}
+function findReferencingNotesForLocalFile(tfile, snapshot) {
+  return [...snapshot.localReferences.get(tfile.path) || []];
+}
+function findReferencingNotesForRemoteItem(remoteItem, snapshot) {
+  return [...snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || []];
+}
+async function scanUnusedFiles(plugin, options, scanCtx = {}) {
+  var _a;
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const allowedGroups = /* @__PURE__ */ new Set();
+  if (options.typeNote) allowedGroups.add("note");
+  if (options.typeImage) allowedGroups.add("image");
+  if (options.typeAudio) allowedGroups.add("audio");
+  if (options.typeOther) allowedGroups.add("other");
+  const unusedList = [];
+  if (options.scanLocal) {
+    const allFiles = plugin.app.vault.getFiles();
+    for (let i = 0; i < allFiles.length; i++) {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const f = allFiles[i];
+      if (onProgress && i % 30 === 0) {
+        onProgress(i + 1, allFiles.length, f.path);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      if (isReportFile(f.name) || f.extension === "canvas") {
+        continue;
+      }
+      if (isLocalPathExcluded(plugin.settings, f.path)) continue;
+      const grp = getFileTypeGroup(f.extension);
+      if (!allowedGroups.has(grp)) continue;
+      const refs = findReferencingNotesForLocalFile(f, snapshot);
+      if (refs.length === 0) {
+        unusedList.push({
+          id: `local:${f.path}`,
+          source: "local",
+          typeGroup: grp,
+          name: f.name,
+          displayPath: f.path,
+          size: ((_a = f.stat) == null ? void 0 : _a.size) || 0,
+          rawObj: f,
+          selected: true
+        });
+      }
+    }
+  }
+  if (options.scanRemote) {
+    try {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const remoteFiles = await plugin.fetchRemoteFileList();
+      await indexRemoteReferences(remoteFiles, snapshot);
+      for (let i = 0; i < remoteFiles.length; i++) {
+        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+        const r = remoteFiles[i];
+        if (onProgress && i % 30 === 0) {
+          onProgress(i + 1, remoteFiles.length, r.filename);
+          await new Promise((res) => setTimeout(res, 0));
+        }
+        if (plugin.settings.excludeLockedRemoteFiles && (r.locked || r.inProtectedFolder)) {
+          continue;
+        }
+        const ext = getExt(r.filename);
+        const grp = getFileTypeGroup(ext);
+        if (!allowedGroups.has(grp)) continue;
+        const refs = findReferencingNotesForRemoteItem(r, snapshot);
+        if (refs.length === 0) {
+          unusedList.push({
+            id: `remote:${r.year}/${r.month}/${r.filename}`,
+            source: "remote",
+            typeGroup: grp,
+            name: r.filename,
+            displayPath: `${r.year}/${r.month}/${r.filename}`,
+            size: r.size || 0,
+            rawObj: r,
+            selected: true
+          });
+        }
+      }
+    } catch (err) {
+      if (err.message === "SCAN_ABORTED") throw err;
+      if (!options.scanLocal) {
+        throw err;
+      }
+      new import_obsidian5.Notice(plugin.t("noticeRemoteUnreachable", { err: err.message }));
+    }
+  }
+  return unusedList;
+}
+async function exportOrphanReportToRoot(plugin, results) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Unused_Files_Report_${dateStr}.md`;
+  const localItems = results.filter((r) => r.source === "local");
+  const remoteItems = results.filter((r) => r.source === "remote");
+  const totalBytes = results.reduce((s, r) => s + (r.size || 0), 0);
+  const lines = [
+    `# \u{1F9F9} Unused Files Inspection Report (${dateStr})`,
+    ``,
+    `> Generated: ${now.toLocaleString("en-US")}  |  Total Unused Files: **${results.length}**  |  Total Reclaimable Space: **${formatBytes(totalBytes)}**`,
+    ``
+  ];
+  lines.push(`## \u{1F4BB} 1. Local Vault Unused Files (${localItems.length})`);
+  if (localItems.length === 0) {
+    lines.push(`- No unused local files`);
+  } else {
+    for (const item of localItems) {
+      lines.push(`- [[${item.displayPath}]] \u2014 \`${formatBytes(item.size)}\``);
+    }
+  }
+  lines.push(``);
+  lines.push(`## \u2601\uFE0F 2. Remote Server Unused Files (${remoteItems.length})`);
+  if (remoteItems.length === 0) {
+    lines.push(`- No unused remote files`);
+  } else {
+    for (const item of remoteItems) {
+      lines.push(`- [${item.displayPath}](${item.rawObj.rawUrl}) \u2014 \`${formatBytes(item.size)}\``);
+    }
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian5.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+async function writeOrUpdateRootReport(plugin, reportPath, content) {
+  const existing = plugin.app.vault.getAbstractFileByPath(reportPath);
+  let targetFile;
+  if (existing) {
+    await plugin.app.vault.modify(existing, content);
+    targetFile = existing;
+  } else {
+    targetFile = await plugin.app.vault.create(reportPath, content);
+  }
+  const leaf = plugin.app.workspace.getLeaf(false);
+  if (leaf && targetFile) {
+    await leaf.openFile(targetFile);
+  }
+}
+async function cleanSelectedOrphans(plugin, selectedItems, onDone) {
+  return runAttachmentOperation(plugin, () => cleanOrphanItems(plugin, selectedItems, onDone));
+}
+async function cleanOrphanItems(plugin, selectedItems, onDone) {
+  const remoteToClean = selectedItems.filter((i) => i.source === "remote");
+  const localToClean = selectedItems.filter((i) => i.source === "local");
+  if (remoteToClean.length > 0) {
+    const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
+    const confirmed = await new Promise((resolve) => {
+      new ConfirmActionModal(
+        plugin.app,
+        plugin.t("confirmRemoteOrphanTitle"),
+        plugin.t("confirmRemoteOrphanMsg", { count: remoteToClean.length, size: formatBytes(remoteBytes) }),
+        plugin.t("confirmRemoteOrphanBtn", { count: remoteToClean.length }),
+        resolve
+      ).open();
+    });
+    if (!confirmed) return;
+  }
+  let deletedLocal = 0;
+  let deletedRemote = 0;
+  let skipped = 0;
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  await indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
+  for (const item of localToClean) {
+    if (!plugin.isReferenceSnapshotCurrent(snapshot)) {
+      skipped++;
+      continue;
+    }
+    if (findReferencingNotesForLocalFile(item.rawObj, snapshot).length) {
+      skipped++;
+      continue;
+    }
+    try {
+      await plugin.app.vault.trash(item.rawObj, true);
+      deletedLocal++;
+    } catch (err) {
+      console.error("Failed to delete local file:", err);
+      plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
+    }
+  }
+  for (const item of remoteToClean) {
+    if (!plugin.isReferenceSnapshotCurrent(snapshot)) {
+      skipped++;
+      continue;
+    }
+    if (findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) {
+      skipped++;
+      continue;
+    }
+    try {
+      await plugin.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
+      deletedRemote++;
+    } catch (err) {
+      new import_obsidian5.Notice(plugin.t("noticeRemoteDeleteFailed", { name: item.name, err: err.message }));
+      plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
+    }
+  }
+  plugin.logOperation("INFO", "ORPHAN_CLEANUP", `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
+    files: selectedItems.map((i) => i.displayPath)
+  });
+  new import_obsidian5.Notice(plugin.t("noticeCleanupComplete", { local: deletedLocal, remote: deletedRemote }));
+  if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
+}
+async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, scanCtx = {}) {
+  var _a, _b;
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const hashMap = /* @__PURE__ */ new Map();
+  const allowedGroups = /* @__PURE__ */ new Set();
+  if (!fileTypeOpts) {
+    allowedGroups.add("image");
+    allowedGroups.add("audio");
+    allowedGroups.add("other");
+    allowedGroups.add("note");
+  } else {
+    if (fileTypeOpts.typeImage) allowedGroups.add("image");
+    if (fileTypeOpts.typeAudio) allowedGroups.add("audio");
+    if (fileTypeOpts.typeOther) allowedGroups.add("other");
+    if (fileTypeOpts.typeNote) allowedGroups.add("note");
+  }
+  let localScanned = 0;
+  let remoteScanned = 0;
+  let remoteError = null;
+  const addItem = (sha256, itemObj) => {
+    if (!sha256) return;
+    if (!hashMap.has(sha256)) hashMap.set(sha256, []);
+    hashMap.get(sha256).push(itemObj);
+  };
+  const sizeBuckets = /* @__PURE__ */ new Map();
+  const getBucket = (sz) => {
+    let b = sizeBuckets.get(sz);
+    if (!b) {
+      b = { local: [], remote: [] };
+      sizeBuckets.set(sz, b);
+    }
+    return b;
+  };
+  if (scope === "local" || scope === "both") {
+    const allFiles = plugin.app.vault.getFiles();
+    for (const f of allFiles) {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      if (isReportFile(f.name) || f.extension === "canvas") {
+        continue;
+      }
+      if (isLocalPathExcluded(plugin.settings, f.path)) continue;
+      const grp = getFileTypeGroup(f.extension);
+      if (!allowedGroups.has(grp)) continue;
+      const size = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
+      if (size <= 0) continue;
+      getBucket(size).local.push(f);
+    }
+  }
+  if (scope === "remote" || scope === "both") {
+    try {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const remoteFiles = await plugin.fetchRemoteFileList();
+      await indexRemoteReferences(remoteFiles, snapshot);
+      for (const r of remoteFiles) {
+        if (!r.sha256) continue;
+        const ext = getExt(r.filename);
+        const grp = getFileTypeGroup(ext);
+        if (!allowedGroups.has(grp)) continue;
+        const size = r.size || 0;
+        getBucket(size).remote.push(r);
+      }
+    } catch (err) {
+      if (err.message === "SCAN_ABORTED") throw err;
+      if (scope === "remote") {
+        throw err;
+      }
+      remoteError = err.message;
+    }
+  }
+  const bucketEntries = [...sizeBuckets.entries()];
+  for (let bIdx = 0; bIdx < bucketEntries.length; bIdx++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const [, bucket] = bucketEntries[bIdx];
+    let hasConflict = false;
+    if (scope === "both") {
+      hasConflict = bucket.local.length + bucket.remote.length >= 2;
+    } else if (scope === "local") {
+      hasConflict = bucket.local.length >= 2;
+    } else if (scope === "remote") {
+      hasConflict = bucket.remote.length >= 2;
+    }
+    if (!hasConflict) continue;
+    if (scope === "remote" || scope === "both") {
+      for (const r of bucket.remote) {
+        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+        remoteScanned++;
+        const ext = getExt(r.filename);
+        const refNotes = findReferencingNotesForRemoteItem(r, snapshot);
+        addItem(r.sha256, {
+          id: `remote:${r.year}/${r.month}/${r.filename}`,
+          source: "remote",
+          name: r.filename,
+          ext,
+          displayPath: `${r.year}/${r.month}/${r.filename}`,
+          size: r.size || 0,
+          locked: Boolean(r.locked || r.inProtectedFolder),
+          refNotes,
+          rawObj: r
+        });
+      }
+    }
+    if (scope === "local" || scope === "both") {
+      for (const f of bucket.local) {
+        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+        if (onProgress) {
+          onProgress(bIdx + 1, bucketEntries.length, f.path);
+        }
+        const buf = await plugin.app.vault.readBinary(f);
+        if (!buf || buf.byteLength === 0) continue;
+        localScanned++;
+        const sha256 = await computeSha256Hex(buf);
+        const refNotes = findReferencingNotesForLocalFile(f, snapshot);
+        addItem(sha256, {
+          id: `local:${f.path}`,
+          source: "local",
+          name: f.name,
+          ext: f.extension.toLowerCase(),
+          displayPath: f.path,
+          size: ((_b = f.stat) == null ? void 0 : _b.size) || buf.byteLength,
+          locked: false,
+          refNotes,
+          rawObj: f
+        });
+      }
+    }
+  }
+  const duplicateGroups = [];
+  for (const [sha256, items] of hashMap.entries()) {
+    if (items.length < 2) continue;
+    duplicateGroups.push({
+      sha256,
+      size: items[0].size || 0,
+      items,
+      keepId: items[0].id
+    });
+  }
+  return {
+    groups: duplicateGroups,
+    stats: { localScanned, remoteScanned, remoteError }
+  };
+}
+async function exportDuplicateReportToRoot(plugin, groups) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
+  const lines = [
+    `# \u{1F50D} Duplicate Files Inspection Report (${dateStr})`,
+    ``,
+    `> Generated: ${now.toLocaleString("en-US")}  |  Duplicate Groups: **${groups.length}**`,
+    ``
+  ];
+  if (groups.length === 0) {
+    lines.push(`\u{1F389} No duplicate files found.`);
+  } else {
+    groups.forEach((grp, idx) => {
+      lines.push(`## Duplicate Group #${idx + 1} (\`${grp.sha256.slice(0, 12)}...\`, Size: ${formatBytes(grp.size)})`);
+      for (const item of grp.items) {
+        const isKeep = grp.keepId === item.id ? " **[Current Keep Selection]**" : "";
+        const lockTag = item.locked ? " `\u{1F512} Protected`" : "";
+        const linkStr = item.source === "local" ? `\u{1F4BB} Local: [[${item.displayPath}]]` : `\u2601\uFE0F Remote: [${item.displayPath}](${item.rawObj.rawUrl})`;
+        const refsStr = item.refNotes.length > 0 ? `Referencing Notes: ${item.refNotes.map((n) => `[[${n}]]`).join(", ")}` : `No direct note references`;
+        lines.push(`- ${linkStr}${lockTag}${isKeep} \u2014 (${refsStr})`);
+      }
+      lines.push(``);
+    });
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian5.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+async function exportBatchMigrateReportToRoot(plugin, summary) {
+  const now = /* @__PURE__ */ new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateStr = formatDateYMD(now);
+  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
+  const count = (summary == null ? void 0 : summary.count) || 0;
+  const docs = (summary == null ? void 0 : summary.docs) || 0;
+  const totalBytes = (summary == null ? void 0 : summary.totalBytes) || 0;
+  const trashed = (summary == null ? void 0 : summary.trashed) || 0;
+  const items = (summary == null ? void 0 : summary.processedItems) || [];
+  const failures = (summary == null ? void 0 : summary.failures) || [];
+  const trashFailures = (summary == null ? void 0 : summary.trashFailures) || [];
+  const lines = [
+    `# \u{1F680} \u6279\u91CF\u4E91\u7AEF\u8FC1\u79FB\u62A5\u544A / Batch Migration Report (${dateStr})`,
+    ``,
+    `> \u751F\u6210\u65F6\u95F4 / Generated: ${dateStr} ${timeStr}  |  \u6210\u529F\u8FC1\u79FB\u9644\u4EF6 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  \u66F4\u65B0\u7B14\u8BB0 / Notes Updated: **${docs}**  |  \u672C\u5730\u6E05\u7406 / Trashed: **${trashed}**`,
+    ``,
+    `## \u{1F4CA} \u8FC1\u79FB\u6C47\u603B\u7EDF\u8BA1 / Summary Statistics`,
+    `- **\u6210\u529F\u4E0A\u4F20\u6587\u4EF6 (Total Uploaded)**: ${count} \u4E2A (${formatBytes(totalBytes)})`,
+    `- **\u5F15\u7528\u94FE\u63A5\u5DF2\u66F4\u65B0\u7B14\u8BB0 (Notes Updated)**: ${docs} \u7BC7`,
+    `- **\u672C\u5730\u539F\u6587\u4EF6\u5DF2\u79FB\u5165\u56DE\u6536\u7AD9 (Local Trashed)**: ${trashed} \u4E2A`,
+    `- **\u4E0A\u4F20\u5931\u8D25\u9879 (Failed Uploads)**: ${failures.length} \u4E2A`,
+    ...trashFailures.length > 0 ? [`- **\u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 (Failed Local Cleanups)**: ${trashFailures.length} \u4E2A`] : [],
+    ``,
+    `## \u2601\uFE0F \u5DF2\u8FC1\u79FB\u9644\u4EF6\u6E05\u5355 / Migrated Assets (${items.length})`,
+    ``
+  ];
+  if (items.length === 0) {
+    lines.push(`- \u65E0\u5DF2\u8FC1\u79FB\u9644\u4EF6 / No assets were migrated.`);
+  } else {
+    lines.push(`| # | \u672C\u5730\u539F\u8DEF\u5F84 (Local Path) | \u670D\u52A1\u5668\u94FE\u63A5 (Remote URL) | \u6587\u4EF6\u5927\u5C0F (Size) | \u5F15\u7528\u6570 (Refs) |`);
+    lines.push(`|---|---|---|---|---|`);
+    items.forEach((item, idx) => {
+      const localPath = item.displayPath || item.name;
+      const remoteUrl = item.rawUrl || item.rawObj && item.rawObj.rawUrl || "";
+      const sizeStr = formatBytes(item.size || 0);
+      const refsCount = item.refNotesCount !== void 0 ? `${item.refNotesCount} \u7BC7` : "-";
+      const remoteLink = remoteUrl ? `[${item.name || "Link"}](${remoteUrl})` : "-";
+      lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
+    });
+  }
+  if (failures.length > 0) {
+    lines.push(``);
+    lines.push(`## \u26A0\uFE0F \u4E0A\u4F20\u5931\u8D25\u9879 / Failed Uploads (${failures.length})`);
+    lines.push(``);
+    failures.forEach((f, idx) => {
+      lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${f.error}`);
+    });
+  }
+  if (trashFailures.length > 0) {
+    lines.push(``);
+    lines.push(`## \u26A0\uFE0F \u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 / Failed Local Cleanups (${trashFailures.length})`);
+    lines.push(``);
+    trashFailures.forEach((tf, idx) => {
+      lines.push(`- **#${idx + 1}**: \`${tf.path}\` \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${tf.error}`);
+    });
+  }
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(`*Generated by File Master Obsidian Plugin*`);
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian5.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  return reportPath;
+}
+async function openNoteAtLine(plugin, filePath, lineNumber) {
+  const file = plugin.app.vault.getAbstractFileByPath(filePath);
+  if (file && file instanceof import_obsidian5.TFile) {
+    const leaf = plugin.app.workspace.getLeaf(false);
+    await leaf.openFile(file);
+    const view = leaf.view;
+    if (view && view.editor && lineNumber) {
+      const lineIdx = Math.max(0, lineNumber - 1);
+      view.editor.setCursor({ line: lineIdx, ch: 0 });
+      view.editor.scrollIntoView(
+        { from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } },
+        true
+      );
+    }
+  } else {
+    new import_obsidian5.Notice(plugin.t("noticeCannotOpenFile", { path: filePath }));
+  }
+}
+
+// src/transfers.js
+function throwIfTransferCancelled(signal) {
+  if (signal == null ? void 0 : signal.aborted) throw Object.assign(new Error("TRANSFER_CANCELLED"), { name: "AbortError" });
+}
+function transferDelay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const cancelled = () => {
+      clearTimeout(timer);
+      reject(Object.assign(new Error("TRANSFER_CANCELLED"), { name: "AbortError" }));
+    };
+    const timer = setTimeout(() => {
+      signal == null ? void 0 : signal.removeEventListener("abort", cancelled);
+      resolve();
+    }, ms);
+    if (signal == null ? void 0 : signal.aborted) cancelled();
+    else signal == null ? void 0 : signal.addEventListener("abort", cancelled, { once: true });
+  });
+}
+async function requestWithBackoff(request, { signal, delay = transferDelay, maxRetries = 4 } = {}) {
+  var _a, _b;
+  for (let attempt = 0; ; attempt++) {
+    throwIfTransferCancelled(signal);
+    let response;
+    try {
+      response = await request();
+      if (attempt >= maxRetries || ![429, 500, 502, 503, 504].includes(response.status)) return response;
+    } catch (err) {
+      if ((signal == null ? void 0 : signal.aborted) || attempt >= maxRetries || err.name === "AbortError") throw err;
+    }
+    const headers = (response == null ? void 0 : response.headers) || {};
+    const retryAfter = (_a = headers["retry-after"]) != null ? _a : headers["Retry-After"];
+    let wait = retryAfter !== void 0 && Number.isFinite(Number(retryAfter)) ? Number(retryAfter) * 1e3 : Number.isFinite(Date.parse(retryAfter)) ? Math.max(0, Date.parse(retryAfter) - Date.now()) : null;
+    if (wait === null && (response == null ? void 0 : response.status) === 429) {
+      try {
+        if ((_b = response.json) == null ? void 0 : _b.retryAfter) wait = Number(response.json.retryAfter) * 1e3;
+      } catch (e) {
+      }
+    }
+    await delay(Math.min(12e4, Math.max(250, wait != null ? wait : 1e3 * 2 ** attempt + Math.random() * 250)), signal);
+  }
+}
+async function runAttachmentOperation(plugin, task, signal) {
+  if (plugin.attachmentOperationRunning) throw new Error(plugin.t("transferBusy"));
+  plugin.attachmentOperationRunning = true;
+  const controller = new AbortController();
+  const cancelled = () => controller.abort();
+  if (signal == null ? void 0 : signal.aborted) cancelled();
+  else signal == null ? void 0 : signal.addEventListener("abort", cancelled, { once: true });
+  plugin.activeTransferController = controller;
+  try {
+    return await task(controller.signal);
+  } finally {
+    signal == null ? void 0 : signal.removeEventListener("abort", cancelled);
+    plugin.activeTransferController = null;
+    plugin.attachmentOperationRunning = false;
+  }
+}
+async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  const remoteItems = pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj);
+  if (remoteItems.length) await indexRemoteReferences(remoteItems, snapshot);
+  const allowed = documentPaths ? new Set(documentPaths) : null;
+  const byDocument = /* @__PURE__ */ new Map();
+  const changedPaths = new Map(pairs.map((pair) => [pair, []]));
+  for (const pair of pairs) {
+    const refs = pair.removeItem.source === "local" ? findReferencingNotesForLocalFile(pair.removeItem.rawObj, snapshot) : findReferencingNotesForRemoteItem(pair.removeItem.rawObj, snapshot);
+    for (const path of refs) {
+      if (allowed && !allowed.has(path)) continue;
+      if (!byDocument.has(path)) byDocument.set(path, []);
+      byDocument.get(path).push(pair);
+    }
+  }
+  const modified = /* @__PURE__ */ new Set();
+  for (const doc of snapshot.docContents) {
+    const relevant = byDocument.get(doc.path);
+    if (!relevant) continue;
+    const changedPairs = /* @__PURE__ */ new Set();
+    const changed = await safeModifyFileContent(plugin, doc.file, (current) => {
+      let next = current;
+      for (const pair of relevant) {
+        const updated = plugin.rewriteContentLinks(next, pair.removeItem, pair.keepItem, doc.path);
+        if (updated !== next) changedPairs.add(pair);
+        next = updated;
+      }
+      return next;
+    });
+    if (changed) {
+      modified.add(doc.path);
+      for (const pair of changedPairs) changedPaths.get(pair).push(doc.path);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return { modified, changedPaths };
+}
+function migrationCheckpointPath(plugin) {
+  return getLogFilePath(plugin).replace(/operation\.log$/, "migration-pending.json");
+}
+async function saveMigrationCheckpoint(plugin, items, options) {
+  const adapter = plugin.app.vault.adapter;
+  if (!adapter) return;
+  const path = migrationCheckpointPath(plugin);
+  if (!items.length) {
+    if (await adapter.exists(path)) await adapter.remove(path);
+    return;
+  }
+  await adapter.write(path, JSON.stringify({
+    version: 1,
+    serverUrl: plugin.getCleanServerUrl(),
+    options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null },
+    items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) }))
+  }));
+}
+async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
+  var _a, _b, _c, _d, _e, _f, _g, _h;
+  await saveMigrationCheckpoint(plugin, items, options);
+  const uploaded = [], failures = [], retryItems = [];
+  for (let i = 0; i < items.length; i++) {
+    if ((_a = options.signal) == null ? void 0 : _a.aborted) {
+      retryItems.push(...items.slice(i));
+      break;
+    }
+    const entry = items[i];
+    const tfile = entry.tfile || entry.rawObj || entry;
+    const sourceVersion = { ...tfile.stat };
+    onProgress == null ? void 0 : onProgress(i + 1, items.length, tfile.name);
+    try {
+      const bytes = await plugin.app.vault.readBinary(tfile);
+      const remote = await plugin.uploadBufferToServer(bytes, tfile.name, "application/octet-stream", { signal: options.signal });
+      if (entry.locked && !remote.locked) {
+        await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
+        remote.locked = true;
+      }
+      uploaded.push({
+        entry,
+        tfile,
+        sourceVersion,
+        sourceSha: remote.sha256,
+        removeItem: { source: "local", name: tfile.name, ext: tfile.extension.toLowerCase(), displayPath: tfile.path, rawObj: tfile },
+        keepItem: {
+          source: "remote",
+          name: remote.filename,
+          ext: getExt(remote.filename),
+          displayPath: `${remote.year}/${remote.month}/${remote.filename}`,
+          rawObj: remote
+        }
+      });
+    } catch (err) {
+      retryItems.push(entry);
+      if (err.name === "AbortError") {
+        retryItems.push(...items.slice(i + 1));
+        break;
+      }
+      failures.push({ name: tfile.name, path: tfile.path, size: ((_b = tfile.stat) == null ? void 0 : _b.size) || 0, error: err.message || String(err) });
+      plugin.logOperation("ERROR", "BATCH_UPLOAD", `Failed to upload ${tfile.path}`, { error: err.message });
+    }
+  }
+  for (let i = uploaded.length - 1; i >= 0; i--) {
+    const pair = uploaded[i];
+    if (pair.sourceVersion.mtime !== ((_c = pair.tfile.stat) == null ? void 0 : _c.mtime) || pair.sourceVersion.size !== ((_d = pair.tfile.stat) == null ? void 0 : _d.size)) {
+      if (await computeSha256Hex(await plugin.app.vault.readBinary(pair.tfile)) !== pair.sourceSha) {
+        uploaded.splice(i, 1);
+        retryItems.push(pair.entry);
+        failures.push({
+          name: pair.tfile.name,
+          path: pair.tfile.path,
+          size: ((_e = pair.tfile.stat) == null ? void 0 : _e.size) || 0,
+          error: plugin.t("transferSourceChanged")
+        });
+      }
+    }
+  }
+  const rewritten = uploaded.length ? await rewriteAttachmentPairs(plugin, uploaded, options.documentPaths) : { modified: /* @__PURE__ */ new Set(), changedPaths: /* @__PURE__ */ new Map() };
+  const postSnapshot = uploaded.length && options.deleteLocalAfter ? await plugin.buildVaultReferenceSnapshot({ freshRead: true }) : null;
+  const trashedFiles = [], trashFailures = [], processedItems = [];
+  for (const pair of uploaded) {
+    const { tfile, keepItem } = pair;
+    const remote = keepItem.rawObj;
+    const syncedPaths = (rewritten.changedPaths.get(pair) || []).filter((p) => {
+      var _a2;
+      return p !== ((_a2 = options.activeFile) == null ? void 0 : _a2.path);
+    });
+    const remaining = postSnapshot ? findReferencingNotesForLocalFile(tfile, postSnapshot) : [];
+    const result = {
+      source: "remote",
+      name: remote.filename,
+      ext: keepItem.ext,
+      displayPath: keepItem.displayPath,
+      localPath: tfile.path,
+      size: ((_f = tfile.stat) == null ? void 0 : _f.size) || 0,
+      locked: Boolean(remote.locked),
+      rawObj: remote,
+      rawUrl: remote.rawUrl,
+      pubUrl: remote.pubUrl,
+      action: "uploaded",
+      trashedLocal: false,
+      keptForOtherRefs: remaining.length,
+      keptForOtherRefPaths: remaining,
+      syncedOtherNotes: syncedPaths.length,
+      syncedOtherNotePaths: syncedPaths,
+      refNotesCount: ((_g = pair.entry.refNotes) == null ? void 0 : _g.length) || 0
+    };
+    if (postSnapshot && !remaining.length) {
+      try {
+        const latest = await plugin.app.vault.readBinary(tfile);
+        if (await computeSha256Hex(latest) !== pair.sourceSha) throw new Error(plugin.t("transferSourceChanged"));
+        if (!plugin.isReferenceSnapshotCurrent(postSnapshot)) throw new Error(plugin.t("transferReferencesChanged"));
+        await plugin.app.vault.trash(tfile, true);
+        result.trashedLocal = true;
+        trashedFiles.push(tfile.path);
+      } catch (err) {
+        result.trashError = err.message || String(err);
+        trashFailures.push({ path: tfile.path, error: result.trashError });
+        retryItems.push(pair.entry);
+      }
+    }
+    processedItems.push(result);
+  }
+  await saveMigrationCheckpoint(plugin, retryItems, options);
+  const summary = {
+    count: uploaded.length,
+    docs: rewritten.modified.size,
+    modifiedNotePaths: [...rewritten.modified],
+    trashed: trashedFiles.length,
+    trashedFiles,
+    processedItems,
+    failures,
+    trashFailures,
+    retryItems,
+    cancelled: Boolean((_h = options.signal) == null ? void 0 : _h.aborted),
+    totalBytes: processedItems.reduce((sum, item) => sum + item.size, 0)
+  };
+  plugin.logOperation("INFO", "BATCH_UPLOAD", `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
+    failures: failures.length,
+    unfinished: retryItems.length,
+    cancelled: summary.cancelled
+  });
+  return summary;
+}
+
+// src/plugin/server-client.js
+var import_obsidian6 = require("obsidian");
+function filterAllowedFiles(settings, fileList) {
+  const out = [];
+  for (let i = 0; i < fileList.length; i++) {
+    const f = fileList[i];
+    const ext = getExt(f.name) || (f.type.startsWith("image/") ? "png" : "");
+    if (IMAGE_EXTS.has(ext)) {
+      out.push(f);
+    } else if (settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
+      out.push(f);
+    }
+  }
+  return out;
+}
+function getCleanServerUrl(settings) {
+  return String(settings.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
+}
+async function handleIncomingBrowserFile(plugin, file, editor) {
+  const arrayBuffer = await file.arrayBuffer();
+  const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
+  const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
+  const sha256 = await computeSha256Hex(arrayBuffer);
+  const activeFile = plugin.app.workspace.getActiveFile();
+  const noteName = activeFile ? activeFile.basename : "note";
+  let defaultBaseName = rawOriginBase;
+  if (plugin.settings.namingMode === "rule") {
+    defaultBaseName = applyNamingPattern(plugin.settings.namingPattern, {
+      noteName,
+      originBase: rawOriginBase,
+      sha256
+    });
+  } else if (/^image$/i.test(rawOriginBase)) {
+    defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
+  }
+  const askLocation = plugin.settings.saveLocationMode === "ask";
+  const promptRename = plugin.settings.namingMode === "prompt";
+  const fileInfo = {
+    arrayBuffer,
+    defaultBaseName,
+    ext,
+    size: file.size || arrayBuffer.byteLength,
+    mimeType: file.type || "application/octet-stream",
+    sha256
+  };
+  const modalOptions = {
+    askLocation,
+    fixedLocation: plugin.settings.saveLocationMode,
+    promptRename,
+    plugin,
+    editor,
+    activeFile
+  };
+  new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
+}
+async function probeRemoteSha256(plugin, sha256) {
+  var _a;
+  try {
+    const serverUrl = plugin.getCleanServerUrl();
+    if (!serverUrl || !plugin.settings.apiToken || !sha256) return null;
+    const response = await (0, import_obsidian6.requestUrl)({
+      url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${plugin.settings.apiToken}`
+      },
+      throw: false
+    });
+    if (response.status === 200 && ((_a = response.json) == null ? void 0 : _a.exists)) {
+      return response.json;
+    }
+  } catch (e) {
+  }
+  return null;
+}
+async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
+  var _a;
+  const opts = typeof options === "boolean" ? { uploadToProtected: options } : options || {};
+  throwIfTransferCancelled(opts.signal);
+  const fullSha256 = await computeSha256Hex(arrayBuffer);
+  if (!opts.skipProbe) {
+    try {
+      const probed = await plugin.probeRemoteSha256(fullSha256);
+      if (probed && probed.exists && probed.sha256 === fullSha256) {
+        probed.isInstant = true;
+        return probed;
+      }
+    } catch (e) {
+    }
+  }
+  const url = `${plugin.getCleanServerUrl()}/api/image/upload`;
+  const { boundary, arrayBuffer: bodyBuffer } = buildMultipartBuffer(arrayBuffer, filename, mimeType);
+  const headers = {
+    Authorization: `Bearer ${plugin.settings.apiToken}`,
+    "X-File-Name": encodeURIComponent(filename),
+    "Content-Type": `multipart/form-data; boundary=${boundary}`
+  };
+  const response = await requestWithBackoff(() => (0, import_obsidian6.requestUrl)({
+    url,
+    method: "POST",
+    headers,
+    body: bodyBuffer,
+    throw: false
+  }), { signal: opts.signal });
+  if (response.status < 200 || response.status >= 300) {
+    const errMsg = ((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`;
+    throw new Error(errMsg);
+  }
+  const result = response.json;
+  if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(plugin.t("transferIntegrityFailed"));
+  return result;
+}
+async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/lock`;
+  const response = await (0, import_obsidian6.requestUrl)({
+    url,
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${plugin.settings.apiToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ year, month, filename, locked }),
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Lock operation failed (HTTP ${response.status})`);
+  }
+  return response.json;
+}
+async function checkServerCompatibility(plugin) {
+  var _a, _b, _c;
+  if (!((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer)) {
+    plugin.lastServerCompatStatus = null;
+    if (plugin.settings) {
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+    }
+    return null;
+  }
+  const pluginVer = ((_b = plugin.manifest) == null ? void 0 : _b.version) || "0.1.1";
+  const serverUrl = plugin.getCleanServerUrl();
+  if (!serverUrl) {
+    plugin.lastServerCompatStatus = {
+      ok: false,
+      status: "offline",
+      error: "No URL configured",
+      serverVersion: null
+    };
+    plugin.settings.serverVerified = false;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  }
+  try {
+    const verUrl = `${serverUrl}/api/platform/version`;
+    const verRes = await (0, import_obsidian6.requestUrl)({
+      url: verUrl,
+      method: "GET",
+      throw: false
+    });
+    if (verRes.status !== 200) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "offline",
+        serverVersion: null,
+        error: `HTTP ${verRes.status}`
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    const verData = verRes.json || {};
+    const serverVer = verData.version || "0.1.0";
+    const minPluginReq = verData.minPluginVersion || "0.1.0";
+    if (compareSemver(pluginVer, minPluginReq) < 0) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "plugin_outdated",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        minPluginVersion: minPluginReq,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (compareSemver(serverVer, MIN_SERVER_VERSION) < 0) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "server_outdated",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        minServerVersion: MIN_SERVER_VERSION,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    let assetCount = 0;
+    const token = (plugin.settings.apiToken || "").trim();
+    if (!token) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "token_missing",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    let listRes;
+    try {
+      listRes = await (0, import_obsidian6.requestUrl)({
+        url: `${serverUrl}/api/modules/image-host/list`,
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        throw: false
+      });
+    } catch (netErr) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "offline",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        error: netErr.message || String(netErr)
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (listRes.status === 401 || listRes.status === 403) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "auth_failed",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (listRes.status !== 200) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "server_error",
+        statusCode: listRes.status,
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
+    plugin.lastServerCompatStatus = {
+      ok: true,
+      status: "compatible",
+      serverVersion: serverVer,
+      pluginVersion: pluginVer,
+      apiVersion: verData.apiVersion || 1,
+      assetCount,
+      features: verData.features || {}
+    };
+    plugin.settings.serverVerified = true;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  } catch (err) {
+    plugin.lastServerCompatStatus = {
+      ok: false,
+      status: "offline",
+      serverVersion: null,
+      error: err.message || "Network error"
+    };
+    plugin.settings.serverVerified = false;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  }
+}
+async function fetchRemoteFileList(plugin) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list`;
+  const response = await (0, import_obsidian6.requestUrl)({
+    url,
+    method: "GET",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
+  }
+  return response.json.images || [];
+}
+async function deleteRemoteFile(plugin, year, month, filename) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
+  const response = await (0, import_obsidian6.requestUrl)({
+    url,
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Failed to delete remote file (HTTP ${response.status})`);
+  }
+  return true;
+}
+
+// src/modals/batch-migrate-wizard.js
+var import_obsidian7 = require("obsidian");
+var BatchMigrateWizardModal = class extends import_obsidian7.Modal {
   constructor(app, plugin, initialFolder = "") {
     super(app);
     this.plugin = plugin;
@@ -2783,7 +4109,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
       value: "",
       text: t2("migrateEntireVault")
     });
-    const allFolders = this.plugin.getAllVaultFolderPaths();
+    const allFolders = getAllVaultFolderPaths(this.plugin.app);
     for (const fp of allFolders) {
       const opt = folderSelect.createEl("option", { value: fp, text: `\u{1F4C1} ${fp}/` });
       if (fp === this.options.folderPrefix) opt.selected = true;
@@ -2817,14 +4143,14 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     const nextBtn = btnRow.createEl("button", { text: t2("migrateNextPreview"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian5.Notice(t2("migrateSelectTypeNotice"));
+        new import_obsidian7.Notice(t2("migrateSelectTypeNotice"));
         return;
       }
       nextBtn.disabled = true;
       nextBtn.setText(t2("migrateScanning"));
       progressWidget.show();
       try {
-        this.items = await this.plugin.scanLocalAttachmentsForBatchMigrate(this.options, {
+        this.items = await scanLocalAttachmentsForBatchMigrate(this.plugin, this.options, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -2832,7 +4158,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian5.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian7.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("migrateNextPreview"));
       }
@@ -2947,7 +4273,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     runBtn.onclick = async () => {
       const selected = this.items.filter((i) => i.selected);
       if (selected.length === 0) {
-        new import_obsidian5.Notice(t2("migrateSelectNotice"));
+        new import_obsidian7.Notice(t2("migrateSelectNotice"));
         return;
       }
       runBtn.disabled = true;
@@ -2970,7 +4296,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
           }
         );
       } catch (err) {
-        new import_obsidian5.Notice(err.message);
+        new import_obsidian7.Notice(err.message);
         runBtn.disabled = false;
         backBtn.disabled = false;
       } finally {
@@ -3041,11 +4367,11 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
             cls: "clickable-icon",
             attr: { "aria-label": t2("copyRawUrl") || "Copy URL" }
           });
-          (0, import_obsidian5.setIcon)(copyBtn, "copy");
+          (0, import_obsidian7.setIcon)(copyBtn, "copy");
           copyBtn.onclick = async (e) => {
             e.stopPropagation();
             await navigator.clipboard.writeText(pItem.rawUrl);
-            new import_obsidian5.Notice(t2("noticeCopied"));
+            new import_obsidian7.Notice(t2("noticeCopied"));
           };
         }
       }
@@ -3074,7 +4400,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     exportBtn.onclick = async () => {
       exportBtn.disabled = true;
       try {
-        createdReportPath = await this.plugin.exportBatchMigrateReportToRoot(this.summary);
+        createdReportPath = await exportBatchMigrateReportToRoot(this.plugin, this.summary);
         exportBtn.setText(t2("batchReportExported"));
         if (!btnRow.querySelector(".fm-open-report-btn")) {
           const openBtn = btnRow.createEl("button", {
@@ -3089,7 +4415,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
           };
         }
       } catch (err) {
-        new import_obsidian5.Notice("\u274C " + err.message);
+        new import_obsidian7.Notice("\u274C " + err.message);
         exportBtn.disabled = false;
       }
     };
@@ -3114,9 +4440,220 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
   }
 };
 
+// src/plugin/context-menus.js
+var import_obsidian8 = require("obsidian");
+function registerContextMenus(plugin) {
+  plugin.registerEvent(
+    plugin.app.workspace.on("file-menu", (menu, abstractFile) => {
+      if (!abstractFile) return;
+      if (Array.isArray(abstractFile.children)) {
+        const folderPath = abstractFile.path;
+        if (!folderPath || folderPath === "/") return;
+        if (plugin.isRemoteServerReady()) {
+          menu.addItem((item) => {
+            item.setTitle(plugin.t("menuMigrateFolder")).setIcon("upload-cloud").onClick(() => {
+              new BatchMigrateWizardModal(plugin.app, plugin, folderPath).open();
+            });
+          });
+        }
+        const isExcluded = isLocalPathExcluded(plugin.settings, folderPath);
+        menu.addItem((item) => {
+          item.setTitle(isExcluded ? plugin.t("menuRemoveExclusion") : plugin.t("menuAddExclusion")).setIcon("shield").onClick(() => {
+            toggleLocalFolderExclusion(plugin, folderPath);
+          });
+        });
+        return;
+      }
+      if (abstractFile.extension && isAttachmentExt(abstractFile.extension)) {
+        if (plugin.isRemoteServerReady()) {
+          menu.addItem((item) => {
+            item.setTitle(plugin.t("menuUploadCloud")).setIcon("upload-cloud").onClick(async () => {
+              await migrateSingleLocalFileToRemote(plugin, abstractFile, {
+                deleteLocal: plugin.settings.deleteLocalAfterMigrate
+              });
+            });
+          });
+        }
+        return;
+      }
+      const isNoteOrExcalidraw = abstractFile.extension === "md" || abstractFile.extension === "excalidraw" || isExcalidrawFile2(plugin.app, abstractFile);
+      if (isNoteOrExcalidraw && plugin.isRemoteServerReady()) {
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteMigrate")).setIcon("upload-cloud").onClick(() => {
+            return migrateActiveNoteAttachments(plugin, abstractFile);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteDownload")).setIcon("download-cloud").onClick(() => {
+            return downloadActiveNoteRemoteAttachments(plugin, abstractFile);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteAstro")).setIcon("external-link").onClick(() => {
+            return copyActiveNoteForAstro(plugin, abstractFile);
+          });
+        });
+      }
+    })
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("editor-menu", (menu, editor) => {
+      if (!plugin.isRemoteServerReady()) return;
+      const cursor = editor.getCursor();
+      const lineText = editor.getLine(cursor.line) || "";
+      if (!lineText.trim()) return;
+      const remoteMatch = extractRemoteItemFromLine(plugin, lineText);
+      if (remoteMatch) {
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuCopyRaw", { name: remoteMatch.filename })).setIcon("copy").onClick(async () => {
+            await navigator.clipboard.writeText(remoteMatch.matchedUrl);
+            new import_obsidian8.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuCopyWebp")).setIcon("zap").onClick(async () => {
+            const base = getBaseName(remoteMatch.filename);
+            const optUrl = `${plugin.getCleanServerUrl()}/pub/${remoteMatch.year}/${remoteMatch.month}/${encodeURIComponent(base)}.webp`;
+            await navigator.clipboard.writeText(optUrl);
+            new import_obsidian8.Notice(plugin.t("noticeCopiedWebp", { name: base + ".webp" }));
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuDownloadToVault", { name: remoteMatch.filename })).setIcon("download").onClick(async () => {
+            await plugin.downloadSingleRemoteItemToLocal(remoteMatch);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuLockRemote", { name: remoteMatch.filename })).setIcon("lock").onClick(async () => {
+            try {
+              await plugin.toggleRemoteFileLock(
+                remoteMatch.year,
+                remoteMatch.month,
+                remoteMatch.filename,
+                true
+              );
+              new import_obsidian8.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
+            } catch (err) {
+              new import_obsidian8.Notice(plugin.t("noticeLockFailed", { err: err.message }));
+            }
+          });
+        });
+      }
+      const localTFile = extractLocalAttachmentFromLine(plugin, lineText);
+      if (localTFile) {
+        menu.addItem((item) => {
+          item.setTitle(`${plugin.t("menuUploadCloud")} (${localTFile.name})`).setIcon("upload-cloud").onClick(async () => {
+            await migrateSingleLocalFileToRemote(plugin, localTFile, {
+              toProtected: false,
+              deleteLocal: plugin.settings.deleteLocalAfterMigrate
+            });
+          });
+        });
+      }
+    })
+  );
+}
+function extractRemoteItemFromLine(plugin, lineText) {
+  const serverBase = escapeRegExp(plugin.getCleanServerUrl());
+  const re = new RegExp(
+    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    "i"
+  );
+  const m = re.exec(lineText);
+  if (!m) return null;
+  let filename = m[5];
+  try {
+    filename = decodeURIComponent(filename);
+  } catch (e) {
+  }
+  return {
+    matchedUrl: m[1],
+    routePrefix: m[2],
+    year: m[3],
+    month: m[4],
+    filename
+  };
+}
+function extractLocalAttachmentFromLine(plugin, lineText) {
+  const activeFile = plugin.app.workspace.getActiveFile();
+  const sourcePath = activeFile ? activeFile.path : "";
+  const wikiMatch = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/.exec(lineText);
+  if (wikiMatch) {
+    const tf = plugin.app.metadataCache.getFirstLinkpathDest(wikiMatch[1].trim(), sourcePath);
+    if (tf && isAttachmentExt(tf.extension)) return tf;
+  }
+  const mdMatch = /!?\[[^\]]*\]\((?!https?:\/\/)([^)]+)\)/.exec(lineText);
+  if (mdMatch) {
+    let linkPath = mdMatch[1].trim();
+    try {
+      linkPath = decodeURIComponent(linkPath);
+    } catch (e) {
+    }
+    const tf = plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+    if (tf && isAttachmentExt(tf.extension)) return tf;
+  }
+  return null;
+}
+function setupHeicInlinePreviewObserver(plugin) {
+  const scanEmbeds = () => {
+    const embeds = document.querySelectorAll(".internal-embed[src]");
+    embeds.forEach((el) => {
+      const rawSrc = el.getAttribute("src") || "";
+      const cleanSrc = rawSrc.split("#")[0].split("|")[0].trim();
+      const ext = getExt(cleanSrc);
+      if (!NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) return;
+      if (el.dataset.fmHeicStatus === "done" || el.dataset.fmHeicStatus === "loading") return;
+      el.dataset.fmHeicStatus = "loading";
+      renderSingleHeicEmbed(plugin, el, cleanSrc, ext).catch(() => {
+        el.dataset.fmHeicStatus = "error";
+      });
+    });
+  };
+  plugin.app.workspace.onLayoutReady(() => {
+    scanEmbeds();
+    plugin.heicObserver = new MutationObserver(() => scanEmbeds());
+    plugin.heicObserver.observe(document.body, { childList: true, subtree: true });
+  });
+  plugin.registerEvent(plugin.app.workspace.on("layout-change", () => scanEmbeds()));
+  plugin.registerEvent(plugin.app.workspace.on("file-open", () => setTimeout(scanEmbeds, 80)));
+}
+async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
+  var _a;
+  const activeFile = plugin.app.workspace.getActiveFile();
+  const sourcePath = activeFile ? activeFile.path : "";
+  let tfile = plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+  if (!tfile) {
+    tfile = plugin.app.vault.getFiles().find((f) => f.path === linkPath || f.name === linkPath);
+  }
+  if (!tfile) {
+    embedEl.dataset.fmHeicStatus = "missing";
+    return;
+  }
+  const cacheKey = `${tfile.path}:${((_a = tfile.stat) == null ? void 0 : _a.mtime) || 0}`;
+  let previewUrl = plugin.heicPreviewCache.get(cacheKey);
+  if (!previewUrl) {
+    const buf = await plugin.app.vault.readBinary(tfile);
+    previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
+    plugin.heicPreviewCache.set(cacheKey, previewUrl);
+  }
+  embedEl.empty();
+  embedEl.removeClass("file-embed", "mod-generic");
+  embedEl.addClass("image-embed", "is-loaded");
+  const img = embedEl.createEl("img", {
+    attr: {
+      src: previewUrl,
+      alt: tfile.name
+    }
+  });
+  img.style.maxWidth = "100%";
+  img.style.borderRadius = "6px";
+  img.style.display = "block";
+  embedEl.dataset.fmHeicStatus = "done";
+}
+
 // src/modals/duplicate-wizard.js
-var import_obsidian6 = require("obsidian");
-var DuplicateWizardModal = class extends import_obsidian6.Modal {
+var import_obsidian9 = require("obsidian");
+var DuplicateWizardModal = class extends import_obsidian9.Modal {
   constructor(app, plugin) {
     var _a;
     super(app);
@@ -3185,7 +4722,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
     this.createTypeCheckbox(typeBox, t2("dupTypeAudio"), "typeAudio");
     this.createTypeCheckbox(typeBox, t2("dupTypeOther"), "typeOther");
     this.createTypeCheckbox(typeBox, t2("dupTypeNote"), "typeNote");
-    const exclFolders = this.plugin.getExcludedLocalFolderList();
+    const exclFolders = getExcludedLocalFolderList(this.plugin.settings);
     const protBox = contentEl.createDiv({
       cls: "fm-section-box",
       attr: { style: "font-size: 12px; color: var(--text-muted); padding: 10px 14px;" }
@@ -3201,14 +4738,14 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
     const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.fileTypes.typeImage && !this.fileTypes.typeAudio && !this.fileTypes.typeOther && !this.fileTypes.typeNote) {
-        new import_obsidian6.Notice(this.plugin.t("dupSelectTypeRequired"));
+        new import_obsidian9.Notice(this.plugin.t("dupSelectTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
       nextBtn.setText(t2("dupComparing"));
       progressWidget.show();
       try {
-        const res = await this.plugin.scanDuplicateGroups(this.scope, this.fileTypes, {
+        const res = await scanDuplicateGroups(this.plugin, this.scope, this.fileTypes, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -3219,7 +4756,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian6.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
+        new import_obsidian9.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("btnNext"));
       }
@@ -3294,7 +4831,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
       text: t2("btnExportReport")
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportDuplicateReportToRoot(this.groups);
+      await exportDuplicateReportToRoot(this.plugin, this.groups);
     };
     if ((_a = this.scanStats) == null ? void 0 : _a.remoteError) {
       contentEl.createDiv({
@@ -3381,7 +4918,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
       cls: "mod-cta"
     });
     execBtn.onclick = async () => {
-      await this.plugin.executeDuplicateMergeSafely(this.groups, (summary) => {
+      await executeDuplicateMergeSafely(this.plugin, this.groups, (summary) => {
         this.step = 3;
         this.summary = summary;
         this.render();
@@ -3413,9 +4950,318 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
   }
 };
 
+// src/plugin/health-analytics.js
+var import_obsidian10 = require("obsidian");
+async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
+  const { signal, onProgress } = scanCtx || {};
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter(
+    (f) => isScannableDocFile(plugin, f) && !isLocalPathExcluded(plugin.settings, f.path)
+  );
+  const vaultFilePaths = new Set(allFiles.map((f) => f.path));
+  const vaultFileNames = new Set(allFiles.map((f) => f.name));
+  const vaultFileBasenames = new Set(allFiles.map((f) => f.basename));
+  const vaultIndex = {
+    paths: vaultFilePaths,
+    names: vaultFileNames,
+    basenames: vaultFileBasenames
+  };
+  const issues = [];
+  const remoteToCheck = [];
+  for (let i = 0; i < docFiles.length; i++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const doc = docFiles[i];
+    if (onProgress && i % 15 === 0) {
+      onProgress(i + 1, docFiles.length, doc.path);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    const rawText = await plugin.app.vault.cachedRead(doc);
+    if (doc.extension === "canvas") {
+      try {
+        const data = JSON.parse(rawText);
+        if (Array.isArray(data.nodes)) {
+          for (const node of data.nodes) {
+            if (node.type === "file" && node.file && options.checkLocalMarkdown !== false) {
+              if (!vaultFilePaths.has(node.file) && !vaultFileNames.has(node.file.split("/").pop())) {
+                issues.push({
+                  type: "canvas-node",
+                  category: "local",
+                  sourcePath: doc.path,
+                  target: node.file,
+                  rawText: `{"type": "file", "file": "${node.file}"}`,
+                  line: 1,
+                  lineText: `Canvas File Card: ${node.file}`,
+                  reason: "Referenced canvas attachment does not exist in vault"
+                });
+              }
+            } else if (node.type === "text" && node.text) {
+              const subIssues = scanNoteContentForBrokenLinks(doc.path, node.text, vaultIndex, {
+                checkWikiLinks: options.checkWikiLinks !== false,
+                checkLocalMarkdown: options.checkLocalMarkdown !== false,
+                checkRemote: options.checkRemote
+              });
+              for (const iss of subIssues) {
+                if (iss.category === "remote") {
+                  remoteToCheck.push(iss);
+                } else {
+                  issues.push(iss);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+      }
+    } else {
+      const docIssues = scanNoteContentForBrokenLinks(doc.path, rawText, vaultIndex, {
+        checkWikiLinks: options.checkWikiLinks !== false,
+        checkLocalMarkdown: options.checkLocalMarkdown !== false,
+        checkRemote: options.checkRemote
+      });
+      for (const iss of docIssues) {
+        if (iss.category === "remote") {
+          remoteToCheck.push(iss);
+        } else {
+          issues.push(iss);
+        }
+      }
+    }
+  }
+  if (options.checkRemote && remoteToCheck.length > 0) {
+    const uniqueUrls = Array.from(new Set(remoteToCheck.map((r) => r.target)));
+    const failedUrlMap = /* @__PURE__ */ new Map();
+    for (let i = 0; i < uniqueUrls.length; i += 5) {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const batch = uniqueUrls.slice(i, i + 5);
+      if (onProgress) {
+        onProgress(i + 1, uniqueUrls.length, batch[0]);
+      }
+      await Promise.all(
+        batch.map(async (url) => {
+          try {
+            const res = await (0, import_obsidian10.requestUrl)({ url, method: "HEAD", throw: false });
+            if (res.status >= 400) {
+              failedUrlMap.set(url, `HTTP ${res.status}`);
+            }
+          } catch (err) {
+            failedUrlMap.set(url, err.message || "Network error");
+          }
+        })
+      );
+    }
+    for (const item of remoteToCheck) {
+      if (failedUrlMap.has(item.target)) {
+        item.reason = `Remote resource returned ${failedUrlMap.get(item.target)}`;
+        issues.push(item);
+      }
+    }
+  }
+  plugin.logOperation("INFO", "HEALTH_SCAN", `Scanned ${docFiles.length} document(s), found ${issues.length} broken link issue(s)`, {
+    docsScanned: docFiles.length,
+    issuesFound: issues.length
+  });
+  return { issues, totalDocs: docFiles.length };
+}
+async function exportHealthReportToRoot(plugin, issues, totalDocsScanned) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Broken_Links_Report_${dateStr}.md`;
+  const zh = getEffectiveLanguage2(plugin.settings) === "zh";
+  const locale = zh ? "zh-CN" : "en-US";
+  const labels = zh ? {
+    title: "\u5931\u6548\u94FE\u63A5\u62A5\u544A",
+    generated: "\u751F\u6210\u65F6\u95F4",
+    checked: "\u5DF2\u68C0\u67E5\u6587\u6863",
+    issues: "\u53D1\u73B0\u95EE\u9898",
+    summary: "\u6982\u89C8",
+    wiki: "\u5931\u6548\u5185\u90E8\u94FE\u63A5",
+    local: "\u7F3A\u5931\u672C\u5730\u6587\u4EF6",
+    remote: "\u7F51\u9875\u94FE\u63A5\u5F02\u5E38",
+    source: "\u6240\u5728\u6587\u6863",
+    target: "\u76EE\u6807",
+    type: "\u7C7B\u578B",
+    line: "\u884C\u53F7",
+    context: "\u4E0A\u4E0B\u6587",
+    url: "\u7F51\u9875\u94FE\u63A5",
+    error: "\u9519\u8BEF",
+    link: "\u94FE\u63A5",
+    none: "\u6240\u9009\u68C0\u67E5\u8303\u56F4\u5185\u672A\u53D1\u73B0\u94FE\u63A5\u95EE\u9898\u3002"
+  } : {
+    title: "Broken links report",
+    generated: "Generated",
+    checked: "Documents checked",
+    issues: "Issues found",
+    summary: "Overview",
+    wiki: "Broken note links",
+    local: "Missing local files",
+    remote: "Web link errors",
+    source: "Document",
+    target: "Target",
+    type: "Type",
+    line: "Line",
+    context: "Context",
+    url: "Web link",
+    error: "Error",
+    link: "Link",
+    none: "No link issues found in the selected scope."
+  };
+  const wikiIssues = issues.filter((i) => i.category === "wikilink");
+  const localIssues = issues.filter((i) => i.category === "local");
+  const remoteIssues = issues.filter((i) => i.category === "remote");
+  const lines = [
+    `# ${labels.title} (${dateStr})`,
+    ``,
+    `> ${labels.generated}: ${now.toLocaleString(locale)}  |  ${labels.checked}: **${totalDocsScanned}**  |  ${labels.issues}: **${issues.length}**`,
+    ``,
+    `## ${labels.summary}`,
+    `- ${labels.wiki}: **${wikiIssues.length}**`,
+    `- ${labels.local}: **${localIssues.length}**`,
+    `- ${labels.remote}: **${remoteIssues.length}**`,
+    ``
+  ];
+  if (wikiIssues.length > 0) {
+    lines.push(`## 1. ${labels.wiki} (${wikiIssues.length})`);
+    lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
+    lines.push(`|---|---|---|---|---|`);
+    for (const item of wikiIssues) {
+      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
+      lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
+    }
+    lines.push(``);
+  }
+  if (localIssues.length > 0) {
+    lines.push(`## 2. ${labels.local} (${localIssues.length})`);
+    lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
+    lines.push(`|---|---|---|---|---|`);
+    for (const item of localIssues) {
+      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
+      lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
+    }
+    lines.push(``);
+  }
+  if (remoteIssues.length > 0) {
+    lines.push(`## 3. ${labels.remote} (${remoteIssues.length})`);
+    lines.push(`| ${labels.source} | ${labels.url} | ${labels.error} | ${labels.line} | ${labels.context} |`);
+    lines.push(`|---|---|---|---|---|`);
+    for (const item of remoteIssues) {
+      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
+      lines.push(`| [[${item.sourcePath}]] | [${labels.link}](${item.target}) | ${item.reason} | ${item.line} | \`${safeContext}\` |`);
+    }
+    lines.push(``);
+  }
+  if (issues.length === 0) {
+    lines.push(labels.none);
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian10.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+async function scanVaultAnalytics(plugin) {
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
+  const docTexts = [];
+  for (const doc of docFiles) {
+    try {
+      const text = await plugin.app.vault.cachedRead(doc);
+      docTexts.push(text);
+    } catch (e) {
+    }
+  }
+  let remoteImages = [];
+  try {
+    remoteImages = await plugin.fetchRemoteFileList();
+  } catch (e) {
+  }
+  return computeVaultStatsFromEntries(allFiles, docTexts, remoteImages);
+}
+async function exportAnalyticsReportToRoot(plugin, stats) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
+  const zh = getEffectiveLanguage2(plugin.settings) === "zh";
+  const locale = zh ? "zh-CN" : "en-US";
+  const labels = zh ? {
+    title: "\u77E5\u8BC6\u5E93\u62A5\u544A",
+    generated: "\u751F\u6210\u65F6\u95F4",
+    overview: "\u77E5\u8BC6\u5E93\u6982\u89C8",
+    notes: "\u7B14\u8BB0",
+    canvases: "\u767D\u677F",
+    words: "\u5B57\u8BCD\u6570",
+    links: "\u94FE\u63A5\u4E0E\u5D4C\u5165",
+    storage: "\u5B58\u50A8\u7528\u91CF",
+    location: "\u4F4D\u7F6E",
+    count: "\u6587\u4EF6\u6570",
+    size: "\u5927\u5C0F",
+    details: "\u5206\u7C7B",
+    vault: "\u77E5\u8BC6\u5E93",
+    server: "\u670D\u52A1\u5668",
+    images: "\u56FE\u7247",
+    audio: "\u97F3\u9891",
+    other: "\u5176\u4ED6",
+    cache: "WebP \u7F13\u5B58",
+    protected: "\u53D7\u4FDD\u62A4\u6587\u4EF6",
+    largest: "\u4F53\u79EF\u6700\u5927\u7684\u9644\u4EF6",
+    source: "\u6765\u6E90",
+    path: "\u6587\u4EF6\u8DEF\u5F84"
+  } : {
+    title: "Vault report",
+    generated: "Generated",
+    overview: "Vault overview",
+    notes: "Notes",
+    canvases: "Canvases",
+    words: "Words and CJK characters",
+    links: "Links and embeds",
+    storage: "Storage use",
+    location: "Location",
+    count: "Files",
+    size: "Size",
+    details: "Breakdown",
+    vault: "Vault",
+    server: "Server",
+    images: "Images",
+    audio: "Audio",
+    other: "Other",
+    cache: "WebP cache",
+    protected: "Protected files",
+    largest: "Largest attachments",
+    source: "Source",
+    path: "File path"
+  };
+  const lines = [
+    `# ${labels.title} (${dateStr})`,
+    ``,
+    `> ${labels.generated}: ${now.toLocaleString(locale)}`,
+    ``,
+    `## 1. ${labels.overview}`,
+    `- ${labels.notes}: **${stats.noteCount}**`,
+    `- ${labels.canvases}: **${stats.canvasCount}**`,
+    `- ${labels.words}: **${stats.totalWords.toLocaleString(locale)}**`,
+    `- ${labels.links}: **${stats.totalInternalLinks.toLocaleString(locale)}**`,
+    ``,
+    `## 2. ${labels.storage}`,
+    `| ${labels.location} | ${labels.count} | ${labels.size} | ${labels.details} |`,
+    `|---|---|---|---|`,
+    `| ${labels.vault} | ${stats.local.totalCount} | ${formatBytes(stats.local.totalBytes)} | ${labels.images}: ${stats.local.imageCount} (${formatBytes(stats.local.imageBytes)}), ${labels.audio}: ${stats.local.audioCount} (${formatBytes(stats.local.audioBytes)}), ${labels.other}: ${stats.local.otherCount} (${formatBytes(stats.local.otherBytes)}) |`,
+    `| ${labels.server} | ${stats.remote.totalCount} | ${formatBytes(stats.remote.rawBytes)} | ${labels.cache}: ${formatBytes(stats.remote.cacheBytes)}, ${labels.protected}: ${stats.remote.lockedCount} |`,
+    ``
+  ];
+  if (stats.topLargestAttachments && stats.topLargestAttachments.length > 0) {
+    lines.push(`## 3. ${labels.largest}`);
+    lines.push(`| ${labels.source} | ${labels.path} | ${labels.details} | ${labels.size} |`);
+    lines.push(`|---|---|---|---|`);
+    for (const item of stats.topLargestAttachments) {
+      const srcLabel = item.source === "local" ? labels.vault : labels.server;
+      const category = item.group === "image" ? labels.images : item.group === "audio" ? labels.audio : labels.other;
+      lines.push(`| ${srcLabel} | \`${item.path}\` | ${category} | ${formatBytes(item.size)} |`);
+    }
+    lines.push(``);
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian10.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+
 // src/modals/health-check.js
-var import_obsidian7 = require("obsidian");
-var HealthCheckModal = class extends import_obsidian7.Modal {
+var import_obsidian11 = require("obsidian");
+var HealthCheckModal = class extends import_obsidian11.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
@@ -3472,7 +5318,7 @@ var HealthCheckModal = class extends import_obsidian7.Modal {
       startBtn.setText(t2("healthScanning"));
       progressWidget.show();
       try {
-        const scanResult = await this.plugin.scanVaultLinkHealth(this.options, {
+        const scanResult = await scanVaultLinkHealth(this.plugin, this.options, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -3482,7 +5328,7 @@ var HealthCheckModal = class extends import_obsidian7.Modal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian7.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
+        new import_obsidian11.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
         startBtn.disabled = false;
         startBtn.setText(t2("healthStartScan"));
       }
@@ -3531,7 +5377,7 @@ var HealthCheckModal = class extends import_obsidian7.Modal {
       cls: "mod-cta"
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportHealthReportToRoot(this.issues, this.totalDocsScanned);
+      await exportHealthReportToRoot(this.plugin, this.issues, this.totalDocsScanned);
     };
     if (this.issues.length === 0) {
       contentEl.createDiv({
@@ -3637,7 +5483,7 @@ var HealthCheckModal = class extends import_obsidian7.Modal {
         attr: { style: "flex-shrink:0; align-self:center;" }
       });
       openBtn.onclick = async () => {
-        await this.plugin.openNoteAtLine(item.sourcePath, item.line);
+        await openNoteAtLine(this.plugin, item.sourcePath, item.line);
       };
     }
   }
@@ -3647,9 +5493,166 @@ var HealthCheckModal = class extends import_obsidian7.Modal {
   }
 };
 
+// src/modals/operation-log.js
+var import_obsidian12 = require("obsidian");
+var OperationLogModal = class extends import_obsidian12.Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.filterMode = "all";
+    this.searchQuery = "";
+  }
+  t(k, p) {
+    return this.plugin ? this.plugin.t(k, p) : k;
+  }
+  async onOpen() {
+    if (this.plugin) {
+      await loadOperationLogs(this.plugin);
+    }
+    this.render();
+  }
+  render() {
+    var _a;
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fm-wizard-modal");
+    const header = contentEl.createDiv({ cls: "fm-step-header" });
+    header.createEl("h3", { text: this.t("opLogTitle"), cls: "fm-step-title" });
+    contentEl.createDiv({
+      text: this.t("opLogPathHint", { path: (this.plugin == null ? void 0 : getLogFilePath(this.plugin)) || ".obsidian/plugins/file-master/operation.log" }),
+      attr: { style: "font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" }
+    });
+    const allLogs = Array.isArray((_a = this.plugin) == null ? void 0 : _a.operationLogs) ? [...this.plugin.operationLogs].reverse() : [];
+    const errCount = allLogs.filter((e) => e.level === "ERROR" || e.level === "WARN").length;
+    const filterRow = contentEl.createDiv({
+      attr: { style: "display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;" }
+    });
+    const chipBox = filterRow.createDiv({ attr: { style: "display:flex; gap:6px;" } });
+    const allBtn = chipBox.createEl("button", {
+      text: `${this.t("opLogFilterAll")} (${allLogs.length})`,
+      cls: this.filterMode === "all" ? "mod-cta" : ""
+    });
+    allBtn.onclick = () => {
+      this.filterMode = "all";
+      this.render();
+    };
+    const errBtn = chipBox.createEl("button", {
+      text: `${this.t("opLogFilterErrors")} (${errCount})`,
+      cls: this.filterMode === "errors" ? "mod-cta" : ""
+    });
+    errBtn.onclick = () => {
+      this.filterMode = "errors";
+      this.render();
+    };
+    const searchInput = filterRow.createEl("input", {
+      type: "search",
+      placeholder: this.t("opLogSearchPlaceholder"),
+      value: this.searchQuery,
+      attr: { style: "padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 190px;" }
+    });
+    const listEl = contentEl.createDiv({
+      cls: "fm-scroll-list",
+      attr: { style: "max-height: 360px;" }
+    });
+    searchInput.oninput = (e) => {
+      this.searchQuery = e.target.value.toLowerCase();
+      this.renderLogList(listEl, allLogs);
+    };
+    this.renderLogList(listEl, allLogs);
+    const btnRow = contentEl.createDiv({ cls: "fm-btn-row", attr: { style: "justify-content: space-between; flex-wrap: wrap; gap: 8px;" } });
+    const leftBtns = btnRow.createDiv({ attr: { style: "display: flex; gap: 8px; flex-wrap: wrap;" } });
+    const copyBtn = leftBtns.createEl("button", { text: this.t("opLogCopyAll"), cls: "mod-cta" });
+    copyBtn.onclick = async () => {
+      const text = (this.plugin == null ? void 0 : formatLogsForExport(this.plugin)) || "";
+      await navigator.clipboard.writeText(text);
+      new import_obsidian12.Notice(this.t("opLogCopiedNotice"));
+    };
+    const exportBtn = leftBtns.createEl("button", { text: this.t("opLogExportFile") });
+    exportBtn.onclick = () => {
+      const text = (this.plugin == null ? void 0 : formatLogsForExport(this.plugin)) || "";
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const now = /* @__PURE__ */ new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      a.href = url;
+      a.download = `file-master-debug-${dateStr}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2e3);
+    };
+    const clearBtn = leftBtns.createEl("button", { text: this.t("opLogClear") });
+    clearBtn.onclick = async () => {
+      if (this.plugin) {
+        await clearOperationLogs(this.plugin);
+      }
+      new import_obsidian12.Notice(this.t("opLogClearedNotice"));
+      this.render();
+    };
+    const closeBtn = btnRow.createEl("button", { text: this.t("closeBtn") });
+    closeBtn.onclick = () => this.close();
+  }
+  renderLogList(listEl, allLogs) {
+    listEl.empty();
+    let filtered = allLogs;
+    if (this.filterMode === "errors") {
+      filtered = filtered.filter((e) => e.level === "ERROR" || e.level === "WARN");
+    }
+    if (this.searchQuery) {
+      filtered = filtered.filter((e) => {
+        const hay = `${e.ts || ""} ${e.level || ""} ${e.action || ""} ${e.summary || ""} ${e.details ? JSON.stringify(e.details) : ""}`.toLowerCase();
+        return hay.includes(this.searchQuery);
+      });
+    }
+    if (filtered.length === 0) {
+      listEl.createDiv({
+        cls: "fm-section-box",
+        text: this.t("opLogEmpty"),
+        attr: { style: "text-align: center; padding: 28px 16px; color: var(--text-muted);" }
+      });
+      return;
+    }
+    for (const entry of filtered) {
+      const row = listEl.createDiv({ cls: "fm-list-item" });
+      const col = row.createDiv({
+        attr: { style: "display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;" }
+      });
+      const topRow = col.createDiv({
+        attr: { style: "display:flex; align-items:center; gap:6px; flex-wrap:wrap;" }
+      });
+      let levelCls = "fm-tag-info";
+      if (entry.level === "ERROR") levelCls = "fm-tag-error";
+      else if (entry.level === "WARN") levelCls = "fm-tag-warning";
+      topRow.createSpan({ text: entry.level || "INFO", cls: `fm-tag ${levelCls}` });
+      if (entry.action) {
+        topRow.createEl("code", { text: entry.action, attr: { style: "font-size: 11px;" } });
+      }
+      topRow.createSpan({
+        text: entry.ts || "",
+        attr: { style: "font-size: 11px; color: var(--text-muted); margin-left: auto;" }
+      });
+      col.createDiv({
+        text: entry.summary || "",
+        attr: { style: "font-size: 12px; font-weight: 500; word-break: break-word;" }
+      });
+      if (entry.details && Object.keys(entry.details).length > 0) {
+        col.createDiv({
+          text: JSON.stringify(entry.details),
+          cls: "fm-health-context-quote",
+          attr: { style: "font-family: var(--font-monospace); font-size: 11px; word-break: break-all;" }
+        });
+      }
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
 // src/modals/orphan-wizard.js
-var import_obsidian8 = require("obsidian");
-var OrphanWizardModal = class extends import_obsidian8.Modal {
+var import_obsidian13 = require("obsidian");
+var OrphanWizardModal = class extends import_obsidian13.Modal {
   constructor(app, plugin) {
     var _a;
     super(app);
@@ -3702,7 +5705,7 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
     this.createCheckbox(typeBox, t2("orphanTypeImage"), "typeImage");
     this.createCheckbox(typeBox, t2("orphanTypeAudio"), "typeAudio");
     this.createCheckbox(typeBox, t2("orphanTypeOther"), "typeOther");
-    const exclFolders = this.plugin.getExcludedLocalFolderList();
+    const exclFolders = getExcludedLocalFolderList(this.plugin.settings);
     const protInfo = contentEl.createDiv({
       cls: "fm-section-box",
       attr: { style: "font-size: 12px; color: var(--text-muted); padding: 10px 14px;" }
@@ -3719,18 +5722,18 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
     const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.scanLocal && !this.options.scanRemote) {
-        new import_obsidian8.Notice(t2("orphanLocRequired"));
+        new import_obsidian13.Notice(t2("orphanLocRequired"));
         return;
       }
       if (!this.options.typeNote && !this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian8.Notice(t2("orphanTypeRequired"));
+        new import_obsidian13.Notice(t2("orphanTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
       nextBtn.setText(t2("orphanScanning"));
       progressWidget.show();
       try {
-        this.results = await this.plugin.scanUnusedFiles(this.options, {
+        this.results = await scanUnusedFiles(this.plugin, this.options, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -3738,7 +5741,7 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian8.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian13.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("btnNext"));
       }
@@ -3790,7 +5793,7 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
       cls: "mod-cta"
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportOrphanReportToRoot(this.results);
+      await exportOrphanReportToRoot(this.plugin, this.results);
     };
     if (this.results.length === 0) {
       contentEl.createDiv({
@@ -3841,11 +5844,11 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
         lockBtn.onclick = async () => {
           try {
             await this.plugin.toggleRemoteFileLock(item.rawObj.year, item.rawObj.month, item.rawObj.filename, true);
-            new import_obsidian8.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
+            new import_obsidian13.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
             this.results = this.results.filter((r) => r.id !== item.id);
             this.render();
           } catch (err) {
-            new import_obsidian8.Notice(this.plugin.t("noticeLockFailed", { err: err.message }));
+            new import_obsidian13.Notice(this.plugin.t("noticeLockFailed", { err: err.message }));
           }
         };
       }
@@ -3860,10 +5863,10 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
     cleanBtn.onclick = async () => {
       const selected = this.results.filter((r) => r.selected);
       if (selected.length === 0) {
-        new import_obsidian8.Notice(this.plugin.t("orphanSelectRequired"));
+        new import_obsidian13.Notice(this.plugin.t("orphanSelectRequired"));
         return;
       }
-      await this.plugin.cleanSelectedOrphans(selected, (summary) => {
+      await cleanSelectedOrphans(this.plugin, selected, (summary) => {
         const removedIds = new Set(selected.map((s) => s.id));
         this.results = this.results.filter((r) => !removedIds.has(r.id));
         this.lastCleanSummary = summary;
@@ -3878,7 +5881,7 @@ var OrphanWizardModal = class extends import_obsidian8.Modal {
 };
 
 // src/gallery.js
-var import_obsidian9 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 var REMOTE_GALLERY_PAGE_SIZE = 60;
 function filterRemoteGallery(view) {
   return view.items.filter((item) => {
@@ -3961,7 +5964,7 @@ function renderRemoteGallery(view, containerEl, countLabel) {
           item.locked = false;
           view.renderGrid(containerEl, countLabel);
         } catch (err) {
-          new import_obsidian9.Notice(view.t("previewLockFailed", { err: err.message }));
+          new import_obsidian14.Notice(view.t("previewLockFailed", { err: err.message }));
         }
       };
     }
@@ -4004,19 +6007,18 @@ function renderRemoteGallery(view, containerEl, countLabel) {
       cls: "fm-gallery-insert-btn mod-cta",
       attr: { title: isWebpMode ? view.t("galleryInsertedWebp") : view.t("galleryInsertedRaw") }
     });
-    (0, import_obsidian9.setIcon)(insertBtn.createSpan(), "file-input");
+    (0, import_obsidian14.setIcon)(insertBtn.createSpan(), "file-input");
     insertBtn.createSpan({ cls: "fm-gallery-insert-label", text: view.t("galleryBtnInsert") });
     insertBtn.setAttribute("aria-label", view.t("galleryBtnInsert"));
     insertBtn.onmousedown = (e) => {
       e.preventDefault();
     };
     insertBtn.onclick = () => {
-      var _a;
       const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})
 ` : `[${fn}](${insertTargetUrl})
 `;
       const noticeMsg = isWebpMode ? view.t("galleryInsertedWebp") : view.t("galleryInsertedRaw");
-      (_a = view.plugin) == null ? void 0 : _a.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
+      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg);
     };
   }
   if (page.totalPages > 1) {
@@ -4038,8 +6040,8 @@ function renderRemoteGallery(view, containerEl, countLabel) {
 }
 
 // src/modals/remote-gallery.js
-var import_obsidian10 = require("obsidian");
-var RemoteGalleryModal = class extends import_obsidian10.Modal {
+var import_obsidian15 = require("obsidian");
+var RemoteGalleryModal = class extends import_obsidian15.Modal {
   constructor(app, plugin) {
     var _a, _b;
     super(app);
@@ -4117,7 +6119,7 @@ var RemoteGalleryModal = class extends import_obsidian10.Modal {
       cls: "fm-icon-button",
       attr: { title: this.t("galleryBtnRefresh"), "aria-label": this.t("galleryBtnRefresh") }
     });
-    (0, import_obsidian10.setIcon)(refreshBtn, "refresh-cw");
+    (0, import_obsidian15.setIcon)(refreshBtn, "refresh-cw");
     refreshBtn.onclick = () => this.loadData();
     const filters = toolbar.createDiv({ cls: "fm-gallery-filter-row" });
     const bucketSelect = filters.createEl("select", { attr: { "aria-label": this.t("galleryFilterAllTime") } });
@@ -4166,7 +6168,7 @@ var RemoteGalleryModal = class extends import_obsidian10.Modal {
     this.contentEl.empty();
   }
 };
-var RemoteGalleryView = class extends import_obsidian10.ItemView {
+var RemoteGalleryView = class extends import_obsidian15.ItemView {
   constructor(leaf, plugin) {
     var _a, _b;
     super(leaf);
@@ -4248,10 +6250,10 @@ var RemoteGalleryView = class extends import_obsidian10.ItemView {
       cls: "fm-icon-button",
       attr: { title: this.layoutMode === "list" ? this.t("galleryLayoutGrid") : this.t("galleryLayoutList"), "aria-label": this.layoutMode === "list" ? this.t("galleryLayoutGrid") : this.t("galleryLayoutList") }
     });
-    (0, import_obsidian10.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
+    (0, import_obsidian15.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
     layoutBtn.onclick = () => {
       this.layoutMode = this.layoutMode === "list" ? "grid" : "list";
-      (0, import_obsidian10.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
+      (0, import_obsidian15.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
       const label = this.layoutMode === "list" ? this.t("galleryLayoutGrid") : this.t("galleryLayoutList");
       layoutBtn.setAttribute("title", label);
       layoutBtn.setAttribute("aria-label", label);
@@ -4261,7 +6263,7 @@ var RemoteGalleryView = class extends import_obsidian10.ItemView {
       cls: "fm-icon-button",
       attr: { title: this.t("galleryBtnRefresh"), "aria-label": this.t("galleryBtnRefresh") }
     });
-    (0, import_obsidian10.setIcon)(refreshBtn, "refresh-cw");
+    (0, import_obsidian15.setIcon)(refreshBtn, "refresh-cw");
     refreshBtn.onclick = () => this.loadData();
     const row2 = toolbar.createDiv({ cls: "fm-gallery-toolbar-row fm-gallery-filter-fields" });
     const folderField = row2.createDiv({ cls: "fm-gallery-filter-field" });
@@ -4329,8 +6331,8 @@ var RemoteGalleryView = class extends import_obsidian10.ItemView {
 };
 
 // src/modals/vault-analytics.js
-var import_obsidian11 = require("obsidian");
-var VaultAnalyticsModal = class extends import_obsidian11.Modal {
+var import_obsidian16 = require("obsidian");
+var VaultAnalyticsModal = class extends import_obsidian16.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
@@ -4350,7 +6352,7 @@ var VaultAnalyticsModal = class extends import_obsidian11.Modal {
       attr: { style: "text-align: center; padding: 32px 20px;" }
     });
     try {
-      this.stats = await this.plugin.scanVaultAnalytics();
+      this.stats = await scanVaultAnalytics(this.plugin);
       loadingEl.remove();
       this.renderDashboard(contentEl);
     } catch (err) {
@@ -4440,7 +6442,7 @@ var VaultAnalyticsModal = class extends import_obsidian11.Modal {
       cls: "mod-cta"
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportAnalyticsReportToRoot(s);
+      await exportAnalyticsReportToRoot(this.plugin, s);
     };
     const closeBtn = btnRow.createEl("button", { text: t2("closeBtn") });
     closeBtn.onclick = () => returnToHub(this);
@@ -4450,9 +6452,588 @@ var VaultAnalyticsModal = class extends import_obsidian11.Modal {
   }
 };
 
+// src/settings-tab.js
+var import_obsidian17 = require("obsidian");
+var FileMasterSettingTab = class extends import_obsidian17.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+    this.activePage = "home";
+  }
+  createHeading(containerEl, tag, icon, label) {
+    const heading = containerEl.createEl(tag, { cls: "fm-settings-heading" });
+    heading.createSpan({ cls: "fm-settings-heading-icon", text: icon, attr: { "aria-hidden": "true" } });
+    heading.createSpan({ text: label });
+    return heading;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.addClass("fm-settings");
+    const pages = {
+      general: "tabGeneral",
+      server: "tabServer",
+      upload: "tabUpload",
+      exemptions: "tabExemptions",
+      about: "aboutTitle"
+    };
+    const pageIcons = {
+      general: "\u2699\uFE0F",
+      server: "\u{1F5A5}\uFE0F",
+      upload: "\u{1F4CE}",
+      exemptions: "\u{1F6E1}\uFE0F",
+      about: "\u2139\uFE0F"
+    };
+    if (this.activePage === "home" || !pages[this.activePage]) {
+      this.activePage = "home";
+      this.renderSettingsHome(containerEl);
+      return;
+    }
+    const header = containerEl.createDiv({ cls: "fm-settings-page-header" });
+    const back = header.createEl("button", {
+      cls: "clickable-icon fm-settings-back",
+      attr: { "aria-label": this.plugin.t("settingsBack"), title: this.plugin.t("settingsBack") }
+    });
+    (0, import_obsidian17.setIcon)(back, "arrow-left");
+    back.onclick = () => {
+      this.activePage = "home";
+      this.display();
+    };
+    this.createHeading(header, "h2", pageIcons[this.activePage], this.plugin.t(pages[this.activePage]));
+    const section = containerEl.createDiv({ cls: "fm-settings-section" });
+    if (this.activePage === "general") this.renderGeneralSettings(section);
+    if (this.activePage === "server") this.renderServerSettings(section);
+    if (this.activePage === "upload") this.renderUploadSettings(section);
+    if (this.activePage === "exemptions") this.renderExemptionsSettings(section);
+    if (this.activePage === "about") {
+      section.addClass("fm-settings-about");
+      this.renderAboutFooter(section);
+    }
+  }
+  renderSettingsHome(containerEl) {
+    const group = (title, icon, entries) => {
+      var _a;
+      const section = containerEl.createDiv({ cls: "fm-settings-nav-section" });
+      this.createHeading(section, "h3", icon, this.plugin.t(title));
+      const list = section.createDiv({ cls: "fm-settings-nav-list" });
+      for (const [page, label, icon2] of entries) {
+        const setting = new import_obsidian17.Setting(list).setName(this.plugin.t(label));
+        const row = setting.settingEl;
+        row.addClass("fm-settings-nav-item");
+        (_a = setting.descEl) == null ? void 0 : _a.remove();
+        row.setAttribute("role", "button");
+        row.setAttribute("tabindex", "0");
+        const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
+        (0, import_obsidian17.setIcon)(iconEl, icon2);
+        setting.nameEl.prepend(iconEl);
+        (0, import_obsidian17.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        const open = () => {
+          if (page === "hub") {
+            openModalSafely(new FileMasterHubModal(this.app, this.plugin));
+            return;
+          }
+          if (page === "logs") {
+            openModalSafely(new OperationLogModal(this.app, this.plugin));
+            return;
+          }
+          this.activePage = page;
+          this.display();
+          containerEl.scrollTop = 0;
+        };
+        row.onclick = open;
+        row.onkeydown = (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            open();
+          }
+        };
+      }
+    };
+    group("settingsCoreGroup", "\u26A1", [
+      ["upload", "tabUpload", "paperclip"],
+      ["server", "tabServer", "server"]
+    ]);
+    group("settingsPreferencesGroup", "\u2699\uFE0F", [
+      ["general", "tabGeneral", "sliders-horizontal"],
+      ["exemptions", "tabExemptions", "shield"]
+    ]);
+    group("settingsToolsGroup", "\u{1F9F0}", [
+      ["hub", "openHubName", "wrench"],
+      ["logs", "opLogTitle", "file-text"]
+    ]);
+    group("settingsInfoGroup", "\u2139\uFE0F", [
+      ["about", "aboutTitle", "info"]
+    ]);
+  }
+  renderGeneralSettings(containerEl) {
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
+      (drop) => drop.addOption("auto", this.plugin.t("langAuto")).addOption("zh", "\u7B80\u4F53\u4E2D\u6587").addOption("en", "English").setValue(this.plugin.settings.language || "auto").onChange(async (value) => {
+        this.plugin.settings.language = value;
+        await this.plugin.saveSettings();
+        onLanguageChange(this.plugin);
+        this.display();
+      })
+    );
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
+        this.plugin.settings.enableSidebarButton = value;
+        await this.plugin.saveSettings();
+        updateSidebarRibbonButton(this.plugin);
+      })
+    );
+  }
+  renderServerSettings(containerEl) {
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
+      (toggle) => toggle.setValue(Boolean(this.plugin.settings.enableRemoteServer)).onChange(async (value) => {
+        this.plugin.settings.enableRemoteServer = value;
+        if (!value) {
+          this.plugin.settings.serverVerified = false;
+          this.plugin.lastServerCompatStatus = null;
+        }
+        await this.plugin.saveSettings();
+        this.display();
+      })
+    );
+    if (!this.plugin.settings.enableRemoteServer) {
+      const hint = containerEl.createDiv({ cls: "fm-settings-hint" });
+      hint.setText(this.plugin.t("serverDisabledHint"));
+      return;
+    }
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
+      (text) => text.setPlaceholder("http://localhost:3000").setValue(this.plugin.settings.serverUrl).onChange(async (value) => {
+        this.plugin.settings.serverUrl = value.trim();
+        this.plugin.settings.serverVerified = false;
+        this.plugin.lastServerCompatStatus = null;
+        updateStatusBox(null);
+        await this.plugin.saveSettings();
+      })
+    );
+    let statusBox;
+    const updateStatusBox = (compat) => {
+      if (!statusBox) return;
+      statusBox.dataset.status = !compat ? this.plugin.settings.serverVerified ? "success" : "pending" : compat.ok ? "success" : compat.status === "server_outdated" ? "pending" : "error";
+      statusBox.textContent = getCompatibilityMessage(this.plugin, compat);
+    };
+    let tokenInput;
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
+      tokenInput = text.inputEl;
+      tokenInput.type = "password";
+      text.setPlaceholder("API token").setValue(this.plugin.settings.apiToken).onChange(async (value) => {
+        this.plugin.settings.apiToken = value.trim();
+        this.plugin.settings.serverVerified = false;
+        this.plugin.lastServerCompatStatus = null;
+        updateStatusBox(null);
+        await this.plugin.saveSettings();
+      });
+    }).addExtraButton((btn) => btn.setIcon("eye").setTooltip(this.plugin.t("showToken")).onClick(() => {
+      const hidden = tokenInput.type === "password";
+      tokenInput.type = hidden ? "text" : "password";
+      btn.setIcon(hidden ? "eye-off" : "eye");
+      btn.setTooltip(this.plugin.t(hidden ? "hideToken" : "showToken"));
+    }));
+    const connectionRow = containerEl.createDiv({ cls: "fm-settings-connection-row" });
+    statusBox = connectionRow.createDiv({ cls: "fm-server-compat-banner" });
+    updateStatusBox(this.plugin.lastServerCompatStatus);
+    new import_obsidian17.Setting(connectionRow).addButton(
+      (btn) => btn.setButtonText(this.plugin.t("btnTestConn")).onClick(async () => {
+        btn.disabled = true;
+        btn.setButtonText(this.plugin.t("compatStatusChecking"));
+        statusBox.dataset.status = "pending";
+        statusBox.textContent = this.plugin.t("compatStatusChecking");
+        let compat;
+        try {
+          compat = await checkServerCompatibility(this.plugin);
+          updateStatusBox(compat);
+          new import_obsidian17.Notice(getCompatibilityMessage(this.plugin, compat));
+        } finally {
+          btn.disabled = false;
+          btn.setButtonText(this.plugin.t("btnTestConn"));
+        }
+        if (compat) this.display();
+      })
+    );
+  }
+  renderUploadSettings(containerEl) {
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
+        this.plugin.settings.enableClipboardMonitor = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
+      (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
+        this.plugin.settings.saveLocationMode = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
+      (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
+        this.plugin.settings.defaultSaveLocation = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
+        this.plugin.settings.insertOptimizedLinkOnUpload = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    let patternSetting = null;
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
+      (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).addOption("prompt", this.plugin.t("optNamingPrompt")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
+        this.plugin.settings.namingMode = value;
+        await this.plugin.saveSettings();
+        if (patternSetting && patternSetting.settingEl) {
+          patternSetting.settingEl.style.display = value === "rule" ? "" : "none";
+        }
+      })
+    );
+    patternSetting = new import_obsidian17.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
+      (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
+        this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
+        await this.plugin.saveSettings();
+      })
+    );
+    if (patternSetting.settingEl) {
+      patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
+    }
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
+        this.plugin.settings.uploadNonImageAttachments = value;
+        await this.plugin.saveSettings();
+      })
+    );
+  }
+  renderExemptionsSettings(containerEl) {
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
+      (text) => text.setPlaceholder("templates, assets/protected").setValue(this.plugin.settings.excludedLocalFolders).onChange(async (value) => {
+        this.plugin.settings.excludedLocalFolders = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
+        this.plugin.settings.excludeLockedRemoteFiles = value;
+        await this.plugin.saveSettings();
+      })
+    );
+  }
+  renderAboutFooter(containerEl) {
+    const manifest = this.plugin.manifest || {};
+    const version = manifest.version || "0.1.1";
+    const author = manifest.author || "weichen-ink";
+    const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
+    const repoUrl = "https://github.com/weichen-ink/file-master";
+    const intro = new import_obsidian17.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
+    intro.controlEl.createSpan({ text: `v${version}` });
+    const addRow = (label) => new import_obsidian17.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
+    addRow("aboutAuthor").createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
+    addRow("aboutRepo").createEl("a", { text: "weichen-ink/file-master", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
+    addRow("aboutServerCompat").createSpan({ text: `v${MIN_SERVER_VERSION}+` });
+    const sCompat = this.plugin.lastServerCompatStatus;
+    addRow("aboutServerStatus").createSpan({
+      cls: `fm-about-status ${(sCompat == null ? void 0 : sCompat.ok) ? "is-connected" : ""}`,
+      text: sCompat ? getCompatibilityMessage(this.plugin, sCompat) : this.plugin.t("aboutServerOffline")
+    });
+    new import_obsidian17.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
+      (btn) => btn.setButtonText(this.plugin.t("opLogBtnOpen")).onClick(() => {
+        openModalSafely(new OperationLogModal(this.app, this.plugin));
+      })
+    );
+    addRow("aboutFeedback").createEl("a", { text: this.plugin.t("aboutFeedbackLink"), href: `${repoUrl}/issues`, attr: { target: "_blank", rel: "noopener noreferrer" } });
+  }
+};
+
+// src/plugin/lifecycle.js
+var import_obsidian18 = require("obsidian");
+async function onload(plugin) {
+  await plugin.loadSettings();
+  plugin.operationLogs = [];
+  await loadOperationLogs(plugin);
+  plugin.heicPreviewCache = /* @__PURE__ */ new Map();
+  plugin.sidebarRibbonEl = null;
+  plugin.lastServerCompatStatus = null;
+  plugin.lastActiveMarkdownView = null;
+  plugin.referenceRevision = 0;
+  for (const event of ["create", "modify", "delete", "rename"]) {
+    plugin.registerEvent(plugin.app.vault.on(event, (file) => {
+      if (isScannableDocFile(plugin, file)) plugin.referenceRevision++;
+    }));
+  }
+  updateSidebarRibbonButton(plugin);
+  plugin.registerView(
+    VIEW_TYPE_REMOTE_GALLERY,
+    (leaf) => new RemoteGalleryView(leaf, plugin)
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("active-leaf-change", (leaf) => {
+      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian18.MarkdownView) {
+        plugin.lastActiveMarkdownView = leaf.view;
+      }
+    })
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("file-open", () => {
+      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian18.MarkdownView);
+      if (mdView) {
+        plugin.lastActiveMarkdownView = mdView;
+      }
+    })
+  );
+  plugin.app.workspace.onLayoutReady(() => {
+    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian18.MarkdownView);
+    if (activeMd) {
+      plugin.lastActiveMarkdownView = activeMd;
+    }
+    initGalleryLeaf(plugin, false);
+  });
+  setTimeout(() => {
+    checkServerCompatibility(plugin).catch(() => {
+    });
+  }, 1200);
+  plugin.registerEvent(
+    plugin.app.workspace.on("editor-paste", async (evt, editor) => {
+      var _a;
+      if (!plugin.settings.enableClipboardMonitor) return;
+      const files = (_a = evt.clipboardData) == null ? void 0 : _a.files;
+      if (!files || files.length === 0) return;
+      const targetFiles = filterAllowedFiles(plugin.settings, files);
+      if (targetFiles.length === 0) return;
+      evt.preventDefault();
+      for (const f of targetFiles) {
+        await handleIncomingBrowserFile(plugin, f, editor);
+      }
+    })
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("editor-drop", async (evt, editor) => {
+      var _a;
+      if (!plugin.settings.enableClipboardMonitor) return;
+      const files = (_a = evt.dataTransfer) == null ? void 0 : _a.files;
+      if (!files || files.length === 0) return;
+      const targetFiles = filterAllowedFiles(plugin.settings, files);
+      if (targetFiles.length === 0) return;
+      evt.preventDefault();
+      for (const f of targetFiles) {
+        await handleIncomingBrowserFile(plugin, f, editor);
+      }
+    })
+  );
+  setupHeicInlinePreviewObserver(plugin);
+  registerContextMenus(plugin);
+  registerPluginCommands(plugin);
+  plugin.addSettingTab(new FileMasterSettingTab(plugin.app, plugin));
+  console.log("[FileMaster] Plugin loaded successfully");
+}
+function registerPluginCommands(plugin) {
+  plugin.pluginCommandDefs = [
+    {
+      id: "resume-pending-upload",
+      nameKey: "cmdResumeUpload",
+      requiresRemote: true,
+      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian18.Notice(err.message))
+    },
+    {
+      id: "open-control-center",
+      nameKey: "cmdOpenHub",
+      callback: () => openModalSafely(new FileMasterHubModal(plugin.app, plugin))
+    },
+    {
+      id: "open-health-check-wizard",
+      nameKey: "cmdScanHealth",
+      callback: () => openModalSafely(new HealthCheckModal(plugin.app, plugin))
+    },
+    {
+      id: "open-orphan-wizard",
+      nameKey: "cmdScanOrphan",
+      callback: () => openModalSafely(new OrphanWizardModal(plugin.app, plugin))
+    },
+    {
+      id: "open-duplicate-wizard",
+      nameKey: "cmdScanDuplicate",
+      callback: () => openModalSafely(new DuplicateWizardModal(plugin.app, plugin))
+    },
+    {
+      id: "open-remote-gallery",
+      nameKey: "cmdRemoteGallery",
+      requiresRemote: true,
+      callback: () => openModalSafely(new RemoteGalleryModal(plugin.app, plugin))
+    },
+    {
+      id: "open-remote-gallery-view",
+      nameKey: "cmdRemoteGalleryView",
+      requiresRemote: true,
+      callback: () => activateGalleryView(plugin)
+    },
+    {
+      id: "open-batch-migrate-wizard",
+      nameKey: "cmdBatchMigrate",
+      requiresRemote: true,
+      callback: () => openModalSafely(new BatchMigrateWizardModal(plugin.app, plugin))
+    },
+    {
+      id: "open-vault-analytics-dashboard",
+      nameKey: "cmdVaultAnalytics",
+      callback: () => openModalSafely(new VaultAnalyticsModal(plugin.app, plugin))
+    },
+    {
+      id: "migrate-current-note-attachments",
+      nameKey: "cmdMigrateActiveNote",
+      requiresRemote: true,
+      callback: () => migrateActiveNoteAttachments(plugin)
+    },
+    {
+      id: "download-current-note-remote-attachments",
+      nameKey: "cmdDownloadActiveNote",
+      requiresRemote: true,
+      callback: () => downloadActiveNoteRemoteAttachments(plugin)
+    },
+    {
+      id: "copy-note-with-astro-pub-links",
+      nameKey: "cmdCopyAstroLinks",
+      requiresRemote: true,
+      callback: () => copyActiveNoteForAstro(plugin)
+    },
+    {
+      id: "open-operation-logs",
+      nameKey: "cmdOpenOpLogs",
+      callback: () => openModalSafely(new OperationLogModal(plugin.app, plugin))
+    }
+  ];
+  for (const cmd of plugin.pluginCommandDefs) {
+    plugin.addCommand({
+      id: cmd.id,
+      name: plugin.t(cmd.nameKey),
+      checkCallback: (checking) => {
+        if (cmd.requiresRemote && !plugin.isRemoteServerReady()) {
+          return false;
+        }
+        if (checking) return true;
+        cmd.callback();
+      }
+    });
+  }
+}
+function updateCommandNames(plugin) {
+  var _a, _b;
+  if (!plugin.pluginCommandDefs || !((_b = (_a = plugin.app) == null ? void 0 : _a.commands) == null ? void 0 : _b.commands)) return;
+  for (const cmd of plugin.pluginCommandDefs) {
+    const fullId = `${plugin.manifest.id}:${cmd.id}`;
+    const registered = plugin.app.commands.commands[fullId];
+    if (registered) {
+      registered.name = plugin.t(cmd.nameKey);
+    }
+  }
+}
+function onLanguageChange(plugin) {
+  var _a, _b, _c, _d, _e;
+  updateSidebarRibbonButton(plugin);
+  updateCommandNames(plugin);
+  for (const leaf of ((_c = (_b = (_a = plugin.app) == null ? void 0 : _a.workspace) == null ? void 0 : _b.getLeavesOfType) == null ? void 0 : _c.call(_b, VIEW_TYPE_REMOTE_GALLERY)) || []) {
+    (_e = (_d = leaf.view) == null ? void 0 : _d.render) == null ? void 0 : _e.call(_d);
+  }
+}
+function getCompatibilityMessage(plugin, compat) {
+  if (!compat) return plugin.t(plugin.settings.serverVerified ? "serverVerifiedBadge" : "serverUnverifiedHint");
+  switch (compat.status) {
+    case "compatible":
+      return plugin.t("compatStatusOk", { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
+    case "server_outdated":
+      return plugin.t("compatStatusServerOld", { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
+    case "plugin_outdated":
+      return plugin.t("compatStatusPluginOld", { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
+    case "auth_failed":
+      return plugin.t("compatStatusAuthFail");
+    case "token_missing":
+      return plugin.t("compatStatusTokenMissing");
+    case "server_error":
+      return plugin.t("compatStatusServerError", { code: compat.statusCode || "" });
+    default:
+      return plugin.t("compatStatusOffline", { err: compat.error || "" });
+  }
+}
+function onunload(plugin) {
+  var _a;
+  (_a = plugin.activeTransferController) == null ? void 0 : _a.abort();
+  if (plugin.sidebarRibbonEl) {
+    plugin.sidebarRibbonEl.remove();
+    plugin.sidebarRibbonEl = null;
+  }
+  if (plugin.heicObserver) {
+    plugin.heicObserver.disconnect();
+    plugin.heicObserver = null;
+  }
+}
+async function initGalleryLeaf(plugin, reveal = false) {
+  if (!plugin.isRemoteServerReady()) return null;
+  const { workspace } = plugin.app;
+  let leaves = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY);
+  let leaf = leaves[0];
+  if (!leaf) {
+    const rightLeaf = workspace.getRightLeaf(false);
+    if (rightLeaf) {
+      await rightLeaf.setViewState({
+        type: VIEW_TYPE_REMOTE_GALLERY,
+        active: false
+      });
+      leaf = rightLeaf;
+    }
+  }
+  if (leaf && reveal) {
+    workspace.revealLeaf(leaf);
+  }
+  return leaf;
+}
+async function activateGalleryView(plugin) {
+  if (!plugin.isRemoteServerReady()) {
+    new import_obsidian18.Notice(plugin.t("remoteServerRequiredNotice") || "Remote server not ready");
+    return;
+  }
+  await initGalleryLeaf(plugin, true);
+}
+function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
+  let mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian18.MarkdownView);
+  if (!mdView && plugin.lastActiveMarkdownView) {
+    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
+    if (leaves.some((l) => l.view === plugin.lastActiveMarkdownView)) {
+      mdView = plugin.lastActiveMarkdownView;
+    }
+  }
+  if (!mdView) {
+    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
+    if (leaves.length > 0) {
+      const visibleLeaf = leaves.find((l) => {
+        var _a, _b, _c;
+        return ((_a = l.view) == null ? void 0 : _a.containerEl) && ((_c = (_b = l.view.containerEl).isShown) == null ? void 0 : _c.call(_b)) !== false;
+      });
+      mdView = (visibleLeaf || leaves[0]).view;
+    }
+  }
+  const activeFile = (mdView == null ? void 0 : mdView.file) || plugin.app.workspace.getActiveFile();
+  if (!activeFile || activeFile.extension !== "md") {
+    new import_obsidian18.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
+    return false;
+  }
+  if (mdView == null ? void 0 : mdView.editor) {
+    const editor = mdView.editor;
+    editor.replaceSelection(mdSnippet);
+    if (mdView.leaf) {
+      plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
+    }
+    editor.focus();
+    if (successNotice) new import_obsidian18.Notice(successNotice);
+    return true;
+  } else {
+    safeModifyFileContent(plugin, activeFile, (content) => content + "\n" + mdSnippet).then(() => {
+      if (successNotice) new import_obsidian18.Notice(successNotice);
+    });
+    return true;
+  }
+}
+
 // src/modals/hub.js
-var import_obsidian12 = require("obsidian");
-var FileMasterHubModal = class extends import_obsidian12.Modal {
+var import_obsidian19 = require("obsidian");
+var FileMasterHubModal = class extends import_obsidian19.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
@@ -4472,7 +7053,7 @@ var FileMasterHubModal = class extends import_obsidian12.Modal {
     const isRemote = Boolean((_b = (_a = this.plugin) == null ? void 0 : _a.isRemoteServerReady) == null ? void 0 : _b.call(_a));
     const openFromHub = (modal) => {
       modal.fromHub = true;
-      this.plugin.openModalSafely(modal);
+      openModalSafely(modal);
     };
     const govActions = [
       {
@@ -4517,7 +7098,7 @@ var FileMasterHubModal = class extends import_obsidian12.Modal {
             desc: t2("actRemoteGalleryViewDesc"),
             run: () => {
               this.close();
-              this.plugin.activateGalleryView();
+              activateGalleryView(this.plugin);
             }
           },
           {
@@ -4538,19 +7119,19 @@ var FileMasterHubModal = class extends import_obsidian12.Modal {
             icon: "upload",
             title: t2("actNoteUpTitle"),
             desc: t2("actNoteUpDesc"),
-            run: () => this.plugin.migrateActiveNoteAttachments(null, { fromHub: true })
+            run: () => migrateActiveNoteAttachments(this.plugin, null, { fromHub: true })
           },
           {
             icon: "download",
             title: t2("actNoteDownTitle"),
             desc: t2("actNoteDownDesc"),
-            run: () => this.plugin.downloadActiveNoteRemoteAttachments(null, { fromHub: true })
+            run: () => downloadActiveNoteRemoteAttachments(this.plugin, null, { fromHub: true })
           },
           {
             icon: "copy",
             title: t2("actNoteAstroTitle"),
             desc: t2("actNoteAstroDesc"),
-            run: () => this.plugin.copyActiveNoteForAstro()
+            run: () => copyActiveNoteForAstro(this.plugin)
           }
         ]
       });
@@ -4579,7 +7160,7 @@ var FileMasterHubModal = class extends import_obsidian12.Modal {
         const card = grid.createEl("button", { cls: "fm-hub-card", type: "button" });
         const left = card.createDiv({ cls: "fm-hub-card-left" });
         const icon = left.createSpan({ cls: "fm-hub-card-icon" });
-        (0, import_obsidian12.setIcon)(icon, act.icon);
+        (0, import_obsidian19.setIcon)(icon, act.icon);
         const textCol = left.createDiv({ cls: "fm-hub-card-text" });
         textCol.createDiv({ text: act.title, cls: "fm-hub-card-title" });
         textCol.createDiv({ text: act.desc, cls: "fm-hub-card-desc" });
@@ -4595,86 +7176,146 @@ var FileMasterHubModal = class extends import_obsidian12.Modal {
   }
 };
 
-// src/modals/common.js
-function returnToHub(modal) {
-  modal.close();
-  if (!modal.fromHub) return;
-  if (modal.plugin && typeof modal.plugin.openModalSafely === "function") {
-    modal.plugin.openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
-  } else if (modal.app && modal.plugin) {
-    new FileMasterHubModal(modal.app, modal.plugin).open();
-  }
+// src/plugin/vault-utils.js
+var import_obsidian20 = require("obsidian");
+function isDocFile2(app, file) {
+  return isDocFile(file, app);
 }
-function formatFriendlyError(modal, rawErr) {
-  const errStr = String(rawErr || "").trim();
-  const t2 = (k, p) => {
-    var _a;
-    return modal && typeof modal.t === "function" ? modal.t(k, p) : ((_a = modal == null ? void 0 : modal.plugin) == null ? void 0 : _a.t) ? modal.plugin.t(k, p) : errStr;
-  };
-  if (/file too large|too large|413/i.test(errStr)) {
-    return t2("activeNoteFailedTooLarge");
-  }
-  if (/401|unauthorized|invalid.*token/i.test(errStr)) {
-    return t2("activeNoteFailedAuth");
-  }
-  if (/404|not found/i.test(errStr)) {
-    return t2("activeNoteFailedNotFound");
-  }
-  if (/network|fetch|econnrefused|offline/i.test(errStr)) {
-    return t2("activeNoteFailedNetwork");
-  }
-  return errStr;
+function isScannableDocFile(plugin, file) {
+  return Boolean(file) && isDocFile2(plugin.app, file) && !isReportFile(file.name);
 }
-function createScanProgressWidget(contentEl, plugin) {
-  const abortController = new AbortController();
-  const box = contentEl.createDiv({
-    cls: "fm-section-box fm-scan-progress-box",
-    attr: { style: "display:none; margin-top:10px; border-color: rgba(59, 130, 246, 0.45);" }
-  });
-  box.style.display = "none";
-  const topRow = box.createDiv({
-    cls: "fm-scan-progress-top",
-    attr: { style: "display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; width:100%;" }
-  });
-  const statusText = topRow.createSpan({
-    text: plugin ? plugin.t("scanPreparing") : "\u23F3 Preparing scan...",
-    cls: "fm-scan-progress-text",
-    attr: { style: "font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" }
-  });
-  const cancelScanBtn = topRow.createEl("button", {
-    text: plugin ? plugin.t("btnCancelScan") : "\u23F9 Cancel Scan",
-    cls: "fm-mini-btn mod-warning fm-scan-cancel-btn",
-    attr: { style: "flex-shrink:0; margin-left:auto;" }
-  });
-  cancelScanBtn.onclick = () => {
-    abortController.abort();
-    cancelScanBtn.disabled = true;
-  };
-  const wrap = box.createDiv({ cls: "fm-progress-wrap" });
-  const bar = wrap.createDiv({ cls: "fm-progress-bar" });
-  return {
-    signal: abortController.signal,
-    show() {
-      box.style.display = "block";
-    },
-    hide() {
-      box.style.display = "none";
-    },
-    abort() {
-      abortController.abort();
-    },
-    update(current, total, label = "") {
-      const pct = Math.min(100, Math.round(current / Math.max(1, total) * 100));
-      bar.style.width = `${pct}%`;
-      const msg = plugin ? plugin.t("scanProgress", { current, total, label }) : `\u23F3 Scanning (${current}/${total}): ${label}`;
-      statusText.setText(msg);
+function isExcalidrawFile2(app, file, content = null) {
+  return isExcalidrawFile(file, app, content);
+}
+function reloadOpenExcalidrawViews(plugin, filePath) {
+  var _a, _b;
+  if (!filePath || !((_a = plugin.app) == null ? void 0 : _a.workspace)) return;
+  try {
+    const leaves = plugin.app.workspace.getLeavesOfType("excalidraw");
+    for (const leaf of leaves) {
+      const viewFile = (_b = leaf.view) == null ? void 0 : _b.file;
+      if (viewFile && (viewFile.path === filePath || viewFile.name === filePath)) {
+        if (typeof leaf.view.reload === "function") {
+          leaf.view.reload();
+        } else if (typeof leaf.rebuildView === "function") {
+          leaf.rebuildView();
+        } else if (typeof leaf.setViewState === "function") {
+          const state = leaf.getViewState();
+          leaf.setViewState(state);
+        }
+      }
     }
-  };
+  } catch (err) {
+    console.warn("[FileMaster] Could not reload Excalidraw view:", err);
+  }
+}
+async function safeModifyFileContent(plugin, tfile, transformFn) {
+  let changed = false;
+  if (typeof plugin.app.vault.process === "function") {
+    await plugin.app.vault.process(tfile, (data) => {
+      const next = transformFn(data);
+      if (next !== data) changed = true;
+      return next;
+    });
+  } else {
+    const orig = await plugin.app.vault.read(tfile);
+    const next = transformFn(orig);
+    if (next !== orig) {
+      await plugin.app.vault.modify(tfile, next);
+      changed = true;
+    }
+  }
+  if (changed && isExcalidrawFile2(plugin.app, tfile)) {
+    reloadOpenExcalidrawViews(plugin, tfile.path);
+  }
+  return changed;
+}
+function openModalSafely(modal) {
+  setTimeout(() => {
+    modal.open();
+    if (modal.bgEl) {
+      modal.bgEl.style.pointerEvents = "none";
+      setTimeout(() => {
+        if (modal.bgEl) modal.bgEl.style.pointerEvents = "";
+      }, 250);
+    }
+  }, 40);
+}
+function updateSidebarRibbonButton(plugin) {
+  if (plugin.sidebarRibbonEl) {
+    plugin.sidebarRibbonEl.remove();
+    plugin.sidebarRibbonEl = null;
+  }
+  if (plugin.settings.enableSidebarButton === false) {
+    return;
+  }
+  plugin.sidebarRibbonEl = plugin.addRibbonIcon(
+    "layers",
+    plugin.t("hubTitle"),
+    () => {
+      openModalSafely(new FileMasterHubModal(plugin.app, plugin));
+    }
+  );
+}
+function getExcludedLocalFolderList(settings) {
+  return String(settings.excludedLocalFolders || "").split(/[,;\n]+/).map((s) => s.trim().replace(/^\/+|\/+$/g, "")).filter(Boolean);
+}
+function isLocalPathExcluded(settings, filePath) {
+  const p = String(filePath || "").replace(/^\/+/, "");
+  const list = getExcludedLocalFolderList(settings);
+  return list.some((folder) => p === folder || p.startsWith(folder + "/"));
+}
+async function toggleLocalFolderExclusion(plugin, folderPath) {
+  const clean = String(folderPath || "").replace(/^\/+|\/+$/g, "");
+  if (!clean) return;
+  const list = getExcludedLocalFolderList(plugin.settings);
+  const idx = list.indexOf(clean);
+  if (idx > -1) {
+    list.splice(idx, 1);
+    new import_obsidian20.Notice(plugin.t("noticeExclRemoved", { path: clean }));
+  } else {
+    list.push(clean);
+    new import_obsidian20.Notice(plugin.t("noticeExclAdded", { path: clean }));
+  }
+  plugin.settings.excludedLocalFolders = list.join(", ");
+  await plugin.saveSettings();
+}
+function getAllVaultFolderPaths(app) {
+  var _a;
+  const folderSet = /* @__PURE__ */ new Set();
+  for (const f of app.vault.getFiles()) {
+    const parentPath = (_a = f.parent) == null ? void 0 : _a.path;
+    if (parentPath && parentPath !== "/") {
+      folderSet.add(parentPath);
+    }
+  }
+  return [...folderSet].sort();
+}
+async function getItemPreviewUrl(plugin, item) {
+  var _a, _b;
+  const ext = getExt(item.name);
+  if (!IMAGE_EXTS.has(ext)) return null;
+  if (item.source === "remote") {
+    return ((_a = item.rawObj) == null ? void 0 : _a.rawUrl) || null;
+  }
+  const tfile = item.rawObj;
+  if (!tfile) return null;
+  if (NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) {
+    const cacheKey = `${tfile.path}:${((_b = tfile.stat) == null ? void 0 : _b.mtime) || 0}`;
+    let previewUrl = plugin.heicPreviewCache.get(cacheKey);
+    if (!previewUrl) {
+      const buf = await plugin.app.vault.readBinary(tfile);
+      previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
+      plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    }
+    return previewUrl;
+  }
+  return plugin.app.vault.getResourcePath(tfile);
 }
 
 // src/modals/active-note.js
-var import_obsidian13 = require("obsidian");
-var ActiveNoteActionModal = class extends import_obsidian13.Modal {
+var import_obsidian21 = require("obsidian");
+var ActiveNoteActionModal = class extends import_obsidian21.Modal {
   constructor(app, plugin, targetFile, actionType = "migrate", options = {}) {
     var _a;
     super(app);
@@ -4707,7 +7348,7 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
     this.render();
     if (this.actionType === "migrate") {
       try {
-        this.items = await this.plugin.scanActiveNoteLocalAttachments(this.targetFile);
+        this.items = await scanActiveNoteLocalAttachments(this.plugin, this.targetFile);
         this.step = "preview";
       } catch (err) {
         this.result = { success: false, message: err.message || String(err) };
@@ -4716,7 +7357,7 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
       this.render();
     } else {
       try {
-        this.items = await this.plugin.scanActiveNoteRemoteAttachments(this.targetFile);
+        this.items = await scanActiveNoteRemoteAttachments(this.plugin, this.targetFile);
         if (this.items.length === 0) {
           this.result = { success: true, count: 0, processedItems: [], failures: [] };
           this.step = "result";
@@ -4905,7 +7546,7 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
       runBtn.onclick = async () => {
         const selected = this.items.filter((i) => i.selected);
         if (selected.length === 0) {
-          new import_obsidian13.Notice(this.t("activeNoteSelectRequired"));
+          new import_obsidian21.Notice(this.t("activeNoteSelectRequired"));
           return;
         }
         this.step = "running";
@@ -5045,7 +7686,7 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
       runBtn.onclick = async () => {
         const selected = this.items.filter((i) => i.selected);
         if (selected.length === 0) {
-          new import_obsidian13.Notice(this.t("activeNoteSelectRequired"));
+          new import_obsidian21.Notice(this.t("activeNoteSelectRequired"));
           return;
         }
         this.step = "running";
@@ -5212,7 +7853,7 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
         exportBtn.onclick = async () => {
           exportBtn.disabled = true;
           try {
-            noteReportPath = await this.plugin.exportBatchMigrateReportToRoot({
+            noteReportPath = await exportBatchMigrateReportToRoot(this.plugin, {
               count: this.result.count,
               docs: 1,
               trashed: processedItems.filter((p) => p.trashedLocal).length,
@@ -5234,7 +7875,7 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
               };
             }
           } catch (err) {
-            new import_obsidian13.Notice("\u274C " + err.message);
+            new import_obsidian21.Notice("\u274C " + err.message);
             exportBtn.disabled = false;
           }
         };
@@ -5320,320 +7961,10 @@ var ActiveNoteActionModal = class extends import_obsidian13.Modal {
   }
 };
 
-// src/references.js
-function createTextReferenceMatcher(patterns) {
-  const nodes = [{ next: /* @__PURE__ */ new Map(), fail: 0, outputs: [] }];
-  for (const pattern of patterns) {
-    const value = String(pattern.value || "").toLowerCase();
-    if (!value) continue;
-    let state = 0;
-    for (let i = 0; i < value.length; i++) {
-      const char = value[i];
-      if (!nodes[state].next.has(char)) {
-        nodes[state].next.set(char, nodes.length);
-        nodes.push({ next: /* @__PURE__ */ new Map(), fail: 0, outputs: [] });
-      }
-      state = nodes[state].next.get(char);
-    }
-    nodes[state].outputs.push({ ...pattern, length: value.length });
-  }
-  const queue = [...nodes[0].next.values()];
-  for (let head = 0; head < queue.length; head++) {
-    const state = queue[head];
-    for (const [char, next] of nodes[state].next) {
-      queue.push(next);
-      let fallback = nodes[state].fail;
-      while (fallback && !nodes[fallback].next.has(char)) fallback = nodes[fallback].fail;
-      nodes[next].fail = nodes[fallback].next.get(char) || 0;
-      nodes[next].outputs = nodes[next].outputs.concat(nodes[nodes[next].fail].outputs);
-    }
-  }
-  return (input) => {
-    const text = String(input || "").toLowerCase();
-    const found = /* @__PURE__ */ new Set();
-    let state = 0;
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      while (state && !nodes[state].next.has(char)) state = nodes[state].fail;
-      state = nodes[state].next.get(char) || 0;
-      for (const pattern of nodes[state].outputs) {
-        const start = i + 1 - pattern.length;
-        if (pattern.wiki) {
-          if (!/[\]|#]/.test(text[i + 1] || "")) continue;
-        } else if (pattern.boundary) {
-          if (start > 0 && !/[\[\(<"':/\\\s]/.test(text[start - 1])) continue;
-          if (i + 1 < text.length && !/[\]\)>"'|#?\s]/.test(text[i + 1])) continue;
-        }
-        found.add(pattern.id);
-      }
-    }
-    return found;
-  };
-}
-function stripRemoteReferenceText(input) {
-  return String(input || "").replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, "").replace(/https?:\/\/[^\s)"'\]>]+/gi, "");
-}
-function createLocalReferenceMatcher(files, isDrawing) {
-  const patterns = [];
-  for (const file of files) {
-    for (const value of /* @__PURE__ */ new Set([file.path, file.name])) {
-      patterns.push({ value, id: file.path, boundary: true });
-    }
-    if (file.extension === "md" || file.extension === "excalidraw" || isDrawing(file)) {
-      patterns.push({ value: `[[${file.basename || getBaseName(file.name)}`, id: file.path, wiki: true });
-    }
-  }
-  return createTextReferenceMatcher(patterns);
-}
-function addReference(index, target, source) {
-  if (target === source) return;
-  if (!index.has(target)) index.set(target, /* @__PURE__ */ new Set());
-  index.get(target).add(source);
-}
-
-// src/transfers.js
-function throwIfTransferCancelled(signal) {
-  if (signal == null ? void 0 : signal.aborted) throw Object.assign(new Error("TRANSFER_CANCELLED"), { name: "AbortError" });
-}
-function transferDelay(ms, signal) {
-  return new Promise((resolve, reject) => {
-    const cancelled = () => {
-      clearTimeout(timer);
-      reject(Object.assign(new Error("TRANSFER_CANCELLED"), { name: "AbortError" }));
-    };
-    const timer = setTimeout(() => {
-      signal == null ? void 0 : signal.removeEventListener("abort", cancelled);
-      resolve();
-    }, ms);
-    if (signal == null ? void 0 : signal.aborted) cancelled();
-    else signal == null ? void 0 : signal.addEventListener("abort", cancelled, { once: true });
-  });
-}
-async function requestWithBackoff(request, { signal, delay = transferDelay, maxRetries = 4 } = {}) {
-  var _a, _b;
-  for (let attempt = 0; ; attempt++) {
-    throwIfTransferCancelled(signal);
-    let response;
-    try {
-      response = await request();
-      if (attempt >= maxRetries || ![429, 500, 502, 503, 504].includes(response.status)) return response;
-    } catch (err) {
-      if ((signal == null ? void 0 : signal.aborted) || attempt >= maxRetries || err.name === "AbortError") throw err;
-    }
-    const headers = (response == null ? void 0 : response.headers) || {};
-    const retryAfter = (_a = headers["retry-after"]) != null ? _a : headers["Retry-After"];
-    let wait = retryAfter !== void 0 && Number.isFinite(Number(retryAfter)) ? Number(retryAfter) * 1e3 : Number.isFinite(Date.parse(retryAfter)) ? Math.max(0, Date.parse(retryAfter) - Date.now()) : null;
-    if (wait === null && (response == null ? void 0 : response.status) === 429) {
-      try {
-        if ((_b = response.json) == null ? void 0 : _b.retryAfter) wait = Number(response.json.retryAfter) * 1e3;
-      } catch (e) {
-      }
-    }
-    await delay(Math.min(12e4, Math.max(250, wait != null ? wait : 1e3 * 2 ** attempt + Math.random() * 250)), signal);
-  }
-}
-async function runAttachmentOperation(plugin, task, signal) {
-  if (plugin.attachmentOperationRunning) throw new Error(plugin.t("transferBusy"));
-  plugin.attachmentOperationRunning = true;
-  const controller = new AbortController();
-  const cancelled = () => controller.abort();
-  if (signal == null ? void 0 : signal.aborted) cancelled();
-  else signal == null ? void 0 : signal.addEventListener("abort", cancelled, { once: true });
-  plugin.activeTransferController = controller;
-  try {
-    return await task(controller.signal);
-  } finally {
-    signal == null ? void 0 : signal.removeEventListener("abort", cancelled);
-    plugin.activeTransferController = null;
-    plugin.attachmentOperationRunning = false;
-  }
-}
-async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
-  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
-  const remoteItems = pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj);
-  if (remoteItems.length) await plugin.indexRemoteReferences(remoteItems, snapshot);
-  const allowed = documentPaths ? new Set(documentPaths) : null;
-  const byDocument = /* @__PURE__ */ new Map();
-  const changedPaths = new Map(pairs.map((pair) => [pair, []]));
-  for (const pair of pairs) {
-    const refs = pair.removeItem.source === "local" ? plugin.findReferencingNotesForLocalFile(pair.removeItem.rawObj, snapshot) : plugin.findReferencingNotesForRemoteItem(pair.removeItem.rawObj, snapshot);
-    for (const path of refs) {
-      if (allowed && !allowed.has(path)) continue;
-      if (!byDocument.has(path)) byDocument.set(path, []);
-      byDocument.get(path).push(pair);
-    }
-  }
-  const modified = /* @__PURE__ */ new Set();
-  for (const doc of snapshot.docContents) {
-    const relevant = byDocument.get(doc.path);
-    if (!relevant) continue;
-    const changedPairs = /* @__PURE__ */ new Set();
-    const changed = await plugin.safeModifyFileContent(doc.file, (current) => {
-      let next = current;
-      for (const pair of relevant) {
-        const updated = plugin.rewriteContentLinks(next, pair.removeItem, pair.keepItem, doc.path);
-        if (updated !== next) changedPairs.add(pair);
-        next = updated;
-      }
-      return next;
-    });
-    if (changed) {
-      modified.add(doc.path);
-      for (const pair of changedPairs) changedPaths.get(pair).push(doc.path);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  }
-  return { modified, changedPaths };
-}
-function migrationCheckpointPath(plugin) {
-  return plugin.getLogFilePath().replace(/operation\.log$/, "migration-pending.json");
-}
-async function saveMigrationCheckpoint(plugin, items, options) {
-  const adapter = plugin.app.vault.adapter;
-  if (!adapter) return;
-  const path = migrationCheckpointPath(plugin);
-  if (!items.length) {
-    if (await adapter.exists(path)) await adapter.remove(path);
-    return;
-  }
-  await adapter.write(path, JSON.stringify({
-    version: 1,
-    serverUrl: plugin.getCleanServerUrl(),
-    options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null },
-    items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) }))
-  }));
-}
-async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
-  var _a, _b, _c, _d, _e, _f, _g, _h;
-  await saveMigrationCheckpoint(plugin, items, options);
-  const uploaded = [], failures = [], retryItems = [];
-  for (let i = 0; i < items.length; i++) {
-    if ((_a = options.signal) == null ? void 0 : _a.aborted) {
-      retryItems.push(...items.slice(i));
-      break;
-    }
-    const entry = items[i];
-    const tfile = entry.tfile || entry.rawObj || entry;
-    const sourceVersion = { ...tfile.stat };
-    onProgress == null ? void 0 : onProgress(i + 1, items.length, tfile.name);
-    try {
-      const bytes = await plugin.app.vault.readBinary(tfile);
-      const remote = await plugin.uploadBufferToServer(bytes, tfile.name, "application/octet-stream", { signal: options.signal });
-      if (entry.locked && !remote.locked) {
-        await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
-        remote.locked = true;
-      }
-      uploaded.push({
-        entry,
-        tfile,
-        sourceVersion,
-        sourceSha: remote.sha256,
-        removeItem: { source: "local", name: tfile.name, ext: tfile.extension.toLowerCase(), displayPath: tfile.path, rawObj: tfile },
-        keepItem: {
-          source: "remote",
-          name: remote.filename,
-          ext: getExt(remote.filename),
-          displayPath: `${remote.year}/${remote.month}/${remote.filename}`,
-          rawObj: remote
-        }
-      });
-    } catch (err) {
-      retryItems.push(entry);
-      if (err.name === "AbortError") {
-        retryItems.push(...items.slice(i + 1));
-        break;
-      }
-      failures.push({ name: tfile.name, path: tfile.path, size: ((_b = tfile.stat) == null ? void 0 : _b.size) || 0, error: err.message || String(err) });
-      plugin.logOperation("ERROR", "BATCH_UPLOAD", `Failed to upload ${tfile.path}`, { error: err.message });
-    }
-  }
-  for (let i = uploaded.length - 1; i >= 0; i--) {
-    const pair = uploaded[i];
-    if (pair.sourceVersion.mtime !== ((_c = pair.tfile.stat) == null ? void 0 : _c.mtime) || pair.sourceVersion.size !== ((_d = pair.tfile.stat) == null ? void 0 : _d.size)) {
-      if (await computeSha256Hex(await plugin.app.vault.readBinary(pair.tfile)) !== pair.sourceSha) {
-        uploaded.splice(i, 1);
-        retryItems.push(pair.entry);
-        failures.push({
-          name: pair.tfile.name,
-          path: pair.tfile.path,
-          size: ((_e = pair.tfile.stat) == null ? void 0 : _e.size) || 0,
-          error: plugin.t("transferSourceChanged")
-        });
-      }
-    }
-  }
-  const rewritten = uploaded.length ? await rewriteAttachmentPairs(plugin, uploaded, options.documentPaths) : { modified: /* @__PURE__ */ new Set(), changedPaths: /* @__PURE__ */ new Map() };
-  const postSnapshot = uploaded.length && options.deleteLocalAfter ? await plugin.buildVaultReferenceSnapshot({ freshRead: true }) : null;
-  const trashedFiles = [], trashFailures = [], processedItems = [];
-  for (const pair of uploaded) {
-    const { tfile, keepItem } = pair;
-    const remote = keepItem.rawObj;
-    const syncedPaths = (rewritten.changedPaths.get(pair) || []).filter((p) => {
-      var _a2;
-      return p !== ((_a2 = options.activeFile) == null ? void 0 : _a2.path);
-    });
-    const remaining = postSnapshot ? plugin.findReferencingNotesForLocalFile(tfile, postSnapshot) : [];
-    const result = {
-      source: "remote",
-      name: remote.filename,
-      ext: keepItem.ext,
-      displayPath: keepItem.displayPath,
-      localPath: tfile.path,
-      size: ((_f = tfile.stat) == null ? void 0 : _f.size) || 0,
-      locked: Boolean(remote.locked),
-      rawObj: remote,
-      rawUrl: remote.rawUrl,
-      pubUrl: remote.pubUrl,
-      action: "uploaded",
-      trashedLocal: false,
-      keptForOtherRefs: remaining.length,
-      keptForOtherRefPaths: remaining,
-      syncedOtherNotes: syncedPaths.length,
-      syncedOtherNotePaths: syncedPaths,
-      refNotesCount: ((_g = pair.entry.refNotes) == null ? void 0 : _g.length) || 0
-    };
-    if (postSnapshot && !remaining.length) {
-      try {
-        const latest = await plugin.app.vault.readBinary(tfile);
-        if (await computeSha256Hex(latest) !== pair.sourceSha) throw new Error(plugin.t("transferSourceChanged"));
-        if (!plugin.isReferenceSnapshotCurrent(postSnapshot)) throw new Error(plugin.t("transferReferencesChanged"));
-        await plugin.app.vault.trash(tfile, true);
-        result.trashedLocal = true;
-        trashedFiles.push(tfile.path);
-      } catch (err) {
-        result.trashError = err.message || String(err);
-        trashFailures.push({ path: tfile.path, error: result.trashError });
-        retryItems.push(pair.entry);
-      }
-    }
-    processedItems.push(result);
-  }
-  await saveMigrationCheckpoint(plugin, retryItems, options);
-  const summary = {
-    count: uploaded.length,
-    docs: rewritten.modified.size,
-    modifiedNotePaths: [...rewritten.modified],
-    trashed: trashedFiles.length,
-    trashedFiles,
-    processedItems,
-    failures,
-    trashFailures,
-    retryItems,
-    cancelled: Boolean((_h = options.signal) == null ? void 0 : _h.aborted),
-    totalBytes: processedItems.reduce((sum, item) => sum + item.size, 0)
-  };
-  plugin.logOperation("INFO", "BATCH_UPLOAD", `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
-    failures: failures.length,
-    unfinished: retryItems.length,
-    cancelled: summary.cancelled
-  });
-  return summary;
-}
-
 // src/plugin/attachment-ops.js
-var import_obsidian14 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
-  return runAttachmentOperation(plugin, () => plugin.mergeDuplicateGroups(groups, onComplete));
+  return runAttachmentOperation(plugin, () => mergeDuplicateGroups(plugin, groups, onComplete));
 }
 async function mergeDuplicateGroups(plugin, groups, onComplete) {
   const tasks = [];
@@ -5651,7 +7982,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     tasks.push({ keepItem, removeItems });
   }
   if (tasks.length === 0) {
-    new import_obsidian14.Notice(plugin.t("noDupToProcess"));
+    new import_obsidian22.Notice(plugin.t("noDupToProcess"));
     return;
   }
   if (remoteItemsToDelete.length > 0) {
@@ -5667,7 +7998,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     });
     if (!confirmed) return;
   }
-  const allDocs = plugin.app.vault.getFiles().filter((f) => plugin.isScannableDocFile(f));
+  const allDocs = plugin.app.vault.getFiles().filter((f) => isScannableDocFile(plugin, f));
   const localPathsBeingRemoved = /* @__PURE__ */ new Set();
   for (const { removeItems } of tasks) {
     for (const rem of removeItems) {
@@ -5684,7 +8015,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
   );
   const modifiedDocsCount = rewritten.modified.size;
   const postSnapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
-  await plugin.indexRemoteReferences(pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj), postSnapshot);
+  await indexRemoteReferences(pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj), postSnapshot);
   const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === "local").map(({ removeItem, keepItem }) => ({
     value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
     id: removeItem.displayPath
@@ -5714,7 +8045,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
       if (rem.source === "local") {
         remainingRefs = [...remainingLocal.get(rem.displayPath) || []];
       } else {
-        remainingRefs = plugin.findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
+        remainingRefs = findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
       }
       if (remainingRefs.length > 0) {
         console.warn(
@@ -5738,7 +8069,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
           await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
           deletedRemoteCount++;
         } catch (err) {
-          new import_obsidian14.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
+          new import_obsidian22.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
           plugin.logOperation("ERROR", "DEDUP_MERGE", `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
         }
       }
@@ -5751,7 +8082,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     skippedBySafetyGate
   });
   if (skippedBySafetyGate > 0) {
-    new import_obsidian14.Notice(
+    new import_obsidian22.Notice(
       plugin.t("noticeDedupSafetyWarning", {
         modified: modifiedDocsCount,
         local: deletedLocalCount,
@@ -5760,7 +8091,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
       })
     );
   } else {
-    new import_obsidian14.Notice(
+    new import_obsidian22.Notice(
       plugin.t("noticeDedupSuccess", {
         modified: modifiedDocsCount,
         local: deletedLocalCount,
@@ -5781,18 +8112,18 @@ async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLocal = tru
   var _a;
   const result = await plugin.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
   if (!result.count) throw new Error(((_a = result.failures[0]) == null ? void 0 : _a.error) || plugin.t("transferIntegrityFailed"));
-  new import_obsidian14.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
+  new import_obsidian22.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
   return result.processedItems[0].rawObj;
 }
 async function resumePendingMigration(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new import_obsidian14.Notice(plugin.t("noticeRemoteNotReady"));
+    new import_obsidian22.Notice(plugin.t("noticeRemoteNotReady"));
     return;
   }
   const adapter = plugin.app.vault.adapter;
   const path = migrationCheckpointPath(plugin);
   if (!await adapter.exists(path)) {
-    new import_obsidian14.Notice(plugin.t("transferNothingPending"));
+    new import_obsidian22.Notice(plugin.t("transferNothingPending"));
     return;
   }
   const checkpoint = JSON.parse(await adapter.read(path));
@@ -5809,11 +8140,11 @@ async function resumePendingMigration(plugin) {
       rawObj: file,
       locked: Boolean(entry.locked),
       selected: true,
-      refNotes: plugin.findReferencingNotesForLocalFile(file, snapshot)
+      refNotes: findReferencingNotesForLocalFile(file, snapshot)
     };
   }).filter(Boolean);
   if (!items.length) {
-    new import_obsidian14.Notice(plugin.t("transferNothingPending"));
+    new import_obsidian22.Notice(plugin.t("transferNothingPending"));
     return;
   }
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
@@ -5823,7 +8154,7 @@ async function resumePendingMigration(plugin) {
   modal.open();
 }
 async function downloadSingleRemoteItemToLocal(plugin, remoteMatch, options = {}) {
-  const task = (signal) => plugin.downloadRemoteItemToLocal(remoteMatch, { ...options, signal });
+  const task = (signal) => downloadRemoteItemToLocal(plugin, remoteMatch, { ...options, signal });
   return options.deferRewrite ? task(options.signal) : runAttachmentOperation(plugin, task, options.signal);
 }
 async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
@@ -5832,7 +8163,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
   try {
     const { year, month, filename } = remoteMatch;
     if (!silent) {
-      new import_obsidian14.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
+      new import_obsidian22.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
     }
     let remoteObj = remoteMatch.rawObj || null;
     if (!remoteObj) {
@@ -5872,7 +8203,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
       action = "reused";
     } else {
       const downloadUrl = (remoteObj == null ? void 0 : remoteObj.rawUrl) ? `${remoteObj.rawUrl}?download=1` : `${remoteMatch.matchedUrl}?download=1`;
-      const response = await requestWithBackoff(() => (0, import_obsidian14.requestUrl)({
+      const response = await requestWithBackoff(() => (0, import_obsidian22.requestUrl)({
         url: downloadUrl,
         method: "GET",
         headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
@@ -5924,7 +8255,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
     const modifiedCount = (rewritten == null ? void 0 : rewritten.modified.size) || 0;
     const syncedOtherNotePaths = [...(rewritten == null ? void 0 : rewritten.modified) || []].filter((path) => path !== (activeFile == null ? void 0 : activeFile.path));
     if (!silent) {
-      new import_obsidian14.Notice(
+      new import_obsidian22.Notice(
         plugin.t("noticeDownloadedToVault", {
           name: filename,
           path: targetLocalFile.path,
@@ -5950,7 +8281,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
     return targetLocalFile;
   } catch (err) {
     if (!silent) {
-      new import_obsidian14.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
+      new import_obsidian22.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
     }
     throw err;
   }
@@ -5993,7 +8324,7 @@ async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   } catch (e) {
   }
   const snapshot = await plugin.buildVaultReferenceSnapshot();
-  await plugin.indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
+  await indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
   const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
   const localFilesBySize = /* @__PURE__ */ new Map();
   const localHashCache = /* @__PURE__ */ new Map();
@@ -6011,7 +8342,7 @@ async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   };
   for (const f of plugin.app.vault.getFiles()) {
     if (!isAttachmentExt(f.extension)) continue;
-    if (plugin.isLocalPathExcluded(f.path)) continue;
+    if (isLocalPathExcluded(plugin.settings, f.path)) continue;
     const sz = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
     if (sz <= 0) continue;
     if (!localFilesBySize.has(sz)) localFilesBySize.set(sz, []);
@@ -6065,7 +8396,7 @@ async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
       existingFile = existingByName;
     }
     const hasConflict = Boolean(conflictType && existingFile);
-    const refNotes = plugin.findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
+    const refNotes = findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
     const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
     out.push({
       id: `remote:${year}/${month}/${filename}`,
@@ -6102,7 +8433,7 @@ async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
 }
 async function executeDownloadNoteDirect(plugin, activeFile, onProgress = null, options = {}) {
   return runAttachmentOperation(plugin, async (signal) => {
-    const items = Array.isArray(options.items) ? options.items : await plugin.scanActiveNoteRemoteAttachments(activeFile);
+    const items = Array.isArray(options.items) ? options.items : await scanActiveNoteRemoteAttachments(plugin, activeFile);
     const processedItems = [], failures = [], retryItems = [], pairs = [];
     for (let i = 0; i < items.length; i++) {
       if (signal.aborted) {
@@ -6162,13 +8493,13 @@ async function executeDownloadNoteDirect(plugin, activeFile, onProgress = null, 
 }
 async function downloadActiveNoteRemoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
-  if (!activeFile || !plugin.isDocFile(activeFile)) {
-    new import_obsidian14.Notice(plugin.t("noticeOpenMdFirst"));
+  if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
+    new import_obsidian22.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "download", options);
   if (options == null ? void 0 : options.fromHub) {
-    plugin.openModalSafely(modal);
+    openModalSafely(modal);
   } else {
     modal.open();
   }
@@ -6197,12 +8528,12 @@ async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanCtx = {}
     }
     if (prefix) {
       if (f.path !== prefix && !f.path.startsWith(prefix + "/")) continue;
-    } else if (plugin.isLocalPathExcluded(f.path)) {
+    } else if (isLocalPathExcluded(plugin.settings, f.path)) {
       continue;
     }
     const grp = getFileTypeGroup(f.extension);
     if (!allowedGroups.has(grp)) continue;
-    const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
+    const refNotes = findReferencingNotesForLocalFile(f, snapshot);
     list.push({
       id: `local:${f.path}`,
       source: "local",
@@ -6252,7 +8583,7 @@ async function scanActiveNoteLocalAttachments(plugin, activeFile) {
   const snapshot = await plugin.buildVaultReferenceSnapshot();
   return Array.from(localFilesMap.values()).map((tf) => {
     var _a;
-    const refNotes = plugin.findReferencingNotesForLocalFile(tf, snapshot);
+    const refNotes = findReferencingNotesForLocalFile(tf, snapshot);
     const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
     return {
       id: `local:${tf.path}`,
@@ -6273,7 +8604,7 @@ async function scanActiveNoteLocalAttachments(plugin, activeFile) {
 async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, options = {}) {
   return runAttachmentOperation(plugin, async (signal) => {
     var _a;
-    const items = Array.isArray(options.items) ? options.items : await plugin.scanActiveNoteLocalAttachments(activeFile);
+    const items = Array.isArray(options.items) ? options.items : await scanActiveNoteLocalAttachments(plugin, activeFile);
     const summary = await migrateLocalAttachments(plugin, items, {
       ...options,
       signal,
@@ -6286,21 +8617,21 @@ async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, o
 }
 async function migrateActiveNoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
-  if (!activeFile || !plugin.isDocFile(activeFile)) {
-    new import_obsidian14.Notice(plugin.t("noticeOpenMdFirst"));
+  if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
+    new import_obsidian22.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "migrate", options);
   if (options == null ? void 0 : options.fromHub) {
-    plugin.openModalSafely(modal);
+    openModalSafely(modal);
   } else {
     modal.open();
   }
 }
 async function copyActiveNoteForAstro(plugin, targetFile = null) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
-  if (!activeFile || !plugin.isDocFile(activeFile)) {
-    new import_obsidian14.Notice(plugin.t("noticeOpenMdFirst"));
+  if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
+    new import_obsidian22.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const content = await plugin.app.vault.read(activeFile);
@@ -6309,1267 +8640,7 @@ async function copyActiveNoteForAstro(plugin, targetFile = null) {
     "/pub/$1.webp"
   );
   await navigator.clipboard.writeText(converted);
-  new import_obsidian14.Notice(plugin.t("noticeAstroCopied"));
-}
-
-// src/plugin/context-menus.js
-var import_obsidian15 = require("obsidian");
-function registerContextMenus(plugin) {
-  plugin.registerEvent(
-    plugin.app.workspace.on("file-menu", (menu, abstractFile) => {
-      if (!abstractFile) return;
-      if (Array.isArray(abstractFile.children)) {
-        const folderPath = abstractFile.path;
-        if (!folderPath || folderPath === "/") return;
-        if (plugin.isRemoteServerReady()) {
-          menu.addItem((item) => {
-            item.setTitle(plugin.t("menuMigrateFolder")).setIcon("upload-cloud").onClick(() => {
-              new BatchMigrateWizardModal(plugin.app, plugin, folderPath).open();
-            });
-          });
-        }
-        const isExcluded = plugin.isLocalPathExcluded(folderPath);
-        menu.addItem((item) => {
-          item.setTitle(isExcluded ? plugin.t("menuRemoveExclusion") : plugin.t("menuAddExclusion")).setIcon("shield").onClick(() => {
-            plugin.toggleLocalFolderExclusion(folderPath);
-          });
-        });
-        return;
-      }
-      if (abstractFile.extension && isAttachmentExt(abstractFile.extension)) {
-        if (plugin.isRemoteServerReady()) {
-          menu.addItem((item) => {
-            item.setTitle(plugin.t("menuUploadCloud")).setIcon("upload-cloud").onClick(async () => {
-              await plugin.migrateSingleLocalFileToRemote(abstractFile, {
-                deleteLocal: plugin.settings.deleteLocalAfterMigrate
-              });
-            });
-          });
-        }
-        return;
-      }
-      const isNoteOrExcalidraw = abstractFile.extension === "md" || abstractFile.extension === "excalidraw" || plugin.isExcalidrawFile(abstractFile);
-      if (isNoteOrExcalidraw && plugin.isRemoteServerReady()) {
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuActiveNoteMigrate")).setIcon("upload-cloud").onClick(() => {
-            plugin.migrateActiveNoteAttachments(abstractFile);
-          });
-        });
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuActiveNoteDownload")).setIcon("download-cloud").onClick(() => {
-            plugin.downloadActiveNoteRemoteAttachments(abstractFile);
-          });
-        });
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuActiveNoteAstro")).setIcon("external-link").onClick(() => {
-            plugin.copyActiveNoteForAstro(abstractFile);
-          });
-        });
-      }
-    })
-  );
-  plugin.registerEvent(
-    plugin.app.workspace.on("editor-menu", (menu, editor) => {
-      if (!plugin.isRemoteServerReady()) return;
-      const cursor = editor.getCursor();
-      const lineText = editor.getLine(cursor.line) || "";
-      if (!lineText.trim()) return;
-      const remoteMatch = plugin.extractRemoteItemFromLine(lineText);
-      if (remoteMatch) {
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuCopyRaw", { name: remoteMatch.filename })).setIcon("copy").onClick(async () => {
-            await navigator.clipboard.writeText(remoteMatch.matchedUrl);
-            new import_obsidian15.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
-          });
-        });
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuCopyWebp")).setIcon("zap").onClick(async () => {
-            const base = getBaseName(remoteMatch.filename);
-            const optUrl = `${plugin.getCleanServerUrl()}/pub/${remoteMatch.year}/${remoteMatch.month}/${encodeURIComponent(base)}.webp`;
-            await navigator.clipboard.writeText(optUrl);
-            new import_obsidian15.Notice(plugin.t("noticeCopiedWebp", { name: base + ".webp" }));
-          });
-        });
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuDownloadToVault", { name: remoteMatch.filename })).setIcon("download").onClick(async () => {
-            await plugin.downloadSingleRemoteItemToLocal(remoteMatch);
-          });
-        });
-        menu.addItem((item) => {
-          item.setTitle(plugin.t("menuLockRemote", { name: remoteMatch.filename })).setIcon("lock").onClick(async () => {
-            try {
-              await plugin.toggleRemoteFileLock(
-                remoteMatch.year,
-                remoteMatch.month,
-                remoteMatch.filename,
-                true
-              );
-              new import_obsidian15.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
-            } catch (err) {
-              new import_obsidian15.Notice(plugin.t("noticeLockFailed", { err: err.message }));
-            }
-          });
-        });
-      }
-      const localTFile = plugin.extractLocalAttachmentFromLine(lineText);
-      if (localTFile) {
-        menu.addItem((item) => {
-          item.setTitle(`${plugin.t("menuUploadCloud")} (${localTFile.name})`).setIcon("upload-cloud").onClick(async () => {
-            await plugin.migrateSingleLocalFileToRemote(localTFile, {
-              toProtected: false,
-              deleteLocal: plugin.settings.deleteLocalAfterMigrate
-            });
-          });
-        });
-      }
-    })
-  );
-}
-function extractRemoteItemFromLine(plugin, lineText) {
-  const serverBase = escapeRegExp(plugin.getCleanServerUrl());
-  const re = new RegExp(
-    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
-    "i"
-  );
-  const m = re.exec(lineText);
-  if (!m) return null;
-  let filename = m[5];
-  try {
-    filename = decodeURIComponent(filename);
-  } catch (e) {
-  }
-  return {
-    matchedUrl: m[1],
-    routePrefix: m[2],
-    year: m[3],
-    month: m[4],
-    filename
-  };
-}
-function extractLocalAttachmentFromLine(plugin, lineText) {
-  const activeFile = plugin.app.workspace.getActiveFile();
-  const sourcePath = activeFile ? activeFile.path : "";
-  const wikiMatch = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/.exec(lineText);
-  if (wikiMatch) {
-    const tf = plugin.app.metadataCache.getFirstLinkpathDest(wikiMatch[1].trim(), sourcePath);
-    if (tf && isAttachmentExt(tf.extension)) return tf;
-  }
-  const mdMatch = /!?\[[^\]]*\]\((?!https?:\/\/)([^)]+)\)/.exec(lineText);
-  if (mdMatch) {
-    let linkPath = mdMatch[1].trim();
-    try {
-      linkPath = decodeURIComponent(linkPath);
-    } catch (e) {
-    }
-    const tf = plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
-    if (tf && isAttachmentExt(tf.extension)) return tf;
-  }
-  return null;
-}
-function setupHeicInlinePreviewObserver(plugin) {
-  const scanEmbeds = () => {
-    const embeds = document.querySelectorAll(".internal-embed[src]");
-    embeds.forEach((el) => {
-      const rawSrc = el.getAttribute("src") || "";
-      const cleanSrc = rawSrc.split("#")[0].split("|")[0].trim();
-      const ext = getExt(cleanSrc);
-      if (!NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) return;
-      if (el.dataset.fmHeicStatus === "done" || el.dataset.fmHeicStatus === "loading") return;
-      el.dataset.fmHeicStatus = "loading";
-      plugin.renderSingleHeicEmbed(el, cleanSrc, ext).catch(() => {
-        el.dataset.fmHeicStatus = "error";
-      });
-    });
-  };
-  plugin.app.workspace.onLayoutReady(() => {
-    scanEmbeds();
-    plugin.heicObserver = new MutationObserver(() => scanEmbeds());
-    plugin.heicObserver.observe(document.body, { childList: true, subtree: true });
-  });
-  plugin.registerEvent(plugin.app.workspace.on("layout-change", () => scanEmbeds()));
-  plugin.registerEvent(plugin.app.workspace.on("file-open", () => setTimeout(scanEmbeds, 80)));
-}
-async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
-  var _a;
-  const activeFile = plugin.app.workspace.getActiveFile();
-  const sourcePath = activeFile ? activeFile.path : "";
-  let tfile = plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
-  if (!tfile) {
-    tfile = plugin.app.vault.getFiles().find((f) => f.path === linkPath || f.name === linkPath);
-  }
-  if (!tfile) {
-    embedEl.dataset.fmHeicStatus = "missing";
-    return;
-  }
-  const cacheKey = `${tfile.path}:${((_a = tfile.stat) == null ? void 0 : _a.mtime) || 0}`;
-  let previewUrl = plugin.heicPreviewCache.get(cacheKey);
-  if (!previewUrl) {
-    const buf = await plugin.app.vault.readBinary(tfile);
-    previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
-    plugin.heicPreviewCache.set(cacheKey, previewUrl);
-  }
-  embedEl.empty();
-  embedEl.removeClass("file-embed", "mod-generic");
-  embedEl.addClass("image-embed", "is-loaded");
-  const img = embedEl.createEl("img", {
-    attr: {
-      src: previewUrl,
-      alt: tfile.name
-    }
-  });
-  img.style.maxWidth = "100%";
-  img.style.borderRadius = "6px";
-  img.style.display = "block";
-  embedEl.dataset.fmHeicStatus = "done";
-}
-
-// src/plugin/health-analytics.js
-var import_obsidian16 = require("obsidian");
-async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
-  const { signal, onProgress } = scanCtx || {};
-  const allFiles = plugin.app.vault.getFiles();
-  const docFiles = allFiles.filter(
-    (f) => plugin.isScannableDocFile(f) && !plugin.isLocalPathExcluded(f.path)
-  );
-  const vaultFilePaths = new Set(allFiles.map((f) => f.path));
-  const vaultFileNames = new Set(allFiles.map((f) => f.name));
-  const vaultFileBasenames = new Set(allFiles.map((f) => f.basename));
-  const vaultIndex = {
-    paths: vaultFilePaths,
-    names: vaultFileNames,
-    basenames: vaultFileBasenames
-  };
-  const issues = [];
-  const remoteToCheck = [];
-  for (let i = 0; i < docFiles.length; i++) {
-    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-    const doc = docFiles[i];
-    if (onProgress && i % 15 === 0) {
-      onProgress(i + 1, docFiles.length, doc.path);
-      await new Promise((r) => setTimeout(r, 0));
-    }
-    const rawText = await plugin.app.vault.cachedRead(doc);
-    if (doc.extension === "canvas") {
-      try {
-        const data = JSON.parse(rawText);
-        if (Array.isArray(data.nodes)) {
-          for (const node of data.nodes) {
-            if (node.type === "file" && node.file && options.checkLocalMarkdown !== false) {
-              if (!vaultFilePaths.has(node.file) && !vaultFileNames.has(node.file.split("/").pop())) {
-                issues.push({
-                  type: "canvas-node",
-                  category: "local",
-                  sourcePath: doc.path,
-                  target: node.file,
-                  rawText: `{"type": "file", "file": "${node.file}"}`,
-                  line: 1,
-                  lineText: `Canvas File Card: ${node.file}`,
-                  reason: "Referenced canvas attachment does not exist in vault"
-                });
-              }
-            } else if (node.type === "text" && node.text) {
-              const subIssues = scanNoteContentForBrokenLinks(doc.path, node.text, vaultIndex, {
-                checkWikiLinks: options.checkWikiLinks !== false,
-                checkLocalMarkdown: options.checkLocalMarkdown !== false,
-                checkRemote: options.checkRemote
-              });
-              for (const iss of subIssues) {
-                if (iss.category === "remote") {
-                  remoteToCheck.push(iss);
-                } else {
-                  issues.push(iss);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-      }
-    } else {
-      const docIssues = scanNoteContentForBrokenLinks(doc.path, rawText, vaultIndex, {
-        checkWikiLinks: options.checkWikiLinks !== false,
-        checkLocalMarkdown: options.checkLocalMarkdown !== false,
-        checkRemote: options.checkRemote
-      });
-      for (const iss of docIssues) {
-        if (iss.category === "remote") {
-          remoteToCheck.push(iss);
-        } else {
-          issues.push(iss);
-        }
-      }
-    }
-  }
-  if (options.checkRemote && remoteToCheck.length > 0) {
-    const uniqueUrls = Array.from(new Set(remoteToCheck.map((r) => r.target)));
-    const failedUrlMap = /* @__PURE__ */ new Map();
-    for (let i = 0; i < uniqueUrls.length; i += 5) {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const batch = uniqueUrls.slice(i, i + 5);
-      if (onProgress) {
-        onProgress(i + 1, uniqueUrls.length, batch[0]);
-      }
-      await Promise.all(
-        batch.map(async (url) => {
-          try {
-            const res = await (0, import_obsidian16.requestUrl)({ url, method: "HEAD", throw: false });
-            if (res.status >= 400) {
-              failedUrlMap.set(url, `HTTP ${res.status}`);
-            }
-          } catch (err) {
-            failedUrlMap.set(url, err.message || "Network error");
-          }
-        })
-      );
-    }
-    for (const item of remoteToCheck) {
-      if (failedUrlMap.has(item.target)) {
-        item.reason = `Remote resource returned ${failedUrlMap.get(item.target)}`;
-        issues.push(item);
-      }
-    }
-  }
-  plugin.logOperation("INFO", "HEALTH_SCAN", `Scanned ${docFiles.length} document(s), found ${issues.length} broken link issue(s)`, {
-    docsScanned: docFiles.length,
-    issuesFound: issues.length
-  });
-  return { issues, totalDocs: docFiles.length };
-}
-async function exportHealthReportToRoot(plugin, issues, totalDocsScanned) {
-  const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
-  const reportPath = `Broken_Links_Report_${dateStr}.md`;
-  const zh = plugin.getEffectiveLanguage() === "zh";
-  const locale = zh ? "zh-CN" : "en-US";
-  const labels = zh ? {
-    title: "\u5931\u6548\u94FE\u63A5\u62A5\u544A",
-    generated: "\u751F\u6210\u65F6\u95F4",
-    checked: "\u5DF2\u68C0\u67E5\u6587\u6863",
-    issues: "\u53D1\u73B0\u95EE\u9898",
-    summary: "\u6982\u89C8",
-    wiki: "\u5931\u6548\u5185\u90E8\u94FE\u63A5",
-    local: "\u7F3A\u5931\u672C\u5730\u6587\u4EF6",
-    remote: "\u7F51\u9875\u94FE\u63A5\u5F02\u5E38",
-    source: "\u6240\u5728\u6587\u6863",
-    target: "\u76EE\u6807",
-    type: "\u7C7B\u578B",
-    line: "\u884C\u53F7",
-    context: "\u4E0A\u4E0B\u6587",
-    url: "\u7F51\u9875\u94FE\u63A5",
-    error: "\u9519\u8BEF",
-    link: "\u94FE\u63A5",
-    none: "\u6240\u9009\u68C0\u67E5\u8303\u56F4\u5185\u672A\u53D1\u73B0\u94FE\u63A5\u95EE\u9898\u3002"
-  } : {
-    title: "Broken links report",
-    generated: "Generated",
-    checked: "Documents checked",
-    issues: "Issues found",
-    summary: "Overview",
-    wiki: "Broken note links",
-    local: "Missing local files",
-    remote: "Web link errors",
-    source: "Document",
-    target: "Target",
-    type: "Type",
-    line: "Line",
-    context: "Context",
-    url: "Web link",
-    error: "Error",
-    link: "Link",
-    none: "No link issues found in the selected scope."
-  };
-  const wikiIssues = issues.filter((i) => i.category === "wikilink");
-  const localIssues = issues.filter((i) => i.category === "local");
-  const remoteIssues = issues.filter((i) => i.category === "remote");
-  const lines = [
-    `# ${labels.title} (${dateStr})`,
-    ``,
-    `> ${labels.generated}: ${now.toLocaleString(locale)}  |  ${labels.checked}: **${totalDocsScanned}**  |  ${labels.issues}: **${issues.length}**`,
-    ``,
-    `## ${labels.summary}`,
-    `- ${labels.wiki}: **${wikiIssues.length}**`,
-    `- ${labels.local}: **${localIssues.length}**`,
-    `- ${labels.remote}: **${remoteIssues.length}**`,
-    ``
-  ];
-  if (wikiIssues.length > 0) {
-    lines.push(`## 1. ${labels.wiki} (${wikiIssues.length})`);
-    lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
-    lines.push(`|---|---|---|---|---|`);
-    for (const item of wikiIssues) {
-      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
-      lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
-    }
-    lines.push(``);
-  }
-  if (localIssues.length > 0) {
-    lines.push(`## 2. ${labels.local} (${localIssues.length})`);
-    lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
-    lines.push(`|---|---|---|---|---|`);
-    for (const item of localIssues) {
-      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
-      lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
-    }
-    lines.push(``);
-  }
-  if (remoteIssues.length > 0) {
-    lines.push(`## 3. ${labels.remote} (${remoteIssues.length})`);
-    lines.push(`| ${labels.source} | ${labels.url} | ${labels.error} | ${labels.line} | ${labels.context} |`);
-    lines.push(`|---|---|---|---|---|`);
-    for (const item of remoteIssues) {
-      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
-      lines.push(`| [[${item.sourcePath}]] | [${labels.link}](${item.target}) | ${item.reason} | ${item.line} | \`${safeContext}\` |`);
-    }
-    lines.push(``);
-  }
-  if (issues.length === 0) {
-    lines.push(labels.none);
-  }
-  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian16.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
-}
-async function scanVaultAnalytics(plugin) {
-  const allFiles = plugin.app.vault.getFiles();
-  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
-  const docTexts = [];
-  for (const doc of docFiles) {
-    try {
-      const text = await plugin.app.vault.cachedRead(doc);
-      docTexts.push(text);
-    } catch (e) {
-    }
-  }
-  let remoteImages = [];
-  try {
-    remoteImages = await plugin.fetchRemoteFileList();
-  } catch (e) {
-  }
-  return computeVaultStatsFromEntries(allFiles, docTexts, remoteImages);
-}
-async function exportAnalyticsReportToRoot(plugin, stats) {
-  const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
-  const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
-  const zh = plugin.getEffectiveLanguage() === "zh";
-  const locale = zh ? "zh-CN" : "en-US";
-  const labels = zh ? {
-    title: "\u77E5\u8BC6\u5E93\u62A5\u544A",
-    generated: "\u751F\u6210\u65F6\u95F4",
-    overview: "\u77E5\u8BC6\u5E93\u6982\u89C8",
-    notes: "\u7B14\u8BB0",
-    canvases: "\u767D\u677F",
-    words: "\u5B57\u8BCD\u6570",
-    links: "\u94FE\u63A5\u4E0E\u5D4C\u5165",
-    storage: "\u5B58\u50A8\u7528\u91CF",
-    location: "\u4F4D\u7F6E",
-    count: "\u6587\u4EF6\u6570",
-    size: "\u5927\u5C0F",
-    details: "\u5206\u7C7B",
-    vault: "\u77E5\u8BC6\u5E93",
-    server: "\u670D\u52A1\u5668",
-    images: "\u56FE\u7247",
-    audio: "\u97F3\u9891",
-    other: "\u5176\u4ED6",
-    cache: "WebP \u7F13\u5B58",
-    protected: "\u53D7\u4FDD\u62A4\u6587\u4EF6",
-    largest: "\u4F53\u79EF\u6700\u5927\u7684\u9644\u4EF6",
-    source: "\u6765\u6E90",
-    path: "\u6587\u4EF6\u8DEF\u5F84"
-  } : {
-    title: "Vault report",
-    generated: "Generated",
-    overview: "Vault overview",
-    notes: "Notes",
-    canvases: "Canvases",
-    words: "Words and CJK characters",
-    links: "Links and embeds",
-    storage: "Storage use",
-    location: "Location",
-    count: "Files",
-    size: "Size",
-    details: "Breakdown",
-    vault: "Vault",
-    server: "Server",
-    images: "Images",
-    audio: "Audio",
-    other: "Other",
-    cache: "WebP cache",
-    protected: "Protected files",
-    largest: "Largest attachments",
-    source: "Source",
-    path: "File path"
-  };
-  const lines = [
-    `# ${labels.title} (${dateStr})`,
-    ``,
-    `> ${labels.generated}: ${now.toLocaleString(locale)}`,
-    ``,
-    `## 1. ${labels.overview}`,
-    `- ${labels.notes}: **${stats.noteCount}**`,
-    `- ${labels.canvases}: **${stats.canvasCount}**`,
-    `- ${labels.words}: **${stats.totalWords.toLocaleString(locale)}**`,
-    `- ${labels.links}: **${stats.totalInternalLinks.toLocaleString(locale)}**`,
-    ``,
-    `## 2. ${labels.storage}`,
-    `| ${labels.location} | ${labels.count} | ${labels.size} | ${labels.details} |`,
-    `|---|---|---|---|`,
-    `| ${labels.vault} | ${stats.local.totalCount} | ${formatBytes(stats.local.totalBytes)} | ${labels.images}: ${stats.local.imageCount} (${formatBytes(stats.local.imageBytes)}), ${labels.audio}: ${stats.local.audioCount} (${formatBytes(stats.local.audioBytes)}), ${labels.other}: ${stats.local.otherCount} (${formatBytes(stats.local.otherBytes)}) |`,
-    `| ${labels.server} | ${stats.remote.totalCount} | ${formatBytes(stats.remote.rawBytes)} | ${labels.cache}: ${formatBytes(stats.remote.cacheBytes)}, ${labels.protected}: ${stats.remote.lockedCount} |`,
-    ``
-  ];
-  if (stats.topLargestAttachments && stats.topLargestAttachments.length > 0) {
-    lines.push(`## 3. ${labels.largest}`);
-    lines.push(`| ${labels.source} | ${labels.path} | ${labels.details} | ${labels.size} |`);
-    lines.push(`|---|---|---|---|`);
-    for (const item of stats.topLargestAttachments) {
-      const srcLabel = item.source === "local" ? labels.vault : labels.server;
-      const category = item.group === "image" ? labels.images : item.group === "audio" ? labels.audio : labels.other;
-      lines.push(`| ${srcLabel} | \`${item.path}\` | ${category} | ${formatBytes(item.size)} |`);
-    }
-    lines.push(``);
-  }
-  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian16.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
-}
-
-// src/modals/operation-log.js
-var import_obsidian17 = require("obsidian");
-var OperationLogModal = class extends import_obsidian17.Modal {
-  constructor(app, plugin) {
-    super(app);
-    this.plugin = plugin;
-    this.filterMode = "all";
-    this.searchQuery = "";
-  }
-  t(k, p) {
-    return this.plugin ? this.plugin.t(k, p) : k;
-  }
-  async onOpen() {
-    var _a;
-    if ((_a = this.plugin) == null ? void 0 : _a.loadOperationLogs) {
-      await this.plugin.loadOperationLogs();
-    }
-    this.render();
-  }
-  render() {
-    var _a, _b, _c;
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("fm-wizard-modal");
-    const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createEl("h3", { text: this.t("opLogTitle"), cls: "fm-step-title" });
-    contentEl.createDiv({
-      text: this.t("opLogPathHint", { path: ((_b = (_a = this.plugin) == null ? void 0 : _a.getLogFilePath) == null ? void 0 : _b.call(_a)) || ".obsidian/plugins/file-master/operation.log" }),
-      attr: { style: "font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" }
-    });
-    const allLogs = Array.isArray((_c = this.plugin) == null ? void 0 : _c.operationLogs) ? [...this.plugin.operationLogs].reverse() : [];
-    const errCount = allLogs.filter((e) => e.level === "ERROR" || e.level === "WARN").length;
-    const filterRow = contentEl.createDiv({
-      attr: { style: "display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;" }
-    });
-    const chipBox = filterRow.createDiv({ attr: { style: "display:flex; gap:6px;" } });
-    const allBtn = chipBox.createEl("button", {
-      text: `${this.t("opLogFilterAll")} (${allLogs.length})`,
-      cls: this.filterMode === "all" ? "mod-cta" : ""
-    });
-    allBtn.onclick = () => {
-      this.filterMode = "all";
-      this.render();
-    };
-    const errBtn = chipBox.createEl("button", {
-      text: `${this.t("opLogFilterErrors")} (${errCount})`,
-      cls: this.filterMode === "errors" ? "mod-cta" : ""
-    });
-    errBtn.onclick = () => {
-      this.filterMode = "errors";
-      this.render();
-    };
-    const searchInput = filterRow.createEl("input", {
-      type: "search",
-      placeholder: this.t("opLogSearchPlaceholder"),
-      value: this.searchQuery,
-      attr: { style: "padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 190px;" }
-    });
-    const listEl = contentEl.createDiv({
-      cls: "fm-scroll-list",
-      attr: { style: "max-height: 360px;" }
-    });
-    searchInput.oninput = (e) => {
-      this.searchQuery = e.target.value.toLowerCase();
-      this.renderLogList(listEl, allLogs);
-    };
-    this.renderLogList(listEl, allLogs);
-    const btnRow = contentEl.createDiv({ cls: "fm-btn-row", attr: { style: "justify-content: space-between; flex-wrap: wrap; gap: 8px;" } });
-    const leftBtns = btnRow.createDiv({ attr: { style: "display: flex; gap: 8px; flex-wrap: wrap;" } });
-    const copyBtn = leftBtns.createEl("button", { text: this.t("opLogCopyAll"), cls: "mod-cta" });
-    copyBtn.onclick = async () => {
-      var _a2, _b2;
-      const text = ((_b2 = (_a2 = this.plugin) == null ? void 0 : _a2.formatLogsForExport) == null ? void 0 : _b2.call(_a2)) || "";
-      await navigator.clipboard.writeText(text);
-      new import_obsidian17.Notice(this.t("opLogCopiedNotice"));
-    };
-    const exportBtn = leftBtns.createEl("button", { text: this.t("opLogExportFile") });
-    exportBtn.onclick = () => {
-      var _a2, _b2;
-      const text = ((_b2 = (_a2 = this.plugin) == null ? void 0 : _a2.formatLogsForExport) == null ? void 0 : _b2.call(_a2)) || "";
-      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const now = /* @__PURE__ */ new Date();
-      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-      a.href = url;
-      a.download = `file-master-debug-${dateStr}.log`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2e3);
-    };
-    const clearBtn = leftBtns.createEl("button", { text: this.t("opLogClear") });
-    clearBtn.onclick = async () => {
-      var _a2;
-      if ((_a2 = this.plugin) == null ? void 0 : _a2.clearOperationLogs) {
-        await this.plugin.clearOperationLogs();
-      }
-      new import_obsidian17.Notice(this.t("opLogClearedNotice"));
-      this.render();
-    };
-    const closeBtn = btnRow.createEl("button", { text: this.t("closeBtn") });
-    closeBtn.onclick = () => this.close();
-  }
-  renderLogList(listEl, allLogs) {
-    listEl.empty();
-    let filtered = allLogs;
-    if (this.filterMode === "errors") {
-      filtered = filtered.filter((e) => e.level === "ERROR" || e.level === "WARN");
-    }
-    if (this.searchQuery) {
-      filtered = filtered.filter((e) => {
-        const hay = `${e.ts || ""} ${e.level || ""} ${e.action || ""} ${e.summary || ""} ${e.details ? JSON.stringify(e.details) : ""}`.toLowerCase();
-        return hay.includes(this.searchQuery);
-      });
-    }
-    if (filtered.length === 0) {
-      listEl.createDiv({
-        cls: "fm-section-box",
-        text: this.t("opLogEmpty"),
-        attr: { style: "text-align: center; padding: 28px 16px; color: var(--text-muted);" }
-      });
-      return;
-    }
-    for (const entry of filtered) {
-      const row = listEl.createDiv({ cls: "fm-list-item" });
-      const col = row.createDiv({
-        attr: { style: "display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;" }
-      });
-      const topRow = col.createDiv({
-        attr: { style: "display:flex; align-items:center; gap:6px; flex-wrap:wrap;" }
-      });
-      let levelCls = "fm-tag-info";
-      if (entry.level === "ERROR") levelCls = "fm-tag-error";
-      else if (entry.level === "WARN") levelCls = "fm-tag-warning";
-      topRow.createSpan({ text: entry.level || "INFO", cls: `fm-tag ${levelCls}` });
-      if (entry.action) {
-        topRow.createEl("code", { text: entry.action, attr: { style: "font-size: 11px;" } });
-      }
-      topRow.createSpan({
-        text: entry.ts || "",
-        attr: { style: "font-size: 11px; color: var(--text-muted); margin-left: auto;" }
-      });
-      col.createDiv({
-        text: entry.summary || "",
-        attr: { style: "font-size: 12px; font-weight: 500; word-break: break-word;" }
-      });
-      if (entry.details && Object.keys(entry.details).length > 0) {
-        col.createDiv({
-          text: JSON.stringify(entry.details),
-          cls: "fm-health-context-quote",
-          attr: { style: "font-family: var(--font-monospace); font-size: 11px; word-break: break-all;" }
-        });
-      }
-    }
-  }
-  onClose() {
-    this.contentEl.empty();
-  }
-};
-
-// src/settings-tab.js
-var import_obsidian18 = require("obsidian");
-var FileMasterSettingTab = class extends import_obsidian18.PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-    this.activePage = "home";
-  }
-  createHeading(containerEl, tag, icon, label) {
-    const heading = containerEl.createEl(tag, { cls: "fm-settings-heading" });
-    heading.createSpan({ cls: "fm-settings-heading-icon", text: icon, attr: { "aria-hidden": "true" } });
-    heading.createSpan({ text: label });
-    return heading;
-  }
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-    containerEl.addClass("fm-settings");
-    const pages = {
-      general: "tabGeneral",
-      server: "tabServer",
-      upload: "tabUpload",
-      exemptions: "tabExemptions",
-      about: "aboutTitle"
-    };
-    const pageIcons = {
-      general: "\u2699\uFE0F",
-      server: "\u{1F5A5}\uFE0F",
-      upload: "\u{1F4CE}",
-      exemptions: "\u{1F6E1}\uFE0F",
-      about: "\u2139\uFE0F"
-    };
-    if (this.activePage === "home" || !pages[this.activePage]) {
-      this.activePage = "home";
-      this.renderSettingsHome(containerEl);
-      return;
-    }
-    const header = containerEl.createDiv({ cls: "fm-settings-page-header" });
-    const back = header.createEl("button", {
-      cls: "clickable-icon fm-settings-back",
-      attr: { "aria-label": this.plugin.t("settingsBack"), title: this.plugin.t("settingsBack") }
-    });
-    (0, import_obsidian18.setIcon)(back, "arrow-left");
-    back.onclick = () => {
-      this.activePage = "home";
-      this.display();
-    };
-    this.createHeading(header, "h2", pageIcons[this.activePage], this.plugin.t(pages[this.activePage]));
-    const section = containerEl.createDiv({ cls: "fm-settings-section" });
-    if (this.activePage === "general") this.renderGeneralSettings(section);
-    if (this.activePage === "server") this.renderServerSettings(section);
-    if (this.activePage === "upload") this.renderUploadSettings(section);
-    if (this.activePage === "exemptions") this.renderExemptionsSettings(section);
-    if (this.activePage === "about") {
-      section.addClass("fm-settings-about");
-      this.renderAboutFooter(section);
-    }
-  }
-  renderSettingsHome(containerEl) {
-    const group = (title, icon, entries) => {
-      var _a;
-      const section = containerEl.createDiv({ cls: "fm-settings-nav-section" });
-      this.createHeading(section, "h3", icon, this.plugin.t(title));
-      const list = section.createDiv({ cls: "fm-settings-nav-list" });
-      for (const [page, label, icon2] of entries) {
-        const setting = new import_obsidian18.Setting(list).setName(this.plugin.t(label));
-        const row = setting.settingEl;
-        row.addClass("fm-settings-nav-item");
-        (_a = setting.descEl) == null ? void 0 : _a.remove();
-        row.setAttribute("role", "button");
-        row.setAttribute("tabindex", "0");
-        const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
-        (0, import_obsidian18.setIcon)(iconEl, icon2);
-        setting.nameEl.prepend(iconEl);
-        (0, import_obsidian18.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
-        const open = () => {
-          if (page === "hub") {
-            this.plugin.openModalSafely(new FileMasterHubModal(this.app, this.plugin));
-            return;
-          }
-          if (page === "logs") {
-            this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
-            return;
-          }
-          this.activePage = page;
-          this.display();
-          containerEl.scrollTop = 0;
-        };
-        row.onclick = open;
-        row.onkeydown = (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            open();
-          }
-        };
-      }
-    };
-    group("settingsCoreGroup", "\u26A1", [
-      ["upload", "tabUpload", "paperclip"],
-      ["server", "tabServer", "server"]
-    ]);
-    group("settingsPreferencesGroup", "\u2699\uFE0F", [
-      ["general", "tabGeneral", "sliders-horizontal"],
-      ["exemptions", "tabExemptions", "shield"]
-    ]);
-    group("settingsToolsGroup", "\u{1F9F0}", [
-      ["hub", "openHubName", "wrench"],
-      ["logs", "opLogTitle", "file-text"]
-    ]);
-    group("settingsInfoGroup", "\u2139\uFE0F", [
-      ["about", "aboutTitle", "info"]
-    ]);
-  }
-  renderGeneralSettings(containerEl) {
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
-      (drop) => drop.addOption("auto", this.plugin.t("langAuto")).addOption("zh", "\u7B80\u4F53\u4E2D\u6587").addOption("en", "English").setValue(this.plugin.settings.language || "auto").onChange(async (value) => {
-        this.plugin.settings.language = value;
-        await this.plugin.saveSettings();
-        this.plugin.onLanguageChange();
-        this.display();
-      })
-    );
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
-        this.plugin.settings.enableSidebarButton = value;
-        await this.plugin.saveSettings();
-        this.plugin.updateSidebarRibbonButton();
-      })
-    );
-  }
-  renderServerSettings(containerEl) {
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
-      (toggle) => toggle.setValue(Boolean(this.plugin.settings.enableRemoteServer)).onChange(async (value) => {
-        this.plugin.settings.enableRemoteServer = value;
-        if (!value) {
-          this.plugin.settings.serverVerified = false;
-          this.plugin.lastServerCompatStatus = null;
-        }
-        await this.plugin.saveSettings();
-        this.display();
-      })
-    );
-    if (!this.plugin.settings.enableRemoteServer) {
-      const hint = containerEl.createDiv({ cls: "fm-settings-hint" });
-      hint.setText(this.plugin.t("serverDisabledHint"));
-      return;
-    }
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
-      (text) => text.setPlaceholder("http://localhost:3000").setValue(this.plugin.settings.serverUrl).onChange(async (value) => {
-        this.plugin.settings.serverUrl = value.trim();
-        this.plugin.settings.serverVerified = false;
-        this.plugin.lastServerCompatStatus = null;
-        updateStatusBox(null);
-        await this.plugin.saveSettings();
-      })
-    );
-    let statusBox;
-    const updateStatusBox = (compat) => {
-      if (!statusBox) return;
-      statusBox.dataset.status = !compat ? this.plugin.settings.serverVerified ? "success" : "pending" : compat.ok ? "success" : compat.status === "server_outdated" ? "pending" : "error";
-      statusBox.textContent = this.plugin.getCompatibilityMessage(compat);
-    };
-    let tokenInput;
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
-      tokenInput = text.inputEl;
-      tokenInput.type = "password";
-      text.setPlaceholder("API token").setValue(this.plugin.settings.apiToken).onChange(async (value) => {
-        this.plugin.settings.apiToken = value.trim();
-        this.plugin.settings.serverVerified = false;
-        this.plugin.lastServerCompatStatus = null;
-        updateStatusBox(null);
-        await this.plugin.saveSettings();
-      });
-    }).addExtraButton((btn) => btn.setIcon("eye").setTooltip(this.plugin.t("showToken")).onClick(() => {
-      const hidden = tokenInput.type === "password";
-      tokenInput.type = hidden ? "text" : "password";
-      btn.setIcon(hidden ? "eye-off" : "eye");
-      btn.setTooltip(this.plugin.t(hidden ? "hideToken" : "showToken"));
-    }));
-    const connectionRow = containerEl.createDiv({ cls: "fm-settings-connection-row" });
-    statusBox = connectionRow.createDiv({ cls: "fm-server-compat-banner" });
-    updateStatusBox(this.plugin.lastServerCompatStatus);
-    new import_obsidian18.Setting(connectionRow).addButton(
-      (btn) => btn.setButtonText(this.plugin.t("btnTestConn")).onClick(async () => {
-        btn.disabled = true;
-        btn.setButtonText(this.plugin.t("compatStatusChecking"));
-        statusBox.dataset.status = "pending";
-        statusBox.textContent = this.plugin.t("compatStatusChecking");
-        let compat;
-        try {
-          compat = await this.plugin.checkServerCompatibility();
-          updateStatusBox(compat);
-          new import_obsidian18.Notice(this.plugin.getCompatibilityMessage(compat));
-        } finally {
-          btn.disabled = false;
-          btn.setButtonText(this.plugin.t("btnTestConn"));
-        }
-        if (compat) this.display();
-      })
-    );
-  }
-  renderUploadSettings(containerEl) {
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
-        this.plugin.settings.enableClipboardMonitor = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
-      (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
-        this.plugin.settings.saveLocationMode = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
-      (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
-        this.plugin.settings.defaultSaveLocation = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
-        this.plugin.settings.insertOptimizedLinkOnUpload = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    let patternSetting = null;
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
-      (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).addOption("prompt", this.plugin.t("optNamingPrompt")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
-        this.plugin.settings.namingMode = value;
-        await this.plugin.saveSettings();
-        if (patternSetting && patternSetting.settingEl) {
-          patternSetting.settingEl.style.display = value === "rule" ? "" : "none";
-        }
-      })
-    );
-    patternSetting = new import_obsidian18.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
-      (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
-        this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
-        await this.plugin.saveSettings();
-      })
-    );
-    if (patternSetting.settingEl) {
-      patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
-    }
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
-        this.plugin.settings.uploadNonImageAttachments = value;
-        await this.plugin.saveSettings();
-      })
-    );
-  }
-  renderExemptionsSettings(containerEl) {
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
-      (text) => text.setPlaceholder("templates, assets/protected").setValue(this.plugin.settings.excludedLocalFolders).onChange(async (value) => {
-        this.plugin.settings.excludedLocalFolders = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
-        this.plugin.settings.excludeLockedRemoteFiles = value;
-        await this.plugin.saveSettings();
-      })
-    );
-  }
-  renderAboutFooter(containerEl) {
-    const manifest = this.plugin.manifest || {};
-    const version = manifest.version || "0.1.1";
-    const author = manifest.author || "weichen-ink";
-    const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
-    const repoUrl = "https://github.com/weichen-ink/file-master";
-    const intro = new import_obsidian18.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
-    intro.controlEl.createSpan({ text: `v${version}` });
-    const addRow = (label) => new import_obsidian18.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
-    addRow("aboutAuthor").createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
-    addRow("aboutRepo").createEl("a", { text: "weichen-ink/file-master", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
-    addRow("aboutServerCompat").createSpan({ text: `v${MIN_SERVER_VERSION}+` });
-    const sCompat = this.plugin.lastServerCompatStatus;
-    addRow("aboutServerStatus").createSpan({
-      cls: `fm-about-status ${(sCompat == null ? void 0 : sCompat.ok) ? "is-connected" : ""}`,
-      text: sCompat ? this.plugin.getCompatibilityMessage(sCompat) : this.plugin.t("aboutServerOffline")
-    });
-    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
-      (btn) => btn.setButtonText(this.plugin.t("opLogBtnOpen")).onClick(() => {
-        this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
-      })
-    );
-    addRow("aboutFeedback").createEl("a", { text: this.plugin.t("aboutFeedbackLink"), href: `${repoUrl}/issues`, attr: { target: "_blank", rel: "noopener noreferrer" } });
-  }
-};
-
-// src/plugin/lifecycle.js
-var import_obsidian19 = require("obsidian");
-async function onload(plugin) {
-  await plugin.loadSettings();
-  plugin.operationLogs = [];
-  await plugin.loadOperationLogs();
-  plugin.heicPreviewCache = /* @__PURE__ */ new Map();
-  plugin.sidebarRibbonEl = null;
-  plugin.lastServerCompatStatus = null;
-  plugin.lastActiveMarkdownView = null;
-  plugin.referenceRevision = 0;
-  for (const event of ["create", "modify", "delete", "rename"]) {
-    plugin.registerEvent(plugin.app.vault.on(event, (file) => {
-      if (plugin.isScannableDocFile(file)) plugin.referenceRevision++;
-    }));
-  }
-  plugin.updateSidebarRibbonButton();
-  plugin.registerView(
-    VIEW_TYPE_REMOTE_GALLERY,
-    (leaf) => new RemoteGalleryView(leaf, plugin)
-  );
-  plugin.registerEvent(
-    plugin.app.workspace.on("active-leaf-change", (leaf) => {
-      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian19.MarkdownView) {
-        plugin.lastActiveMarkdownView = leaf.view;
-      }
-    })
-  );
-  plugin.registerEvent(
-    plugin.app.workspace.on("file-open", () => {
-      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
-      if (mdView) {
-        plugin.lastActiveMarkdownView = mdView;
-      }
-    })
-  );
-  plugin.app.workspace.onLayoutReady(() => {
-    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
-    if (activeMd) {
-      plugin.lastActiveMarkdownView = activeMd;
-    }
-    plugin.initGalleryLeaf(false);
-  });
-  setTimeout(() => {
-    plugin.checkServerCompatibility().catch(() => {
-    });
-  }, 1200);
-  plugin.registerEvent(
-    plugin.app.workspace.on("editor-paste", async (evt, editor) => {
-      var _a;
-      if (!plugin.settings.enableClipboardMonitor) return;
-      const files = (_a = evt.clipboardData) == null ? void 0 : _a.files;
-      if (!files || files.length === 0) return;
-      const targetFiles = plugin.filterAllowedFiles(files);
-      if (targetFiles.length === 0) return;
-      evt.preventDefault();
-      for (const f of targetFiles) {
-        await plugin.handleIncomingBrowserFile(f, editor);
-      }
-    })
-  );
-  plugin.registerEvent(
-    plugin.app.workspace.on("editor-drop", async (evt, editor) => {
-      var _a;
-      if (!plugin.settings.enableClipboardMonitor) return;
-      const files = (_a = evt.dataTransfer) == null ? void 0 : _a.files;
-      if (!files || files.length === 0) return;
-      const targetFiles = plugin.filterAllowedFiles(files);
-      if (targetFiles.length === 0) return;
-      evt.preventDefault();
-      for (const f of targetFiles) {
-        await plugin.handleIncomingBrowserFile(f, editor);
-      }
-    })
-  );
-  plugin.setupHeicInlinePreviewObserver();
-  plugin.registerContextMenus();
-  plugin.registerPluginCommands();
-  plugin.addSettingTab(new FileMasterSettingTab(plugin.app, plugin));
-  console.log("[FileMaster] Plugin loaded successfully");
-}
-function registerPluginCommands(plugin) {
-  plugin.pluginCommandDefs = [
-    {
-      id: "resume-pending-upload",
-      nameKey: "cmdResumeUpload",
-      requiresRemote: true,
-      callback: () => plugin.resumePendingMigration().catch((err) => new import_obsidian19.Notice(err.message))
-    },
-    {
-      id: "open-control-center",
-      nameKey: "cmdOpenHub",
-      callback: () => plugin.openModalSafely(new FileMasterHubModal(plugin.app, plugin))
-    },
-    {
-      id: "open-health-check-wizard",
-      nameKey: "cmdScanHealth",
-      callback: () => plugin.openModalSafely(new HealthCheckModal(plugin.app, plugin))
-    },
-    {
-      id: "open-orphan-wizard",
-      nameKey: "cmdScanOrphan",
-      callback: () => plugin.openModalSafely(new OrphanWizardModal(plugin.app, plugin))
-    },
-    {
-      id: "open-duplicate-wizard",
-      nameKey: "cmdScanDuplicate",
-      callback: () => plugin.openModalSafely(new DuplicateWizardModal(plugin.app, plugin))
-    },
-    {
-      id: "open-remote-gallery",
-      nameKey: "cmdRemoteGallery",
-      requiresRemote: true,
-      callback: () => plugin.openModalSafely(new RemoteGalleryModal(plugin.app, plugin))
-    },
-    {
-      id: "open-remote-gallery-view",
-      nameKey: "cmdRemoteGalleryView",
-      requiresRemote: true,
-      callback: () => plugin.activateGalleryView()
-    },
-    {
-      id: "open-batch-migrate-wizard",
-      nameKey: "cmdBatchMigrate",
-      requiresRemote: true,
-      callback: () => plugin.openModalSafely(new BatchMigrateWizardModal(plugin.app, plugin))
-    },
-    {
-      id: "open-vault-analytics-dashboard",
-      nameKey: "cmdVaultAnalytics",
-      callback: () => plugin.openModalSafely(new VaultAnalyticsModal(plugin.app, plugin))
-    },
-    {
-      id: "migrate-current-note-attachments",
-      nameKey: "cmdMigrateActiveNote",
-      requiresRemote: true,
-      callback: () => plugin.migrateActiveNoteAttachments()
-    },
-    {
-      id: "download-current-note-remote-attachments",
-      nameKey: "cmdDownloadActiveNote",
-      requiresRemote: true,
-      callback: () => plugin.downloadActiveNoteRemoteAttachments()
-    },
-    {
-      id: "copy-note-with-astro-pub-links",
-      nameKey: "cmdCopyAstroLinks",
-      requiresRemote: true,
-      callback: () => plugin.copyActiveNoteForAstro()
-    },
-    {
-      id: "open-operation-logs",
-      nameKey: "cmdOpenOpLogs",
-      callback: () => plugin.openModalSafely(new OperationLogModal(plugin.app, plugin))
-    }
-  ];
-  for (const cmd of plugin.pluginCommandDefs) {
-    plugin.addCommand({
-      id: cmd.id,
-      name: plugin.t(cmd.nameKey),
-      checkCallback: (checking) => {
-        if (cmd.requiresRemote && !plugin.isRemoteServerReady()) {
-          return false;
-        }
-        if (checking) return true;
-        cmd.callback();
-      }
-    });
-  }
-}
-function updateCommandNames(plugin) {
-  var _a, _b;
-  if (!plugin.pluginCommandDefs || !((_b = (_a = plugin.app) == null ? void 0 : _a.commands) == null ? void 0 : _b.commands)) return;
-  for (const cmd of plugin.pluginCommandDefs) {
-    const fullId = `${plugin.manifest.id}:${cmd.id}`;
-    const registered = plugin.app.commands.commands[fullId];
-    if (registered) {
-      registered.name = plugin.t(cmd.nameKey);
-    }
-  }
-}
-function onLanguageChange(plugin) {
-  var _a, _b, _c, _d, _e;
-  plugin.updateSidebarRibbonButton();
-  plugin.updateCommandNames();
-  for (const leaf of ((_c = (_b = (_a = plugin.app) == null ? void 0 : _a.workspace) == null ? void 0 : _b.getLeavesOfType) == null ? void 0 : _c.call(_b, VIEW_TYPE_REMOTE_GALLERY)) || []) {
-    (_e = (_d = leaf.view) == null ? void 0 : _d.render) == null ? void 0 : _e.call(_d);
-  }
-}
-function getCompatibilityMessage(plugin, compat) {
-  if (!compat) return plugin.t(plugin.settings.serverVerified ? "serverVerifiedBadge" : "serverUnverifiedHint");
-  switch (compat.status) {
-    case "compatible":
-      return plugin.t("compatStatusOk", { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
-    case "server_outdated":
-      return plugin.t("compatStatusServerOld", { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
-    case "plugin_outdated":
-      return plugin.t("compatStatusPluginOld", { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
-    case "auth_failed":
-      return plugin.t("compatStatusAuthFail");
-    case "token_missing":
-      return plugin.t("compatStatusTokenMissing");
-    case "server_error":
-      return plugin.t("compatStatusServerError", { code: compat.statusCode || "" });
-    default:
-      return plugin.t("compatStatusOffline", { err: compat.error || "" });
-  }
-}
-function onunload(plugin) {
-  var _a;
-  (_a = plugin.activeTransferController) == null ? void 0 : _a.abort();
-  if (plugin.sidebarRibbonEl) {
-    plugin.sidebarRibbonEl.remove();
-    plugin.sidebarRibbonEl = null;
-  }
-  if (plugin.heicObserver) {
-    plugin.heicObserver.disconnect();
-    plugin.heicObserver = null;
-  }
-}
-async function initGalleryLeaf(plugin, reveal = false) {
-  if (!plugin.isRemoteServerReady()) return null;
-  const { workspace } = plugin.app;
-  let leaves = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY);
-  let leaf = leaves[0];
-  if (!leaf) {
-    const rightLeaf = workspace.getRightLeaf(false);
-    if (rightLeaf) {
-      await rightLeaf.setViewState({
-        type: VIEW_TYPE_REMOTE_GALLERY,
-        active: false
-      });
-      leaf = rightLeaf;
-    }
-  }
-  if (leaf && reveal) {
-    workspace.revealLeaf(leaf);
-  }
-  return leaf;
-}
-async function activateGalleryView(plugin) {
-  if (!plugin.isRemoteServerReady()) {
-    new import_obsidian19.Notice(plugin.t("remoteServerRequiredNotice") || "Remote server not ready");
-    return;
-  }
-  await plugin.initGalleryLeaf(true);
-}
-function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
-  let mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
-  if (!mdView && plugin.lastActiveMarkdownView) {
-    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
-    if (leaves.some((l) => l.view === plugin.lastActiveMarkdownView)) {
-      mdView = plugin.lastActiveMarkdownView;
-    }
-  }
-  if (!mdView) {
-    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
-    if (leaves.length > 0) {
-      const visibleLeaf = leaves.find((l) => {
-        var _a, _b, _c;
-        return ((_a = l.view) == null ? void 0 : _a.containerEl) && ((_c = (_b = l.view.containerEl).isShown) == null ? void 0 : _c.call(_b)) !== false;
-      });
-      mdView = (visibleLeaf || leaves[0]).view;
-    }
-  }
-  const activeFile = (mdView == null ? void 0 : mdView.file) || plugin.app.workspace.getActiveFile();
-  if (!activeFile || activeFile.extension !== "md") {
-    new import_obsidian19.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
-    return false;
-  }
-  if (mdView == null ? void 0 : mdView.editor) {
-    const editor = mdView.editor;
-    editor.replaceSelection(mdSnippet);
-    if (mdView.leaf) {
-      plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
-    }
-    editor.focus();
-    if (successNotice) new import_obsidian19.Notice(successNotice);
-    return true;
-  } else {
-    plugin.safeModifyFileContent(activeFile, (content) => content + "\n" + mdSnippet).then(() => {
-      if (successNotice) new import_obsidian19.Notice(successNotice);
-    });
-    return true;
-  }
+  new import_obsidian22.Notice(plugin.t("noticeAstroCopied"));
 }
 
 // src/plugin/link-rewrite.js
@@ -7716,1339 +8787,64 @@ function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrCon
   return rewrittenPre;
 }
 
-// src/plugin/logging.js
-function getEffectiveLanguage2(plugin) {
-  var _a;
-  return getEffectiveLanguage((_a = plugin.settings) == null ? void 0 : _a.language);
-}
-function t(plugin, key, params = {}) {
-  return translateUi(plugin.getEffectiveLanguage(), key, params);
-}
-function isRemoteServerReady(plugin) {
-  var _a, _b;
-  return Boolean(((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer) && ((_b = plugin.settings) == null ? void 0 : _b.serverVerified));
-}
-function getLogFilePath(plugin) {
-  var _a, _b, _c, _d;
-  const dir = ((_a = plugin.manifest) == null ? void 0 : _a.dir) || `${((_c = (_b = plugin.app) == null ? void 0 : _b.vault) == null ? void 0 : _c.configDir) || ".obsidian"}/plugins/${((_d = plugin.manifest) == null ? void 0 : _d.id) || "file-master"}`;
-  return `${dir}/operation.log`;
-}
-async function loadOperationLogs(plugin) {
-  var _a, _b;
-  if (!Array.isArray(plugin.operationLogs)) {
-    plugin.operationLogs = [];
-  }
-  try {
-    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
-    const logPath = plugin.getLogFilePath();
-    if (adapter && await adapter.exists(logPath)) {
-      const raw = await adapter.read(logPath);
-      const parsed = [];
-      for (const line of String(raw || "").split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          parsed.push(JSON.parse(trimmed));
-        } catch (e) {
-        }
-      }
-      plugin.operationLogs = parsed.slice(-500);
-    }
-  } catch (e) {
-  }
-  return plugin.operationLogs;
-}
-async function saveOperationLogs(plugin) {
-  var _a, _b;
-  try {
-    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
-    if (!adapter) return;
-    const logPath = plugin.getLogFilePath();
-    const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
-    await adapter.write(logPath, lines.join("\n") + (lines.length ? "\n" : ""));
-  } catch (e) {
-  }
-}
-function logOperation(plugin, level, action, summary, details = null) {
-  if (!Array.isArray(plugin.operationLogs)) {
-    plugin.operationLogs = [];
-  }
-  const now = /* @__PURE__ */ new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const entry = {
-    ts,
-    level: String(level || "INFO").toUpperCase(),
-    action: String(action || "GENERAL"),
-    summary: String(summary || "")
-  };
-  if (details && typeof details === "object" && Object.keys(details).length > 0) {
-    entry.details = details;
-  }
-  plugin.operationLogs.push(entry);
-  if (plugin.operationLogs.length > 500) {
-    plugin.operationLogs = plugin.operationLogs.slice(-500);
-  }
-  plugin.saveOperationLogs();
-}
-async function clearOperationLogs(plugin) {
-  plugin.operationLogs = [];
-  await plugin.saveOperationLogs();
-}
-function formatLogsForExport(plugin) {
-  var _a, _b, _c;
-  const version = ((_a = plugin.manifest) == null ? void 0 : _a.version) || "1.0.2";
-  const serverStatus = plugin.lastServerCompatStatus ? `${plugin.lastServerCompatStatus.status} (server v${plugin.lastServerCompatStatus.serverVersion || "?"})` : ((_b = plugin.settings) == null ? void 0 : _b.enableRemoteServer) ? "unverified" : "disabled";
-  const header = [
-    `# File Master Diagnostic & Operation Logs`,
-    `# Plugin Version: v${version}`,
-    `# Exported At: ${(/* @__PURE__ */ new Date()).toISOString()}`,
-    `# Server Status: ${serverStatus}`,
-    `# Excluded Local Folders: ${((_c = plugin.settings) == null ? void 0 : _c.excludedLocalFolders) || "(none)"}`,
-    `# Total Entries: ${(plugin.operationLogs || []).length}`,
-    `------------------------------------------------------------`
-  ];
-  const body = (plugin.operationLogs || []).map((e) => {
-    const detailStr = e.details ? ` | ${JSON.stringify(e.details)}` : "";
-    return `[${e.ts}] [${e.level}] [${e.action}] ${e.summary}${detailStr}`;
-  });
-  return [...header, ...body].join("\n");
-}
-
-// src/plugin/server-client.js
-var import_obsidian20 = require("obsidian");
-function filterAllowedFiles(plugin, fileList) {
-  const out = [];
-  for (let i = 0; i < fileList.length; i++) {
-    const f = fileList[i];
-    const ext = getExt(f.name) || (f.type.startsWith("image/") ? "png" : "");
-    if (IMAGE_EXTS.has(ext)) {
-      out.push(f);
-    } else if (plugin.settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
-      out.push(f);
-    }
-  }
-  return out;
-}
-function getCleanServerUrl(plugin) {
-  return String(plugin.settings.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
-}
-async function handleIncomingBrowserFile(plugin, file, editor) {
-  const arrayBuffer = await file.arrayBuffer();
-  const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
-  const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
-  const sha256 = await computeSha256Hex(arrayBuffer);
-  const activeFile = plugin.app.workspace.getActiveFile();
-  const noteName = activeFile ? activeFile.basename : "note";
-  let defaultBaseName = rawOriginBase;
-  if (plugin.settings.namingMode === "rule") {
-    defaultBaseName = applyNamingPattern(plugin.settings.namingPattern, {
-      noteName,
-      originBase: rawOriginBase,
-      sha256
-    });
-  } else if (/^image$/i.test(rawOriginBase)) {
-    defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
-  }
-  const askLocation = plugin.settings.saveLocationMode === "ask";
-  const promptRename = plugin.settings.namingMode === "prompt";
-  const fileInfo = {
-    arrayBuffer,
-    defaultBaseName,
-    ext,
-    size: file.size || arrayBuffer.byteLength,
-    mimeType: file.type || "application/octet-stream",
-    sha256
-  };
-  const modalOptions = {
-    askLocation,
-    fixedLocation: plugin.settings.saveLocationMode,
-    promptRename,
-    plugin,
-    editor,
-    activeFile
-  };
-  new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
-}
-async function probeRemoteSha256(plugin, sha256) {
-  var _a;
-  try {
-    const serverUrl = plugin.getCleanServerUrl();
-    if (!serverUrl || !plugin.settings.apiToken || !sha256) return null;
-    const response = await (0, import_obsidian20.requestUrl)({
-      url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${plugin.settings.apiToken}`
-      },
-      throw: false
-    });
-    if (response.status === 200 && ((_a = response.json) == null ? void 0 : _a.exists)) {
-      return response.json;
-    }
-  } catch (e) {
-  }
-  return null;
-}
-async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
-  var _a;
-  const opts = typeof options === "boolean" ? { uploadToProtected: options } : options || {};
-  throwIfTransferCancelled(opts.signal);
-  const fullSha256 = await computeSha256Hex(arrayBuffer);
-  if (!opts.skipProbe) {
-    try {
-      const probed = await plugin.probeRemoteSha256(fullSha256);
-      if (probed && probed.exists && probed.sha256 === fullSha256) {
-        probed.isInstant = true;
-        return probed;
-      }
-    } catch (e) {
-    }
-  }
-  const url = `${plugin.getCleanServerUrl()}/api/image/upload`;
-  const { boundary, arrayBuffer: bodyBuffer } = buildMultipartBuffer(arrayBuffer, filename, mimeType);
-  const headers = {
-    Authorization: `Bearer ${plugin.settings.apiToken}`,
-    "X-File-Name": encodeURIComponent(filename),
-    "Content-Type": `multipart/form-data; boundary=${boundary}`
-  };
-  const response = await requestWithBackoff(() => (0, import_obsidian20.requestUrl)({
-    url,
-    method: "POST",
-    headers,
-    body: bodyBuffer,
-    throw: false
-  }), { signal: opts.signal });
-  if (response.status < 200 || response.status >= 300) {
-    const errMsg = ((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`;
-    throw new Error(errMsg);
-  }
-  const result = response.json;
-  if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(plugin.t("transferIntegrityFailed"));
-  return result;
-}
-async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
-  var _a;
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/lock`;
-  const response = await (0, import_obsidian20.requestUrl)({
-    url,
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${plugin.settings.apiToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ year, month, filename, locked }),
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Lock operation failed (HTTP ${response.status})`);
-  }
-  return response.json;
-}
-async function checkServerCompatibility(plugin) {
-  var _a, _b, _c;
-  if (!((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer)) {
-    plugin.lastServerCompatStatus = null;
-    if (plugin.settings) {
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-    }
-    return null;
-  }
-  const pluginVer = ((_b = plugin.manifest) == null ? void 0 : _b.version) || "0.1.1";
-  const serverUrl = plugin.getCleanServerUrl();
-  if (!serverUrl) {
-    plugin.lastServerCompatStatus = {
-      ok: false,
-      status: "offline",
-      error: "No URL configured",
-      serverVersion: null
-    };
-    plugin.settings.serverVerified = false;
-    await plugin.saveSettings();
-    return plugin.lastServerCompatStatus;
-  }
-  try {
-    const verUrl = `${serverUrl}/api/platform/version`;
-    const verRes = await (0, import_obsidian20.requestUrl)({
-      url: verUrl,
-      method: "GET",
-      throw: false
-    });
-    if (verRes.status !== 200) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "offline",
-        serverVersion: null,
-        error: `HTTP ${verRes.status}`
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    const verData = verRes.json || {};
-    const serverVer = verData.version || "0.1.0";
-    const minPluginReq = verData.minPluginVersion || "0.1.0";
-    if (compareSemver(pluginVer, minPluginReq) < 0) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "plugin_outdated",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        minPluginVersion: minPluginReq,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    if (compareSemver(serverVer, MIN_SERVER_VERSION) < 0) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "server_outdated",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        minServerVersion: MIN_SERVER_VERSION,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    let assetCount = 0;
-    const token = (plugin.settings.apiToken || "").trim();
-    if (!token) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "token_missing",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    let listRes;
-    try {
-      listRes = await (0, import_obsidian20.requestUrl)({
-        url: `${serverUrl}/api/modules/image-host/list`,
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        throw: false
-      });
-    } catch (netErr) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "offline",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        error: netErr.message || String(netErr)
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    if (listRes.status === 401 || listRes.status === 403) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "auth_failed",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    if (listRes.status !== 200) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "server_error",
-        statusCode: listRes.status,
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
-    plugin.lastServerCompatStatus = {
-      ok: true,
-      status: "compatible",
-      serverVersion: serverVer,
-      pluginVersion: pluginVer,
-      apiVersion: verData.apiVersion || 1,
-      assetCount,
-      features: verData.features || {}
-    };
-    plugin.settings.serverVerified = true;
-    await plugin.saveSettings();
-    return plugin.lastServerCompatStatus;
-  } catch (err) {
-    plugin.lastServerCompatStatus = {
-      ok: false,
-      status: "offline",
-      serverVersion: null,
-      error: err.message || "Network error"
-    };
-    plugin.settings.serverVerified = false;
-    await plugin.saveSettings();
-    return plugin.lastServerCompatStatus;
-  }
-}
-async function fetchServerVersion(plugin) {
-  try {
-    const url = `${plugin.getCleanServerUrl()}/api/platform/version`;
-    const response = await (0, import_obsidian20.requestUrl)({
-      url,
-      method: "GET",
-      throw: false
-    });
-    if (response.status >= 200 && response.status < 300) {
-      return response.json;
-    }
-  } catch (e) {
-  }
-  return null;
-}
-async function fetchRemoteFileList(plugin) {
-  var _a;
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list`;
-  const response = await (0, import_obsidian20.requestUrl)({
-    url,
-    method: "GET",
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
-  }
-  return response.json.images || [];
-}
-async function deleteRemoteFile(plugin, year, month, filename) {
-  var _a;
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
-  const response = await (0, import_obsidian20.requestUrl)({
-    url,
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Failed to delete remote file (HTTP ${response.status})`);
-  }
-  return true;
-}
-
-// src/plugin/vault-scans.js
-var import_obsidian21 = require("obsidian");
-async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
-  const { signal, onProgress, freshRead = false } = scanCtx || {};
-  const revision = plugin.referenceRevision || 0;
-  const allFiles = plugin.app.vault.getFiles();
-  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
-  const matchLocal = createLocalReferenceMatcher(allFiles, (file) => plugin.isExcalidrawFile(file));
-  const localReferences = /* @__PURE__ */ new Map();
-  const docContents = [];
-  for (let i = 0; i < docFiles.length; i++) {
-    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-    const doc = docFiles[i];
-    if (i % 25 === 0) {
-      onProgress == null ? void 0 : onProgress(i + 1, docFiles.length, doc.path);
-      await new Promise((r) => setTimeout(r, 0));
-    }
-    const rawText = freshRead ? await plugin.app.vault.read(doc) : await plugin.app.vault.cachedRead(doc);
-    let decodedText = rawText;
-    try {
-      decodedText = decodeURIComponent(rawText);
-    } catch (e) {
-    }
-    for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
-    if (decodedText !== rawText) {
-      for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
-    }
-    docContents.push({
-      file: doc,
-      path: doc.path,
-      rawText,
-      decodedText
-    });
-  }
-  if (!freshRead) {
-    const resolvedLinks = plugin.app.metadataCache.resolvedLinks || {};
-    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
-      if (isReportFile(sourcePath)) {
-        continue;
-      }
-      for (const targetPath of Object.keys(targets || {})) {
-        addReference(localReferences, targetPath, sourcePath);
-      }
-    }
-  }
-  return {
-    docContents,
-    localReferences,
-    revision,
-    signal,
-    stable: revision === (plugin.referenceRevision || 0)
-  };
-}
-function isReferenceSnapshotCurrent(plugin, snapshot) {
-  return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
-}
-async function indexRemoteReferences(plugin, items, snapshot) {
-  var _a;
-  const patterns = [];
-  for (const item of items) {
-    const id = `${item.year}/${item.month}/${item.filename}`;
-    const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
-    for (const value of /* @__PURE__ */ new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
-      if (value) patterns.push({ value, id });
-    }
-  }
-  const match = createTextReferenceMatcher(patterns);
-  snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, /* @__PURE__ */ new Set()]));
-  for (let i = 0; i < snapshot.docContents.length; i++) {
-    if ((_a = snapshot.signal) == null ? void 0 : _a.aborted) throw new Error("SCAN_ABORTED");
-    if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
-    const doc = snapshot.docContents[i];
-    for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
-    if (doc.decodedText !== doc.rawText) {
-      for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
-    }
-  }
-}
-function findReferencingNotesForLocalFile(plugin, tfile, snapshot) {
-  return [...snapshot.localReferences.get(tfile.path) || []];
-}
-function findReferencingNotesForRemoteItem(plugin, remoteItem, snapshot) {
-  return [...snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || []];
-}
-async function scanUnusedFiles(plugin, options, scanCtx = {}) {
-  var _a;
-  const { signal, onProgress } = scanCtx || {};
-  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
-  const allowedGroups = /* @__PURE__ */ new Set();
-  if (options.typeNote) allowedGroups.add("note");
-  if (options.typeImage) allowedGroups.add("image");
-  if (options.typeAudio) allowedGroups.add("audio");
-  if (options.typeOther) allowedGroups.add("other");
-  const unusedList = [];
-  if (options.scanLocal) {
-    const allFiles = plugin.app.vault.getFiles();
-    for (let i = 0; i < allFiles.length; i++) {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const f = allFiles[i];
-      if (onProgress && i % 30 === 0) {
-        onProgress(i + 1, allFiles.length, f.path);
-        await new Promise((r) => setTimeout(r, 0));
-      }
-      if (isReportFile(f.name) || f.extension === "canvas") {
-        continue;
-      }
-      if (plugin.isLocalPathExcluded(f.path)) continue;
-      const grp = getFileTypeGroup(f.extension);
-      if (!allowedGroups.has(grp)) continue;
-      const refs = plugin.findReferencingNotesForLocalFile(f, snapshot);
-      if (refs.length === 0) {
-        unusedList.push({
-          id: `local:${f.path}`,
-          source: "local",
-          typeGroup: grp,
-          name: f.name,
-          displayPath: f.path,
-          size: ((_a = f.stat) == null ? void 0 : _a.size) || 0,
-          rawObj: f,
-          selected: true
-        });
-      }
-    }
-  }
-  if (options.scanRemote) {
-    try {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const remoteFiles = await plugin.fetchRemoteFileList();
-      await plugin.indexRemoteReferences(remoteFiles, snapshot);
-      for (let i = 0; i < remoteFiles.length; i++) {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        const r = remoteFiles[i];
-        if (onProgress && i % 30 === 0) {
-          onProgress(i + 1, remoteFiles.length, r.filename);
-          await new Promise((res) => setTimeout(res, 0));
-        }
-        if (plugin.settings.excludeLockedRemoteFiles && (r.locked || r.inProtectedFolder)) {
-          continue;
-        }
-        const ext = getExt(r.filename);
-        const grp = getFileTypeGroup(ext);
-        if (!allowedGroups.has(grp)) continue;
-        const refs = plugin.findReferencingNotesForRemoteItem(r, snapshot);
-        if (refs.length === 0) {
-          unusedList.push({
-            id: `remote:${r.year}/${r.month}/${r.filename}`,
-            source: "remote",
-            typeGroup: grp,
-            name: r.filename,
-            displayPath: `${r.year}/${r.month}/${r.filename}`,
-            size: r.size || 0,
-            rawObj: r,
-            selected: true
-          });
-        }
-      }
-    } catch (err) {
-      if (err.message === "SCAN_ABORTED") throw err;
-      if (!options.scanLocal) {
-        throw err;
-      }
-      new import_obsidian21.Notice(plugin.t("noticeRemoteUnreachable", { err: err.message }));
-    }
-  }
-  return unusedList;
-}
-async function exportOrphanReportToRoot(plugin, results) {
-  const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
-  const reportPath = `Unused_Files_Report_${dateStr}.md`;
-  const localItems = results.filter((r) => r.source === "local");
-  const remoteItems = results.filter((r) => r.source === "remote");
-  const totalBytes = results.reduce((s, r) => s + (r.size || 0), 0);
-  const lines = [
-    `# \u{1F9F9} Unused Files Inspection Report (${dateStr})`,
-    ``,
-    `> Generated: ${now.toLocaleString("en-US")}  |  Total Unused Files: **${results.length}**  |  Total Reclaimable Space: **${formatBytes(totalBytes)}**`,
-    ``
-  ];
-  lines.push(`## \u{1F4BB} 1. Local Vault Unused Files (${localItems.length})`);
-  if (localItems.length === 0) {
-    lines.push(`- No unused local files`);
-  } else {
-    for (const item of localItems) {
-      lines.push(`- [[${item.displayPath}]] \u2014 \`${formatBytes(item.size)}\``);
-    }
-  }
-  lines.push(``);
-  lines.push(`## \u2601\uFE0F 2. Remote Server Unused Files (${remoteItems.length})`);
-  if (remoteItems.length === 0) {
-    lines.push(`- No unused remote files`);
-  } else {
-    for (const item of remoteItems) {
-      lines.push(`- [${item.displayPath}](${item.rawObj.rawUrl}) \u2014 \`${formatBytes(item.size)}\``);
-    }
-  }
-  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian21.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
-}
-async function writeOrUpdateRootReport(plugin, reportPath, content) {
-  const existing = plugin.app.vault.getAbstractFileByPath(reportPath);
-  let targetFile;
-  if (existing) {
-    await plugin.app.vault.modify(existing, content);
-    targetFile = existing;
-  } else {
-    targetFile = await plugin.app.vault.create(reportPath, content);
-  }
-  const leaf = plugin.app.workspace.getLeaf(false);
-  if (leaf && targetFile) {
-    await leaf.openFile(targetFile);
-  }
-}
-async function cleanSelectedOrphans(plugin, selectedItems, onDone) {
-  return runAttachmentOperation(plugin, () => plugin.cleanOrphanItems(selectedItems, onDone));
-}
-async function cleanOrphanItems(plugin, selectedItems, onDone) {
-  const remoteToClean = selectedItems.filter((i) => i.source === "remote");
-  const localToClean = selectedItems.filter((i) => i.source === "local");
-  if (remoteToClean.length > 0) {
-    const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
-    const confirmed = await new Promise((resolve) => {
-      new ConfirmActionModal(
-        plugin.app,
-        plugin.t("confirmRemoteOrphanTitle"),
-        plugin.t("confirmRemoteOrphanMsg", { count: remoteToClean.length, size: formatBytes(remoteBytes) }),
-        plugin.t("confirmRemoteOrphanBtn", { count: remoteToClean.length }),
-        resolve
-      ).open();
-    });
-    if (!confirmed) return;
-  }
-  let deletedLocal = 0;
-  let deletedRemote = 0;
-  let skipped = 0;
-  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
-  await plugin.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
-  for (const item of localToClean) {
-    if (!plugin.isReferenceSnapshotCurrent(snapshot)) {
-      skipped++;
-      continue;
-    }
-    if (plugin.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) {
-      skipped++;
-      continue;
-    }
-    try {
-      await plugin.app.vault.trash(item.rawObj, true);
-      deletedLocal++;
-    } catch (err) {
-      console.error("Failed to delete local file:", err);
-      plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
-    }
-  }
-  for (const item of remoteToClean) {
-    if (!plugin.isReferenceSnapshotCurrent(snapshot)) {
-      skipped++;
-      continue;
-    }
-    if (plugin.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) {
-      skipped++;
-      continue;
-    }
-    try {
-      await plugin.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
-      deletedRemote++;
-    } catch (err) {
-      new import_obsidian21.Notice(plugin.t("noticeRemoteDeleteFailed", { name: item.name, err: err.message }));
-      plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
-    }
-  }
-  plugin.logOperation("INFO", "ORPHAN_CLEANUP", `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
-    files: selectedItems.map((i) => i.displayPath)
-  });
-  new import_obsidian21.Notice(plugin.t("noticeCleanupComplete", { local: deletedLocal, remote: deletedRemote }));
-  if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
-}
-async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, scanCtx = {}) {
-  var _a, _b;
-  const { signal, onProgress } = scanCtx || {};
-  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
-  const hashMap = /* @__PURE__ */ new Map();
-  const allowedGroups = /* @__PURE__ */ new Set();
-  if (!fileTypeOpts) {
-    allowedGroups.add("image");
-    allowedGroups.add("audio");
-    allowedGroups.add("other");
-    allowedGroups.add("note");
-  } else {
-    if (fileTypeOpts.typeImage) allowedGroups.add("image");
-    if (fileTypeOpts.typeAudio) allowedGroups.add("audio");
-    if (fileTypeOpts.typeOther) allowedGroups.add("other");
-    if (fileTypeOpts.typeNote) allowedGroups.add("note");
-  }
-  let localScanned = 0;
-  let remoteScanned = 0;
-  let remoteError = null;
-  const addItem = (sha256, itemObj) => {
-    if (!sha256) return;
-    if (!hashMap.has(sha256)) hashMap.set(sha256, []);
-    hashMap.get(sha256).push(itemObj);
-  };
-  const sizeBuckets = /* @__PURE__ */ new Map();
-  const getBucket = (sz) => {
-    let b = sizeBuckets.get(sz);
-    if (!b) {
-      b = { local: [], remote: [] };
-      sizeBuckets.set(sz, b);
-    }
-    return b;
-  };
-  if (scope === "local" || scope === "both") {
-    const allFiles = plugin.app.vault.getFiles();
-    for (const f of allFiles) {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      if (isReportFile(f.name) || f.extension === "canvas") {
-        continue;
-      }
-      if (plugin.isLocalPathExcluded(f.path)) continue;
-      const grp = getFileTypeGroup(f.extension);
-      if (!allowedGroups.has(grp)) continue;
-      const size = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
-      if (size <= 0) continue;
-      getBucket(size).local.push(f);
-    }
-  }
-  if (scope === "remote" || scope === "both") {
-    try {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const remoteFiles = await plugin.fetchRemoteFileList();
-      await plugin.indexRemoteReferences(remoteFiles, snapshot);
-      for (const r of remoteFiles) {
-        if (!r.sha256) continue;
-        const ext = getExt(r.filename);
-        const grp = getFileTypeGroup(ext);
-        if (!allowedGroups.has(grp)) continue;
-        const size = r.size || 0;
-        getBucket(size).remote.push(r);
-      }
-    } catch (err) {
-      if (err.message === "SCAN_ABORTED") throw err;
-      if (scope === "remote") {
-        throw err;
-      }
-      remoteError = err.message;
-    }
-  }
-  const bucketEntries = [...sizeBuckets.entries()];
-  for (let bIdx = 0; bIdx < bucketEntries.length; bIdx++) {
-    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-    const [, bucket] = bucketEntries[bIdx];
-    let hasConflict = false;
-    if (scope === "both") {
-      hasConflict = bucket.local.length + bucket.remote.length >= 2;
-    } else if (scope === "local") {
-      hasConflict = bucket.local.length >= 2;
-    } else if (scope === "remote") {
-      hasConflict = bucket.remote.length >= 2;
-    }
-    if (!hasConflict) continue;
-    if (scope === "remote" || scope === "both") {
-      for (const r of bucket.remote) {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        remoteScanned++;
-        const ext = getExt(r.filename);
-        const refNotes = plugin.findReferencingNotesForRemoteItem(r, snapshot);
-        addItem(r.sha256, {
-          id: `remote:${r.year}/${r.month}/${r.filename}`,
-          source: "remote",
-          name: r.filename,
-          ext,
-          displayPath: `${r.year}/${r.month}/${r.filename}`,
-          size: r.size || 0,
-          locked: Boolean(r.locked || r.inProtectedFolder),
-          refNotes,
-          rawObj: r
-        });
-      }
-    }
-    if (scope === "local" || scope === "both") {
-      for (const f of bucket.local) {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        if (onProgress) {
-          onProgress(bIdx + 1, bucketEntries.length, f.path);
-        }
-        const buf = await plugin.app.vault.readBinary(f);
-        if (!buf || buf.byteLength === 0) continue;
-        localScanned++;
-        const sha256 = await computeSha256Hex(buf);
-        const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
-        addItem(sha256, {
-          id: `local:${f.path}`,
-          source: "local",
-          name: f.name,
-          ext: f.extension.toLowerCase(),
-          displayPath: f.path,
-          size: ((_b = f.stat) == null ? void 0 : _b.size) || buf.byteLength,
-          locked: false,
-          refNotes,
-          rawObj: f
-        });
-      }
-    }
-  }
-  const duplicateGroups = [];
-  for (const [sha256, items] of hashMap.entries()) {
-    if (items.length < 2) continue;
-    duplicateGroups.push({
-      sha256,
-      size: items[0].size || 0,
-      items,
-      keepId: items[0].id
-    });
-  }
-  return {
-    groups: duplicateGroups,
-    stats: { localScanned, remoteScanned, remoteError }
-  };
-}
-async function exportDuplicateReportToRoot(plugin, groups) {
-  const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
-  const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
-  const lines = [
-    `# \u{1F50D} Duplicate Files Inspection Report (${dateStr})`,
-    ``,
-    `> Generated: ${now.toLocaleString("en-US")}  |  Duplicate Groups: **${groups.length}**`,
-    ``
-  ];
-  if (groups.length === 0) {
-    lines.push(`\u{1F389} No duplicate files found.`);
-  } else {
-    groups.forEach((grp, idx) => {
-      lines.push(`## Duplicate Group #${idx + 1} (\`${grp.sha256.slice(0, 12)}...\`, Size: ${formatBytes(grp.size)})`);
-      for (const item of grp.items) {
-        const isKeep = grp.keepId === item.id ? " **[Current Keep Selection]**" : "";
-        const lockTag = item.locked ? " `\u{1F512} Protected`" : "";
-        const linkStr = item.source === "local" ? `\u{1F4BB} Local: [[${item.displayPath}]]` : `\u2601\uFE0F Remote: [${item.displayPath}](${item.rawObj.rawUrl})`;
-        const refsStr = item.refNotes.length > 0 ? `Referencing Notes: ${item.refNotes.map((n) => `[[${n}]]`).join(", ")}` : `No direct note references`;
-        lines.push(`- ${linkStr}${lockTag}${isKeep} \u2014 (${refsStr})`);
-      }
-      lines.push(``);
-    });
-  }
-  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian21.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
-}
-async function exportBatchMigrateReportToRoot(plugin, summary) {
-  const now = /* @__PURE__ */ new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const dateStr = formatDateYMD(now);
-  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
-  const count = (summary == null ? void 0 : summary.count) || 0;
-  const docs = (summary == null ? void 0 : summary.docs) || 0;
-  const totalBytes = (summary == null ? void 0 : summary.totalBytes) || 0;
-  const trashed = (summary == null ? void 0 : summary.trashed) || 0;
-  const items = (summary == null ? void 0 : summary.processedItems) || [];
-  const failures = (summary == null ? void 0 : summary.failures) || [];
-  const trashFailures = (summary == null ? void 0 : summary.trashFailures) || [];
-  const lines = [
-    `# \u{1F680} \u6279\u91CF\u4E91\u7AEF\u8FC1\u79FB\u62A5\u544A / Batch Migration Report (${dateStr})`,
-    ``,
-    `> \u751F\u6210\u65F6\u95F4 / Generated: ${dateStr} ${timeStr}  |  \u6210\u529F\u8FC1\u79FB\u9644\u4EF6 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  \u66F4\u65B0\u7B14\u8BB0 / Notes Updated: **${docs}**  |  \u672C\u5730\u6E05\u7406 / Trashed: **${trashed}**`,
-    ``,
-    `## \u{1F4CA} \u8FC1\u79FB\u6C47\u603B\u7EDF\u8BA1 / Summary Statistics`,
-    `- **\u6210\u529F\u4E0A\u4F20\u6587\u4EF6 (Total Uploaded)**: ${count} \u4E2A (${formatBytes(totalBytes)})`,
-    `- **\u5F15\u7528\u94FE\u63A5\u5DF2\u66F4\u65B0\u7B14\u8BB0 (Notes Updated)**: ${docs} \u7BC7`,
-    `- **\u672C\u5730\u539F\u6587\u4EF6\u5DF2\u79FB\u5165\u56DE\u6536\u7AD9 (Local Trashed)**: ${trashed} \u4E2A`,
-    `- **\u4E0A\u4F20\u5931\u8D25\u9879 (Failed Uploads)**: ${failures.length} \u4E2A`,
-    ...trashFailures.length > 0 ? [`- **\u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 (Failed Local Cleanups)**: ${trashFailures.length} \u4E2A`] : [],
-    ``,
-    `## \u2601\uFE0F \u5DF2\u8FC1\u79FB\u9644\u4EF6\u6E05\u5355 / Migrated Assets (${items.length})`,
-    ``
-  ];
-  if (items.length === 0) {
-    lines.push(`- \u65E0\u5DF2\u8FC1\u79FB\u9644\u4EF6 / No assets were migrated.`);
-  } else {
-    lines.push(`| # | \u672C\u5730\u539F\u8DEF\u5F84 (Local Path) | \u670D\u52A1\u5668\u94FE\u63A5 (Remote URL) | \u6587\u4EF6\u5927\u5C0F (Size) | \u5F15\u7528\u6570 (Refs) |`);
-    lines.push(`|---|---|---|---|---|`);
-    items.forEach((item, idx) => {
-      const localPath = item.displayPath || item.name;
-      const remoteUrl = item.rawUrl || item.rawObj && item.rawObj.rawUrl || "";
-      const sizeStr = formatBytes(item.size || 0);
-      const refsCount = item.refNotesCount !== void 0 ? `${item.refNotesCount} \u7BC7` : "-";
-      const remoteLink = remoteUrl ? `[${item.name || "Link"}](${remoteUrl})` : "-";
-      lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
-    });
-  }
-  if (failures.length > 0) {
-    lines.push(``);
-    lines.push(`## \u26A0\uFE0F \u4E0A\u4F20\u5931\u8D25\u9879 / Failed Uploads (${failures.length})`);
-    lines.push(``);
-    failures.forEach((f, idx) => {
-      lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${f.error}`);
-    });
-  }
-  if (trashFailures.length > 0) {
-    lines.push(``);
-    lines.push(`## \u26A0\uFE0F \u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 / Failed Local Cleanups (${trashFailures.length})`);
-    lines.push(``);
-    trashFailures.forEach((tf, idx) => {
-      lines.push(`- **#${idx + 1}**: \`${tf.path}\` \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${tf.error}`);
-    });
-  }
-  lines.push(``);
-  lines.push(`---`);
-  lines.push(`*Generated by File Master Obsidian Plugin*`);
-  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian21.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
-  return reportPath;
-}
-async function openNoteAtLine(plugin, filePath, lineNumber) {
-  const file = plugin.app.vault.getAbstractFileByPath(filePath);
-  if (file && file instanceof import_obsidian21.TFile) {
-    const leaf = plugin.app.workspace.getLeaf(false);
-    await leaf.openFile(file);
-    const view = leaf.view;
-    if (view && view.editor && lineNumber) {
-      const lineIdx = Math.max(0, lineNumber - 1);
-      view.editor.setCursor({ line: lineIdx, ch: 0 });
-      view.editor.scrollIntoView(
-        { from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } },
-        true
-      );
-    }
-  } else {
-    new import_obsidian21.Notice(plugin.t("noticeCannotOpenFile", { path: filePath }));
-  }
-}
-
-// src/plugin/vault-utils.js
-var import_obsidian22 = require("obsidian");
-function isDocFile2(plugin, file) {
-  return isDocFile(file, plugin.app);
-}
-function isScannableDocFile(plugin, file) {
-  return Boolean(file) && plugin.isDocFile(file) && !isReportFile(file.name);
-}
-function isExcalidrawFile2(plugin, file, content = null) {
-  return isExcalidrawFile(file, plugin.app, content);
-}
-function reloadOpenExcalidrawViews(plugin, filePath) {
-  var _a, _b;
-  if (!filePath || !((_a = plugin.app) == null ? void 0 : _a.workspace)) return;
-  try {
-    const leaves = plugin.app.workspace.getLeavesOfType("excalidraw");
-    for (const leaf of leaves) {
-      const viewFile = (_b = leaf.view) == null ? void 0 : _b.file;
-      if (viewFile && (viewFile.path === filePath || viewFile.name === filePath)) {
-        if (typeof leaf.view.reload === "function") {
-          leaf.view.reload();
-        } else if (typeof leaf.rebuildView === "function") {
-          leaf.rebuildView();
-        } else if (typeof leaf.setViewState === "function") {
-          const state = leaf.getViewState();
-          leaf.setViewState(state);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("[FileMaster] Could not reload Excalidraw view:", err);
-  }
-}
-async function safeModifyFileContent(plugin, tfile, transformFn) {
-  let changed = false;
-  if (typeof plugin.app.vault.process === "function") {
-    await plugin.app.vault.process(tfile, (data) => {
-      const next = transformFn(data);
-      if (next !== data) changed = true;
-      return next;
-    });
-  } else {
-    const orig = await plugin.app.vault.read(tfile);
-    const next = transformFn(orig);
-    if (next !== orig) {
-      await plugin.app.vault.modify(tfile, next);
-      changed = true;
-    }
-  }
-  if (changed && plugin.isExcalidrawFile(tfile)) {
-    plugin.reloadOpenExcalidrawViews(tfile.path);
-  }
-  return changed;
-}
-function openModalSafely(plugin, modal) {
-  setTimeout(() => {
-    modal.open();
-    if (modal.bgEl) {
-      modal.bgEl.style.pointerEvents = "none";
-      setTimeout(() => {
-        if (modal.bgEl) modal.bgEl.style.pointerEvents = "";
-      }, 250);
-    }
-  }, 40);
-}
-function updateSidebarRibbonButton(plugin) {
-  if (plugin.sidebarRibbonEl) {
-    plugin.sidebarRibbonEl.remove();
-    plugin.sidebarRibbonEl = null;
-  }
-  if (plugin.settings.enableSidebarButton === false) {
-    return;
-  }
-  plugin.sidebarRibbonEl = plugin.addRibbonIcon(
-    "layers",
-    plugin.t("hubTitle"),
-    () => {
-      plugin.openModalSafely(new FileMasterHubModal(plugin.app, plugin));
-    }
-  );
-}
-function getExcludedLocalFolderList(plugin) {
-  return String(plugin.settings.excludedLocalFolders || "").split(/[,;\n]+/).map((s) => s.trim().replace(/^\/+|\/+$/g, "")).filter(Boolean);
-}
-function isLocalPathExcluded(plugin, filePath) {
-  const p = String(filePath || "").replace(/^\/+/, "");
-  const list = plugin.getExcludedLocalFolderList();
-  return list.some((folder) => p === folder || p.startsWith(folder + "/"));
-}
-async function toggleLocalFolderExclusion(plugin, folderPath) {
-  const clean = String(folderPath || "").replace(/^\/+|\/+$/g, "");
-  if (!clean) return;
-  const list = plugin.getExcludedLocalFolderList();
-  const idx = list.indexOf(clean);
-  if (idx > -1) {
-    list.splice(idx, 1);
-    new import_obsidian22.Notice(plugin.t("noticeExclRemoved", { path: clean }));
-  } else {
-    list.push(clean);
-    new import_obsidian22.Notice(plugin.t("noticeExclAdded", { path: clean }));
-  }
-  plugin.settings.excludedLocalFolders = list.join(", ");
-  await plugin.saveSettings();
-}
-function getAllVaultFolderPaths(plugin) {
-  var _a;
-  const folderSet = /* @__PURE__ */ new Set();
-  for (const f of plugin.app.vault.getFiles()) {
-    const parentPath = (_a = f.parent) == null ? void 0 : _a.path;
-    if (parentPath && parentPath !== "/") {
-      folderSet.add(parentPath);
-    }
-  }
-  return [...folderSet].sort();
-}
-async function getItemPreviewUrl(plugin, item) {
-  var _a, _b;
-  const ext = getExt(item.name);
-  if (!IMAGE_EXTS.has(ext)) return null;
-  if (item.source === "remote") {
-    return ((_a = item.rawObj) == null ? void 0 : _a.rawUrl) || null;
-  }
-  const tfile = item.rawObj;
-  if (!tfile) return null;
-  if (NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) {
-    const cacheKey = `${tfile.path}:${((_b = tfile.stat) == null ? void 0 : _b.mtime) || 0}`;
-    let previewUrl = plugin.heicPreviewCache.get(cacheKey);
-    if (!previewUrl) {
-      const buf = await plugin.app.vault.readBinary(tfile);
-      previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
-      plugin.heicPreviewCache.set(cacheKey, previewUrl);
-    }
-    return previewUrl;
-  }
-  return plugin.app.vault.getResourcePath(tfile);
-}
-
 // src/plugin.js
 var FileMasterPlugin = class extends import_obsidian23.Plugin {
-  executeDuplicateMergeSafely(...args) {
-    return executeDuplicateMergeSafely(this, ...args);
+  downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
+    return downloadSingleRemoteItemToLocal(this, remoteMatch, options);
   }
-  mergeDuplicateGroups(...args) {
-    return mergeDuplicateGroups(this, ...args);
+  executeDownloadNoteDirect(activeFile, onProgress = null, options = {}) {
+    return executeDownloadNoteDirect(this, activeFile, onProgress, options);
   }
-  migrateSingleLocalFileToRemote(...args) {
-    return migrateSingleLocalFileToRemote(this, ...args);
+  executeBatchMigrateSafely(selectedItems, options, onProgress, onDone) {
+    return executeBatchMigrateSafely(this, selectedItems, options, onProgress, onDone);
   }
-  resumePendingMigration(...args) {
-    return resumePendingMigration(this, ...args);
+  executeMigrateNoteDirect(activeFile, onProgress = null, options = {}) {
+    return executeMigrateNoteDirect(this, activeFile, onProgress, options);
   }
-  downloadSingleRemoteItemToLocal(...args) {
-    return downloadSingleRemoteItemToLocal(this, ...args);
+  onload() {
+    return onload(this);
   }
-  downloadRemoteItemToLocal(...args) {
-    return downloadRemoteItemToLocal(this, ...args);
+  onunload() {
+    return onunload(this);
   }
-  scanActiveNoteRemoteAttachments(...args) {
-    return scanActiveNoteRemoteAttachments(this, ...args);
+  rewriteContentLinks(content, removeItem, keepItem, docPathOrContext = "") {
+    return rewriteContentLinks(this, content, removeItem, keepItem, docPathOrContext);
   }
-  executeDownloadNoteDirect(...args) {
-    return executeDownloadNoteDirect(this, ...args);
+  t(key, params = {}) {
+    return t(this, key, params);
   }
-  downloadActiveNoteRemoteAttachments(...args) {
-    return downloadActiveNoteRemoteAttachments(this, ...args);
+  isRemoteServerReady() {
+    return isRemoteServerReady(this.settings);
   }
-  scanLocalAttachmentsForBatchMigrate(...args) {
-    return scanLocalAttachmentsForBatchMigrate(this, ...args);
+  logOperation(level, action, summary, details = null) {
+    return logOperation(this, level, action, summary, details);
   }
-  executeBatchMigrateSafely(...args) {
-    return executeBatchMigrateSafely(this, ...args);
+  getCleanServerUrl() {
+    return getCleanServerUrl(this.settings);
   }
-  scanActiveNoteLocalAttachments(...args) {
-    return scanActiveNoteLocalAttachments(this, ...args);
+  probeRemoteSha256(sha256) {
+    return probeRemoteSha256(this, sha256);
   }
-  executeMigrateNoteDirect(...args) {
-    return executeMigrateNoteDirect(this, ...args);
+  uploadBufferToServer(arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
+    return uploadBufferToServer(this, arrayBuffer, filename, mimeType, options);
   }
-  migrateActiveNoteAttachments(...args) {
-    return migrateActiveNoteAttachments(this, ...args);
+  toggleRemoteFileLock(year, month, filename, locked = true) {
+    return toggleRemoteFileLock(this, year, month, filename, locked);
   }
-  copyActiveNoteForAstro(...args) {
-    return copyActiveNoteForAstro(this, ...args);
+  fetchRemoteFileList() {
+    return fetchRemoteFileList(this);
   }
-  registerContextMenus(...args) {
-    return registerContextMenus(this, ...args);
+  deleteRemoteFile(year, month, filename) {
+    return deleteRemoteFile(this, year, month, filename);
   }
-  extractRemoteItemFromLine(...args) {
-    return extractRemoteItemFromLine(this, ...args);
+  buildVaultReferenceSnapshot(scanCtx = {}) {
+    return buildVaultReferenceSnapshot(this, scanCtx);
   }
-  extractLocalAttachmentFromLine(...args) {
-    return extractLocalAttachmentFromLine(this, ...args);
+  isReferenceSnapshotCurrent(snapshot) {
+    return isReferenceSnapshotCurrent(this, snapshot);
   }
-  setupHeicInlinePreviewObserver(...args) {
-    return setupHeicInlinePreviewObserver(this, ...args);
-  }
-  renderSingleHeicEmbed(...args) {
-    return renderSingleHeicEmbed(this, ...args);
-  }
-  scanVaultLinkHealth(...args) {
-    return scanVaultLinkHealth(this, ...args);
-  }
-  exportHealthReportToRoot(...args) {
-    return exportHealthReportToRoot(this, ...args);
-  }
-  scanVaultAnalytics(...args) {
-    return scanVaultAnalytics(this, ...args);
-  }
-  exportAnalyticsReportToRoot(...args) {
-    return exportAnalyticsReportToRoot(this, ...args);
-  }
-  onload(...args) {
-    return onload(this, ...args);
-  }
-  registerPluginCommands(...args) {
-    return registerPluginCommands(this, ...args);
-  }
-  updateCommandNames(...args) {
-    return updateCommandNames(this, ...args);
-  }
-  onLanguageChange(...args) {
-    return onLanguageChange(this, ...args);
-  }
-  getCompatibilityMessage(...args) {
-    return getCompatibilityMessage(this, ...args);
-  }
-  onunload(...args) {
-    return onunload(this, ...args);
-  }
-  initGalleryLeaf(...args) {
-    return initGalleryLeaf(this, ...args);
-  }
-  activateGalleryView(...args) {
-    return activateGalleryView(this, ...args);
-  }
-  insertMarkdownToActiveEditor(...args) {
-    return insertMarkdownToActiveEditor(this, ...args);
-  }
-  rewriteContentLinks(...args) {
-    return rewriteContentLinks(this, ...args);
-  }
-  getEffectiveLanguage(...args) {
-    return getEffectiveLanguage2(this, ...args);
-  }
-  t(...args) {
-    return t(this, ...args);
-  }
-  isRemoteServerReady(...args) {
-    return isRemoteServerReady(this, ...args);
-  }
-  getLogFilePath(...args) {
-    return getLogFilePath(this, ...args);
-  }
-  loadOperationLogs(...args) {
-    return loadOperationLogs(this, ...args);
-  }
-  saveOperationLogs(...args) {
-    return saveOperationLogs(this, ...args);
-  }
-  logOperation(...args) {
-    return logOperation(this, ...args);
-  }
-  clearOperationLogs(...args) {
-    return clearOperationLogs(this, ...args);
-  }
-  formatLogsForExport(...args) {
-    return formatLogsForExport(this, ...args);
-  }
-  filterAllowedFiles(...args) {
-    return filterAllowedFiles(this, ...args);
-  }
-  getCleanServerUrl(...args) {
-    return getCleanServerUrl(this, ...args);
-  }
-  handleIncomingBrowserFile(...args) {
-    return handleIncomingBrowserFile(this, ...args);
-  }
-  probeRemoteSha256(...args) {
-    return probeRemoteSha256(this, ...args);
-  }
-  uploadBufferToServer(...args) {
-    return uploadBufferToServer(this, ...args);
-  }
-  toggleRemoteFileLock(...args) {
-    return toggleRemoteFileLock(this, ...args);
-  }
-  checkServerCompatibility(...args) {
-    return checkServerCompatibility(this, ...args);
-  }
-  fetchServerVersion(...args) {
-    return fetchServerVersion(this, ...args);
-  }
-  fetchRemoteFileList(...args) {
-    return fetchRemoteFileList(this, ...args);
-  }
-  deleteRemoteFile(...args) {
-    return deleteRemoteFile(this, ...args);
-  }
-  buildVaultReferenceSnapshot(...args) {
-    return buildVaultReferenceSnapshot(this, ...args);
-  }
-  isReferenceSnapshotCurrent(...args) {
-    return isReferenceSnapshotCurrent(this, ...args);
-  }
-  indexRemoteReferences(...args) {
-    return indexRemoteReferences(this, ...args);
-  }
-  findReferencingNotesForLocalFile(...args) {
-    return findReferencingNotesForLocalFile(this, ...args);
-  }
-  findReferencingNotesForRemoteItem(...args) {
-    return findReferencingNotesForRemoteItem(this, ...args);
-  }
-  scanUnusedFiles(...args) {
-    return scanUnusedFiles(this, ...args);
-  }
-  exportOrphanReportToRoot(...args) {
-    return exportOrphanReportToRoot(this, ...args);
-  }
-  writeOrUpdateRootReport(...args) {
-    return writeOrUpdateRootReport(this, ...args);
-  }
-  cleanSelectedOrphans(...args) {
-    return cleanSelectedOrphans(this, ...args);
-  }
-  cleanOrphanItems(...args) {
-    return cleanOrphanItems(this, ...args);
-  }
-  scanDuplicateGroups(...args) {
-    return scanDuplicateGroups(this, ...args);
-  }
-  exportDuplicateReportToRoot(...args) {
-    return exportDuplicateReportToRoot(this, ...args);
-  }
-  exportBatchMigrateReportToRoot(...args) {
-    return exportBatchMigrateReportToRoot(this, ...args);
-  }
-  openNoteAtLine(...args) {
-    return openNoteAtLine(this, ...args);
-  }
-  isDocFile(...args) {
-    return isDocFile2(this, ...args);
-  }
-  isScannableDocFile(...args) {
-    return isScannableDocFile(this, ...args);
-  }
-  isExcalidrawFile(...args) {
-    return isExcalidrawFile2(this, ...args);
-  }
-  reloadOpenExcalidrawViews(...args) {
-    return reloadOpenExcalidrawViews(this, ...args);
-  }
-  safeModifyFileContent(...args) {
-    return safeModifyFileContent(this, ...args);
-  }
-  openModalSafely(...args) {
-    return openModalSafely(this, ...args);
-  }
-  updateSidebarRibbonButton(...args) {
-    return updateSidebarRibbonButton(this, ...args);
-  }
-  getExcludedLocalFolderList(...args) {
-    return getExcludedLocalFolderList(this, ...args);
-  }
-  isLocalPathExcluded(...args) {
-    return isLocalPathExcluded(this, ...args);
-  }
-  toggleLocalFolderExclusion(...args) {
-    return toggleLocalFolderExclusion(this, ...args);
-  }
-  getAllVaultFolderPaths(...args) {
-    return getAllVaultFolderPaths(this, ...args);
-  }
-  getItemPreviewUrl(...args) {
-    return getItemPreviewUrl(this, ...args);
+  writeOrUpdateRootReport(reportPath, content) {
+    return writeOrUpdateRootReport(this, reportPath, content);
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());

@@ -1,0 +1,80 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { loadPlugin } = require('./helpers/load-plugin');
+const { Element, Setting } = require('./helpers/ui');
+
+test('Settings tools open the hub and log modals with the correct host and plugin', () => {
+  const opened = [];
+  const loaded = loadPlugin(undefined, { host: { Setting, setIcon() {} },
+    setTimeout: (fn) => fn(), onModalOpen: (modal) => opened.push(modal) });
+  const app = {};
+  const plugin = new loaded.Plugin(app);
+  plugin.settings = { language: 'en' };
+  const tab = new loaded.FileMasterSettingTab(app, plugin);
+  tab.containerEl = new Element();
+  tab.display();
+  // Use translation keys here so copy edits cannot hide a missing navigation control.
+  for (const key of ['openHubName', 'opLogTitle']) {
+    const row = tab.containerEl.all().find((el) => el.name === plugin.t(key));
+    assert.ok(row, key);
+    row.onclick();
+  }
+  assert.equal(opened.length, 2);
+  assert.ok(opened[0] instanceof loaded.FileMasterHubModal);
+  assert.ok(opened[1] instanceof loaded.OperationLogModal);
+  assert.ok(opened.every((modal) => modal.app === app && modal.plugin === plugin));
+});
+
+test('Wizard setup uses vault folders and exclusion settings without forwarding methods', () => {
+  const loaded = loadPlugin();
+  const plugin = new loaded.Plugin({ vault: { getFiles: () => [{ parent: { path: 'assets' } }] } });
+  plugin.settings = { language: 'en', excludedLocalFolders: 'private, templates' };
+  for (const Wizard of [loaded.BatchMigrateWizardModal, loaded.DuplicateWizardModal, loaded.OrphanWizardModal]) {
+    const modal = new Wizard(plugin.app, plugin);
+    const tree = new Element();
+    modal.renderStep1(tree);
+    const nodes = tree.all();
+    if (Wizard === loaded.BatchMigrateWizardModal) {
+      assert.ok(nodes.some((node) => node.tag === 'option' && node.value === 'assets'));
+    } else {
+      assert.ok(nodes.some((node) => String(node.text).includes('private') && String(node.text).includes('templates')));
+    }
+  }
+});
+
+test('Operation log modal loads persisted entries without an internal plugin method', async () => {
+  const loaded = loadPlugin();
+  const plugin = new loaded.Plugin({ vault: { adapter: {
+    exists: async () => true, read: async () => '{"summary":"persisted"}\n'
+  } } });
+  const modal = new loaded.OperationLogModal(plugin.app, plugin);
+  modal.render = () => {};
+  await modal.onOpen();
+  assert.equal(plugin.operationLogs[0].summary, 'persisted');
+});
+
+test('Release onload registers clipboard, commands and menus through explicit modules', async () => {
+  const handlers = new Map(), commands = [], settingsTabs = [], opened = [];
+  const loaded = loadPlugin(undefined, { setTimeout(fn, delay) { if (delay === 40) fn(); },
+    onModalOpen: (modal) => opened.push(modal) });
+  const app = { vault: { on: () => ({}) }, workspace: {
+    on(event, callback) { handlers.set(event, callback); return {}; }, onLayoutReady() {}, getActiveFile: () => null
+  } };
+  const plugin = new loaded.Plugin(app);
+  plugin.loadData = async () => ({ enableSidebarButton: false, enableClipboardMonitor: true,
+    enableRemoteServer: true, serverVerified: true, uploadNonImageAttachments: true });
+  plugin.addSettingTab = (tab) => settingsTabs.push(tab);
+  plugin.addCommand = (command) => commands.push(command);
+  plugin.registerEvent = () => {};
+  plugin.registerView = () => {};
+  await plugin.onload();
+  assert.ok(commands.some((command) => command.id === 'resume-pending-upload'));
+  assert.equal(settingsTabs.length, 1);
+  assert.ok(handlers.has('file-menu'));
+  let prevented = false;
+  const file = { name: 'scan.pdf', type: 'application/pdf', arrayBuffer: async () => new Uint8Array([1]).buffer };
+  await handlers.get('editor-paste')({ clipboardData: { files: [file] }, preventDefault() { prevented = true; } }, {});
+  assert.equal(prevented, true);
+  assert.equal(opened.length, 1, 'non-image attachments should reach the incoming-file modal');
+  plugin.onunload();
+});

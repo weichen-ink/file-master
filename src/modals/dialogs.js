@@ -1,3 +1,5 @@
+import { getItemPreviewUrl } from '../plugin/vault-utils.js';
+import { insertMarkdownToActiveEditor } from '../plugin/lifecycle.js';
 import { IMAGE_EXTS } from '../constants.js';
 import { formatBytes, getExt } from '../engine.js';
 import { translateUi } from '../i18n.js';
@@ -89,7 +91,7 @@ export class ImageLightboxModal extends Modal {
     const isImg = IMAGE_EXTS.has(ext);
     if (isImg) {
       const img = contentEl.createEl('img', { cls: 'fm-lightbox-img' });
-      const url = await this.plugin.getItemPreviewUrl(this.item);
+      const url = await getItemPreviewUrl(this.plugin, this.item);
       if (url) img.src = url;
     } else {
       contentEl.createDiv({
@@ -171,7 +173,7 @@ export class ImageLightboxModal extends Modal {
       insertBtn.onclick = () => {
         const targetUrl = (this.plugin?.settings?.insertOptimizedLinkOnUpload && remote.pubUrl) ? remote.pubUrl : (remote.rawUrl || remote.pubUrl);
         const mdSnippet = isImg ? `![${fn}](${targetUrl})\n` : `[${fn}](${targetUrl})\n`;
-        const ok = this.plugin?.insertMarkdownToActiveEditor(mdSnippet, t('galleryInserted'));
+        const ok = (this.plugin == null ? undefined : insertMarkdownToActiveEditor(this.plugin, mdSnippet, t('galleryInserted')));
         if (ok) this.close();
       };
 

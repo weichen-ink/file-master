@@ -1,3 +1,5 @@
+import { scanActiveNoteLocalAttachments, scanActiveNoteRemoteAttachments } from '../plugin/attachment-ops.js';
+import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
 import { formatFriendlyError, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
@@ -43,7 +45,7 @@ export class ActiveNoteActionModal extends Modal {
     this.render();
     if (this.actionType === 'migrate') {
       try {
-        this.items = await this.plugin.scanActiveNoteLocalAttachments(this.targetFile);
+        this.items = await scanActiveNoteLocalAttachments(this.plugin, this.targetFile);
         this.step = 'preview';
       } catch (err) {
         this.result = { success: false, message: err.message || String(err) };
@@ -52,7 +54,7 @@ export class ActiveNoteActionModal extends Modal {
       this.render();
     } else {
       try {
-        this.items = await this.plugin.scanActiveNoteRemoteAttachments(this.targetFile);
+        this.items = await scanActiveNoteRemoteAttachments(this.plugin, this.targetFile);
         if (this.items.length === 0) {
           this.result = { success: true, count: 0, processedItems: [], failures: [] };
           this.step = 'result';
@@ -594,7 +596,7 @@ export class ActiveNoteActionModal extends Modal {
         exportBtn.onclick = async () => {
           exportBtn.disabled = true;
           try {
-            noteReportPath = await this.plugin.exportBatchMigrateReportToRoot({
+            noteReportPath = await exportBatchMigrateReportToRoot(this.plugin, {
               count: this.result.count,
               docs: 1,
               trashed: processedItems.filter((p) => p.trashedLocal).length,

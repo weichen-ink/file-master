@@ -3,33 +3,36 @@ const assert = require('node:assert/strict');
 const { loadPlugin } = require('./helpers/load-plugin');
 
 function menuFixture() {
-  const loaded = loadPlugin();
+  const opened = [], copied = [];
+  const loaded = loadPlugin(undefined, { onModalOpen: (modal) => opened.push(modal),
+    navigator: { clipboard: { writeText: async (text) => { copied.push(text); } } } });
   const handlers = new Map();
   const plugin = new loaded.Plugin({ workspace: { on: (event, callback) => handlers.set(event, callback) } });
   plugin.settings = { enableRemoteServer: true, serverVerified: true, serverUrl: 'https://example.com', apiToken: 'test' };
   plugin.registerEvent = () => {};
   plugin.t = (key) => key;
-  plugin.registerContextMenus();
+  loaded.registerContextMenus(plugin);
   const entries = [];
   const menu = { addItem(callback) {
     const entry = { setTitle(title) { this.title = title; return this; }, setIcon() { return this; }, onClick(fn) { this.click = fn; return this; } };
     callback(entry); entries.push(entry);
   } };
-  return { ...loaded, plugin, handlers, entries, menu };
+  return { ...loaded, plugin, handlers, entries, menu, opened, copied };
 }
 
-test('Menu Integration: Markdown actions invoke migration, download and public-link commands', () => {
+test('Menu Integration: Markdown actions open note modals and copy public links', async () => {
   const f = menuFixture();
   const file = { path: 'note.md', extension: 'md' };
-  const invoked = [];
-  for (const name of ['migrateActiveNoteAttachments', 'downloadActiveNoteRemoteAttachments', 'copyActiveNoteForAstro']) {
-    f.plugin[name] = (target) => invoked.push([name, target]);
-  }
+  f.plugin.app.vault = { read: async (target) => {
+    assert.equal(target, file);
+    return '![](https://example.com/raw/2026/11/a.png)';
+  } };
   f.handlers.get('file-menu')(f.menu, file);
   assert.deepEqual(f.entries.map((e) => e.title), ['menuActiveNoteMigrate', 'menuActiveNoteDownload', 'menuActiveNoteAstro']);
-  f.entries.forEach((entry) => entry.click());
-  assert.equal(invoked.length, 3);
-  assert.ok(invoked.every(([, target]) => target === file));
+  await Promise.all(f.entries.map((entry) => entry.click()));
+  assert.deepEqual(f.opened.map((modal) => modal.actionType), ['migrate', 'download']);
+  assert.ok(f.opened.every((modal) => modal.targetFile === file));
+  assert.deepEqual(f.copied, ['![](https://example.com/pub/2026/11/a.webp)']);
 });
 
 test('In-modal result: local image insertion preserves embed syntax and closes the modal', async () => {
@@ -71,10 +74,10 @@ test('Remote gating: unverified servers expose no remote note actions', () => {
 });
 
 test('Remote gallery command is registered and gated by server readiness', () => {
-  const { plugin } = menuFixture();
+  const { plugin, registerPluginCommands } = menuFixture();
   const commands = [];
   plugin.addCommand = (command) => commands.push(command);
-  plugin.registerPluginCommands();
+  registerPluginCommands(plugin);
   const gallery = commands.find((command) => command.id === 'open-remote-gallery');
   assert.ok(gallery);
   assert.equal(gallery.checkCallback(true), true);
@@ -82,28 +85,31 @@ test('Remote gallery command is registered and gated by server readiness', () =>
   assert.equal(gallery.checkCallback(true), false);
 });
 
-test('Gallery lifecycle: commands activate sidebar and unload preserves docked leaves', () => {
-  const { plugin } = menuFixture();
+test('Gallery lifecycle: commands activate sidebar and unload preserves docked leaves', async () => {
+  const { plugin, registerPluginCommands } = menuFixture();
   const commands = [];
   let activated = false, aborted = false;
+  const leaf = {};
+  plugin.app.workspace.getLeavesOfType = () => [leaf];
+  plugin.app.workspace.revealLeaf = (value) => { assert.equal(value, leaf); activated = true; };
   plugin.addCommand = (command) => commands.push(command);
-  plugin.activateGalleryView = () => { activated = true; };
   plugin.activeTransferController = { abort: () => { aborted = true; } };
   plugin.app.workspace.detachLeavesOfType = () => { throw new Error('must preserve docked gallery'); };
-  plugin.registerPluginCommands();
+  registerPluginCommands(plugin);
   commands.find((command) => command.id === 'open-remote-gallery-view').checkCallback(false);
+  await Promise.resolve();
   assert.equal(activated, true);
   plugin.onunload();
   assert.equal(aborted, true);
 });
 
 test('Batch report includes uploaded files and failures', async () => {
-  const { Plugin } = loadPlugin();
+  const { Plugin, exportBatchMigrateReportToRoot } = loadPlugin();
   const plugin = new Plugin({});
   plugin.settings = { language: 'en' };
   let output;
   plugin.writeOrUpdateRootReport = async (name, contents) => { output = { name, contents }; };
-  await plugin.exportBatchMigrateReportToRoot({ count: 1, docs: 2,
+  await exportBatchMigrateReportToRoot(plugin, { count: 1, docs: 2,
     processedItems: [{ name: 'a.png', rawUrl: 'https://example.com/a.png', size: 5 }], failures: [{ path: 'b.png', error: 'offline' }] });
   assert.match(output.name, /^Batch_Migrate_Report_/);
   assert.ok(output.contents.includes('https://example.com/a.png'));

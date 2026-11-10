@@ -1,3 +1,4 @@
+import { loadOperationLogs, getLogFilePath, formatLogsForExport, clearOperationLogs } from '../plugin/logging.js';
 import { Modal, Notice } from 'obsidian';
 
 /**
@@ -16,8 +17,8 @@ export class OperationLogModal extends Modal {
   }
 
   async onOpen() {
-    if (this.plugin?.loadOperationLogs) {
-      await this.plugin.loadOperationLogs();
+    if (this.plugin) {
+      await loadOperationLogs(this.plugin);
     }
     this.render();
   }
@@ -31,7 +32,7 @@ export class OperationLogModal extends Modal {
     header.createEl('h3', { text: this.t('opLogTitle'), cls: 'fm-step-title' });
 
     contentEl.createDiv({
-      text: this.t('opLogPathHint', { path: this.plugin?.getLogFilePath?.() || '.obsidian/plugins/file-master/operation.log' }),
+      text: this.t('opLogPathHint', { path: (this.plugin == null ? undefined : getLogFilePath(this.plugin)) || '.obsidian/plugins/file-master/operation.log' }),
       attr: { style: 'font-size: 12px; color: var(--text-muted); margin-bottom: 12px;' }
     });
 
@@ -85,14 +86,14 @@ export class OperationLogModal extends Modal {
 
     const copyBtn = leftBtns.createEl('button', { text: this.t('opLogCopyAll'), cls: 'mod-cta' });
     copyBtn.onclick = async () => {
-      const text = this.plugin?.formatLogsForExport?.() || '';
+      const text = (this.plugin == null ? undefined : formatLogsForExport(this.plugin)) || '';
       await navigator.clipboard.writeText(text);
       new Notice(this.t('opLogCopiedNotice'));
     };
 
     const exportBtn = leftBtns.createEl('button', { text: this.t('opLogExportFile') });
     exportBtn.onclick = () => {
-      const text = this.plugin?.formatLogsForExport?.() || '';
+      const text = (this.plugin == null ? undefined : formatLogsForExport(this.plugin)) || '';
       const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -108,8 +109,8 @@ export class OperationLogModal extends Modal {
 
     const clearBtn = leftBtns.createEl('button', { text: this.t('opLogClear') });
     clearBtn.onclick = async () => {
-      if (this.plugin?.clearOperationLogs) {
-        await this.plugin.clearOperationLogs();
+      if (this.plugin) {
+        await clearOperationLogs(this.plugin);
       }
       new Notice(this.t('opLogClearedNotice'));
       this.render();

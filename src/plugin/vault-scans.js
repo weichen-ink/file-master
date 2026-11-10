@@ -1,3 +1,4 @@
+import { isScannableDocFile, isExcalidrawFile, isLocalPathExcluded } from './vault-utils.js';
 import { computeSha256Hex, formatBytes, formatDateYMD, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
 import { ConfirmActionModal } from '../modals/dialogs.js';
 import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, stripRemoteReferenceText } from '../references.js';
@@ -9,8 +10,8 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
   const { signal, onProgress, freshRead = false } = scanCtx || {};
   const revision = plugin.referenceRevision || 0;
   const allFiles = plugin.app.vault.getFiles();
-  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
-  const matchLocal = createLocalReferenceMatcher(allFiles, (file) => plugin.isExcalidrawFile(file));
+  const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
+  const matchLocal = createLocalReferenceMatcher(allFiles, (file) => isExcalidrawFile(plugin.app, file));
   const localReferences = new Map();
 
   const docContents = [];
@@ -60,7 +61,7 @@ export function isReferenceSnapshotCurrent(plugin, snapshot) {
   return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
 }
 
-export async function indexRemoteReferences(plugin, items, snapshot) {
+export async function indexRemoteReferences(items, snapshot) {
   const patterns = [];
   for (const item of items) {
     const id = `${item.year}/${item.month}/${item.filename}`;
@@ -82,11 +83,11 @@ export async function indexRemoteReferences(plugin, items, snapshot) {
   }
 }
 
-export function findReferencingNotesForLocalFile(plugin, tfile, snapshot) {
+export function findReferencingNotesForLocalFile(tfile, snapshot) {
   return [...(snapshot.localReferences.get(tfile.path) || [])];
 }
 
-export function findReferencingNotesForRemoteItem(plugin, remoteItem, snapshot) {
+export function findReferencingNotesForRemoteItem(remoteItem, snapshot) {
   return [...(snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || [])];
 }
 
@@ -113,12 +114,12 @@ export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
       if (isReportFile(f.name) || f.extension === 'canvas') {
         continue;
       }
-      if (plugin.isLocalPathExcluded(f.path)) continue;
+      if (isLocalPathExcluded(plugin.settings, f.path)) continue;
 
       const grp = getFileTypeGroup(f.extension);
       if (!allowedGroups.has(grp)) continue;
 
-      const refs = plugin.findReferencingNotesForLocalFile(f, snapshot);
+      const refs = findReferencingNotesForLocalFile(f, snapshot);
       if (refs.length === 0) {
         unusedList.push({
           id: `local:${f.path}`,
@@ -138,7 +139,7 @@ export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
     try {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
       const remoteFiles = await plugin.fetchRemoteFileList();
-      await plugin.indexRemoteReferences(remoteFiles, snapshot);
+      await indexRemoteReferences(remoteFiles, snapshot);
       for (let i = 0; i < remoteFiles.length; i++) {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
         const r = remoteFiles[i];
@@ -153,7 +154,7 @@ export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
         const grp = getFileTypeGroup(ext);
         if (!allowedGroups.has(grp)) continue;
 
-        const refs = plugin.findReferencingNotesForRemoteItem(r, snapshot);
+        const refs = findReferencingNotesForRemoteItem(r, snapshot);
         if (refs.length === 0) {
           unusedList.push({
             id: `remote:${r.year}/${r.month}/${r.filename}`,
@@ -234,7 +235,7 @@ export async function writeOrUpdateRootReport(plugin, reportPath, content) {
 }
 
 export async function cleanSelectedOrphans(plugin, selectedItems, onDone) {
-  return runAttachmentOperation(plugin, () => plugin.cleanOrphanItems(selectedItems, onDone));
+  return runAttachmentOperation(plugin, () => cleanOrphanItems(plugin, selectedItems, onDone));
 }
 
 export async function cleanOrphanItems(plugin, selectedItems, onDone) {
@@ -259,11 +260,11 @@ export async function cleanOrphanItems(plugin, selectedItems, onDone) {
   let deletedRemote = 0;
   let skipped = 0;
   const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
-  await plugin.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
+  await indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
 
   for (const item of localToClean) {
     if (!plugin.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
-    if (plugin.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) { skipped++; continue; }
+    if (findReferencingNotesForLocalFile(item.rawObj, snapshot).length) { skipped++; continue; }
     try {
       await plugin.app.vault.trash(item.rawObj, true);
       deletedLocal++;
@@ -275,7 +276,7 @@ export async function cleanOrphanItems(plugin, selectedItems, onDone) {
 
   for (const item of remoteToClean) {
     if (!plugin.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
-    if (plugin.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) { skipped++; continue; }
+    if (findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) { skipped++; continue; }
     try {
       await plugin.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
       deletedRemote++;
@@ -336,7 +337,7 @@ export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, sc
       if (isReportFile(f.name) || f.extension === 'canvas') {
         continue;
       }
-      if (plugin.isLocalPathExcluded(f.path)) continue;
+      if (isLocalPathExcluded(plugin.settings, f.path)) continue;
 
       const grp = getFileTypeGroup(f.extension);
       if (!allowedGroups.has(grp)) continue;
@@ -352,7 +353,7 @@ export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, sc
     try {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
       const remoteFiles = await plugin.fetchRemoteFileList();
-      await plugin.indexRemoteReferences(remoteFiles, snapshot);
+      await indexRemoteReferences(remoteFiles, snapshot);
       for (const r of remoteFiles) {
         if (!r.sha256) continue;
         const ext = getExt(r.filename);
@@ -391,7 +392,7 @@ export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, sc
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
         remoteScanned++;
         const ext = getExt(r.filename);
-        const refNotes = plugin.findReferencingNotesForRemoteItem(r, snapshot);
+        const refNotes = findReferencingNotesForRemoteItem(r, snapshot);
         addItem(r.sha256, {
           id: `remote:${r.year}/${r.month}/${r.filename}`,
           source: 'remote',
@@ -417,7 +418,7 @@ export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, sc
         localScanned++;
 
         const sha256 = await computeSha256Hex(buf);
-        const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
+        const refNotes = findReferencingNotesForLocalFile(f, snapshot);
 
         addItem(sha256, {
           id: `local:${f.path}`,

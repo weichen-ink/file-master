@@ -1,3 +1,5 @@
+import { scanVaultLinkHealth, exportHealthReportToRoot } from '../plugin/health-analytics.js';
+import { openNoteAtLine } from '../plugin/vault-scans.js';
 import { createScanProgressWidget, returnToHub } from './common.js';
 import { Modal, Notice } from 'obsidian';
 
@@ -71,7 +73,7 @@ export class HealthCheckModal extends Modal {
       startBtn.setText(t('healthScanning'));
       progressWidget.show();
       try {
-        const scanResult = await this.plugin.scanVaultLinkHealth(this.options, {
+        const scanResult = await scanVaultLinkHealth(this.plugin, this.options, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });
@@ -136,7 +138,7 @@ export class HealthCheckModal extends Modal {
       cls: 'mod-cta'
     });
     exportBtn.onclick = async () => {
-      await this.plugin.exportHealthReportToRoot(this.issues, this.totalDocsScanned);
+      await exportHealthReportToRoot(this.plugin, this.issues, this.totalDocsScanned);
     };
 
     if (this.issues.length === 0) {
@@ -260,7 +262,7 @@ export class HealthCheckModal extends Modal {
         attr: { style: 'flex-shrink:0; align-self:center;' }
       });
       openBtn.onclick = async () => {
-        await this.plugin.openNoteAtLine(item.sourcePath, item.line);
+        await openNoteAtLine(this.plugin, item.sourcePath, item.line);
       };
     }
   }

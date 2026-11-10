@@ -1,3 +1,5 @@
+import { isScannableDocFile, isLocalPathExcluded, isDocFile, openModalSafely } from './vault-utils.js';
+import { indexRemoteReferences, findReferencingNotesForRemoteItem, findReferencingNotesForLocalFile } from './vault-scans.js';
 import { IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { computeSha256Hex, escapeRegExp, formatBytes, getBaseName, getExt, getFileTypeGroup } from '../engine.js';
 import { ActiveNoteActionModal } from '../modals/active-note.js';
@@ -9,7 +11,7 @@ import { Notice, requestUrl } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
-  return runAttachmentOperation(plugin, () => plugin.mergeDuplicateGroups(groups, onComplete));
+  return runAttachmentOperation(plugin, () => mergeDuplicateGroups(plugin, groups, onComplete));
 }
 
 export async function mergeDuplicateGroups(plugin, groups, onComplete) {
@@ -51,7 +53,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
 
   const allDocs = plugin.app.vault
     .getFiles()
-    .filter((f) => plugin.isScannableDocFile(f));
+    .filter((f) => isScannableDocFile(plugin, f));
 
   const localPathsBeingRemoved = new Set();
   for (const { removeItems } of tasks) {
@@ -67,7 +69,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
     allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path));
   const modifiedDocsCount = rewritten.modified.size;
   const postSnapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
-  await plugin.indexRemoteReferences(pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj), postSnapshot);
+  await indexRemoteReferences(pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj), postSnapshot);
   const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === 'local').map(({ removeItem, keepItem }) => ({
     value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
     id: removeItem.displayPath
@@ -96,7 +98,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
       if (rem.source === 'local') {
         remainingRefs = [...(remainingLocal.get(rem.displayPath) || [])];
       } else {
-        remainingRefs = plugin.findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
+        remainingRefs = findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
       }
 
       if (remainingRefs.length > 0) {
@@ -185,7 +187,7 @@ export async function resumePendingMigration(plugin) {
     if (!file || Array.isArray(file.children)) return null;
     return { name: file.name, displayPath: file.path, size: file.stat?.size || 0,
       rawObj: file, locked: Boolean(entry.locked), selected: true,
-      refNotes: plugin.findReferencingNotesForLocalFile(file, snapshot) };
+      refNotes: findReferencingNotesForLocalFile(file, snapshot) };
   }).filter(Boolean);
   if (!items.length) { new Notice(plugin.t('transferNothingPending')); return; }
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
@@ -196,7 +198,7 @@ export async function resumePendingMigration(plugin) {
 }
 
 export async function downloadSingleRemoteItemToLocal(plugin, remoteMatch, options = {}) {
-  const task = (signal) => plugin.downloadRemoteItemToLocal(remoteMatch, { ...options, signal });
+  const task = (signal) => downloadRemoteItemToLocal(plugin, remoteMatch, { ...options, signal });
   return options.deferRewrite ? task(options.signal) : runAttachmentOperation(plugin, task, options.signal);
 }
 
@@ -379,7 +381,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   } catch { }
 
   const snapshot = await plugin.buildVaultReferenceSnapshot();
-  await plugin.indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
+  await indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
   const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
 
   // Pre-index local attachment files by size for fast SHA-256 content duplicate checks
@@ -399,7 +401,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   };
   for (const f of plugin.app.vault.getFiles()) {
     if (!isAttachmentExt(f.extension)) continue;
-    if (plugin.isLocalPathExcluded(f.path)) continue;
+    if (isLocalPathExcluded(plugin.settings, f.path)) continue;
     const sz = f.stat?.size || 0;
     if (sz <= 0) continue;
     if (!localFilesBySize.has(sz)) localFilesBySize.set(sz, []);
@@ -458,7 +460,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
     }
 
     const hasConflict = Boolean(conflictType && existingFile);
-    const refNotes = plugin.findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
+    const refNotes = findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
     const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
 
     out.push({
@@ -497,7 +499,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
 
 export async function executeDownloadNoteDirect(plugin, activeFile, onProgress = null, options = {}) {
   return runAttachmentOperation(plugin, async (signal) => {
-    const items = Array.isArray(options.items) ? options.items : await plugin.scanActiveNoteRemoteAttachments(activeFile);
+    const items = Array.isArray(options.items) ? options.items : await scanActiveNoteRemoteAttachments(plugin, activeFile);
     const processedItems = [], failures = [], retryItems = [], pairs = [];
     for (let i = 0; i < items.length; i++) {
       if (signal.aborted) { retryItems.push(...items.slice(i)); break; }
@@ -532,13 +534,13 @@ export async function executeDownloadNoteDirect(plugin, activeFile, onProgress =
 
 export async function downloadActiveNoteRemoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
-  if (!activeFile || !plugin.isDocFile(activeFile)) {
+  if (!activeFile || !isDocFile(plugin.app, activeFile)) {
     new Notice(plugin.t('noticeOpenMdFirst'));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, 'download', options);
   if (options?.fromHub) {
-    plugin.openModalSafely(modal);
+    openModalSafely(modal);
   } else {
     modal.open();
   }
@@ -569,14 +571,14 @@ export async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanC
     }
     if (prefix) {
       if (f.path !== prefix && !f.path.startsWith(prefix + '/')) continue;
-    } else if (plugin.isLocalPathExcluded(f.path)) {
+    } else if (isLocalPathExcluded(plugin.settings, f.path)) {
       continue;
     }
 
     const grp = getFileTypeGroup(f.extension);
     if (!allowedGroups.has(grp)) continue;
 
-    const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
+    const refNotes = findReferencingNotesForLocalFile(f, snapshot);
     list.push({
       id: `local:${f.path}`,
       source: 'local',
@@ -627,7 +629,7 @@ export async function scanActiveNoteLocalAttachments(plugin, activeFile) {
   const snapshot = await plugin.buildVaultReferenceSnapshot();
 
   return Array.from(localFilesMap.values()).map((tf) => {
-    const refNotes = plugin.findReferencingNotesForLocalFile(tf, snapshot);
+    const refNotes = findReferencingNotesForLocalFile(tf, snapshot);
     const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
     return {
       id: `local:${tf.path}`,
@@ -648,7 +650,7 @@ export async function scanActiveNoteLocalAttachments(plugin, activeFile) {
 
 export async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, options = {}) {
   return runAttachmentOperation(plugin, async (signal) => {
-    const items = Array.isArray(options.items) ? options.items : await plugin.scanActiveNoteLocalAttachments(activeFile);
+    const items = Array.isArray(options.items) ? options.items : await scanActiveNoteLocalAttachments(plugin, activeFile);
     const summary = await migrateLocalAttachments(plugin, items, {
       ...options, signal, activeFile,
       deleteLocalAfter: options.deleteLocalAfter ?? plugin.settings.deleteLocalAfterMigrate,
@@ -660,13 +662,13 @@ export async function executeMigrateNoteDirect(plugin, activeFile, onProgress = 
 
 export async function migrateActiveNoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
-  if (!activeFile || !plugin.isDocFile(activeFile)) {
+  if (!activeFile || !isDocFile(plugin.app, activeFile)) {
     new Notice(plugin.t('noticeOpenMdFirst'));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, 'migrate', options);
   if (options?.fromHub) {
-    plugin.openModalSafely(modal);
+    openModalSafely(modal);
   } else {
     modal.open();
   }
@@ -674,7 +676,7 @@ export async function migrateActiveNoteAttachments(plugin, targetFile = null, op
 
 export async function copyActiveNoteForAstro(plugin, targetFile = null) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
-  if (!activeFile || !plugin.isDocFile(activeFile)) {
+  if (!activeFile || !isDocFile(plugin.app, activeFile)) {
     new Notice(plugin.t('noticeOpenMdFirst'));
     return;
   }

@@ -170,6 +170,12 @@ Run `npm ci`, then `npm test` (builds first), or `npm run build`. Sources use ex
 
 运行 `npm ci` 后使用 `npm test`（先构建再测试）或 `npm run build`。源码使用显式导入导出；构建依赖仅供开发，发布仍为 `main.js`、`manifest.json`、`styles.css`。插件类的公开行为由最终产物加载测试验证，工具函数通过独立测试入口导出。
 
-`FileMasterPlugin` directly extends Obsidian's `Plugin`. The modules under `src/plugin/` expose ordinary functions with an explicit plugin context; the class keeps the public host API and delegates to them. No inheritance chain or runtime method installation is used.
+`FileMasterPlugin` directly extends Obsidian's `Plugin`. Commands, menus, and modals import operations directly from `src/plugin/`. The class keeps lifecycle hooks and stable transfer, network, logging, and vault I/O boundaries with explicit parameter signatures. Small helpers receive only settings or the app; pure reference helpers receive no plugin context.
 
-`FileMasterPlugin` 直接继承 Obsidian 插件类；`src/plugin/` 中的普通函数显式接收插件上下文，入口类保留公开接口并进行委派，便于按职责独立维护。
+`FileMasterPlugin` 直接继承 Obsidian 插件类；`src/plugin/` 中的操作由命令、菜单和弹窗直接导入调用。入口类仅保留生命周期和稳定的传输、网络、日志、库读写边界，并使用明确的参数签名。小工具函数只接收设置或 app，纯引用查询不接收插件上下文。
+
+### Release validation / 发布验证
+
+`npm test` rebuilds `main.js` automatically. Commit source changes together with the generated bundle; use `npm run package` to check the release archive. Before tagging a release, test clipboard upload, batch migration, cancellation and retry, and Excalidraw link updates in real desktop and mobile Obsidian. Automated tests use host adapters and do not replace device testing.
+
+`npm test` 会自动重新构建 `main.js`；修改源码后需一并提交 bundle。使用 `npm run package` 检查发布包。打 tag 前需在桌面和移动端 Obsidian 实测剪贴板上传、批量迁移、停止后重试和 Excalidraw 链接更新。自动化测试使用宿主适配器，不能代替实机验证。

@@ -1,3 +1,5 @@
+import { isScannableDocFile, isLocalPathExcluded } from './vault-utils.js';
+import { getEffectiveLanguage } from './logging.js';
 import { computeVaultStatsFromEntries, formatBytes, formatDateYMD, scanNoteContentForBrokenLinks } from '../engine.js';
 import { Notice, requestUrl } from 'obsidian';
 
@@ -6,7 +8,7 @@ export async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
   const { signal, onProgress } = scanCtx || {};
   const allFiles = plugin.app.vault.getFiles();
   const docFiles = allFiles.filter(
-    (f) => plugin.isScannableDocFile(f) && !plugin.isLocalPathExcluded(f.path)
+    (f) => isScannableDocFile(plugin, f) && !isLocalPathExcluded(plugin.settings, f.path)
   );
 
   const vaultFilePaths = new Set(allFiles.map((f) => f.path));
@@ -128,7 +130,7 @@ export async function exportHealthReportToRoot(plugin, issues, totalDocsScanned)
   const now = new Date();
   const dateStr = formatDateYMD(now);
   const reportPath = `Broken_Links_Report_${dateStr}.md`;
-  const zh = plugin.getEffectiveLanguage() === 'zh';
+  const zh = getEffectiveLanguage(plugin.settings) === 'zh';
   const locale = zh ? 'zh-CN' : 'en-US';
   const labels = zh ? {
     title: '失效链接报告', generated: '生成时间', checked: '已检查文档', issues: '发现问题',
@@ -201,7 +203,7 @@ export async function exportHealthReportToRoot(plugin, issues, totalDocsScanned)
 
 export async function scanVaultAnalytics(plugin) {
   const allFiles = plugin.app.vault.getFiles();
-  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
+  const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
 
   const docTexts = [];
   for (const doc of docFiles) {
@@ -223,7 +225,7 @@ export async function exportAnalyticsReportToRoot(plugin, stats) {
   const now = new Date();
   const dateStr = formatDateYMD(now);
   const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
-  const zh = plugin.getEffectiveLanguage() === 'zh';
+  const zh = getEffectiveLanguage(plugin.settings) === 'zh';
   const locale = zh ? 'zh-CN' : 'en-US';
   const labels = zh ? {
     title: '知识库报告', generated: '生成时间', overview: '知识库概览',

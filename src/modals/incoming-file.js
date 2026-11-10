@@ -1,3 +1,4 @@
+import { getItemPreviewUrl } from '../plugin/vault-utils.js';
 import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
 import { computeSha256Hex, convertBufferToPreviewUrl, formatBytes, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { translateUi } from '../i18n.js';
@@ -21,7 +22,7 @@ export function renderItemVisualThumb(parentEl, item, plugin) {
       e.stopPropagation();
       new ImageLightboxModal(plugin.app, plugin, item).open();
     };
-    plugin.getItemPreviewUrl(item).then((url) => {
+    getItemPreviewUrl(plugin, item).then((url) => {
       if (url) img.src = url;
     });
   } else {

@@ -1,3 +1,6 @@
+import { indexRemoteReferences, findReferencingNotesForLocalFile, findReferencingNotesForRemoteItem } from './plugin/vault-scans.js';
+import { safeModifyFileContent } from './plugin/vault-utils.js';
+import { getLogFilePath } from './plugin/logging.js';
 import { computeSha256Hex, getExt } from './engine.js';
 
 export function throwIfTransferCancelled(signal) {
@@ -58,14 +61,14 @@ export async function runAttachmentOperation(plugin, task, signal) {
 export async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
   const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
   const remoteItems = pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj);
-  if (remoteItems.length) await plugin.indexRemoteReferences(remoteItems, snapshot);
+  if (remoteItems.length) await indexRemoteReferences(remoteItems, snapshot);
   const allowed = documentPaths ? new Set(documentPaths) : null;
   const byDocument = new Map();
   const changedPaths = new Map(pairs.map((pair) => [pair, []]));
   for (const pair of pairs) {
     const refs = pair.removeItem.source === 'local'
-      ? plugin.findReferencingNotesForLocalFile(pair.removeItem.rawObj, snapshot)
-      : plugin.findReferencingNotesForRemoteItem(pair.removeItem.rawObj, snapshot);
+      ? findReferencingNotesForLocalFile(pair.removeItem.rawObj, snapshot)
+      : findReferencingNotesForRemoteItem(pair.removeItem.rawObj, snapshot);
     for (const path of refs) {
       if (allowed && !allowed.has(path)) continue;
       if (!byDocument.has(path)) byDocument.set(path, []);
@@ -77,7 +80,7 @@ export async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null
     const relevant = byDocument.get(doc.path);
     if (!relevant) continue;
     const changedPairs = new Set();
-    const changed = await plugin.safeModifyFileContent(doc.file, (current) => {
+    const changed = await safeModifyFileContent(plugin, doc.file, (current) => {
       let next = current;
       for (const pair of relevant) {
         const updated = plugin.rewriteContentLinks(next, pair.removeItem, pair.keepItem, doc.path);
@@ -96,7 +99,7 @@ export async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null
 }
 
 export function migrationCheckpointPath(plugin) {
-  return plugin.getLogFilePath().replace(/operation\.log$/, 'migration-pending.json');
+  return getLogFilePath(plugin).replace(/operation\.log$/, 'migration-pending.json');
 }
 
 export async function saveMigrationCheckpoint(plugin, items, options) {
@@ -162,7 +165,7 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
     const { tfile, keepItem } = pair;
     const remote = keepItem.rawObj;
     const syncedPaths = (rewritten.changedPaths.get(pair) || []).filter((p) => p !== options.activeFile?.path);
-    const remaining = postSnapshot ? plugin.findReferencingNotesForLocalFile(tfile, postSnapshot) : [];
+    const remaining = postSnapshot ? findReferencingNotesForLocalFile(tfile, postSnapshot) : [];
     const result = { source: 'remote', name: remote.filename, ext: keepItem.ext, displayPath: keepItem.displayPath,
       localPath: tfile.path, size: tfile.stat?.size || 0, locked: Boolean(remote.locked), rawObj: remote,
       rawUrl: remote.rawUrl, pubUrl: remote.pubUrl, action: 'uploaded', trashedLocal: false,
