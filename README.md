@@ -157,6 +157,10 @@ See [batch processing, integrity semantics, and scale limits](https://github.com
 
 [批处理、完整性语义与规模边界](https://github.com/weichen-ink/file-master-server/blob/main/docs/SCALABILITY.md) 说明了恢复清单、索引升级和验证方法。服务器采用单进程部署，实际速度取决于图片大小、格式、硬件和网络。
 
+服务器上传目录必须允许同目录硬链接；不支持时上传返回 **HTTP 501**。备份应一致地保存原文件、索引、配置和自定义水印。服务器更新恢复针对配置与水印，不保证源代码及依赖整体回退；依赖安装失败应排除错误后再重试。完整部署要求见[服务器 README](https://github.com/weichen-ink/file-master-server#storage-backups-and-update-recovery)。
+
+The server upload directory must allow same-directory hard links; unsupported storage returns **HTTP 501**. Back up originals, their index, configuration, and custom watermarks consistently. Update recovery protects configuration and watermarks, without guaranteeing rollback of source code or dependencies. Resolve dependency installation errors before retrying. See the [server deployment requirements](https://github.com/weichen-ink/file-master-server#storage-backups-and-update-recovery).
+
 ### 📄 许可证
 [MIT License](LICENSE)
 
