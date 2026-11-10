@@ -1,7 +1,7 @@
 {
   "id": "file-master",
   "name": "File Master",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "minAppVersion": "1.0.0",
   "description": "Manage vault assets with self-hosted cloud storage, clipboard auto-upload, SHA-256 deduplication, zero-broken-link batch migration, and orphan cleanup.",
   "author": "weichen-ink",

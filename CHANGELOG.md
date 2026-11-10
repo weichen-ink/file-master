@@ -2,6 +2,9 @@
 
 See root `CHANGELOG.md` for full ecosystem release notes.
 
+## [1.0.6] - 2026-11-10
+- Establish the pre-upgrade baseline for the batch reliability and scalability improvements.
+
 ## [1.0.3] - 2026-11-08
 - Added native **Excalidraw drawing attachments support**:
   - Robust Excalidraw drawing detection across `.excalidraw.md`, `.excalidraw`, and renamed `.md` files.
