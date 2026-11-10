@@ -223,8 +223,10 @@ export class BatchMigrateWizardModal extends Modal {
       };
     }
 
-    const progressBox = contentEl.createDiv({ attr: { style: 'display:none; margin-bottom:10px;' } });
-    const progressText = progressBox.createDiv({ attr: { style: 'font-size:12px; color:var(--text-accent);' } });
+    const progressBox = contentEl.createDiv({ attr: { style: 'display:none; margin-bottom:12px;' } });
+    const progressHeader = progressBox.createDiv({ attr: { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;' } });
+    const progressText = progressHeader.createDiv({ attr: { style: 'font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;' } });
+    const progressSpeed = progressHeader.createDiv({ attr: { style: 'font-size:11.5px; font-family:var(--font-monospace); color:var(--text-muted); font-weight:600; white-space:nowrap;' } });
     const progressWrap = progressBox.createDiv({ cls: 'fm-progress-wrap' });
     const progressBar = progressWrap.createDiv({ cls: 'fm-progress-bar' });
 
@@ -255,10 +257,14 @@ export class BatchMigrateWizardModal extends Modal {
       await this.plugin.executeBatchMigrateSafely(
         selected,
         { ...this.options, signal: this.transferController.signal },
-        (cur, total, name) => {
+        (cur, total, name, stats) => {
           const pct = Math.round((cur / Math.max(1, total)) * 100);
           progressBar.style.width = `${pct}%`;
           progressText.setText(t('migrateProgress', { current: cur, total, name }));
+          if (stats?.speedText) {
+            const eta = stats.etaText ? ` · 剩余约 ${stats.etaText}` : '';
+            progressSpeed.setText(`⚡ ${stats.speedText}${eta}`);
+          }
         },
         (summary) => {
           this.step = 3;

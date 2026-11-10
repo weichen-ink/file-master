@@ -115,18 +115,62 @@ export async function saveMigrationCheckpoint(plugin, items, options) {
     items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) })) }));
 }
 
+export function formatSpeed(bytesPerSec) {
+  if (!bytesPerSec || bytesPerSec <= 0) return '0 KB/s';
+  if (bytesPerSec >= 1024 * 1024) return (bytesPerSec / (1024 * 1024)).toFixed(1) + ' MB/s';
+  return Math.round(bytesPerSec / 1024) + ' KB/s';
+}
+
+export function formatEta(seconds) {
+  if (!seconds || seconds <= 0 || !isFinite(seconds)) return '';
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
 export async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
   await saveMigrationCheckpoint(plugin, items, options);
   const uploaded = [], failures = [], retryItems = [];
+  const batchStart = Date.now();
+  let transferredBytes = 0;
+  let lastSpeed = '';
+
+  const totalBytes = items.reduce((sum, item) => {
+    const tf = item.tfile || item.rawObj || item;
+    return sum + (tf.stat?.size || 0);
+  }, 0);
+
   for (let i = 0; i < items.length; i++) {
     if (options.signal?.aborted) { retryItems.push(...items.slice(i)); break; }
     const entry = items[i];
     const tfile = entry.tfile || entry.rawObj || entry;
+    const fileSize = tfile.stat?.size || 0;
     const sourceVersion = { ...tfile.stat };
-    onProgress?.(i + 1, items.length, tfile.name);
+
+    const elapsedSec = Math.max(0.1, (Date.now() - batchStart) / 1000);
+    const avgSpeed = transferredBytes / elapsedSec;
+    const speedText = transferredBytes > 0 ? formatSpeed(avgSpeed) : lastSpeed;
+    const remainingBytes = Math.max(0, totalBytes - transferredBytes);
+    const etaSec = avgSpeed > 0 ? Math.ceil(remainingBytes / avgSpeed) : 0;
+    const etaText = formatEta(etaSec);
+
+    onProgress?.(i + 1, items.length, tfile.name, {
+      speedText,
+      etaText,
+      transferredBytes,
+      totalBytes
+    });
+
+    const fileStart = Date.now();
     try {
       const bytes = await plugin.app.vault.readBinary(tfile);
       const remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', { signal: options.signal });
+      const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1000);
+      const fileSpeed = (bytes.byteLength || fileSize) / fileDurationSec;
+      lastSpeed = remote.isInstant ? '⚡ 秒传' : formatSpeed(fileSpeed);
+      transferredBytes += (bytes.byteLength || fileSize);
+
       if (entry.locked && !remote.locked) {
         await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
         remote.locked = true;

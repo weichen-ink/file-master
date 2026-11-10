@@ -434,12 +434,16 @@ export class ActiveNoteActionModal extends Modal {
 
     if (this.step === 'running') {
       const box = contentEl.createDiv({ cls: 'fm-section-box' });
-      this.statusText = box.createDiv({
+      const progressHeader = box.createDiv({ attr: { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;' } });
+      this.statusText = progressHeader.createDiv({
         text: this.t('activeNoteScanning'),
-        attr: { style: 'font-size: 13px; color: var(--text-accent); margin-bottom: 8px;' }
+        attr: { style: 'font-size: 12.5px; color: var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;' }
+      });
+      this.speedText = progressHeader.createDiv({
+        attr: { style: 'font-size: 11.5px; font-family:var(--font-monospace); color: var(--text-muted); font-weight: 600; white-space:nowrap;' }
       });
       const wrap = box.createDiv({ cls: 'fm-progress-wrap' });
-      this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 10%;' } });
+      this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 10%; margin-bottom:8px;' } });
       const stop = box.createEl('button', { text: this.t('transferStop') });
       stop.onclick = () => {
         this.transferController?.abort();
@@ -644,13 +648,17 @@ export class ActiveNoteActionModal extends Modal {
       if (this.actionType === 'migrate') {
         const res = await this.plugin.executeMigrateNoteDirect(
           this.targetFile,
-          (cur, total, name) => {
+          (cur, total, name, stats) => {
             if (this.progressBar) {
               const pct = Math.round((cur / Math.max(1, total)) * 100);
               this.progressBar.style.width = `${pct}%`;
             }
             if (this.statusText) {
               this.statusText.setText(this.t('activeNoteProcessing', { current: cur, total, name }));
+            }
+            if (this.speedText && stats?.speedText) {
+              const eta = stats.etaText ? ` · 剩余约 ${stats.etaText}` : '';
+              this.speedText.setText(`⚡ ${stats.speedText}${eta}`);
             }
           },
           {
@@ -668,13 +676,17 @@ export class ActiveNoteActionModal extends Modal {
       } else {
         const res = await this.plugin.executeDownloadNoteDirect(
           this.targetFile,
-          (cur, total, name) => {
+          (cur, total, name, stats) => {
             if (this.progressBar) {
               const pct = Math.round((cur / Math.max(1, total)) * 100);
               this.progressBar.style.width = `${pct}%`;
             }
             if (this.statusText) {
               this.statusText.setText(this.t('activeNoteProcessing', { current: cur, total, name }));
+            }
+            if (this.speedText && stats?.speedText) {
+              const eta = stats.etaText ? ` · 剩余约 ${stats.etaText}` : '';
+              this.speedText.setText(`⚡ ${stats.speedText}${eta}`);
             }
           },
           {

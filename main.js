@@ -3622,10 +3622,30 @@ async function saveMigrationCheckpoint(plugin, items, options) {
     items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) }))
   }));
 }
+function formatSpeed(bytesPerSec) {
+  if (!bytesPerSec || bytesPerSec <= 0) return "0 KB/s";
+  if (bytesPerSec >= 1024 * 1024) return (bytesPerSec / (1024 * 1024)).toFixed(1) + " MB/s";
+  return Math.round(bytesPerSec / 1024) + " KB/s";
+}
+function formatEta(seconds) {
+  if (!seconds || seconds <= 0 || !isFinite(seconds)) return "";
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
 async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
-  var _a, _b, _c, _d, _e, _f, _g, _h;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i;
   await saveMigrationCheckpoint(plugin, items, options);
   const uploaded = [], failures = [], retryItems = [];
+  const batchStart = Date.now();
+  let transferredBytes = 0;
+  let lastSpeed = "";
+  const totalBytes = items.reduce((sum, item) => {
+    var _a2;
+    const tf = item.tfile || item.rawObj || item;
+    return sum + (((_a2 = tf.stat) == null ? void 0 : _a2.size) || 0);
+  }, 0);
   for (let i = 0; i < items.length; i++) {
     if ((_a = options.signal) == null ? void 0 : _a.aborted) {
       retryItems.push(...items.slice(i));
@@ -3633,11 +3653,28 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
     }
     const entry = items[i];
     const tfile = entry.tfile || entry.rawObj || entry;
+    const fileSize = ((_b = tfile.stat) == null ? void 0 : _b.size) || 0;
     const sourceVersion = { ...tfile.stat };
-    onProgress == null ? void 0 : onProgress(i + 1, items.length, tfile.name);
+    const elapsedSec = Math.max(0.1, (Date.now() - batchStart) / 1e3);
+    const avgSpeed = transferredBytes / elapsedSec;
+    const speedText = transferredBytes > 0 ? formatSpeed(avgSpeed) : lastSpeed;
+    const remainingBytes = Math.max(0, totalBytes - transferredBytes);
+    const etaSec = avgSpeed > 0 ? Math.ceil(remainingBytes / avgSpeed) : 0;
+    const etaText = formatEta(etaSec);
+    onProgress == null ? void 0 : onProgress(i + 1, items.length, tfile.name, {
+      speedText,
+      etaText,
+      transferredBytes,
+      totalBytes
+    });
+    const fileStart = Date.now();
     try {
       const bytes = await plugin.app.vault.readBinary(tfile);
       const remote = await plugin.uploadBufferToServer(bytes, tfile.name, "application/octet-stream", { signal: options.signal });
+      const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1e3);
+      const fileSpeed = (bytes.byteLength || fileSize) / fileDurationSec;
+      lastSpeed = remote.isInstant ? "\u26A1 \u79D2\u4F20" : formatSpeed(fileSpeed);
+      transferredBytes += bytes.byteLength || fileSize;
       if (entry.locked && !remote.locked) {
         await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
         remote.locked = true;
@@ -3662,20 +3699,20 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
         retryItems.push(...items.slice(i + 1));
         break;
       }
-      failures.push({ name: tfile.name, path: tfile.path, size: ((_b = tfile.stat) == null ? void 0 : _b.size) || 0, error: err.message || String(err) });
+      failures.push({ name: tfile.name, path: tfile.path, size: ((_c = tfile.stat) == null ? void 0 : _c.size) || 0, error: err.message || String(err) });
       plugin.logOperation("ERROR", "BATCH_UPLOAD", `Failed to upload ${tfile.path}`, { error: err.message });
     }
   }
   for (let i = uploaded.length - 1; i >= 0; i--) {
     const pair = uploaded[i];
-    if (pair.sourceVersion.mtime !== ((_c = pair.tfile.stat) == null ? void 0 : _c.mtime) || pair.sourceVersion.size !== ((_d = pair.tfile.stat) == null ? void 0 : _d.size)) {
+    if (pair.sourceVersion.mtime !== ((_d = pair.tfile.stat) == null ? void 0 : _d.mtime) || pair.sourceVersion.size !== ((_e = pair.tfile.stat) == null ? void 0 : _e.size)) {
       if (await computeSha256Hex(await plugin.app.vault.readBinary(pair.tfile)) !== pair.sourceSha) {
         uploaded.splice(i, 1);
         retryItems.push(pair.entry);
         failures.push({
           name: pair.tfile.name,
           path: pair.tfile.path,
-          size: ((_e = pair.tfile.stat) == null ? void 0 : _e.size) || 0,
+          size: ((_f = pair.tfile.stat) == null ? void 0 : _f.size) || 0,
           error: plugin.t("transferSourceChanged")
         });
       }
@@ -3698,7 +3735,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
       ext: keepItem.ext,
       displayPath: keepItem.displayPath,
       localPath: tfile.path,
-      size: ((_f = tfile.stat) == null ? void 0 : _f.size) || 0,
+      size: ((_g = tfile.stat) == null ? void 0 : _g.size) || 0,
       locked: Boolean(remote.locked),
       rawObj: remote,
       rawUrl: remote.rawUrl,
@@ -3709,7 +3746,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
       keptForOtherRefPaths: remaining,
       syncedOtherNotes: syncedPaths.length,
       syncedOtherNotePaths: syncedPaths,
-      refNotesCount: ((_g = pair.entry.refNotes) == null ? void 0 : _g.length) || 0
+      refNotesCount: ((_h = pair.entry.refNotes) == null ? void 0 : _h.length) || 0
     };
     if (postSnapshot && !remaining.length) {
       try {
@@ -3738,7 +3775,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
     failures,
     trashFailures,
     retryItems,
-    cancelled: Boolean((_h = options.signal) == null ? void 0 : _h.aborted),
+    cancelled: Boolean((_i = options.signal) == null ? void 0 : _i.aborted),
     totalBytes: processedItems.reduce((sum, item) => sum + item.size, 0)
   };
   plugin.logOperation("INFO", "BATCH_UPLOAD", `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
@@ -4255,8 +4292,10 @@ var BatchMigrateWizardModal = class extends import_obsidian7.Modal {
         new NoteRefsModal(this.app, item.name, item.refNotes, () => this.close(), this.plugin).open();
       };
     }
-    const progressBox = contentEl.createDiv({ attr: { style: "display:none; margin-bottom:10px;" } });
-    const progressText = progressBox.createDiv({ attr: { style: "font-size:12px; color:var(--text-accent);" } });
+    const progressBox = contentEl.createDiv({ attr: { style: "display:none; margin-bottom:12px;" } });
+    const progressHeader = progressBox.createDiv({ attr: { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;" } });
+    const progressText = progressHeader.createDiv({ attr: { style: "font-size:12px; color:var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;" } });
+    const progressSpeed = progressHeader.createDiv({ attr: { style: "font-size:11.5px; font-family:var(--font-monospace); color:var(--text-muted); font-weight:600; white-space:nowrap;" } });
     const progressWrap = progressBox.createDiv({ cls: "fm-progress-wrap" });
     const progressBar = progressWrap.createDiv({ cls: "fm-progress-bar" });
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
@@ -4286,10 +4325,14 @@ var BatchMigrateWizardModal = class extends import_obsidian7.Modal {
         await this.plugin.executeBatchMigrateSafely(
           selected,
           { ...this.options, signal: this.transferController.signal },
-          (cur, total, name) => {
+          (cur, total, name, stats) => {
             const pct = Math.round(cur / Math.max(1, total) * 100);
             progressBar.style.width = `${pct}%`;
             progressText.setText(t2("migrateProgress", { current: cur, total, name }));
+            if (stats == null ? void 0 : stats.speedText) {
+              const eta = stats.etaText ? ` \xB7 \u5269\u4F59\u7EA6 ${stats.etaText}` : "";
+              progressSpeed.setText(`\u26A1 ${stats.speedText}${eta}`);
+            }
           },
           (summary) => {
             this.step = 3;
@@ -7699,12 +7742,16 @@ var ActiveNoteActionModal = class extends import_obsidian21.Modal {
     }
     if (this.step === "running") {
       const box = contentEl.createDiv({ cls: "fm-section-box" });
-      this.statusText = box.createDiv({
+      const progressHeader = box.createDiv({ attr: { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;" } });
+      this.statusText = progressHeader.createDiv({
         text: this.t("activeNoteScanning"),
-        attr: { style: "font-size: 13px; color: var(--text-accent); margin-bottom: 8px;" }
+        attr: { style: "font-size: 12.5px; color: var(--text-accent); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;" }
+      });
+      this.speedText = progressHeader.createDiv({
+        attr: { style: "font-size: 11.5px; font-family:var(--font-monospace); color: var(--text-muted); font-weight: 600; white-space:nowrap;" }
       });
       const wrap = box.createDiv({ cls: "fm-progress-wrap" });
-      this.progressBar = wrap.createDiv({ cls: "fm-progress-bar", attr: { style: "width: 10%;" } });
+      this.progressBar = wrap.createDiv({ cls: "fm-progress-bar", attr: { style: "width: 10%; margin-bottom:8px;" } });
       const stop = box.createEl("button", { text: this.t("transferStop") });
       stop.onclick = () => {
         var _a2;
@@ -7902,13 +7949,17 @@ var ActiveNoteActionModal = class extends import_obsidian21.Modal {
       if (this.actionType === "migrate") {
         const res = await this.plugin.executeMigrateNoteDirect(
           this.targetFile,
-          (cur, total, name) => {
+          (cur, total, name, stats) => {
             if (this.progressBar) {
               const pct = Math.round(cur / Math.max(1, total) * 100);
               this.progressBar.style.width = `${pct}%`;
             }
             if (this.statusText) {
               this.statusText.setText(this.t("activeNoteProcessing", { current: cur, total, name }));
+            }
+            if (this.speedText && (stats == null ? void 0 : stats.speedText)) {
+              const eta = stats.etaText ? ` \xB7 \u5269\u4F59\u7EA6 ${stats.etaText}` : "";
+              this.speedText.setText(`\u26A1 ${stats.speedText}${eta}`);
             }
           },
           {
@@ -7926,13 +7977,17 @@ var ActiveNoteActionModal = class extends import_obsidian21.Modal {
       } else {
         const res = await this.plugin.executeDownloadNoteDirect(
           this.targetFile,
-          (cur, total, name) => {
+          (cur, total, name, stats) => {
             if (this.progressBar) {
               const pct = Math.round(cur / Math.max(1, total) * 100);
               this.progressBar.style.width = `${pct}%`;
             }
             if (this.statusText) {
               this.statusText.setText(this.t("activeNoteProcessing", { current: cur, total, name }));
+            }
+            if (this.speedText && (stats == null ? void 0 : stats.speedText)) {
+              const eta = stats.etaText ? ` \xB7 \u5269\u4F59\u7EA6 ${stats.etaText}` : "";
+              this.speedText.setText(`\u26A1 ${stats.speedText}${eta}`);
             }
           },
           {
