@@ -843,7 +843,7 @@ export const UI_STRINGS = {
     btnTestConn: 'Test connection',
     testConnSuccess: 'Connected. Server{ver} has {count} files.',
     testConnFail: '❌ Connection failed: {err}',
-    compatWarn: '⚠️ Compatibility warning: Server requires FileMaster Plugin >= v{minVer} (current: v{currentVer}). Please update the plugin.',
+    compatWarn: '⚠️ Compatibility warning: Server requires File Master Plugin >= v{minVer} (current: v{currentVer}). Please update the plugin.',
     compatWarnServer: '⚠️ Server version warning: Server is v{serverVer}, plugin recommends >= v{minServerVer}. Some features may be restricted.',
     compatStatusChecking: 'Checking connection and versions...',
     compatStatusOk: 'Connected · Server v{serverVer} · {count} files',

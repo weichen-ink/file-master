@@ -1,4 +1,4 @@
-# 📦 FileMaster
+# 📦 File Master
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md)
 [![Platform](https://img.shields.io/badge/Platform-Desktop%20%7C%20Mobile-blue?logo=obsidian)](https://obsidian.md)
@@ -14,11 +14,11 @@
 ---
 
 <a name="english"></a>
-## 🌟 Why FileMaster?
+## 🌟 Why File Master?
 
 Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced orphan attachments, and broken links.
 
-**FileMaster** bridges your local Obsidian vault with a self-hosted media server ([File Master Server](https://github.com/weichen-ink/file-master-server)). It keeps your notes lightweight, eliminates redundancy with SHA-256 deduplication, and lets you manage cloud assets without leaving Obsidian.
+**File Master** bridges your local Obsidian vault with a self-hosted media server ([File Master Server](https://github.com/weichen-ink/file-master-server)). It keeps your notes lightweight, eliminates redundancy with SHA-256 deduplication, and lets you manage cloud assets without leaving Obsidian.
 
 ---
 
@@ -28,7 +28,7 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
   Fully decoupled from Node.js runtime. Runs seamlessly across **macOS, Windows, Linux, iOS, iPadOS, and Android**.
 
 - ⚡ **Instant Upload & Clipboard Monitor (秒传)**:
-  Paste screenshots or drag attachments into your notes. FileMaster checks the content SHA-256 via a lightweight probe query and reuses existing cloud assets instantly without re-uploading file bytes.
+  Paste screenshots or drag attachments into your notes. File Master checks the content SHA-256 via a lightweight probe query and reuses existing cloud assets instantly without re-uploading file bytes.
 
 - 🎨 **Markdown, Canvas & Excalidraw Compatible**:
   First-class citizen support for standard notes, `.canvas` whiteboards, and Excalidraw drawings (`## Embedded Files`). Engineered to safely preserve drawing embed structures.
@@ -54,10 +54,10 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 ## 💡 Typical Workflows
 
 1. **Everyday Writing**:
-   Press `Ctrl/Cmd + V` to paste screenshots into your note. FileMaster prompts or auto-saves to your preferred location (Local Vault or Cloud Server) with custom naming patterns like `{note}_{date}_{rand:4}`.
+   Press `Ctrl/Cmd + V` to paste screenshots into your note. File Master prompts or auto-saves to your preferred location (Local Vault or Cloud Server) with custom naming patterns like `{note}_{date}_{rand:4}`.
 
 2. **Vault Spring Cleaning**:
-   Click the ribbon Hub icon (or run `FileMaster: Open Central Governance Hub`) to inspect link health, purge unused orphan files, or consolidate duplicated images across your vault.
+   Click the ribbon Hub icon (or run `File Master: Open Central Governance Hub`) to inspect link health, purge unused orphan files, or consolidate duplicated images across your vault.
 
 3. **Blog / Public Sharing**:
    Right-click any note editor → select **Copy public note with WebP links** to get blog-ready content with dynamic watermarks copied directly to your clipboard.
@@ -70,7 +70,7 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 1. Install **BRAT** from Obsidian Community Plugins.
 2. In Obsidian command palette (`Cmd/Ctrl + P`), run: `BRAT: Add a beta plugin for testing`.
 3. Enter repository URL: `https://github.com/weichen-ink/file-master`.
-4. Enable **FileMaster** under **Settings → Community Plugins**.
+4. Enable **File Master** under **Settings → Community Plugins**.
 
 ### Option 2: Manual Installation
 1. Download `main.js`, `manifest.json`, and `styles.css` from [Latest Release](https://github.com/weichen-ink/file-master/releases).
@@ -81,9 +81,9 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 
 ## ⚙️ Quick Configuration
 
-FileMaster `1.0.7` requires File Master Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
+File Master `1.0.8` requires File Master Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
 
-1. Open **Settings → FileMaster**.
+1. Open **Settings → File Master**.
 2. **Server Access URL**: Enter your self-hosted server address (e.g. `http://192.168.1.100:3210` or `https://img.yourdomain.com`).
 3. **Global API Token**: Enter the `api_token` configured in your server.
 4. Click **⚡ Test Connection** to verify bidirectional version contract and connectivity.
@@ -126,7 +126,7 @@ See [batch processing, integrity semantics, and scale limits](https://github.com
 
 随着知识库日渐庞大，大量的截图附件、未清理的游离素材和重复图片会让库越来越臃肿，甚至出现 404 断链。
 
-**FileMaster** 是一款专为 Obsidian 打造的全平台资产治理与自建多媒体图床管理插件，配合自建后端 [File Master Server](https://github.com/weichen-ink/file-master-server)，让你的知识库始终轻盈整洁。
+**File Master** 是一款专为 Obsidian 打造的全平台资产治理与自建多媒体图床管理插件，配合自建后端 [File Master Server](https://github.com/weichen-ink/file-master-server)，让你的知识库始终轻盈整洁。
 
 ### ✨ 核心亮点
 
