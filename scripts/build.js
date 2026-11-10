@@ -21,6 +21,16 @@ const srcOrder = [
   'src/modals/remote-gallery.js',
   'src/modals/hub.js',
   'src/modals/operation-log.js',
+  'src/plugin/logging.js',
+  'src/plugin/lifecycle.js',
+  'src/plugin/vault-utils.js',
+  'src/plugin/context-menus.js',
+  'src/plugin/server-client.js',
+  'src/plugin/vault-scans.js',
+  'src/plugin/health-analytics.js',
+  'src/plugin/link-rewrite.js',
+  'src/plugin/attachment-ops.js',
+  'src/settings-tab.js',
   'src/plugin.js'
 ];
 

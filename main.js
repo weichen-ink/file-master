@@ -6330,7 +6330,7 @@ class OperationLogModal extends Modal {
   }
 }
 
-class FileMasterPlugin extends Plugin {
+class FileMasterLogging extends Plugin {
   getEffectiveLanguage() {
     return getEffectiveLanguage(this.settings?.language);
   }
@@ -6429,7 +6429,9 @@ class FileMasterPlugin extends Plugin {
     });
     return [...header, ...body].join('\n');
   }
+}
 
+class FileMasterLifecycle extends FileMasterLogging {
   async onload() {
     await this.loadSettings();
     this.operationLogs = [];
@@ -6736,7 +6738,9 @@ class FileMasterPlugin extends Plugin {
       return true;
     }
   }
+}
 
+class FileMasterVaultUtils extends FileMasterLifecycle {
   isDocFile(file) {
     return isDocFile(file, this.app);
   }
@@ -6888,7 +6892,9 @@ class FileMasterPlugin extends Plugin {
 
     return this.app.vault.getResourcePath(tfile);
   }
+}
 
+class FileMasterContextMenus extends FileMasterVaultUtils {
   registerContextMenus() {
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, abstractFile) => {
@@ -7155,7 +7161,9 @@ class FileMasterPlugin extends Plugin {
     img.style.display = 'block';
     embedEl.dataset.fmHeicStatus = 'done';
   }
+}
 
+class FileMasterServerClient extends FileMasterContextMenus {
   filterAllowedFiles(fileList) {
     const out = [];
     for (let i = 0; i < fileList.length; i++) {
@@ -7514,7 +7522,9 @@ class FileMasterPlugin extends Plugin {
     }
     return true;
   }
+}
 
+class FileMasterVaultScans extends FileMasterServerClient {
   async buildVaultReferenceSnapshot(scanCtx = {}) {
     const { signal, onProgress, freshRead = false } = scanCtx || {};
     const revision = this.referenceRevision || 0;
@@ -8096,7 +8106,9 @@ class FileMasterPlugin extends Plugin {
       new Notice(this.t('noticeCannotOpenFile', { path: filePath }));
     }
   }
+}
 
+class FileMasterHealthAnalytics extends FileMasterVaultScans {
   /**
    * Scans vault notes and canvas files for broken links (supports progress + abortSignal)
    */
@@ -8373,7 +8385,9 @@ class FileMasterPlugin extends Plugin {
     await this.writeOrUpdateRootReport(reportPath, lines.join('\n'));
     new Notice(this.t('noticeReportGenerated', { path: reportPath }));
   }
+}
 
+class FileMasterLinkRewrite extends FileMasterHealthAnalytics {
   rewriteContentLinks(content, removeItem, keepItem, docPathOrContext = '') {
     if (typeof content !== 'string' || !content) return content;
 
@@ -8543,7 +8557,9 @@ class FileMasterPlugin extends Plugin {
     }
     return rewrittenPre;
   }
+}
 
+class FileMasterAttachmentOps extends FileMasterLinkRewrite {
   async executeDuplicateMergeSafely(groups, onComplete) {
     return runAttachmentOperation(this, () => this.mergeDuplicateGroups(groups, onComplete));
   }
@@ -9225,14 +9241,6 @@ class FileMasterPlugin extends Plugin {
     await navigator.clipboard.writeText(converted);
     new Notice(this.t('noticeAstroCopied'));
   }
-
-  async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-  }
-
-  async saveSettings() {
-    await this.saveData(this.settings);
-  }
 }
 
 class FileMasterSettingTab extends PluginSettingTab {
@@ -9637,6 +9645,16 @@ class FileMasterSettingTab extends PluginSettingTab {
         })
       );
     addRow('aboutFeedback').createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+  }
+}
+
+class FileMasterPlugin extends FileMasterAttachmentOps {
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
   }
 }
 
