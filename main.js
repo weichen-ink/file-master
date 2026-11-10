@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS = {
   excludeLockedRemoteFiles: true
 };
 
-const MIN_SERVER_VERSION = '1.0.0';
+const MIN_SERVER_VERSION = '1.0.1';
 const VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery';
 
 // Comprehensive image extensions (Apple HEIC/HEIF, TIFF, BMP, Camera RAW, etc.)
@@ -209,6 +209,21 @@ function isAttachmentExt(ext) {
  */
 const UI_STRINGS = {
   zh: {
+    pagePrevious: "上一页",
+    pageNext: "下一页",
+    pageCount: "第 {current} / {total} 页",
+    transferIntegrityFailed: "内容校验失败，已保留原文件和链接，请刷新服务器列表后重试。",
+    transferReferencesChanged: '笔记在最终检查后发生变化，已保留本地文件，可重试未完成项。',
+    transferSourceChanged: "附件在上传期间发生变化，已保留本地文件。",
+    transferBusy: "另一个附件操作正在进行，请等待完成后再试。",
+    transferNothingPending: "没有可恢复的上传任务。",
+    transferServerChanged: "服务器地址已更改，请切回原服务器后恢复上传。",
+    cmdResumeUpload: "恢复未完成上传",
+    transferStop: "停止传输",
+    transferStopping: "正在停止，将完成已传输文件的链接更新…",
+    transferCancelled: "已停止，已完成的文件已处理。",
+    transferRetry: "重试未完成项",
+    noticeRemoteNotReady: "请先启用服务器并测试连接。",
     // 快捷控制中心
     hubBadge: '文件工具',
     hubTitle: 'File Master',
@@ -759,6 +774,21 @@ const UI_STRINGS = {
     closeBtn: '关闭'
   },
   en: {
+    pagePrevious: "Previous",
+    pageNext: "Next",
+    pageCount: "Page {current} of {total}",
+    transferIntegrityFailed: "Content verification failed. Original files and links were preserved. Refresh the server list and retry.",
+    transferReferencesChanged: 'Notes changed after the final check. Local files were preserved; retry unfinished files.',
+    transferSourceChanged: "The attachment changed during upload. The local file was preserved.",
+    transferBusy: "Another attachment operation is running. Wait for it to finish.",
+    transferNothingPending: "No unfinished upload is available to resume.",
+    transferServerChanged: "The server address changed. Switch back to the original server to resume.",
+    cmdResumeUpload: "Resume unfinished upload",
+    transferStop: "Stop transfer",
+    transferStopping: "Stopping; finishing link updates for transferred files…",
+    transferCancelled: "Stopped. Completed transfers have been finalized.",
+    transferRetry: "Retry unfinished files",
+    noticeRemoteNotReady: "Enable the server and test the connection first.",
     // Quick Hub
     hubBadge: 'File tools',
     hubTitle: 'File Master',
@@ -1921,55 +1951,6 @@ function isExcalidrawContent(content) {
  * Checks whether a document references a local file without substring false-positives
  * (e.g., "1.png" must not falsely match "21.png" or "my_1.png").
  */
-function doesDocumentReferenceLocalFile(rawText, decodedText, tfile, isNoteOrExcalidraw = false) {
-  if (!tfile) return false;
-  const name = String(tfile.name || '');
-  const baseName = String(tfile.basename || getBaseName(name));
-  const relPath = String(tfile.path || name);
-
-  const stripRemoteUrls = (str) =>
-    String(str || '')
-      .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
-      .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
-
-  const localRaw = stripRemoteUrls(rawText);
-  const localDecoded = decodedText ? stripRemoteUrls(decodedText) : localRaw;
-
-  if (
-    isNoteOrExcalidraw &&
-    baseName &&
-    (localRaw.includes(`[[${baseName}]]`) ||
-      localRaw.includes(`[[${baseName}|`) ||
-      localRaw.includes(`[[${baseName}#`) ||
-      localDecoded.includes(`[[${baseName}]]`) ||
-      localDecoded.includes(`[[${baseName}|`) ||
-      localDecoded.includes(`[[${baseName}#`))
-  ) {
-    return true;
-  }
-
-  // Fast pre-filter before running boundary regex
-  if (
-    !localRaw.includes(name) &&
-    !localDecoded.includes(name) &&
-    !localRaw.includes(relPath) &&
-    !localDecoded.includes(relPath)
-  ) {
-    return false;
-  }
-
-  const targets = relPath && relPath !== name ? [relPath, name] : [name];
-  for (const target of targets) {
-    if (!target) continue;
-    const esc = escapeRegExp(target);
-    const boundaryRe = new RegExp(`(?:^|[\\[\\(<"':/\\\\\\s])${esc}(?:$|[\\]\\)>"'|#?\\s])`, 'i');
-    if (boundaryRe.test(localRaw) || boundaryRe.test(localDecoded)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
  * Checks whether a file is an Excalidraw drawing note regardless of extension.
  * Handles .excalidraw.md, .excalidraw, frontmatter cache, and file content.
@@ -2168,6 +2149,443 @@ function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, context =
 
   const newSection = header + updatedLines.join('\n');
   return content.slice(0, match.index) + newSection + content.slice(match.index + match[0].length);
+}
+
+/** Match all reference candidates in one pass through each document. */
+function createTextReferenceMatcher(patterns) {
+  const nodes = [{ next: new Map(), fail: 0, outputs: [] }];
+  for (const pattern of patterns) {
+    const value = String(pattern.value || '').toLowerCase();
+    if (!value) continue;
+    let state = 0;
+    for (let i = 0; i < value.length; i++) {
+      const char = value[i];
+      if (!nodes[state].next.has(char)) {
+        nodes[state].next.set(char, nodes.length);
+        nodes.push({ next: new Map(), fail: 0, outputs: [] });
+      }
+      state = nodes[state].next.get(char);
+    }
+    nodes[state].outputs.push({ ...pattern, length: value.length });
+  }
+  const queue = [...nodes[0].next.values()];
+  for (let head = 0; head < queue.length; head++) {
+    const state = queue[head];
+    for (const [char, next] of nodes[state].next) {
+      queue.push(next);
+      let fallback = nodes[state].fail;
+      while (fallback && !nodes[fallback].next.has(char)) fallback = nodes[fallback].fail;
+      nodes[next].fail = nodes[fallback].next.get(char) || 0;
+      nodes[next].outputs = nodes[next].outputs.concat(nodes[nodes[next].fail].outputs);
+    }
+  }
+  return (input) => {
+    const text = String(input || '').toLowerCase();
+    const found = new Set();
+    let state = 0;
+    // Code units keep offsets consistent with JavaScript string indices.
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      while (state && !nodes[state].next.has(char)) state = nodes[state].fail;
+      state = nodes[state].next.get(char) || 0;
+      for (const pattern of nodes[state].outputs) {
+        const start = i + 1 - pattern.length;
+        if (pattern.wiki) {
+          if (!/[\]|#]/.test(text[i + 1] || '')) continue;
+        } else if (pattern.boundary) {
+          if (start > 0 && !/[\[\(<"':/\\\s]/.test(text[start - 1])) continue;
+          if (i + 1 < text.length && !/[\]\)>"'|#?\s]/.test(text[i + 1])) continue;
+        }
+        found.add(pattern.id);
+      }
+    }
+    return found;
+  };
+}
+
+function stripRemoteReferenceText(input) {
+  return String(input || '')
+    .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
+    .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
+}
+
+function createLocalReferenceMatcher(files, isDrawing) {
+  const patterns = [];
+  for (const file of files) {
+    for (const value of new Set([file.path, file.name])) {
+      patterns.push({ value, id: file.path, boundary: true });
+    }
+    if (file.extension === 'md' || file.extension === 'excalidraw' || isDrawing(file)) {
+      patterns.push({ value: `[[${file.basename || getBaseName(file.name)}`, id: file.path, wiki: true });
+    }
+  }
+  return createTextReferenceMatcher(patterns);
+}
+
+function addReference(index, target, source) {
+  if (target === source) return;
+  if (!index.has(target)) index.set(target, new Set());
+  index.get(target).add(source);
+}
+
+function throwIfTransferCancelled(signal) {
+  if (signal?.aborted) throw Object.assign(new Error('TRANSFER_CANCELLED'), { name: 'AbortError' });
+}
+
+function transferDelay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const cancelled = () => {
+      clearTimeout(timer);
+      reject(Object.assign(new Error('TRANSFER_CANCELLED'), { name: 'AbortError' }));
+    };
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', cancelled); resolve(); }, ms);
+    if (signal?.aborted) cancelled();
+    else signal?.addEventListener('abort', cancelled, { once: true });
+  });
+}
+
+async function requestWithBackoff(request, { signal, delay = transferDelay, maxRetries = 4 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    throwIfTransferCancelled(signal);
+    let response;
+    try {
+      response = await request();
+      if (attempt >= maxRetries || ![429, 500, 502, 503, 504].includes(response.status)) return response;
+    } catch (err) {
+      if (signal?.aborted || attempt >= maxRetries || err.name === 'AbortError') throw err;
+    }
+    const headers = response?.headers || {};
+    const retryAfter = headers['retry-after'] ?? headers['Retry-After'];
+    let wait = retryAfter !== undefined && Number.isFinite(Number(retryAfter))
+      ? Number(retryAfter) * 1000 : Number.isFinite(Date.parse(retryAfter))
+        ? Math.max(0, Date.parse(retryAfter) - Date.now()) : null;
+    if (wait === null && response?.status === 429) {
+      try { if (response.json?.retryAfter) wait = Number(response.json.retryAfter) * 1000; } catch {}
+    }
+    await delay(Math.min(120000, Math.max(250, wait ?? 1000 * (2 ** attempt) + Math.random() * 250)), signal);
+  }
+}
+
+async function runAttachmentOperation(plugin, task, signal) {
+  if (plugin.attachmentOperationRunning) throw new Error(plugin.t('transferBusy'));
+  plugin.attachmentOperationRunning = true;
+  const controller = new AbortController();
+  const cancelled = () => controller.abort();
+  if (signal?.aborted) cancelled();
+  else signal?.addEventListener('abort', cancelled, { once: true });
+  plugin.activeTransferController = controller;
+  try { return await task(controller.signal); }
+  finally {
+    signal?.removeEventListener('abort', cancelled);
+    plugin.activeTransferController = null;
+    plugin.attachmentOperationRunning = false;
+  }
+}
+
+/** One read/atomic transform per affected document, against its latest contents. */
+async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  const remoteItems = pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj);
+  if (remoteItems.length) await plugin.indexRemoteReferences(remoteItems, snapshot);
+  const allowed = documentPaths ? new Set(documentPaths) : null;
+  const byDocument = new Map();
+  const changedPaths = new Map(pairs.map((pair) => [pair, []]));
+  for (const pair of pairs) {
+    const refs = pair.removeItem.source === 'local'
+      ? plugin.findReferencingNotesForLocalFile(pair.removeItem.rawObj, snapshot)
+      : plugin.findReferencingNotesForRemoteItem(pair.removeItem.rawObj, snapshot);
+    for (const path of refs) {
+      if (allowed && !allowed.has(path)) continue;
+      if (!byDocument.has(path)) byDocument.set(path, []);
+      byDocument.get(path).push(pair);
+    }
+  }
+  const modified = new Set();
+  for (const doc of snapshot.docContents) {
+    const relevant = byDocument.get(doc.path);
+    if (!relevant) continue;
+    const changedPairs = new Set();
+    const changed = await plugin.safeModifyFileContent(doc.file, (current) => {
+      let next = current;
+      for (const pair of relevant) {
+        const updated = plugin.rewriteContentLinks(next, pair.removeItem, pair.keepItem, doc.path);
+        if (updated !== next) changedPairs.add(pair);
+        next = updated;
+      }
+      return next;
+    });
+    if (changed) {
+      modified.add(doc.path);
+      for (const pair of changedPairs) changedPaths.get(pair).push(doc.path);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return { modified, changedPaths };
+}
+
+function migrationCheckpointPath(plugin) {
+  return plugin.getLogFilePath().replace(/operation\.log$/, 'migration-pending.json');
+}
+
+async function saveMigrationCheckpoint(plugin, items, options) {
+  const adapter = plugin.app.vault.adapter;
+  if (!adapter) return;
+  const path = migrationCheckpointPath(plugin);
+  if (!items.length) {
+    if (await adapter.exists(path)) await adapter.remove(path);
+    return;
+  }
+  await adapter.write(path, JSON.stringify({ version: 1, serverUrl: plugin.getCleanServerUrl(),
+    options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null },
+    items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) })) }));
+}
+
+async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
+  await saveMigrationCheckpoint(plugin, items, options);
+  const uploaded = [], failures = [], retryItems = [];
+  for (let i = 0; i < items.length; i++) {
+    if (options.signal?.aborted) { retryItems.push(...items.slice(i)); break; }
+    const entry = items[i];
+    const tfile = entry.tfile || entry.rawObj || entry;
+    const sourceVersion = { ...tfile.stat };
+    onProgress?.(i + 1, items.length, tfile.name);
+    try {
+      const bytes = await plugin.app.vault.readBinary(tfile);
+      const remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', { signal: options.signal });
+      if (entry.locked && !remote.locked) {
+        await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
+        remote.locked = true;
+      }
+      uploaded.push({ entry, tfile, sourceVersion, sourceSha: remote.sha256,
+        removeItem: { source: 'local', name: tfile.name, ext: tfile.extension.toLowerCase(), displayPath: tfile.path, rawObj: tfile },
+        keepItem: { source: 'remote', name: remote.filename, ext: getExt(remote.filename),
+          displayPath: `${remote.year}/${remote.month}/${remote.filename}`, rawObj: remote } });
+    } catch (err) {
+      retryItems.push(entry);
+      if (err.name === 'AbortError') { retryItems.push(...items.slice(i + 1)); break; }
+      failures.push({ name: tfile.name, path: tfile.path, size: tfile.stat?.size || 0, error: err.message || String(err) });
+      plugin.logOperation('ERROR', 'BATCH_UPLOAD', `Failed to upload ${tfile.path}`, { error: err.message });
+    }
+  }
+
+  for (let i = uploaded.length - 1; i >= 0; i--) {
+    const pair = uploaded[i];
+    if (pair.sourceVersion.mtime !== pair.tfile.stat?.mtime || pair.sourceVersion.size !== pair.tfile.stat?.size) {
+      if (await computeSha256Hex(await plugin.app.vault.readBinary(pair.tfile)) !== pair.sourceSha) {
+        uploaded.splice(i, 1);
+        retryItems.push(pair.entry);
+        failures.push({ name: pair.tfile.name, path: pair.tfile.path, size: pair.tfile.stat?.size || 0,
+          error: plugin.t('transferSourceChanged') });
+      }
+    }
+  }
+
+  // Finish already completed transfers even when cancellation was requested.
+  const rewritten = uploaded.length ? await rewriteAttachmentPairs(plugin, uploaded, options.documentPaths)
+    : { modified: new Set(), changedPaths: new Map() };
+  const postSnapshot = uploaded.length && options.deleteLocalAfter
+    ? await plugin.buildVaultReferenceSnapshot({ freshRead: true }) : null;
+  const trashedFiles = [], trashFailures = [], processedItems = [];
+  for (const pair of uploaded) {
+    const { tfile, keepItem } = pair;
+    const remote = keepItem.rawObj;
+    const syncedPaths = (rewritten.changedPaths.get(pair) || []).filter((p) => p !== options.activeFile?.path);
+    const remaining = postSnapshot ? plugin.findReferencingNotesForLocalFile(tfile, postSnapshot) : [];
+    const result = { source: 'remote', name: remote.filename, ext: keepItem.ext, displayPath: keepItem.displayPath,
+      localPath: tfile.path, size: tfile.stat?.size || 0, locked: Boolean(remote.locked), rawObj: remote,
+      rawUrl: remote.rawUrl, pubUrl: remote.pubUrl, action: 'uploaded', trashedLocal: false,
+      keptForOtherRefs: remaining.length, keptForOtherRefPaths: remaining,
+      syncedOtherNotes: syncedPaths.length, syncedOtherNotePaths: syncedPaths,
+      refNotesCount: pair.entry.refNotes?.length || 0 };
+    if (postSnapshot && !remaining.length) {
+      try {
+        // An attachment may have been edited or replaced during a long upload.
+        const latest = await plugin.app.vault.readBinary(tfile);
+        if (await computeSha256Hex(latest) !== pair.sourceSha) throw new Error(plugin.t('transferSourceChanged'));
+        if (!plugin.isReferenceSnapshotCurrent(postSnapshot)) throw new Error(plugin.t('transferReferencesChanged'));
+        await plugin.app.vault.trash(tfile, true);
+        result.trashedLocal = true;
+        trashedFiles.push(tfile.path);
+      } catch (err) {
+        result.trashError = err.message || String(err);
+        trashFailures.push({ path: tfile.path, error: result.trashError });
+        retryItems.push(pair.entry);
+      }
+    }
+    processedItems.push(result);
+  }
+  await saveMigrationCheckpoint(plugin, retryItems, options);
+  const summary = { count: uploaded.length, docs: rewritten.modified.size,
+    modifiedNotePaths: [...rewritten.modified], trashed: trashedFiles.length, trashedFiles,
+    processedItems, failures, trashFailures, retryItems, cancelled: Boolean(options.signal?.aborted),
+    totalBytes: processedItems.reduce((sum, item) => sum + item.size, 0) };
+  plugin.logOperation('INFO', 'BATCH_UPLOAD', `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
+    failures: failures.length, unfinished: retryItems.length, cancelled: summary.cancelled
+  });
+  return summary;
+}
+
+const REMOTE_GALLERY_PAGE_SIZE = 60;
+
+function filterRemoteGallery(view) {
+  return view.items.filter((item) => {
+    if (view.selectedBucket !== 'all' && `${item.year}/${item.month}` !== view.selectedBucket) return false;
+    if (view.selectedType !== 'all' && getFileTypeGroup(getExt(item.name || item.filename)) !== view.selectedType) return false;
+    return !view.searchQuery || (item.name || item.filename || '').toLowerCase().includes(view.searchQuery);
+  });
+}
+
+function getRemoteGalleryPage(view, filtered) {
+  const key = `${view.selectedBucket}:${view.selectedType}:${view.searchQuery}`;
+  if (key !== view.galleryFilterKey) { view.galleryPage = 0; view.galleryFilterKey = key; }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / REMOTE_GALLERY_PAGE_SIZE));
+  view.galleryPage = Math.min(Math.max(0, view.galleryPage || 0), totalPages - 1);
+  return { current: view.galleryPage, totalPages,
+    items: filtered.slice(view.galleryPage * REMOTE_GALLERY_PAGE_SIZE, (view.galleryPage + 1) * REMOTE_GALLERY_PAGE_SIZE) };
+}
+
+function renderRemoteGallery(view, containerEl, countLabel) {
+  containerEl.empty();
+  if (view.layoutMode === 'list') {
+    containerEl.addClass('is-list');
+  } else {
+    containerEl.removeClass('is-list');
+  }
+
+  const filtered = view.filterItems();
+  const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
+
+  if (countLabel) {
+    countLabel.empty();
+    countLabel.createSpan({ cls: 'fm-gallery-stats-count', text: view.t('galleryFileCount', { count: filtered.length }) });
+    countLabel.createSpan({ cls: 'fm-gallery-stats-size', text: view.t('galleryTotalSize', { size: formatBytes(totalBytes) }) });
+  }
+
+  if (filtered.length === 0) {
+    containerEl.createDiv({
+      cls: 'fm-section-box',
+      text: view.t('galleryEmpty'),
+      attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;' }
+    });
+    return;
+  }
+
+  const page = getRemoteGalleryPage(view, filtered);
+  for (const item of page.items) {
+    const card = containerEl.createDiv({ cls: 'fm-gallery-card' + (view.layoutMode === 'list' ? ' is-list' : '') });
+    const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
+
+    const ext = getExt(item.name || item.filename);
+    const isImg = IMAGE_EXTS.has(ext);
+
+    if (isImg) {
+      const img = thumbWrap.createEl('img', {
+        cls: 'fm-gallery-thumb',
+        attr: {
+          loading: 'lazy',
+          src: item.thumbnailUrl || item.pubUrl || item.rawUrl,
+          alt: item.name || item.filename
+        }
+      });
+      img.onerror = () => {
+        img.style.display = 'none';
+        thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
+      };
+    } else {
+      thumbWrap.createDiv({
+        text: ext.toUpperCase(),
+        attr: { style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);' }
+      });
+    }
+
+    // Lock badge (click to unlock if locked and not protected)
+    if (item.locked) {
+      const lockBadge = thumbWrap.createSpan({
+        cls: 'fm-gallery-lock-badge',
+        text: '🔒',
+        attr: { title: view.t('galleryBtnUnlock') }
+      });
+      lockBadge.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          await view.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
+          item.locked = false;
+          view.renderGrid(containerEl, countLabel);
+        } catch (err) {
+          new Notice(view.t('previewLockFailed', { err: err.message }));
+        }
+      };
+    }
+
+    thumbWrap.onclick = () => {
+      new ImageLightboxModal(view.app, view.plugin, {
+        source: 'remote',
+        name: item.name || item.filename,
+        displayPath: `${item.year}/${item.month}/${item.filename}`,
+        size: item.size,
+        rawObj: item
+      }, (action, target) => {
+        if (action === 'deleted') {
+          view.items = view.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
+        }
+        view.renderGrid(containerEl, countLabel);
+      }).open();
+    };
+    thumbWrap.setAttribute('role', 'button');
+    thumbWrap.setAttribute('tabindex', '0');
+    thumbWrap.setAttribute('aria-label', view.t('galleryBtnPreview'));
+    thumbWrap.onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        thumbWrap.click();
+      }
+    };
+
+    const info = card.createDiv({ cls: 'fm-gallery-info' });
+    info.createDiv({
+      cls: 'fm-gallery-name',
+      text: item.name || item.filename,
+      attr: { title: item.name || item.filename }
+    });
+
+    const meta = info.createDiv({ cls: 'fm-gallery-meta' });
+    meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}` });
+
+    const actions = card.createDiv({ cls: 'fm-gallery-actions' });
+
+    // Clean single action: 📝 插入笔记
+    const isWebpMode = view.insertMode === 'webp' && item.pubUrl;
+    const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
+    const fn = item.name || item.filename;
+
+    const insertBtn = actions.createEl('button', {
+      cls: 'fm-gallery-insert-btn mod-cta',
+      attr: { title: isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw') }
+    });
+    setIcon(insertBtn.createSpan(), 'file-input');
+    insertBtn.createSpan({ cls: 'fm-gallery-insert-label', text: view.t('galleryBtnInsert') });
+    insertBtn.setAttribute('aria-label', view.t('galleryBtnInsert'));
+    insertBtn.onmousedown = (e) => {
+      // Prevent clicking button from blurring or moving cursor in Markdown editor
+      e.preventDefault();
+    };
+    insertBtn.onclick = () => {
+      const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
+      const noticeMsg = isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw');
+      view.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
+    };
+  }
+
+  if (page.totalPages > 1) {
+    const pager = containerEl.createDiv({ cls: 'fm-gallery-pagination' });
+    const previous = pager.createEl('button', { text: view.t('pagePrevious') });
+    previous.disabled = page.current === 0;
+    previous.onclick = () => { view.galleryPage--; view.renderGrid(containerEl, countLabel); };
+    pager.createSpan({ text: view.t('pageCount', { current: page.current + 1, total: page.totalPages }) });
+    const next = pager.createEl('button', { text: view.t('pageNext') });
+    next.disabled = page.current + 1 === page.totalPages;
+    next.onclick = () => { view.galleryPage++; view.renderGrid(containerEl, countLabel); };
+  }
 }
 
 /**
@@ -3533,6 +3951,12 @@ class ActiveNoteActionModal extends Modal {
       });
       const wrap = box.createDiv({ cls: 'fm-progress-wrap' });
       this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 10%;' } });
+      const stop = box.createEl('button', { text: this.t('transferStop') });
+      stop.onclick = () => {
+        this.transferController?.abort();
+        stop.disabled = true;
+        this.statusText.setText(this.t('transferStopping'));
+      };
     } else if (this.step === 'result') {
       const failures = this.result?.failures || [];
       const processedItems = this.result?.processedItems || [];
@@ -3544,7 +3968,7 @@ class ActiveNoteActionModal extends Modal {
           const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
           banner.createDiv({
             cls: 'fm-result-banner-title',
-            text: this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
+            text: this.result.cancelled ? this.t('transferCancelled') : this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
           });
           banner.createDiv({
             cls: 'fm-result-banner-desc',
@@ -3647,7 +4071,7 @@ class ActiveNoteActionModal extends Modal {
               });
             }
           }
-        } else if (failures.length === 0) {
+        } else if (failures.length === 0 && !this.result.cancelled) {
           const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align: center; padding: 24px 16px;' } });
           emptyBanner.createDiv({
             text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
@@ -3710,12 +4134,23 @@ class ActiveNoteActionModal extends Modal {
           }
         };
       }
+      if (this.result?.cancelled) btnRow.createSpan({ text: this.t('transferCancelled') });
+      if (this.result?.retryItems?.length) {
+        const retry = btnRow.createEl('button', { text: this.t('transferRetry') });
+        retry.onclick = async () => {
+          const pending = this.result.retryItems;
+          this.step = 'running';
+          this.render();
+          await this.execute(pending);
+        };
+      }
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
       doneBtn.onclick = () => returnToHub(this);
     }
   }
 
   async execute(selectedItems = null) {
+    this.transferController = new AbortController();
     try {
       if (this.actionType === 'migrate') {
         const res = await this.plugin.executeMigrateNoteDirect(
@@ -3733,13 +4168,14 @@ class ActiveNoteActionModal extends Modal {
             items: selectedItems || this.items.filter((i) => i.selected),
             deleteLocalAfter: this.deleteLocalAfter,
             syncOtherNotes: this.syncOtherNotes,
+            signal: this.transferController.signal,
             returnDetails: true
           }
         );
         const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
         const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
         const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
-        this.result = { success: true, count, processedItems, failures };
+        this.result = { success: true, ...res, count, processedItems, failures };
       } else {
         const res = await this.plugin.executeDownloadNoteDirect(
           this.targetFile,
@@ -3756,22 +4192,26 @@ class ActiveNoteActionModal extends Modal {
             items: selectedItems || this.items.filter((i) => i.selected),
             conflictStrategy: this.conflictStrategy,
             syncOtherNotes: this.syncOtherNotes,
+            signal: this.transferController.signal,
             returnDetails: true
           }
         );
         const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
         const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
         const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
-        this.result = { success: true, count, processedItems, failures };
+        this.result = { success: true, ...res, count, processedItems, failures };
       }
     } catch (err) {
       this.result = { success: false, message: err.message };
     }
+    this.transferController = null;
     this.step = 'result';
-    this.render();
+    if (!this.transferClosed) this.render();
   }
 
   onClose() {
+    this.transferClosed = true;
+    this.transferController?.abort();
     this.contentEl.empty();
   }
 }
@@ -4459,7 +4899,13 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => returnToHub(this);
+    cancelBtn.onclick = () => {
+      if (this.transferController) {
+        this.transferController.abort();
+        cancelBtn.disabled = true;
+        cancelBtn.setText(t('transferStopping'));
+      } else returnToHub(this);
+    };
 
     const nextBtn = btnRow.createEl('button', { text: t('migrateNextPreview'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -4534,7 +4980,13 @@ class BatchMigrateWizardModal extends Modal {
       });
       const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
-      cancelBtn.onclick = () => returnToHub(this);
+      cancelBtn.onclick = () => {
+      if (this.transferController) {
+        this.transferController.abort();
+        cancelBtn.disabled = true;
+        cancelBtn.setText(t('transferStopping'));
+      } else returnToHub(this);
+    };
       return;
     }
 
@@ -4583,7 +5035,13 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => returnToHub(this);
+    cancelBtn.onclick = () => {
+      if (this.transferController) {
+        this.transferController.abort();
+        cancelBtn.disabled = true;
+        cancelBtn.setText(t('transferStopping'));
+      } else returnToHub(this);
+    };
     const runBtn = btnRow.createEl('button', {
       text: t('migrateStart', { count: this.items.filter((i) => i.selected).length }),
       cls: 'mod-cta'
@@ -4597,10 +5055,11 @@ class BatchMigrateWizardModal extends Modal {
       runBtn.disabled = true;
       backBtn.disabled = true;
       progressBox.style.display = 'block';
-
+      this.transferController = new AbortController();
+      try {
       await this.plugin.executeBatchMigrateSafely(
         selected,
-        this.options,
+        { ...this.options, signal: this.transferController.signal },
         (cur, total, name) => {
           const pct = Math.round((cur / Math.max(1, total)) * 100);
           progressBar.style.width = `${pct}%`;
@@ -4609,9 +5068,14 @@ class BatchMigrateWizardModal extends Modal {
         (summary) => {
           this.step = 3;
           this.summary = summary;
-          this.render();
+          if (!this.transferClosed) this.render();
         }
       );
+      } catch (err) {
+        new Notice(err.message);
+        runBtn.disabled = false;
+        backBtn.disabled = false;
+      } finally { this.transferController = null; }
     };
   }
 
@@ -4623,7 +5087,7 @@ class BatchMigrateWizardModal extends Modal {
 
     const isPartial = failures.length > 0 && count > 0;
     const isError = count === 0 && failures.length > 0;
-    const titleKey = isError
+    const titleKey = this.summary?.cancelled ? 'transferCancelled' : isError
       ? 'batchResultErrorTitle'
       : (isPartial ? 'batchResultWarningTitle' : 'batchResultTitle');
 
@@ -4750,11 +5214,22 @@ class BatchMigrateWizardModal extends Modal {
       }
     };
 
+    if (this.summary?.cancelled) btnRow.createSpan({ text: t('transferCancelled') });
+    if (this.summary?.retryItems?.length) {
+      const retry = btnRow.createEl('button', { text: t('transferRetry') });
+      retry.onclick = () => {
+        this.items = this.summary.retryItems.map((item) => ({ ...item, selected: true, refNotes: item.refNotes || [] }));
+        this.step = 2;
+        this.render();
+      };
+    }
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
     doneBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
+    this.transferClosed = true;
+    this.transferController?.abort();
     if (this.activeProgress) this.activeProgress.abort();
     this.contentEl.empty();
   }
@@ -5313,134 +5788,11 @@ class RemoteGalleryModal extends Modal {
   }
 
   filterItems() {
-    return this.items.filter((item) => {
-      if (this.selectedBucket !== 'all' && `${item.year}/${item.month}` !== this.selectedBucket) {
-        return false;
-      }
-      if (this.selectedType !== 'all') {
-        const grp = getFileTypeGroup(getExt(item.name || item.filename));
-        if (grp !== this.selectedType) return false;
-      }
-      if (this.searchQuery) {
-        const fn = (item.name || item.filename || '').toLowerCase();
-        if (!fn.includes(this.searchQuery)) return false;
-      }
-      return true;
-    });
+    return filterRemoteGallery(this);
   }
 
   renderGrid(containerEl, countLabel) {
-    containerEl.empty();
-    const filtered = this.filterItems();
-    const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
-
-    if (countLabel) {
-      countLabel.setText(this.t('galleryStats', { count: filtered.length, size: formatBytes(totalBytes) }));
-    }
-
-    if (filtered.length === 0) {
-      containerEl.createDiv({
-        cls: 'fm-section-box',
-        text: this.t('galleryEmpty'),
-        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--text-muted);' }
-      });
-      return;
-    }
-
-    for (const item of filtered) {
-      const card = containerEl.createDiv({ cls: 'fm-gallery-card' });
-      const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
-
-      const ext = getExt(item.name || item.filename);
-      const isImg = IMAGE_EXTS.has(ext);
-
-      if (isImg) {
-        const img = thumbWrap.createEl('img', {
-          cls: 'fm-gallery-thumb',
-          attr: {
-            loading: 'lazy',
-            src: item.pubUrl || item.rawUrl,
-            alt: item.name || item.filename
-          }
-        });
-        img.onerror = () => {
-          img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:32px;' } });
-        };
-      } else {
-        thumbWrap.createDiv({
-          text: ext.toUpperCase(),
-          attr: { style: 'font-size: 16px; font-weight: 700; color: var(--text-muted);' }
-        });
-      }
-
-      if (item.locked) {
-        const lockBadge = thumbWrap.createSpan({
-          cls: 'fm-gallery-lock-badge',
-          text: '🔒',
-          attr: { title: this.t('galleryBtnUnlock') }
-        });
-        lockBadge.onclick = async (e) => {
-          e.stopPropagation();
-          try {
-            await this.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
-            item.locked = false;
-            this.renderGrid(containerEl, countLabel);
-          } catch (err) {
-            new Notice(this.t('previewLockFailed', { err: err.message }));
-          }
-        };
-      }
-
-      thumbWrap.onclick = () => {
-        new ImageLightboxModal(this.app, this.plugin, {
-          source: 'remote',
-          name: item.name || item.filename,
-          displayPath: `${item.year}/${item.month}/${item.filename}`,
-          size: item.size,
-          rawObj: item
-        }, (action, target) => {
-          if (action === 'deleted') {
-            this.items = this.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
-          }
-          this.renderGrid(containerEl, countLabel);
-        }).open();
-      };
-
-      const info = card.createDiv({ cls: 'fm-gallery-info' });
-      info.createDiv({
-        cls: 'fm-gallery-name',
-        text: item.name || item.filename,
-        attr: { title: item.name || item.filename }
-      });
-
-      const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-      meta.createSpan({ text: `${item.year}/${item.month}` });
-      meta.createSpan({ text: formatBytes(item.size) });
-
-      const actions = card.createDiv({ cls: 'fm-gallery-actions' });
-
-      // Clean single action: 📝 插入笔记
-      const isWebpMode = this.insertMode === 'webp' && item.pubUrl;
-      const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
-      const fn = item.name || item.filename;
-
-      const insertBtn = actions.createEl('button', {
-        cls: 'fm-gallery-insert-btn mod-cta',
-        attr: { title: isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw') }
-      });
-      setIcon(insertBtn.createSpan(), 'file-input');
-      insertBtn.createSpan({ text: this.t('galleryBtnInsert') });
-      insertBtn.onmousedown = (e) => {
-        // Prevent clicking button from blurring or moving cursor in Markdown editor
-        e.preventDefault();
-      };
-      insertBtn.onclick = () => {
-        const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
-        const noticeMsg = isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw');
-        this.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
-      };
-    }
+    renderRemoteGallery(this, containerEl, countLabel);
   }
 
   onClose() {
@@ -5625,152 +5977,11 @@ class RemoteGalleryView extends ItemView {
   }
 
   filterItems() {
-    return this.items.filter((item) => {
-      if (this.selectedBucket !== 'all' && `${item.year}/${item.month}` !== this.selectedBucket) {
-        return false;
-      }
-      if (this.selectedType !== 'all') {
-        const grp = getFileTypeGroup(getExt(item.name || item.filename));
-        if (grp !== this.selectedType) return false;
-      }
-      if (this.searchQuery) {
-        const fn = (item.name || item.filename || '').toLowerCase();
-        if (!fn.includes(this.searchQuery)) return false;
-      }
-      return true;
-    });
+    return filterRemoteGallery(this);
   }
 
   renderGrid(containerEl, countLabel) {
-    containerEl.empty();
-    if (this.layoutMode === 'list') {
-      containerEl.addClass('is-list');
-    } else {
-      containerEl.removeClass('is-list');
-    }
-
-    const filtered = this.filterItems();
-    const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
-
-    if (countLabel) {
-      countLabel.empty();
-      countLabel.createSpan({ cls: 'fm-gallery-stats-count', text: this.t('galleryFileCount', { count: filtered.length }) });
-      countLabel.createSpan({ cls: 'fm-gallery-stats-size', text: this.t('galleryTotalSize', { size: formatBytes(totalBytes) }) });
-    }
-
-    if (filtered.length === 0) {
-      containerEl.createDiv({
-        cls: 'fm-section-box',
-        text: this.t('galleryEmpty'),
-        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;' }
-      });
-      return;
-    }
-
-    for (const item of filtered) {
-      const card = containerEl.createDiv({ cls: 'fm-gallery-card' + (this.layoutMode === 'list' ? ' is-list' : '') });
-      const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
-
-      const ext = getExt(item.name || item.filename);
-      const isImg = IMAGE_EXTS.has(ext);
-
-      if (isImg) {
-        const img = thumbWrap.createEl('img', {
-          cls: 'fm-gallery-thumb',
-          attr: {
-            loading: 'lazy',
-            src: item.pubUrl || item.rawUrl,
-            alt: item.name || item.filename
-          }
-        });
-        img.onerror = () => {
-          img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
-        };
-      } else {
-        thumbWrap.createDiv({
-          text: ext.toUpperCase(),
-          attr: { style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);' }
-        });
-      }
-
-      // Lock badge (click to unlock if locked and not protected)
-      if (item.locked) {
-        const lockBadge = thumbWrap.createSpan({
-          cls: 'fm-gallery-lock-badge',
-          text: '🔒',
-          attr: { title: this.t('galleryBtnUnlock') }
-        });
-        lockBadge.onclick = async (e) => {
-          e.stopPropagation();
-          try {
-            await this.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
-            item.locked = false;
-            this.renderGrid(containerEl, countLabel);
-          } catch (err) {
-            new Notice(this.t('previewLockFailed', { err: err.message }));
-          }
-        };
-      }
-
-      thumbWrap.onclick = () => {
-        new ImageLightboxModal(this.app, this.plugin, {
-          source: 'remote',
-          name: item.name || item.filename,
-          displayPath: `${item.year}/${item.month}/${item.filename}`,
-          size: item.size,
-          rawObj: item
-        }, (action, target) => {
-          if (action === 'deleted') {
-            this.items = this.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
-          }
-          this.renderGrid(containerEl, countLabel);
-        }).open();
-      };
-      thumbWrap.setAttribute('role', 'button');
-      thumbWrap.setAttribute('tabindex', '0');
-      thumbWrap.setAttribute('aria-label', this.t('galleryBtnPreview'));
-      thumbWrap.onkeydown = (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          thumbWrap.click();
-        }
-      };
-
-      const info = card.createDiv({ cls: 'fm-gallery-info' });
-      info.createDiv({
-        cls: 'fm-gallery-name',
-        text: item.name || item.filename,
-        attr: { title: item.name || item.filename }
-      });
-
-      const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-      meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}` });
-
-      const actions = card.createDiv({ cls: 'fm-gallery-actions' });
-
-      // Clean single action: 📝 插入笔记
-      const isWebpMode = this.insertMode === 'webp' && item.pubUrl;
-      const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
-      const fn = item.name || item.filename;
-
-      const insertBtn = actions.createEl('button', {
-        cls: 'fm-gallery-insert-btn mod-cta',
-        attr: { title: isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw') }
-      });
-      setIcon(insertBtn.createSpan(), 'file-input');
-      insertBtn.createSpan({ cls: 'fm-gallery-insert-label', text: this.t('galleryBtnInsert') });
-      insertBtn.setAttribute('aria-label', this.t('galleryBtnInsert'));
-      insertBtn.onmousedown = (e) => {
-        // Prevent clicking button from blurring or moving cursor in Markdown editor
-        e.preventDefault();
-      };
-      insertBtn.onclick = () => {
-        const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
-        const noticeMsg = isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw');
-        this.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
-      };
-    }
+    renderRemoteGallery(this, containerEl, countLabel);
   }
 
   async onClose() {
@@ -6227,6 +6438,12 @@ class FileMasterPlugin extends Plugin {
     this.sidebarRibbonEl = null;
     this.lastServerCompatStatus = null;
     this.lastActiveMarkdownView = null;
+    this.referenceRevision = 0;
+    for (const event of ['create', 'modify', 'delete', 'rename']) {
+      this.registerEvent(this.app.vault.on(event, (file) => {
+        if (this.isScannableDocFile(file)) this.referenceRevision++;
+      }));
+    }
 
     // Initialize configurable left sidebar ribbon button
     this.updateSidebarRibbonButton();
@@ -6317,6 +6534,12 @@ class FileMasterPlugin extends Plugin {
 
   registerPluginCommands() {
     this.pluginCommandDefs = [
+      {
+        id: 'resume-pending-upload',
+        nameKey: 'cmdResumeUpload',
+        requiresRemote: true,
+        callback: () => this.resumePendingMigration().catch((err) => new Notice(err.message))
+      },
       {
         id: 'open-control-center',
         nameKey: 'cmdOpenHub',
@@ -6433,6 +6656,7 @@ class FileMasterPlugin extends Plugin {
   }
 
   onunload() {
+    this.activeTransferController?.abort();
     // Note: Do NOT detach VIEW_TYPE_REMOTE_GALLERY here, allowing Obsidian workspace layout
     // to persist the docked leaf in the right sidebar across reloads/restarts like Calendar.
     if (this.sidebarRibbonEl) {
@@ -7021,12 +7245,13 @@ class FileMasterPlugin extends Plugin {
     options = {}
   ) {
     const opts = typeof options === 'boolean' ? { uploadToProtected: options } : (options || {});
+    throwIfTransferCancelled(opts.signal);
+    const fullSha256 = await computeSha256Hex(arrayBuffer);
     // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
     if (!opts.skipProbe) {
       try {
-        const fullSha256 = await computeSha256Hex(arrayBuffer);
         const probed = await this.probeRemoteSha256(fullSha256);
-        if (probed && probed.exists) {
+        if (probed && probed.exists && probed.sha256 === fullSha256) {
           probed.isInstant = true;
           return probed;
         }
@@ -7043,20 +7268,22 @@ class FileMasterPlugin extends Plugin {
       'Content-Type': `multipart/form-data; boundary=${boundary}`
     };
 
-    const response = await requestUrl({
+    const response = await requestWithBackoff(() => requestUrl({
       url,
       method: 'POST',
       headers,
       body: bodyBuffer,
       throw: false
-    });
+    }), { signal: opts.signal });
 
     if (response.status < 200 || response.status >= 300) {
       const errMsg = response.json?.error || `HTTP ${response.status}`;
       throw new Error(errMsg);
     }
 
-    return response.json;
+    const result = response.json;
+    if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(this.t('transferIntegrityFailed'));
+    return result;
   }
 
   async toggleRemoteFileLock(year, month, filename, locked = true) {
@@ -7290,15 +7517,18 @@ class FileMasterPlugin extends Plugin {
 
   async buildVaultReferenceSnapshot(scanCtx = {}) {
     const { signal, onProgress, freshRead = false } = scanCtx || {};
+    const revision = this.referenceRevision || 0;
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
+    const matchLocal = createLocalReferenceMatcher(allFiles, (file) => this.isExcalidrawFile(file));
+    const localReferences = new Map();
 
     const docContents = [];
     for (let i = 0; i < docFiles.length; i++) {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
       const doc = docFiles[i];
-      if (onProgress && i % 25 === 0) {
-        onProgress(i + 1, docFiles.length, doc.path);
+      if (i % 25 === 0) {
+        onProgress?.(i + 1, docFiles.length, doc.path);
         await new Promise((r) => setTimeout(r, 0));
       }
       const rawText = freshRead
@@ -7308,6 +7538,10 @@ class FileMasterPlugin extends Plugin {
       try {
         decodedText = decodeURIComponent(rawText);
       } catch { }
+      for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
+      if (decodedText !== rawText) {
+        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+      }
       docContents.push({
         file: doc,
         path: doc.path,
@@ -7316,7 +7550,6 @@ class FileMasterPlugin extends Plugin {
       });
     }
 
-    const resolvedTargetMap = new Map();
     if (!freshRead) {
       const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
       for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
@@ -7324,63 +7557,47 @@ class FileMasterPlugin extends Plugin {
           continue;
         }
         for (const targetPath of Object.keys(targets || {})) {
-          if (!resolvedTargetMap.has(targetPath)) {
-            resolvedTargetMap.set(targetPath, new Set());
-          }
-          resolvedTargetMap.get(targetPath).add(sourcePath);
+          addReference(localReferences, targetPath, sourcePath);
         }
       }
     }
 
-    return { docContents, resolvedTargetMap };
+    return { docContents, localReferences, revision, signal,
+      stable: revision === (this.referenceRevision || 0) };
+  }
+
+  isReferenceSnapshotCurrent(snapshot) {
+    return snapshot.stable && snapshot.revision === (this.referenceRevision || 0);
+  }
+
+  async indexRemoteReferences(items, snapshot) {
+    const patterns = [];
+    for (const item of items) {
+      const id = `${item.year}/${item.month}/${item.filename}`;
+      const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
+      for (const value of new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+        if (value) patterns.push({ value, id });
+      }
+    }
+    const match = createTextReferenceMatcher(patterns);
+    snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, new Set()]));
+    for (let i = 0; i < snapshot.docContents.length; i++) {
+      if (snapshot.signal?.aborted) throw new Error('SCAN_ABORTED');
+      if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+      const doc = snapshot.docContents[i];
+      for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
+      if (doc.decodedText !== doc.rawText) {
+        for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+      }
+    }
   }
 
   findReferencingNotesForLocalFile(tfile, snapshot) {
-    const refNotes = new Set();
-    const fromResolved = snapshot.resolvedTargetMap.get(tfile.path);
-    if (fromResolved) {
-      fromResolved.forEach((p) => refNotes.add(p));
-    }
-
-    const isNoteOrExcalidraw =
-      tfile.extension === 'md' || tfile.extension === 'excalidraw' || this.isExcalidrawFile(tfile);
-
-    for (const doc of snapshot.docContents) {
-      if (doc.path === tfile.path) continue;
-      if (doesDocumentReferenceLocalFile(doc.rawText, doc.decodedText, tfile, isNoteOrExcalidraw)) {
-        refNotes.add(doc.path);
-      }
-    }
-    return [...refNotes];
+    return [...(snapshot.localReferences.get(tfile.path) || [])];
   }
 
   findReferencingNotesForRemoteItem(remoteItem, snapshot) {
-    const refNotes = new Set();
-    const fname = remoteItem.filename;
-    const encodedFname = encodeURIComponent(fname);
-    const baseName = getBaseName(fname);
-    const webpName = `${baseName}.webp`;
-    const encodedWebpName = encodeURIComponent(webpName);
-    const relKey = `${remoteItem.year}/${remoteItem.month}/${fname}`;
-    const encodedRelKey = `${remoteItem.year}/${remoteItem.month}/${encodedFname}`;
-    const pubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${webpName}`;
-    const encodedPubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${encodedWebpName}`;
-
-    for (const doc of snapshot.docContents) {
-      if (
-        doc.rawText.includes(relKey) ||
-        doc.decodedText.includes(relKey) ||
-        doc.rawText.includes(encodedRelKey) ||
-        doc.rawText.includes(pubRelKey) ||
-        doc.decodedText.includes(pubRelKey) ||
-        doc.rawText.includes(encodedPubRelKey) ||
-        (remoteItem.rawUrl && doc.rawText.includes(remoteItem.rawUrl)) ||
-        (remoteItem.pubUrl && doc.rawText.includes(remoteItem.pubUrl))
-      ) {
-        refNotes.add(doc.path);
-      }
-    }
-    return [...refNotes];
+    return [...(snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || [])];
   }
 
   /**
@@ -7434,6 +7651,7 @@ class FileMasterPlugin extends Plugin {
       try {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
         const remoteFiles = await this.fetchRemoteFileList();
+        await this.indexRemoteReferences(remoteFiles, snapshot);
         for (let i = 0; i < remoteFiles.length; i++) {
           if (signal?.aborted) throw new Error('SCAN_ABORTED');
           const r = remoteFiles[i];
@@ -7529,6 +7747,10 @@ class FileMasterPlugin extends Plugin {
   }
 
   async cleanSelectedOrphans(selectedItems, onDone) {
+    return runAttachmentOperation(this, () => this.cleanOrphanItems(selectedItems, onDone));
+  }
+
+  async cleanOrphanItems(selectedItems, onDone) {
     const remoteToClean = selectedItems.filter((i) => i.source === 'remote');
     const localToClean = selectedItems.filter((i) => i.source === 'local');
 
@@ -7548,8 +7770,13 @@ class FileMasterPlugin extends Plugin {
 
     let deletedLocal = 0;
     let deletedRemote = 0;
+    let skipped = 0;
+    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
+    await this.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
 
     for (const item of localToClean) {
+      if (!this.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
+      if (this.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) { skipped++; continue; }
       try {
         await this.app.vault.trash(item.rawObj, true);
         deletedLocal++;
@@ -7560,6 +7787,8 @@ class FileMasterPlugin extends Plugin {
     }
 
     for (const item of remoteToClean) {
+      if (!this.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
+      if (this.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) { skipped++; continue; }
       try {
         await this.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
         deletedRemote++;
@@ -7573,7 +7802,7 @@ class FileMasterPlugin extends Plugin {
       files: selectedItems.map((i) => i.displayPath)
     });
     new Notice(this.t('noticeCleanupComplete', { local: deletedLocal, remote: deletedRemote }));
-    if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, total: deletedLocal + deletedRemote });
+    if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
   }
 
   /**
@@ -7639,6 +7868,7 @@ class FileMasterPlugin extends Plugin {
       try {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
         const remoteFiles = await this.fetchRemoteFileList();
+        await this.indexRemoteReferences(remoteFiles, snapshot);
         for (const r of remoteFiles) {
           if (!r.sha256) continue;
           const ext = getExt(r.filename);
@@ -8315,6 +8545,10 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeDuplicateMergeSafely(groups, onComplete) {
+    return runAttachmentOperation(this, () => this.mergeDuplicateGroups(groups, onComplete));
+  }
+
+  async mergeDuplicateGroups(groups, onComplete) {
     const tasks = [];
     const remoteItemsToDelete = [];
 
@@ -8364,22 +8598,25 @@ class FileMasterPlugin extends Plugin {
       }
     }
 
-    let modifiedDocsCount = 0;
-    for (const doc of allDocs) {
+    const pairs = tasks.flatMap(({ keepItem, removeItems }) => removeItems.map((removeItem) => ({ removeItem, keepItem })));
+    const rewritten = await rewriteAttachmentPairs(this, pairs,
+      allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path));
+    const modifiedDocsCount = rewritten.modified.size;
+    const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
+    await this.indexRemoteReferences(pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj), postSnapshot);
+    const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === 'local').map(({ removeItem, keepItem }) => ({
+      value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
+      id: removeItem.displayPath
+    }));
+    const matchLocalGate = createTextReferenceMatcher(localGatePatterns);
+    const remainingLocal = new Map();
+    for (const doc of postSnapshot.docContents) {
       if (localPathsBeingRemoved.has(doc.path)) continue;
-      const modified = await this.safeModifyFileContent(doc, (content) => {
-        let next = content;
-        for (const { keepItem, removeItems } of tasks) {
-          for (const rem of removeItems) {
-            next = this.rewriteContentLinks(next, rem, keepItem, doc.path);
-          }
-        }
-        return next;
-      });
-      if (modified) modifiedDocsCount++;
+      for (const path of matchLocalGate(doc.rawText)) addReference(remainingLocal, path, doc.path);
+      if (doc.decodedText !== doc.rawText) {
+        for (const path of matchLocalGate(doc.decodedText)) addReference(remainingLocal, path, doc.path);
+      }
     }
-
-    const postSnapshot = await this.buildVaultReferenceSnapshot();
     let deletedLocalCount = 0;
     let deletedRemoteCount = 0;
     let skippedBySafetyGate = 0;
@@ -8389,19 +8626,11 @@ class FileMasterPlugin extends Plugin {
         if (rem.locked) {
           continue;
         }
+        if (!this.isReferenceSnapshotCurrent(postSnapshot)) { skippedBySafetyGate++; continue; }
 
         let remainingRefs = [];
         if (rem.source === 'local') {
-          for (const doc of postSnapshot.docContents) {
-            if (doc.path === rem.displayPath || localPathsBeingRemoved.has(doc.path)) continue;
-            if (keepItem.name !== rem.name) {
-              if (doc.rawText.includes(rem.name) || doc.decodedText.includes(rem.name)) {
-                remainingRefs.push(doc.path);
-              }
-            } else if (doc.rawText.includes(rem.displayPath) || doc.decodedText.includes(rem.displayPath)) {
-              remainingRefs.push(doc.path);
-            }
-          }
+          remainingRefs = [...(remainingLocal.get(rem.displayPath) || [])];
         } else {
           remainingRefs = this.findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
         }
@@ -8417,8 +8646,13 @@ class FileMasterPlugin extends Plugin {
         }
 
         if (rem.source === 'local') {
-          await this.app.vault.trash(rem.rawObj, true).catch(() => { });
-          deletedLocalCount++;
+          try {
+            await this.app.vault.trash(rem.rawObj, true);
+            deletedLocalCount++;
+          } catch (err) {
+            skippedBySafetyGate++;
+            this.logOperation('WARN', 'DEDUP_MERGE', `Failed to trash ${rem.displayPath}`, { error: err.message });
+          }
         } else {
           try {
             await this.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
@@ -8468,61 +8702,41 @@ class FileMasterPlugin extends Plugin {
   }
 
   async migrateSingleLocalFileToRemote(tfile, { deleteLocal = true } = {}) {
-    try {
-      new Notice(this.t('noticeUploadingFile', { name: tfile.name }));
-      const buf = await this.app.vault.readBinary(tfile);
-      const res = await this.uploadBufferToServer(buf, tfile.name, 'application/octet-stream');
+    const result = await this.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
+    if (!result.count) throw new Error(result.failures[0]?.error || this.t('transferIntegrityFailed'));
+    new Notice(this.t('noticeMigrateSuccess', { name: tfile.name, protected: '', docs: result.docs }));
+    return result.processedItems[0].rawObj;
+  }
 
-      const removeItem = {
-        source: 'local',
-        name: tfile.name,
-        ext: tfile.extension.toLowerCase(),
-        displayPath: tfile.path,
-        rawObj: tfile
-      };
-      const keepItem = {
-        source: 'remote',
-        name: res.filename,
-        ext: getExt(res.filename),
-        displayPath: `${res.year}/${res.month}/${res.filename}`,
-        rawObj: res
-      };
-
-      const allDocs = this.app.vault
-        .getFiles()
-        .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
-
-      let modifiedCount = 0;
-      for (const doc of allDocs) {
-        const modified = await this.safeModifyFileContent(doc, (orig) => {
-          return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
-        });
-        if (modified) modifiedCount++;
-      }
-
-      if (deleteLocal) {
-        const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-        const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
-        if (remaining.length === 0) {
-          await this.app.vault.trash(tfile, true).catch(() => { });
-        }
-      }
-
-      new Notice(
-        this.t('noticeMigrateSuccess', {
-          name: tfile.name,
-          protected: '',
-          docs: modifiedCount
-        })
-      );
-      return res;
-    } catch (err) {
-      new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
-      throw err;
-    }
+  async resumePendingMigration() {
+    if (!this.isRemoteServerReady()) { new Notice(this.t('noticeRemoteNotReady')); return; }
+    const adapter = this.app.vault.adapter;
+    const path = migrationCheckpointPath(this);
+    if (!await adapter.exists(path)) { new Notice(this.t('transferNothingPending')); return; }
+    const checkpoint = JSON.parse(await adapter.read(path));
+    if (checkpoint.serverUrl !== this.getCleanServerUrl()) throw new Error(this.t('transferServerChanged'));
+    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
+    const items = checkpoint.items.map((entry) => {
+      const file = this.app.vault.getAbstractFileByPath(entry.path);
+      if (!file || Array.isArray(file.children)) return null;
+      return { name: file.name, displayPath: file.path, size: file.stat?.size || 0,
+        rawObj: file, locked: Boolean(entry.locked), selected: true,
+        refNotes: this.findReferencingNotesForLocalFile(file, snapshot) };
+    }).filter(Boolean);
+    if (!items.length) { new Notice(this.t('transferNothingPending')); return; }
+    const modal = new BatchMigrateWizardModal(this.app, this);
+    modal.options = { ...modal.options, ...checkpoint.options };
+    modal.items = items;
+    modal.step = 2;
+    modal.open();
   }
 
   async downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
+    const task = (signal) => this.downloadRemoteItemToLocal(remoteMatch, { ...options, signal });
+    return options.deferRewrite ? task(options.signal) : runAttachmentOperation(this, task, options.signal);
+  }
+
+  async downloadRemoteItemToLocal(remoteMatch, options = {}) {
     const silent = Boolean(options?.silent);
     try {
       const { year, month, filename } = remoteMatch;
@@ -8564,6 +8778,9 @@ class FileMasterPlugin extends Plugin {
       let action = 'downloaded';
 
       if (hasConflict && conflictStrategy === 'reuse') {
+        if (!remoteObj?.sha256 || await computeSha256Hex(await this.app.vault.readBinary(existingFile)) !== remoteObj.sha256) {
+          throw new Error(this.t('transferIntegrityFailed'));
+        }
         targetLocalFile = existingFile;
         action = 'reused';
       } else {
@@ -8571,16 +8788,20 @@ class FileMasterPlugin extends Plugin {
           ? `${remoteObj.rawUrl}?download=1`
           : `${remoteMatch.matchedUrl}?download=1`;
 
-        const response = await requestUrl({
+        const response = await requestWithBackoff(() => requestUrl({
           url: downloadUrl,
           method: 'GET',
           headers: { Authorization: `Bearer ${this.settings.apiToken}` },
           throw: false
-        });
+        }), { signal: options.signal });
 
         if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
           throw new Error(`Failed to download remote file (HTTP ${response.status})`);
         }
+        if (!remoteObj?.sha256 || await computeSha256Hex(response.arrayBuffer) !== remoteObj.sha256) {
+          throw new Error(this.t('transferIntegrityFailed'));
+        }
+        throwIfTransferCancelled(options.signal);
 
         if (hasConflict && conflictStrategy === 'overwrite') {
           await this.app.vault.modifyBinary(existingFile, response.arrayBuffer);
@@ -8615,25 +8836,11 @@ class FileMasterPlugin extends Plugin {
       };
 
       const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
-      const allDocs = (syncOtherNotes || !activeFile)
-        ? this.app.vault
-            .getFiles()
-            .filter((f) => this.isScannableDocFile(f))
-        : [activeFile];
-
-      let modifiedCount = 0;
-      const syncedOtherNotePaths = [];
-      for (const doc of allDocs) {
-        const modified = await this.safeModifyFileContent(doc, (orig) => {
-          return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
-        });
-        if (modified) {
-          modifiedCount++;
-          if (activeFile && doc.path !== activeFile.path) {
-            syncedOtherNotePaths.push(doc.path);
-          }
-        }
-      }
+      const pair = { removeItem, keepItem };
+      const rewritten = options.deferRewrite ? null : await rewriteAttachmentPairs(this, [pair],
+        !syncOtherNotes && activeFile ? [activeFile.path] : null);
+      const modifiedCount = rewritten?.modified.size || 0;
+      const syncedOtherNotePaths = [...(rewritten?.modified || [])].filter((path) => path !== activeFile?.path);
 
       if (!silent) {
         new Notice(
@@ -8654,6 +8861,7 @@ class FileMasterPlugin extends Plugin {
           remotePath: `${year}/${month}/${filename}`,
           size: targetLocalFile.stat?.size || remoteObj?.size || 0,
           action,
+          pair,
           modifiedDocs: modifiedCount,
           syncedOtherNotes: syncedOtherNotePaths.length,
           syncedOtherNotePaths
@@ -8707,6 +8915,8 @@ class FileMasterPlugin extends Plugin {
     } catch { }
 
     const snapshot = await this.buildVaultReferenceSnapshot();
+    await this.indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
+    const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
 
     // Pre-index local attachment files by size for fast SHA-256 content duplicate checks
     const localFilesBySize = new Map();
@@ -8735,9 +8945,7 @@ class FileMasterPlugin extends Plugin {
     const out = [];
     for (const match of matchesMap.values()) {
       const { year, month, filename, matchedUrl, routePrefix } = match;
-      const remoteObj = remoteList.find(
-        (r) => r.year === year && r.month === month && r.filename === filename
-      );
+      const remoteObj = remoteByPath.get(`${year}/${month}/${filename}`);
       const availablePath = await this.app.fileManager.getAvailablePathForAttachment(
         filename,
         activeFile.path
@@ -8824,71 +9032,38 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeDownloadNoteDirect(activeFile, onProgress = null, options = {}) {
-    let items = Array.isArray(options?.items) ? options.items : null;
-    if (!items) {
-      items = await this.scanActiveNoteRemoteAttachments(activeFile);
-    }
-
-    if (items.length === 0) {
-      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
-    }
-
-    let count = 0;
-    const processedItems = [];
-    const failures = [];
-    const conflictStrategy = options?.conflictStrategy || 'rename';
-    const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (onProgress) onProgress(i + 1, items.length, item.filename || item.name);
-      try {
-        const detail = await this.downloadSingleRemoteItemToLocal(item, {
-          activeFile,
-          conflictStrategy,
-          syncOtherNotes,
-          silent: true,
-          returnDetails: true
-        });
-        count++;
-        processedItems.push({
-          source: 'local',
-          name: detail.name,
-          ext: getExt(detail.name),
-          displayPath: detail.displayPath,
-          remotePath: detail.remotePath,
-          size: detail.size,
-          action: detail.action,
-          syncedOtherNotes: detail.syncedOtherNotes || 0,
-          syncedOtherNotePaths: detail.syncedOtherNotePaths || [],
-          rawObj: detail.file
-        });
-      } catch (err) {
-        this.logOperation('ERROR', 'NOTE_DOWNLOAD', `Failed to download ${item.filename || item.name} in ${activeFile.path}: ${err.message}`, {
-          note: activeFile.path,
-          remotePath: item.displayPath
-        });
-        failures.push({
-          name: item.filename || item.name,
-          size: item.size || 0,
-          error: err.message || String(err)
-        });
+    return runAttachmentOperation(this, async (signal) => {
+      const items = Array.isArray(options.items) ? options.items : await this.scanActiveNoteRemoteAttachments(activeFile);
+      const processedItems = [], failures = [], retryItems = [], pairs = [];
+      for (let i = 0; i < items.length; i++) {
+        if (signal.aborted) { retryItems.push(...items.slice(i)); break; }
+        const item = items[i];
+        onProgress?.(i + 1, items.length, item.filename || item.name);
+        try {
+          const detail = await this.downloadSingleRemoteItemToLocal(item, {
+            ...options, signal, activeFile, silent: true, returnDetails: true, deferRewrite: true
+          });
+          pairs.push(detail.pair);
+          processedItems.push({ source: 'local', name: detail.name, ext: getExt(detail.name),
+            displayPath: detail.displayPath, remotePath: detail.remotePath, size: detail.size,
+            action: detail.action, rawObj: detail.file });
+        } catch (err) {
+          retryItems.push(item);
+          if (err.name === 'AbortError') { retryItems.push(...items.slice(i + 1)); break; }
+          failures.push({ name: item.filename || item.name, size: item.size || 0, error: err.message || String(err) });
+          this.logOperation('ERROR', 'NOTE_DOWNLOAD', `Failed to download ${item.filename || item.name}`, { error: err.message });
+        }
       }
-    }
-    if (count > 0) {
-      this.logOperation('INFO', 'NOTE_DOWNLOAD', `Processed ${count} server attachment(s) in ${activeFile.path}`, {
-        note: activeFile.path,
-        conflictStrategy,
-        syncOtherNotes,
-        items: processedItems.map((p) => ({
-          name: p.name,
-          localPath: p.displayPath,
-          action: p.action,
-          syncedOtherNotes: p.syncedOtherNotePaths
-        }))
+      const rewritten = pairs.length ? await rewriteAttachmentPairs(this, pairs,
+        options.syncOtherNotes === false ? [activeFile.path] : null) : null;
+      processedItems.forEach((item, i) => {
+        item.syncedOtherNotePaths = (rewritten?.changedPaths.get(pairs[i]) || []).filter((path) => path !== activeFile.path);
+        item.syncedOtherNotes = item.syncedOtherNotePaths.length;
       });
-    }
-    return options?.returnDetails ? { count, processedItems, failures } : count;
+      const summary = { count: processedItems.length, processedItems, failures, retryItems,
+        cancelled: Boolean(signal.aborted) };
+      return options.returnDetails ? summary : summary.count;
+    }, options.signal);
   }
 
   async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
@@ -8958,149 +9133,10 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeBatchMigrateSafely(selectedItems, options, onProgress, onDone) {
-    const uploadedPairs = [];
-    const failures = [];
-    const total = selectedItems.length;
-
-    for (let i = 0; i < total; i++) {
-      const item = selectedItems[i];
-      const tfile = item.rawObj;
-      if (onProgress) onProgress(i + 1, total, tfile.name);
-
-      try {
-        const buf = await this.app.vault.readBinary(tfile);
-        const res = await this.uploadBufferToServer(
-          buf,
-          tfile.name,
-          'application/octet-stream',
-          Boolean(options.uploadToProtected)
-        );
-
-        uploadedPairs.push({
-          tfile,
-          name: tfile.name,
-          displayPath: tfile.path,
-          size: tfile.stat?.size || 0,
-          rawUrl: res.rawUrl,
-          pubUrl: res.pubUrl,
-          refNotes: item.refNotes || [],
-          removeItem: {
-            source: 'local',
-            name: tfile.name,
-            ext: tfile.extension.toLowerCase(),
-            displayPath: tfile.path,
-            rawObj: tfile
-          },
-          keepItem: {
-            source: 'remote',
-            name: res.filename,
-            ext: getExt(res.filename),
-            displayPath: `${res.year}/${res.month}/${res.filename}`,
-            rawObj: res
-          }
-        });
-      } catch (err) {
-        failures.push({
-          name: tfile.name,
-          path: tfile.path,
-          size: tfile.stat?.size || 0,
-          error: err.message || String(err)
-        });
-        new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
-        this.logOperation('ERROR', 'BATCH_UPLOAD', `Batch upload failed for ${tfile.path}: ${err.message}`, {
-          file: tfile.path,
-          size: tfile.stat?.size || 0
-        });
-      }
-    }
-
-    if (uploadedPairs.length === 0) {
-      if (onDone) {
-        onDone({
-          count: 0,
-          docs: 0,
-          trashed: 0,
-          processedItems: [],
-          failures,
-          totalBytes: 0
-        });
-      }
-      return;
-    }
-
-    const allDocs = this.app.vault
-      .getFiles()
-      .filter((f) => this.isScannableDocFile(f));
-
-    let modifiedDocsCount = 0;
-    const modifiedNotePaths = new Set();
-    for (const doc of allDocs) {
-      const modified = await this.safeModifyFileContent(doc, (content) => {
-        let next = content;
-        for (const { removeItem, keepItem } of uploadedPairs) {
-          next = this.rewriteContentLinks(next, removeItem, keepItem, doc.path);
-        }
-        return next;
-      });
-      if (modified) {
-        modifiedDocsCount++;
-        modifiedNotePaths.add(doc.path);
-      }
-    }
-
-    let trashedCount = 0;
-    const trashedFiles = [];
-    const trashFailures = [];
-    if (options.deleteLocalAfter) {
-      const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-      for (const { tfile } of uploadedPairs) {
-        const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
-        if (remaining.length === 0) {
-          try {
-            await this.app.vault.trash(tfile, true);
-            trashedCount++;
-            trashedFiles.push(tfile.path);
-          } catch (trashErr) {
-            const errStr = trashErr.message || String(trashErr);
-            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
-              error: errStr
-            });
-            trashFailures.push({ path: tfile.path, error: errStr });
-          }
-        }
-      }
-    }
-
-    this.logOperation('INFO', 'BATCH_UPLOAD', `Batch uploaded ${uploadedPairs.length} file(s), updated ${modifiedDocsCount} note(s), trashed ${trashedCount} local file(s)`, {
-      uploadedCount: uploadedPairs.length,
-      modifiedDocsCount,
-      trashedCount,
-      failuresCount: failures.length
-    });
-
-    if (onDone) {
-      onDone({
-        count: uploadedPairs.length,
-        docs: modifiedDocsCount,
-        modifiedNotePaths: Array.from(modifiedNotePaths),
-        trashed: trashedCount,
-        trashedFiles,
-        processedItems: uploadedPairs.map((p) => ({
-          name: p.name,
-          displayPath: p.displayPath,
-          size: p.size,
-          rawUrl: p.rawUrl,
-          pubUrl: p.pubUrl,
-          ext: p.keepItem.ext,
-          source: 'remote',
-          rawObj: p.keepItem.rawObj,
-          refNotesCount: Array.isArray(p.refNotes) ? p.refNotes.length : 0
-        })),
-        failures,
-        trashFailures,
-        totalBytes: uploadedPairs.reduce((s, p) => s + (p.size || 0), 0)
-      });
-    }
+    const summary = await runAttachmentOperation(this,
+      (signal) => migrateLocalAttachments(this, selectedItems, { ...options, signal }, onProgress), options?.signal);
+    onDone?.(summary);
+    return summary;
   }
 
   async scanActiveNoteLocalAttachments(activeFile) {
@@ -9150,167 +9186,15 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeMigrateNoteDirect(activeFile, onProgress = null, options = {}) {
-    let content = await this.app.vault.read(activeFile);
-    let items = Array.isArray(options?.items) ? options.items : null;
-    if (!items) {
-      items = await this.scanActiveNoteLocalAttachments(activeFile);
-    }
-
-    if (items.length === 0) {
-      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
-    }
-
-    let migratedCount = 0;
-    const uploadedPairs = [];
-    const processedItems = [];
-    const failures = [];
-    for (let i = 0; i < items.length; i++) {
-      const entry = items[i];
-      const tfile = entry.tfile || entry.rawObj || entry;
-      const wantLock = Boolean(entry.locked);
-      if (onProgress) onProgress(i + 1, items.length, tfile.name);
-      try {
-        const buf = await this.app.vault.readBinary(tfile);
-        const res = await this.uploadBufferToServer(buf, tfile.name);
-
-        if (wantLock && !res.locked && res.year && res.month && res.filename) {
-          try {
-            await this.toggleRemoteFileLock(res.year, res.month, res.filename, true);
-            res.locked = true;
-          } catch (lockErr) {
-            console.warn(`Failed to lock ${res.filename}:`, lockErr);
-          }
-        }
-
-        const removeItem = {
-          source: 'local',
-          name: tfile.name,
-          ext: tfile.extension.toLowerCase(),
-          displayPath: tfile.path,
-          rawObj: tfile
-        };
-        const keepItem = {
-          source: 'remote',
-          name: res.filename,
-          ext: getExt(res.filename),
-          displayPath: `${res.year}/${res.month}/${res.filename}`,
-          rawObj: res
-        };
-
-        content = this.rewriteContentLinks(content, removeItem, keepItem, activeFile.path);
-        migratedCount++;
-        const otherRefNotes = Array.isArray(entry.otherRefNotes) ? entry.otherRefNotes : [];
-        uploadedPairs.push({ tfile, removeItem, keepItem, otherRefNotes });
-        processedItems.push({
-          source: 'remote',
-          name: res.filename,
-          ext: getExt(res.filename),
-          displayPath: `${res.year}/${res.month}/${res.filename}`,
-          size: tfile.stat?.size || res.size || 0,
-          locked: Boolean(res.locked || wantLock),
-          trashedLocal: false,
-          keptForOtherRefs: 0,
-          keptForOtherRefPaths: [],
-          syncedOtherNotes: 0,
-          syncedOtherNotePaths: [],
-          action: 'uploaded',
-          rawObj: res,
-          localPath: tfile.path
-        });
-      } catch (err) {
-        console.error(`Failed to migrate ${tfile.name}:`, err);
-        this.logOperation('ERROR', 'NOTE_UPLOAD', `Failed to upload ${tfile.name} in ${activeFile.path}: ${err.message}`, {
-          note: activeFile.path,
-          file: tfile.path,
-          size: tfile.stat?.size || 0
-        });
-        failures.push({
-          name: tfile.name,
-          size: tfile.stat?.size || 0,
-          error: err.message || String(err)
-        });
-      }
-    }
-
-    if (migratedCount > 0) {
-      await this.safeModifyFileContent(activeFile, () => content);
-      const shouldDeleteLocal = options?.deleteLocalAfter !== undefined
-        ? Boolean(options.deleteLocalAfter)
-        : Boolean(this.settings.deleteLocalAfterMigrate);
-      const syncOtherNotes = options?.syncOtherNotes !== undefined
-        ? Boolean(options.syncOtherNotes)
-        : true;
-
-      if (syncOtherNotes) {
-        const otherDocs = this.app.vault
-          .getFiles()
-          .filter((f) => f.path !== activeFile.path && this.isScannableDocFile(f));
-        for (let i = 0; i < uploadedPairs.length; i++) {
-          const { removeItem, keepItem } = uploadedPairs[i];
-          const syncedPaths = [];
-          for (const doc of otherDocs) {
-            const modified = await this.safeModifyFileContent(doc, (orig) => {
-              return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
-            });
-            if (modified) syncedPaths.push(doc.path);
-          }
-          if (processedItems[i]) {
-            processedItems[i].syncedOtherNotes = syncedPaths.length;
-            processedItems[i].syncedOtherNotePaths = syncedPaths;
-          }
-        }
-      }
-
-      if (shouldDeleteLocal) {
-        const postSnapshot = !syncOtherNotes
-          ? await this.buildVaultReferenceSnapshot({ freshRead: true })
-          : null;
-        for (let i = 0; i < uploadedPairs.length; i++) {
-          const { tfile } = uploadedPairs[i];
-          if (!syncOtherNotes && postSnapshot) {
-            const remainingRefs = this.findReferencingNotesForLocalFile(tfile, postSnapshot).filter(
-              (p) => p !== activeFile.path
-            );
-            if (remainingRefs.length > 0) {
-              if (processedItems[i]) {
-                processedItems[i].keptForOtherRefs = remainingRefs.length;
-                processedItems[i].keptForOtherRefPaths = remainingRefs;
-              }
-              continue;
-            }
-          }
-          try {
-            await this.app.vault.trash(tfile, true);
-            if (processedItems[i]) {
-              processedItems[i].trashedLocal = true;
-            }
-          } catch (trashErr) {
-            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
-              error: trashErr.message || String(trashErr)
-            });
-            if (processedItems[i]) {
-              processedItems[i].trashedLocal = false;
-              processedItems[i].trashError = trashErr.message || String(trashErr);
-            }
-          }
-        }
-      }
-
-      this.logOperation('INFO', 'NOTE_UPLOAD', `Uploaded ${migratedCount} attachment(s) from ${activeFile.path}`, {
-        note: activeFile.path,
-        deleteLocalAfter: shouldDeleteLocal,
-        syncOtherNotes,
-        items: processedItems.map((p) => ({
-          name: p.name,
-          remotePath: p.displayPath,
-          locked: p.locked,
-          trashedLocal: p.trashedLocal,
-          keptForOtherRefs: p.keptForOtherRefPaths,
-          syncedOtherNotes: p.syncedOtherNotePaths
-        }))
-      });
-    }
-    return options?.returnDetails ? { count: migratedCount, processedItems, failures } : migratedCount;
+    return runAttachmentOperation(this, async (signal) => {
+      const items = Array.isArray(options.items) ? options.items : await this.scanActiveNoteLocalAttachments(activeFile);
+      const summary = await migrateLocalAttachments(this, items, {
+        ...options, signal, activeFile,
+        deleteLocalAfter: options.deleteLocalAfter ?? this.settings.deleteLocalAfterMigrate,
+        documentPaths: options.syncOtherNotes === false ? [activeFile.path] : null
+      }, onProgress);
+      return options.returnDetails ? summary : summary.count;
+    }, options.signal);
   }
 
   async migrateActiveNoteAttachments(targetFile = null, options = {}) {

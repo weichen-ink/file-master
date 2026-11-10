@@ -11,11 +11,10 @@ const getBaseNameMatch = pluginCode.match(/function getBaseName\([\s\S]*?\n\}/);
 const imgExtsMatch = pluginCode.match(/const IMAGE_EXTS = new Set\([\s\S]*?\);/);
 const escRegMatch = pluginCode.match(/function escapeRegExp\([\s\S]*?\n\}/);
 const isExcalContentMatch = pluginCode.match(/function isExcalidrawContent\([\s\S]*?\n\}/);
-const doesRefMatch = pluginCode.match(/function doesDocumentReferenceLocalFile\([\s\S]*?\n\}/);
 const isExcalFileMatch = pluginCode.match(/function isExcalidrawFile\([\s\S]*?\n\}/);
 const isDocFileMatch = pluginCode.match(/function isDocFile\([\s\S]*?\n\}/);
 const rewriteExcalMatch = pluginCode.match(/function rewriteExcalidrawEmbeddedFiles\([\s\S]*?\n\}/);
-const rewriteMatch = pluginCode.match(/rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/);
+const rewriteMatch = pluginCode.match(/^  rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/m);
 
 const isAttachmentExtMatch = pluginCode.match(/function isAttachmentExt\([\s\S]*?\n\}/);
 const getFileTypeGroupMatch = pluginCode.match(/function getFileTypeGroup\([\s\S]*?\n\}/);
@@ -29,7 +28,6 @@ assert.ok(isAttachmentExtMatch, 'isAttachmentExt must be present');
 assert.ok(getFileTypeGroupMatch, 'getFileTypeGroup must be present');
 assert.ok(obsExtsMatch, 'OBSIDIAN_NOTE_EXTS must be present');
 assert.ok(isExcalContentMatch, 'isExcalidrawContent must be present');
-assert.ok(doesRefMatch, 'doesDocumentReferenceLocalFile must be present');
 assert.ok(isExcalFileMatch, 'isExcalidrawFile must be present');
 assert.ok(isDocFileMatch, 'isDocFile must be present');
 assert.ok(rewriteExcalMatch, 'rewriteExcalidrawEmbeddedFiles must be present');
@@ -44,7 +42,6 @@ const evalEnv = new Function(
    ${isAttachmentExtMatch[0]}
    ${getFileTypeGroupMatch[0]}
    ${isExcalContentMatch[0]}
-   ${doesRefMatch[0]}
    ${isExcalFileMatch[0]}
    ${isDocFileMatch[0]}
    ${rewriteExcalMatch[0]}
@@ -53,7 +50,6 @@ const evalEnv = new Function(
      isAttachmentExt,
      getFileTypeGroup,
      isExcalidrawContent,
-     doesDocumentReferenceLocalFile,
      isExcalidrawFile,
      isDocFile,
      rewriteExcalidrawEmbeddedFiles,
@@ -65,7 +61,6 @@ const {
   isAttachmentExt,
   getFileTypeGroup,
   isExcalidrawContent,
-  doesDocumentReferenceLocalFile,
   isExcalidrawFile,
   isDocFile,
   rewriteExcalidrawEmbeddedFiles,
@@ -109,13 +104,15 @@ excalidraw: true
   assert.equal(isExcalidrawContent(null), false);
 });
 
-test('doesDocumentReferenceLocalFile: avoids substring false positives for short filenames like 1.png', () => {
-  const shortFile = { name: '1.png', basename: '1', path: 'assets/1.png', extension: 'png' };
-  assert.equal(doesDocumentReferenceLocalFile('Here is ![[21.png]] and ![](assets/my_1.png)', null, shortFile), false);
-  assert.equal(doesDocumentReferenceLocalFile('Here is ![[1.png]]', null, shortFile), true);
-  assert.equal(doesDocumentReferenceLocalFile('Here is ![[assets/1.png|300]]', null, shortFile), true);
-  assert.equal(doesDocumentReferenceLocalFile('Here is ![](assets/1.png)', null, shortFile), true);
-  assert.equal(doesDocumentReferenceLocalFile('{"type":"file","file":"assets/1.png"}', null, shortFile), true);
+test('Reference index avoids substring false positives for short filenames like 1.png', () => {
+  const { createLocalReferenceMatcher, stripRemoteReferenceText } = require('./helpers/load-plugin').loadPlugin();
+  const file = { name: '1.png', basename: '1', path: 'assets/1.png', extension: 'png' };
+  const match = createLocalReferenceMatcher([file], () => false);
+  for (const text of ['Here is ![[1.png]]', 'Here is ![[assets/1.png|300]]',
+    'Here is ![](assets/1.png)', '{"type":"file","file":"assets/1.png"}']) {
+    assert.ok(match(stripRemoteReferenceText(text)).has(file.path));
+  }
+  assert.equal(match('Here is ![[21.png]] and ![](assets/my_1.png)').size, 0);
 });
 
 test('isExcalidrawFile: identifies Excalidraw files regardless of extension renaming', () => {

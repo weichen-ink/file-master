@@ -1,0 +1,162 @@
+const REMOTE_GALLERY_PAGE_SIZE = 60;
+
+function filterRemoteGallery(view) {
+  return view.items.filter((item) => {
+    if (view.selectedBucket !== 'all' && `${item.year}/${item.month}` !== view.selectedBucket) return false;
+    if (view.selectedType !== 'all' && getFileTypeGroup(getExt(item.name || item.filename)) !== view.selectedType) return false;
+    return !view.searchQuery || (item.name || item.filename || '').toLowerCase().includes(view.searchQuery);
+  });
+}
+
+function getRemoteGalleryPage(view, filtered) {
+  const key = `${view.selectedBucket}:${view.selectedType}:${view.searchQuery}`;
+  if (key !== view.galleryFilterKey) { view.galleryPage = 0; view.galleryFilterKey = key; }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / REMOTE_GALLERY_PAGE_SIZE));
+  view.galleryPage = Math.min(Math.max(0, view.galleryPage || 0), totalPages - 1);
+  return { current: view.galleryPage, totalPages,
+    items: filtered.slice(view.galleryPage * REMOTE_GALLERY_PAGE_SIZE, (view.galleryPage + 1) * REMOTE_GALLERY_PAGE_SIZE) };
+}
+
+function renderRemoteGallery(view, containerEl, countLabel) {
+  containerEl.empty();
+  if (view.layoutMode === 'list') {
+    containerEl.addClass('is-list');
+  } else {
+    containerEl.removeClass('is-list');
+  }
+
+  const filtered = view.filterItems();
+  const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
+
+  if (countLabel) {
+    countLabel.empty();
+    countLabel.createSpan({ cls: 'fm-gallery-stats-count', text: view.t('galleryFileCount', { count: filtered.length }) });
+    countLabel.createSpan({ cls: 'fm-gallery-stats-size', text: view.t('galleryTotalSize', { size: formatBytes(totalBytes) }) });
+  }
+
+  if (filtered.length === 0) {
+    containerEl.createDiv({
+      cls: 'fm-section-box',
+      text: view.t('galleryEmpty'),
+      attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;' }
+    });
+    return;
+  }
+
+  const page = getRemoteGalleryPage(view, filtered);
+  for (const item of page.items) {
+    const card = containerEl.createDiv({ cls: 'fm-gallery-card' + (view.layoutMode === 'list' ? ' is-list' : '') });
+    const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
+
+    const ext = getExt(item.name || item.filename);
+    const isImg = IMAGE_EXTS.has(ext);
+
+    if (isImg) {
+      const img = thumbWrap.createEl('img', {
+        cls: 'fm-gallery-thumb',
+        attr: {
+          loading: 'lazy',
+          src: item.thumbnailUrl || item.pubUrl || item.rawUrl,
+          alt: item.name || item.filename
+        }
+      });
+      img.onerror = () => {
+        img.style.display = 'none';
+        thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
+      };
+    } else {
+      thumbWrap.createDiv({
+        text: ext.toUpperCase(),
+        attr: { style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);' }
+      });
+    }
+
+    // Lock badge (click to unlock if locked and not protected)
+    if (item.locked) {
+      const lockBadge = thumbWrap.createSpan({
+        cls: 'fm-gallery-lock-badge',
+        text: '🔒',
+        attr: { title: view.t('galleryBtnUnlock') }
+      });
+      lockBadge.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          await view.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
+          item.locked = false;
+          view.renderGrid(containerEl, countLabel);
+        } catch (err) {
+          new Notice(view.t('previewLockFailed', { err: err.message }));
+        }
+      };
+    }
+
+    thumbWrap.onclick = () => {
+      new ImageLightboxModal(view.app, view.plugin, {
+        source: 'remote',
+        name: item.name || item.filename,
+        displayPath: `${item.year}/${item.month}/${item.filename}`,
+        size: item.size,
+        rawObj: item
+      }, (action, target) => {
+        if (action === 'deleted') {
+          view.items = view.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
+        }
+        view.renderGrid(containerEl, countLabel);
+      }).open();
+    };
+    thumbWrap.setAttribute('role', 'button');
+    thumbWrap.setAttribute('tabindex', '0');
+    thumbWrap.setAttribute('aria-label', view.t('galleryBtnPreview'));
+    thumbWrap.onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        thumbWrap.click();
+      }
+    };
+
+    const info = card.createDiv({ cls: 'fm-gallery-info' });
+    info.createDiv({
+      cls: 'fm-gallery-name',
+      text: item.name || item.filename,
+      attr: { title: item.name || item.filename }
+    });
+
+    const meta = info.createDiv({ cls: 'fm-gallery-meta' });
+    meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}` });
+
+    const actions = card.createDiv({ cls: 'fm-gallery-actions' });
+
+    // Clean single action: 📝 插入笔记
+    const isWebpMode = view.insertMode === 'webp' && item.pubUrl;
+    const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
+    const fn = item.name || item.filename;
+
+    const insertBtn = actions.createEl('button', {
+      cls: 'fm-gallery-insert-btn mod-cta',
+      attr: { title: isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw') }
+    });
+    setIcon(insertBtn.createSpan(), 'file-input');
+    insertBtn.createSpan({ cls: 'fm-gallery-insert-label', text: view.t('galleryBtnInsert') });
+    insertBtn.setAttribute('aria-label', view.t('galleryBtnInsert'));
+    insertBtn.onmousedown = (e) => {
+      // Prevent clicking button from blurring or moving cursor in Markdown editor
+      e.preventDefault();
+    };
+    insertBtn.onclick = () => {
+      const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
+      const noticeMsg = isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw');
+      view.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
+    };
+  }
+
+  if (page.totalPages > 1) {
+    const pager = containerEl.createDiv({ cls: 'fm-gallery-pagination' });
+    const previous = pager.createEl('button', { text: view.t('pagePrevious') });
+    previous.disabled = page.current === 0;
+    previous.onclick = () => { view.galleryPage--; view.renderGrid(containerEl, countLabel); };
+    pager.createSpan({ text: view.t('pageCount', { current: page.current + 1, total: page.totalPages }) });
+    const next = pager.createEl('button', { text: view.t('pageNext') });
+    next.disabled = page.current + 1 === page.totalPages;
+    next.onclick = () => { view.galleryPage++; view.renderGrid(containerEl, countLabel); };
+  }
+}

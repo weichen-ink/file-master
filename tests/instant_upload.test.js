@@ -41,67 +41,27 @@ test('computeSha256Hex & computeSha256Pure: exact SHA-256 vectors with and witho
   }
 });
 
-// Simulate FileMasterPlugin instance
-class MockPlugin {
-  constructor() {
-    this.settings = {
-      serverUrl: 'http://localhost:3000',
-      apiToken: 'test-token'
-    };
-    this.probeMock = null;
-    this.uploadMock = null;
-  }
-
-  getCleanServerUrl() {
-    return this.settings.serverUrl;
-  }
-
-  async probeRemoteSha256(sha256) {
-    if (this.probeMock) {
-      return this.probeMock(sha256);
-    }
-    return null;
-  }
-
-  async uploadBufferToServer(
-    arrayBuffer,
-    filename,
-    mimeType = 'application/octet-stream',
-    toProtectedFolder = false,
-    options = {}
-  ) {
-    // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
-    if (!options.skipProbe && !toProtectedFolder) {
-      try {
-        const fullSha256 = await computeSha256Hex(arrayBuffer);
-        const probed = await this.probeRemoteSha256(fullSha256);
-        if (probed && probed.exists) {
-          probed.isInstant = true;
-          return probed;
-        }
-      } catch { }
-    }
-
-    // 2. Mocked standard upload
-    if (this.uploadMock) {
-      return this.uploadMock(arrayBuffer, filename, mimeType, toProtectedFolder);
-    }
-    return { success: true, filename, url: `http://localhost:3000/raw/2026/10/${filename}` };
-  }
-}
+const { loadPlugin } = require('./helpers/load-plugin');
 
 test('Instant Upload: reuses existing remote file on probe match (0-payload upload)', async () => {
-  const plugin = new MockPlugin();
+  let uploadCalled = false;
+  const { Plugin } = loadPlugin(async (request) => {
+    if (request.method !== 'POST') throw new Error('Unexpected request');
+    uploadCalled = true;
+    return { status: 200, json: { success: true, filename: 'brand_new.png',
+      sha256: nodeCrypto.createHash('sha256').update('brand-new-image-content').digest('hex') } };
+  });
+  const plugin = new Plugin();
+  plugin.settings = { serverUrl: 'http://localhost:3000', apiToken: 'test-token' };
   const testBytes = Buffer.from('hello-world-image-content-bytes');
   const expectedHash = nodeCrypto.createHash('sha256').update(testBytes).digest('hex');
 
   let probeCalledWith = null;
-  let uploadCalled = false;
-
-  plugin.probeMock = (sha256) => {
+  plugin.probeRemoteSha256 = (sha256) => {
     probeCalledWith = sha256;
     return {
       exists: true,
+      sha256: expectedHash,
       deduplicated: true,
       year: '2026',
       month: '10',
@@ -110,10 +70,6 @@ test('Instant Upload: reuses existing remote file on probe match (0-payload uplo
     };
   };
 
-  plugin.uploadMock = () => {
-    uploadCalled = true;
-    return { success: true };
-  };
 
   const res = await plugin.uploadBufferToServer(testBytes, 'my_pasted_image.png');
 
@@ -124,25 +80,23 @@ test('Instant Upload: reuses existing remote file on probe match (0-payload uplo
 });
 
 test('Instant Upload: falls back to regular upload when probe returns exists: false', async () => {
-  const plugin = new MockPlugin();
+  let uploadCalled = false;
+  const { Plugin } = loadPlugin(async (request) => {
+    if (request.method !== 'POST') throw new Error('Unexpected request');
+    uploadCalled = true;
+    return { status: 200, json: { success: true, filename: 'brand_new.png',
+      sha256: nodeCrypto.createHash('sha256').update('brand-new-image-content').digest('hex') } };
+  });
+  const plugin = new Plugin();
+  plugin.settings = { serverUrl: 'http://localhost:3000', apiToken: 'test-token' };
   const testBytes = Buffer.from('brand-new-image-content');
 
   let probeCalled = false;
-  let uploadCalled = false;
-
-  plugin.probeMock = () => {
+  plugin.probeRemoteSha256 = () => {
     probeCalled = true;
     return { exists: false };
   };
 
-  plugin.uploadMock = (buf, filename) => {
-    uploadCalled = true;
-    return {
-      success: true,
-      filename,
-      url: `http://localhost:3000/raw/2026/10/${filename}`
-    };
-  };
 
   const res = await plugin.uploadBufferToServer(testBytes, 'brand_new.png');
 

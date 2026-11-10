@@ -8,7 +8,7 @@ const pluginCode = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
 // Extract pure functions and definitions from main.js
 const imgExtsMatch = pluginCode.match(/const IMAGE_EXTS = new Set\([\s\S]*?\);/);
 const escRegMatch = pluginCode.match(/function escapeRegExp\([\s\S]*?\n\}/);
-const rewriteMatch = pluginCode.match(/rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/);
+const rewriteMatch = pluginCode.match(/^  rewriteContentLinks\([\s\S]*?\) {[\s\S]*?\n  \}/m);
 
 assert.ok(imgExtsMatch, 'IMAGE_EXTS must be found in main.js');
 assert.ok(escRegMatch, 'escapeRegExp must be found in main.js');

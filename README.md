@@ -81,7 +81,7 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 
 ## ⚙️ Quick Configuration
 
-FileMaster `1.0.5` requires FileMaster Server `1.0.0` or newer.
+FileMaster `1.0.6` requires FileMaster Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
 
 1. Open **Settings → FileMaster**.
 2. **Server Access URL**: Enter your self-hosted server address (e.g. `http://192.168.1.100:3000` or `https://img.yourdomain.com`).
@@ -110,6 +110,14 @@ FileMaster `1.0.5` requires FileMaster Server `1.0.0` or newer.
 - [ ] **S3 / Cloud Storage Support**: Optional direct integration with Cloudflare R2, MinIO, and AWS S3.
 - [ ] **Local Vault Image Compression**: Lossless/lossy WebP optimization directly within local vault.
 - [ ] **Visual Media Timeline**: Interactive timeline & calendar view for vault media.
+
+## Large batches and recovery
+
+Uploads retry transient failures and respect server rate limits. Stop a batch to finish already successful transfers and retain unfinished files; use **Retry unfinished files** in the results. After a restart, run **File Master: Resume unfinished upload** from the command palette and review the pending list before continuing. Recovery covers the most recent upload and requires the original server address.
+
+Migration modifies the latest note contents and verifies references and local bytes before deletion. Batch downloads verify original-file hashes before writing and group note updates. Galleries render 60 items per page and use server thumbnails where available. Link health checks test availability; full original-file verification is available in the server console.
+
+See [batch processing, integrity semantics, and scale limits](https://github.com/weichen-ink/file-master-server/blob/main/docs/SCALABILITY.md). The project supports one server process per writable storage directory; actual throughput depends on image sizes, formats, hardware, and network conditions.
 
 ---
 
@@ -140,6 +148,14 @@ FileMaster `1.0.5` requires FileMaster Server `1.0.0` or newer.
 3. **博客一键外发**：在笔记右键菜单选择“复制公开 WebP 笔记内容”，自动将本地素材替换为带自适应水印的公网 WebP 链接，直接粘贴即可发布。
 
 ---
+
+### 批量操作与恢复
+
+插件 `1.0.6` 需要服务端 `1.0.1` 或更新版本，请同时更新两端。批量上传会遵守服务器限流并重试临时故障；停止后会完成已成功传输文件的链接更新，在结果页可“重试未完成项”。重启 Obsidian 后，可在命令面板运行“恢复未完成上传”，检查清单后继续；此清单对应最近一次上传，要求使用原服务器地址。
+
+迁移基于最新笔记正文修改链接，删除前重新检查引用和本地文件内容。批量下载在写入前核对原文件哈希，并集中更新相关笔记。图库每页显示 60 项，支持时使用服务器缩略图。“失效链接”检查的是可达性，原文件完整校验请在服务器文件页面运行。
+
+[批处理、完整性语义与规模边界](https://github.com/weichen-ink/file-master-server/blob/main/docs/SCALABILITY.md) 说明了恢复清单、索引升级和验证方法。服务器采用单进程部署，实际速度取决于图片大小、格式、硬件和网络。
 
 ### 📄 许可证
 [MIT License](LICENSE)

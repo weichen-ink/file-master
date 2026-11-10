@@ -6,6 +6,9 @@ const srcOrder = [
   'src/constants.js',
   'src/i18n.js',
   'src/engine.js',
+  'src/references.js',
+  'src/transfers.js',
+  'src/gallery.js',
   'src/modals.js',
   'src/plugin.js'
 ];

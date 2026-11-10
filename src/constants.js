@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS = {
   excludeLockedRemoteFiles: true
 };
 
-const MIN_SERVER_VERSION = '1.0.0';
+const MIN_SERVER_VERSION = '1.0.1';
 const VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery';
 
 // Comprehensive image extensions (Apple HEIC/HEIF, TIFF, BMP, Camera RAW, etc.)

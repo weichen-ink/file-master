@@ -3,6 +3,10 @@
 See root `CHANGELOG.md` for full ecosystem release notes.
 
 ## [1.0.6] - 2026-11-10
+- Unify note and batch migrations, preserve concurrent note edits, and verify local content and references before deletion.
+- Index references once per operation and group upload/download link changes by affected document.
+- Retry transient transfer failures; support cancellation, unfinished-item retries, and recovery of the most recent upload after restart.
+- Share gallery rendering with 60-item pagination and server-provided thumbnails; verify downloaded bytes before writing.
 - Establish the pre-upgrade baseline for the batch reliability and scalability improvements.
 
 ## [1.0.3] - 2026-11-08

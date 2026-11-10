@@ -4,6 +4,21 @@
  */
 const UI_STRINGS = {
   zh: {
+    pagePrevious: "上一页",
+    pageNext: "下一页",
+    pageCount: "第 {current} / {total} 页",
+    transferIntegrityFailed: "内容校验失败，已保留原文件和链接，请刷新服务器列表后重试。",
+    transferReferencesChanged: '笔记在最终检查后发生变化，已保留本地文件，可重试未完成项。',
+    transferSourceChanged: "附件在上传期间发生变化，已保留本地文件。",
+    transferBusy: "另一个附件操作正在进行，请等待完成后再试。",
+    transferNothingPending: "没有可恢复的上传任务。",
+    transferServerChanged: "服务器地址已更改，请切回原服务器后恢复上传。",
+    cmdResumeUpload: "恢复未完成上传",
+    transferStop: "停止传输",
+    transferStopping: "正在停止，将完成已传输文件的链接更新…",
+    transferCancelled: "已停止，已完成的文件已处理。",
+    transferRetry: "重试未完成项",
+    noticeRemoteNotReady: "请先启用服务器并测试连接。",
     // 快捷控制中心
     hubBadge: '文件工具',
     hubTitle: 'File Master',
@@ -554,6 +569,21 @@ const UI_STRINGS = {
     closeBtn: '关闭'
   },
   en: {
+    pagePrevious: "Previous",
+    pageNext: "Next",
+    pageCount: "Page {current} of {total}",
+    transferIntegrityFailed: "Content verification failed. Original files and links were preserved. Refresh the server list and retry.",
+    transferReferencesChanged: 'Notes changed after the final check. Local files were preserved; retry unfinished files.',
+    transferSourceChanged: "The attachment changed during upload. The local file was preserved.",
+    transferBusy: "Another attachment operation is running. Wait for it to finish.",
+    transferNothingPending: "No unfinished upload is available to resume.",
+    transferServerChanged: "The server address changed. Switch back to the original server to resume.",
+    cmdResumeUpload: "Resume unfinished upload",
+    transferStop: "Stop transfer",
+    transferStopping: "Stopping; finishing link updates for transferred files…",
+    transferCancelled: "Stopped. Completed transfers have been finalized.",
+    transferRetry: "Retry unfinished files",
+    noticeRemoteNotReady: "Enable the server and test the connection first.",
     // Quick Hub
     hubBadge: 'File tools',
     hubTitle: 'File Master',

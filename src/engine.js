@@ -584,55 +584,6 @@ function isExcalidrawContent(content) {
  * Checks whether a document references a local file without substring false-positives
  * (e.g., "1.png" must not falsely match "21.png" or "my_1.png").
  */
-function doesDocumentReferenceLocalFile(rawText, decodedText, tfile, isNoteOrExcalidraw = false) {
-  if (!tfile) return false;
-  const name = String(tfile.name || '');
-  const baseName = String(tfile.basename || getBaseName(name));
-  const relPath = String(tfile.path || name);
-
-  const stripRemoteUrls = (str) =>
-    String(str || '')
-      .replace(/!?\[[^\]]*\]\(https?:\/\/[^)]+\)/gi, '')
-      .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
-
-  const localRaw = stripRemoteUrls(rawText);
-  const localDecoded = decodedText ? stripRemoteUrls(decodedText) : localRaw;
-
-  if (
-    isNoteOrExcalidraw &&
-    baseName &&
-    (localRaw.includes(`[[${baseName}]]`) ||
-      localRaw.includes(`[[${baseName}|`) ||
-      localRaw.includes(`[[${baseName}#`) ||
-      localDecoded.includes(`[[${baseName}]]`) ||
-      localDecoded.includes(`[[${baseName}|`) ||
-      localDecoded.includes(`[[${baseName}#`))
-  ) {
-    return true;
-  }
-
-  // Fast pre-filter before running boundary regex
-  if (
-    !localRaw.includes(name) &&
-    !localDecoded.includes(name) &&
-    !localRaw.includes(relPath) &&
-    !localDecoded.includes(relPath)
-  ) {
-    return false;
-  }
-
-  const targets = relPath && relPath !== name ? [relPath, name] : [name];
-  for (const target of targets) {
-    if (!target) continue;
-    const esc = escapeRegExp(target);
-    const boundaryRe = new RegExp(`(?:^|[\\[\\(<"':/\\\\\\s])${esc}(?:$|[\\]\\)>"'|#?\\s])`, 'i');
-    if (boundaryRe.test(localRaw) || boundaryRe.test(localDecoded)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
  * Checks whether a file is an Excalidraw drawing note regardless of extension.
  * Handles .excalidraw.md, .excalidraw, frontmatter cache, and file content.

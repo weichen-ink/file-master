@@ -106,6 +106,12 @@ class FileMasterPlugin extends Plugin {
     this.sidebarRibbonEl = null;
     this.lastServerCompatStatus = null;
     this.lastActiveMarkdownView = null;
+    this.referenceRevision = 0;
+    for (const event of ['create', 'modify', 'delete', 'rename']) {
+      this.registerEvent(this.app.vault.on(event, (file) => {
+        if (this.isScannableDocFile(file)) this.referenceRevision++;
+      }));
+    }
 
     // Initialize configurable left sidebar ribbon button
     this.updateSidebarRibbonButton();
@@ -196,6 +202,12 @@ class FileMasterPlugin extends Plugin {
 
   registerPluginCommands() {
     this.pluginCommandDefs = [
+      {
+        id: 'resume-pending-upload',
+        nameKey: 'cmdResumeUpload',
+        requiresRemote: true,
+        callback: () => this.resumePendingMigration().catch((err) => new Notice(err.message))
+      },
       {
         id: 'open-control-center',
         nameKey: 'cmdOpenHub',
@@ -312,6 +324,7 @@ class FileMasterPlugin extends Plugin {
   }
 
   onunload() {
+    this.activeTransferController?.abort();
     // Note: Do NOT detach VIEW_TYPE_REMOTE_GALLERY here, allowing Obsidian workspace layout
     // to persist the docked leaf in the right sidebar across reloads/restarts like Calendar.
     if (this.sidebarRibbonEl) {
@@ -900,12 +913,13 @@ class FileMasterPlugin extends Plugin {
     options = {}
   ) {
     const opts = typeof options === 'boolean' ? { uploadToProtected: options } : (options || {});
+    throwIfTransferCancelled(opts.signal);
+    const fullSha256 = await computeSha256Hex(arrayBuffer);
     // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
     if (!opts.skipProbe) {
       try {
-        const fullSha256 = await computeSha256Hex(arrayBuffer);
         const probed = await this.probeRemoteSha256(fullSha256);
-        if (probed && probed.exists) {
+        if (probed && probed.exists && probed.sha256 === fullSha256) {
           probed.isInstant = true;
           return probed;
         }
@@ -922,20 +936,22 @@ class FileMasterPlugin extends Plugin {
       'Content-Type': `multipart/form-data; boundary=${boundary}`
     };
 
-    const response = await requestUrl({
+    const response = await requestWithBackoff(() => requestUrl({
       url,
       method: 'POST',
       headers,
       body: bodyBuffer,
       throw: false
-    });
+    }), { signal: opts.signal });
 
     if (response.status < 200 || response.status >= 300) {
       const errMsg = response.json?.error || `HTTP ${response.status}`;
       throw new Error(errMsg);
     }
 
-    return response.json;
+    const result = response.json;
+    if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(this.t('transferIntegrityFailed'));
+    return result;
   }
 
   async toggleRemoteFileLock(year, month, filename, locked = true) {
@@ -1169,15 +1185,18 @@ class FileMasterPlugin extends Plugin {
 
   async buildVaultReferenceSnapshot(scanCtx = {}) {
     const { signal, onProgress, freshRead = false } = scanCtx || {};
+    const revision = this.referenceRevision || 0;
     const allFiles = this.app.vault.getFiles();
     const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
+    const matchLocal = createLocalReferenceMatcher(allFiles, (file) => this.isExcalidrawFile(file));
+    const localReferences = new Map();
 
     const docContents = [];
     for (let i = 0; i < docFiles.length; i++) {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
       const doc = docFiles[i];
-      if (onProgress && i % 25 === 0) {
-        onProgress(i + 1, docFiles.length, doc.path);
+      if (i % 25 === 0) {
+        onProgress?.(i + 1, docFiles.length, doc.path);
         await new Promise((r) => setTimeout(r, 0));
       }
       const rawText = freshRead
@@ -1187,6 +1206,10 @@ class FileMasterPlugin extends Plugin {
       try {
         decodedText = decodeURIComponent(rawText);
       } catch { }
+      for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
+      if (decodedText !== rawText) {
+        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+      }
       docContents.push({
         file: doc,
         path: doc.path,
@@ -1195,7 +1218,6 @@ class FileMasterPlugin extends Plugin {
       });
     }
 
-    const resolvedTargetMap = new Map();
     if (!freshRead) {
       const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
       for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
@@ -1203,63 +1225,47 @@ class FileMasterPlugin extends Plugin {
           continue;
         }
         for (const targetPath of Object.keys(targets || {})) {
-          if (!resolvedTargetMap.has(targetPath)) {
-            resolvedTargetMap.set(targetPath, new Set());
-          }
-          resolvedTargetMap.get(targetPath).add(sourcePath);
+          addReference(localReferences, targetPath, sourcePath);
         }
       }
     }
 
-    return { docContents, resolvedTargetMap };
+    return { docContents, localReferences, revision, signal,
+      stable: revision === (this.referenceRevision || 0) };
+  }
+
+  isReferenceSnapshotCurrent(snapshot) {
+    return snapshot.stable && snapshot.revision === (this.referenceRevision || 0);
+  }
+
+  async indexRemoteReferences(items, snapshot) {
+    const patterns = [];
+    for (const item of items) {
+      const id = `${item.year}/${item.month}/${item.filename}`;
+      const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
+      for (const value of new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+        if (value) patterns.push({ value, id });
+      }
+    }
+    const match = createTextReferenceMatcher(patterns);
+    snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, new Set()]));
+    for (let i = 0; i < snapshot.docContents.length; i++) {
+      if (snapshot.signal?.aborted) throw new Error('SCAN_ABORTED');
+      if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+      const doc = snapshot.docContents[i];
+      for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
+      if (doc.decodedText !== doc.rawText) {
+        for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+      }
+    }
   }
 
   findReferencingNotesForLocalFile(tfile, snapshot) {
-    const refNotes = new Set();
-    const fromResolved = snapshot.resolvedTargetMap.get(tfile.path);
-    if (fromResolved) {
-      fromResolved.forEach((p) => refNotes.add(p));
-    }
-
-    const isNoteOrExcalidraw =
-      tfile.extension === 'md' || tfile.extension === 'excalidraw' || this.isExcalidrawFile(tfile);
-
-    for (const doc of snapshot.docContents) {
-      if (doc.path === tfile.path) continue;
-      if (doesDocumentReferenceLocalFile(doc.rawText, doc.decodedText, tfile, isNoteOrExcalidraw)) {
-        refNotes.add(doc.path);
-      }
-    }
-    return [...refNotes];
+    return [...(snapshot.localReferences.get(tfile.path) || [])];
   }
 
   findReferencingNotesForRemoteItem(remoteItem, snapshot) {
-    const refNotes = new Set();
-    const fname = remoteItem.filename;
-    const encodedFname = encodeURIComponent(fname);
-    const baseName = getBaseName(fname);
-    const webpName = `${baseName}.webp`;
-    const encodedWebpName = encodeURIComponent(webpName);
-    const relKey = `${remoteItem.year}/${remoteItem.month}/${fname}`;
-    const encodedRelKey = `${remoteItem.year}/${remoteItem.month}/${encodedFname}`;
-    const pubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${webpName}`;
-    const encodedPubRelKey = `/pub/${remoteItem.year}/${remoteItem.month}/${encodedWebpName}`;
-
-    for (const doc of snapshot.docContents) {
-      if (
-        doc.rawText.includes(relKey) ||
-        doc.decodedText.includes(relKey) ||
-        doc.rawText.includes(encodedRelKey) ||
-        doc.rawText.includes(pubRelKey) ||
-        doc.decodedText.includes(pubRelKey) ||
-        doc.rawText.includes(encodedPubRelKey) ||
-        (remoteItem.rawUrl && doc.rawText.includes(remoteItem.rawUrl)) ||
-        (remoteItem.pubUrl && doc.rawText.includes(remoteItem.pubUrl))
-      ) {
-        refNotes.add(doc.path);
-      }
-    }
-    return [...refNotes];
+    return [...(snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || [])];
   }
 
   /**
@@ -1313,6 +1319,7 @@ class FileMasterPlugin extends Plugin {
       try {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
         const remoteFiles = await this.fetchRemoteFileList();
+        await this.indexRemoteReferences(remoteFiles, snapshot);
         for (let i = 0; i < remoteFiles.length; i++) {
           if (signal?.aborted) throw new Error('SCAN_ABORTED');
           const r = remoteFiles[i];
@@ -1408,6 +1415,10 @@ class FileMasterPlugin extends Plugin {
   }
 
   async cleanSelectedOrphans(selectedItems, onDone) {
+    return runAttachmentOperation(this, () => this.cleanOrphanItems(selectedItems, onDone));
+  }
+
+  async cleanOrphanItems(selectedItems, onDone) {
     const remoteToClean = selectedItems.filter((i) => i.source === 'remote');
     const localToClean = selectedItems.filter((i) => i.source === 'local');
 
@@ -1427,8 +1438,13 @@ class FileMasterPlugin extends Plugin {
 
     let deletedLocal = 0;
     let deletedRemote = 0;
+    let skipped = 0;
+    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
+    await this.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
 
     for (const item of localToClean) {
+      if (!this.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
+      if (this.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) { skipped++; continue; }
       try {
         await this.app.vault.trash(item.rawObj, true);
         deletedLocal++;
@@ -1439,6 +1455,8 @@ class FileMasterPlugin extends Plugin {
     }
 
     for (const item of remoteToClean) {
+      if (!this.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
+      if (this.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) { skipped++; continue; }
       try {
         await this.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
         deletedRemote++;
@@ -1452,7 +1470,7 @@ class FileMasterPlugin extends Plugin {
       files: selectedItems.map((i) => i.displayPath)
     });
     new Notice(this.t('noticeCleanupComplete', { local: deletedLocal, remote: deletedRemote }));
-    if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, total: deletedLocal + deletedRemote });
+    if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
   }
 
   /**
@@ -1518,6 +1536,7 @@ class FileMasterPlugin extends Plugin {
       try {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
         const remoteFiles = await this.fetchRemoteFileList();
+        await this.indexRemoteReferences(remoteFiles, snapshot);
         for (const r of remoteFiles) {
           if (!r.sha256) continue;
           const ext = getExt(r.filename);
@@ -2194,6 +2213,10 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeDuplicateMergeSafely(groups, onComplete) {
+    return runAttachmentOperation(this, () => this.mergeDuplicateGroups(groups, onComplete));
+  }
+
+  async mergeDuplicateGroups(groups, onComplete) {
     const tasks = [];
     const remoteItemsToDelete = [];
 
@@ -2243,22 +2266,25 @@ class FileMasterPlugin extends Plugin {
       }
     }
 
-    let modifiedDocsCount = 0;
-    for (const doc of allDocs) {
+    const pairs = tasks.flatMap(({ keepItem, removeItems }) => removeItems.map((removeItem) => ({ removeItem, keepItem })));
+    const rewritten = await rewriteAttachmentPairs(this, pairs,
+      allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path));
+    const modifiedDocsCount = rewritten.modified.size;
+    const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
+    await this.indexRemoteReferences(pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj), postSnapshot);
+    const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === 'local').map(({ removeItem, keepItem }) => ({
+      value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
+      id: removeItem.displayPath
+    }));
+    const matchLocalGate = createTextReferenceMatcher(localGatePatterns);
+    const remainingLocal = new Map();
+    for (const doc of postSnapshot.docContents) {
       if (localPathsBeingRemoved.has(doc.path)) continue;
-      const modified = await this.safeModifyFileContent(doc, (content) => {
-        let next = content;
-        for (const { keepItem, removeItems } of tasks) {
-          for (const rem of removeItems) {
-            next = this.rewriteContentLinks(next, rem, keepItem, doc.path);
-          }
-        }
-        return next;
-      });
-      if (modified) modifiedDocsCount++;
+      for (const path of matchLocalGate(doc.rawText)) addReference(remainingLocal, path, doc.path);
+      if (doc.decodedText !== doc.rawText) {
+        for (const path of matchLocalGate(doc.decodedText)) addReference(remainingLocal, path, doc.path);
+      }
     }
-
-    const postSnapshot = await this.buildVaultReferenceSnapshot();
     let deletedLocalCount = 0;
     let deletedRemoteCount = 0;
     let skippedBySafetyGate = 0;
@@ -2268,19 +2294,11 @@ class FileMasterPlugin extends Plugin {
         if (rem.locked) {
           continue;
         }
+        if (!this.isReferenceSnapshotCurrent(postSnapshot)) { skippedBySafetyGate++; continue; }
 
         let remainingRefs = [];
         if (rem.source === 'local') {
-          for (const doc of postSnapshot.docContents) {
-            if (doc.path === rem.displayPath || localPathsBeingRemoved.has(doc.path)) continue;
-            if (keepItem.name !== rem.name) {
-              if (doc.rawText.includes(rem.name) || doc.decodedText.includes(rem.name)) {
-                remainingRefs.push(doc.path);
-              }
-            } else if (doc.rawText.includes(rem.displayPath) || doc.decodedText.includes(rem.displayPath)) {
-              remainingRefs.push(doc.path);
-            }
-          }
+          remainingRefs = [...(remainingLocal.get(rem.displayPath) || [])];
         } else {
           remainingRefs = this.findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
         }
@@ -2296,8 +2314,13 @@ class FileMasterPlugin extends Plugin {
         }
 
         if (rem.source === 'local') {
-          await this.app.vault.trash(rem.rawObj, true).catch(() => { });
-          deletedLocalCount++;
+          try {
+            await this.app.vault.trash(rem.rawObj, true);
+            deletedLocalCount++;
+          } catch (err) {
+            skippedBySafetyGate++;
+            this.logOperation('WARN', 'DEDUP_MERGE', `Failed to trash ${rem.displayPath}`, { error: err.message });
+          }
         } else {
           try {
             await this.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
@@ -2347,61 +2370,41 @@ class FileMasterPlugin extends Plugin {
   }
 
   async migrateSingleLocalFileToRemote(tfile, { deleteLocal = true } = {}) {
-    try {
-      new Notice(this.t('noticeUploadingFile', { name: tfile.name }));
-      const buf = await this.app.vault.readBinary(tfile);
-      const res = await this.uploadBufferToServer(buf, tfile.name, 'application/octet-stream');
+    const result = await this.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
+    if (!result.count) throw new Error(result.failures[0]?.error || this.t('transferIntegrityFailed'));
+    new Notice(this.t('noticeMigrateSuccess', { name: tfile.name, protected: '', docs: result.docs }));
+    return result.processedItems[0].rawObj;
+  }
 
-      const removeItem = {
-        source: 'local',
-        name: tfile.name,
-        ext: tfile.extension.toLowerCase(),
-        displayPath: tfile.path,
-        rawObj: tfile
-      };
-      const keepItem = {
-        source: 'remote',
-        name: res.filename,
-        ext: getExt(res.filename),
-        displayPath: `${res.year}/${res.month}/${res.filename}`,
-        rawObj: res
-      };
-
-      const allDocs = this.app.vault
-        .getFiles()
-        .filter((f) => (f.extension === 'md' || f.extension === 'canvas' || f.extension === 'excalidraw' || this.isExcalidrawFile(f)) && !isReportFile(f.name));
-
-      let modifiedCount = 0;
-      for (const doc of allDocs) {
-        const modified = await this.safeModifyFileContent(doc, (orig) => {
-          return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
-        });
-        if (modified) modifiedCount++;
-      }
-
-      if (deleteLocal) {
-        const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-        const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
-        if (remaining.length === 0) {
-          await this.app.vault.trash(tfile, true).catch(() => { });
-        }
-      }
-
-      new Notice(
-        this.t('noticeMigrateSuccess', {
-          name: tfile.name,
-          protected: '',
-          docs: modifiedCount
-        })
-      );
-      return res;
-    } catch (err) {
-      new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
-      throw err;
-    }
+  async resumePendingMigration() {
+    if (!this.isRemoteServerReady()) { new Notice(this.t('noticeRemoteNotReady')); return; }
+    const adapter = this.app.vault.adapter;
+    const path = migrationCheckpointPath(this);
+    if (!await adapter.exists(path)) { new Notice(this.t('transferNothingPending')); return; }
+    const checkpoint = JSON.parse(await adapter.read(path));
+    if (checkpoint.serverUrl !== this.getCleanServerUrl()) throw new Error(this.t('transferServerChanged'));
+    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
+    const items = checkpoint.items.map((entry) => {
+      const file = this.app.vault.getAbstractFileByPath(entry.path);
+      if (!file || Array.isArray(file.children)) return null;
+      return { name: file.name, displayPath: file.path, size: file.stat?.size || 0,
+        rawObj: file, locked: Boolean(entry.locked), selected: true,
+        refNotes: this.findReferencingNotesForLocalFile(file, snapshot) };
+    }).filter(Boolean);
+    if (!items.length) { new Notice(this.t('transferNothingPending')); return; }
+    const modal = new BatchMigrateWizardModal(this.app, this);
+    modal.options = { ...modal.options, ...checkpoint.options };
+    modal.items = items;
+    modal.step = 2;
+    modal.open();
   }
 
   async downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
+    const task = (signal) => this.downloadRemoteItemToLocal(remoteMatch, { ...options, signal });
+    return options.deferRewrite ? task(options.signal) : runAttachmentOperation(this, task, options.signal);
+  }
+
+  async downloadRemoteItemToLocal(remoteMatch, options = {}) {
     const silent = Boolean(options?.silent);
     try {
       const { year, month, filename } = remoteMatch;
@@ -2443,6 +2446,9 @@ class FileMasterPlugin extends Plugin {
       let action = 'downloaded';
 
       if (hasConflict && conflictStrategy === 'reuse') {
+        if (!remoteObj?.sha256 || await computeSha256Hex(await this.app.vault.readBinary(existingFile)) !== remoteObj.sha256) {
+          throw new Error(this.t('transferIntegrityFailed'));
+        }
         targetLocalFile = existingFile;
         action = 'reused';
       } else {
@@ -2450,16 +2456,20 @@ class FileMasterPlugin extends Plugin {
           ? `${remoteObj.rawUrl}?download=1`
           : `${remoteMatch.matchedUrl}?download=1`;
 
-        const response = await requestUrl({
+        const response = await requestWithBackoff(() => requestUrl({
           url: downloadUrl,
           method: 'GET',
           headers: { Authorization: `Bearer ${this.settings.apiToken}` },
           throw: false
-        });
+        }), { signal: options.signal });
 
         if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
           throw new Error(`Failed to download remote file (HTTP ${response.status})`);
         }
+        if (!remoteObj?.sha256 || await computeSha256Hex(response.arrayBuffer) !== remoteObj.sha256) {
+          throw new Error(this.t('transferIntegrityFailed'));
+        }
+        throwIfTransferCancelled(options.signal);
 
         if (hasConflict && conflictStrategy === 'overwrite') {
           await this.app.vault.modifyBinary(existingFile, response.arrayBuffer);
@@ -2494,25 +2504,11 @@ class FileMasterPlugin extends Plugin {
       };
 
       const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
-      const allDocs = (syncOtherNotes || !activeFile)
-        ? this.app.vault
-            .getFiles()
-            .filter((f) => this.isScannableDocFile(f))
-        : [activeFile];
-
-      let modifiedCount = 0;
-      const syncedOtherNotePaths = [];
-      for (const doc of allDocs) {
-        const modified = await this.safeModifyFileContent(doc, (orig) => {
-          return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
-        });
-        if (modified) {
-          modifiedCount++;
-          if (activeFile && doc.path !== activeFile.path) {
-            syncedOtherNotePaths.push(doc.path);
-          }
-        }
-      }
+      const pair = { removeItem, keepItem };
+      const rewritten = options.deferRewrite ? null : await rewriteAttachmentPairs(this, [pair],
+        !syncOtherNotes && activeFile ? [activeFile.path] : null);
+      const modifiedCount = rewritten?.modified.size || 0;
+      const syncedOtherNotePaths = [...(rewritten?.modified || [])].filter((path) => path !== activeFile?.path);
 
       if (!silent) {
         new Notice(
@@ -2533,6 +2529,7 @@ class FileMasterPlugin extends Plugin {
           remotePath: `${year}/${month}/${filename}`,
           size: targetLocalFile.stat?.size || remoteObj?.size || 0,
           action,
+          pair,
           modifiedDocs: modifiedCount,
           syncedOtherNotes: syncedOtherNotePaths.length,
           syncedOtherNotePaths
@@ -2586,6 +2583,8 @@ class FileMasterPlugin extends Plugin {
     } catch { }
 
     const snapshot = await this.buildVaultReferenceSnapshot();
+    await this.indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
+    const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
 
     // Pre-index local attachment files by size for fast SHA-256 content duplicate checks
     const localFilesBySize = new Map();
@@ -2614,9 +2613,7 @@ class FileMasterPlugin extends Plugin {
     const out = [];
     for (const match of matchesMap.values()) {
       const { year, month, filename, matchedUrl, routePrefix } = match;
-      const remoteObj = remoteList.find(
-        (r) => r.year === year && r.month === month && r.filename === filename
-      );
+      const remoteObj = remoteByPath.get(`${year}/${month}/${filename}`);
       const availablePath = await this.app.fileManager.getAvailablePathForAttachment(
         filename,
         activeFile.path
@@ -2703,71 +2700,38 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeDownloadNoteDirect(activeFile, onProgress = null, options = {}) {
-    let items = Array.isArray(options?.items) ? options.items : null;
-    if (!items) {
-      items = await this.scanActiveNoteRemoteAttachments(activeFile);
-    }
-
-    if (items.length === 0) {
-      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
-    }
-
-    let count = 0;
-    const processedItems = [];
-    const failures = [];
-    const conflictStrategy = options?.conflictStrategy || 'rename';
-    const syncOtherNotes = options?.syncOtherNotes !== undefined ? Boolean(options.syncOtherNotes) : true;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (onProgress) onProgress(i + 1, items.length, item.filename || item.name);
-      try {
-        const detail = await this.downloadSingleRemoteItemToLocal(item, {
-          activeFile,
-          conflictStrategy,
-          syncOtherNotes,
-          silent: true,
-          returnDetails: true
-        });
-        count++;
-        processedItems.push({
-          source: 'local',
-          name: detail.name,
-          ext: getExt(detail.name),
-          displayPath: detail.displayPath,
-          remotePath: detail.remotePath,
-          size: detail.size,
-          action: detail.action,
-          syncedOtherNotes: detail.syncedOtherNotes || 0,
-          syncedOtherNotePaths: detail.syncedOtherNotePaths || [],
-          rawObj: detail.file
-        });
-      } catch (err) {
-        this.logOperation('ERROR', 'NOTE_DOWNLOAD', `Failed to download ${item.filename || item.name} in ${activeFile.path}: ${err.message}`, {
-          note: activeFile.path,
-          remotePath: item.displayPath
-        });
-        failures.push({
-          name: item.filename || item.name,
-          size: item.size || 0,
-          error: err.message || String(err)
-        });
+    return runAttachmentOperation(this, async (signal) => {
+      const items = Array.isArray(options.items) ? options.items : await this.scanActiveNoteRemoteAttachments(activeFile);
+      const processedItems = [], failures = [], retryItems = [], pairs = [];
+      for (let i = 0; i < items.length; i++) {
+        if (signal.aborted) { retryItems.push(...items.slice(i)); break; }
+        const item = items[i];
+        onProgress?.(i + 1, items.length, item.filename || item.name);
+        try {
+          const detail = await this.downloadSingleRemoteItemToLocal(item, {
+            ...options, signal, activeFile, silent: true, returnDetails: true, deferRewrite: true
+          });
+          pairs.push(detail.pair);
+          processedItems.push({ source: 'local', name: detail.name, ext: getExt(detail.name),
+            displayPath: detail.displayPath, remotePath: detail.remotePath, size: detail.size,
+            action: detail.action, rawObj: detail.file });
+        } catch (err) {
+          retryItems.push(item);
+          if (err.name === 'AbortError') { retryItems.push(...items.slice(i + 1)); break; }
+          failures.push({ name: item.filename || item.name, size: item.size || 0, error: err.message || String(err) });
+          this.logOperation('ERROR', 'NOTE_DOWNLOAD', `Failed to download ${item.filename || item.name}`, { error: err.message });
+        }
       }
-    }
-    if (count > 0) {
-      this.logOperation('INFO', 'NOTE_DOWNLOAD', `Processed ${count} server attachment(s) in ${activeFile.path}`, {
-        note: activeFile.path,
-        conflictStrategy,
-        syncOtherNotes,
-        items: processedItems.map((p) => ({
-          name: p.name,
-          localPath: p.displayPath,
-          action: p.action,
-          syncedOtherNotes: p.syncedOtherNotePaths
-        }))
+      const rewritten = pairs.length ? await rewriteAttachmentPairs(this, pairs,
+        options.syncOtherNotes === false ? [activeFile.path] : null) : null;
+      processedItems.forEach((item, i) => {
+        item.syncedOtherNotePaths = (rewritten?.changedPaths.get(pairs[i]) || []).filter((path) => path !== activeFile.path);
+        item.syncedOtherNotes = item.syncedOtherNotePaths.length;
       });
-    }
-    return options?.returnDetails ? { count, processedItems, failures } : count;
+      const summary = { count: processedItems.length, processedItems, failures, retryItems,
+        cancelled: Boolean(signal.aborted) };
+      return options.returnDetails ? summary : summary.count;
+    }, options.signal);
   }
 
   async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
@@ -2837,149 +2801,10 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeBatchMigrateSafely(selectedItems, options, onProgress, onDone) {
-    const uploadedPairs = [];
-    const failures = [];
-    const total = selectedItems.length;
-
-    for (let i = 0; i < total; i++) {
-      const item = selectedItems[i];
-      const tfile = item.rawObj;
-      if (onProgress) onProgress(i + 1, total, tfile.name);
-
-      try {
-        const buf = await this.app.vault.readBinary(tfile);
-        const res = await this.uploadBufferToServer(
-          buf,
-          tfile.name,
-          'application/octet-stream',
-          Boolean(options.uploadToProtected)
-        );
-
-        uploadedPairs.push({
-          tfile,
-          name: tfile.name,
-          displayPath: tfile.path,
-          size: tfile.stat?.size || 0,
-          rawUrl: res.rawUrl,
-          pubUrl: res.pubUrl,
-          refNotes: item.refNotes || [],
-          removeItem: {
-            source: 'local',
-            name: tfile.name,
-            ext: tfile.extension.toLowerCase(),
-            displayPath: tfile.path,
-            rawObj: tfile
-          },
-          keepItem: {
-            source: 'remote',
-            name: res.filename,
-            ext: getExt(res.filename),
-            displayPath: `${res.year}/${res.month}/${res.filename}`,
-            rawObj: res
-          }
-        });
-      } catch (err) {
-        failures.push({
-          name: tfile.name,
-          path: tfile.path,
-          size: tfile.stat?.size || 0,
-          error: err.message || String(err)
-        });
-        new Notice(this.t('noticeMigrateFailed', { name: tfile.name, err: err.message }));
-        this.logOperation('ERROR', 'BATCH_UPLOAD', `Batch upload failed for ${tfile.path}: ${err.message}`, {
-          file: tfile.path,
-          size: tfile.stat?.size || 0
-        });
-      }
-    }
-
-    if (uploadedPairs.length === 0) {
-      if (onDone) {
-        onDone({
-          count: 0,
-          docs: 0,
-          trashed: 0,
-          processedItems: [],
-          failures,
-          totalBytes: 0
-        });
-      }
-      return;
-    }
-
-    const allDocs = this.app.vault
-      .getFiles()
-      .filter((f) => this.isScannableDocFile(f));
-
-    let modifiedDocsCount = 0;
-    const modifiedNotePaths = new Set();
-    for (const doc of allDocs) {
-      const modified = await this.safeModifyFileContent(doc, (content) => {
-        let next = content;
-        for (const { removeItem, keepItem } of uploadedPairs) {
-          next = this.rewriteContentLinks(next, removeItem, keepItem, doc.path);
-        }
-        return next;
-      });
-      if (modified) {
-        modifiedDocsCount++;
-        modifiedNotePaths.add(doc.path);
-      }
-    }
-
-    let trashedCount = 0;
-    const trashedFiles = [];
-    const trashFailures = [];
-    if (options.deleteLocalAfter) {
-      const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-      for (const { tfile } of uploadedPairs) {
-        const remaining = this.findReferencingNotesForLocalFile(tfile, postSnapshot);
-        if (remaining.length === 0) {
-          try {
-            await this.app.vault.trash(tfile, true);
-            trashedCount++;
-            trashedFiles.push(tfile.path);
-          } catch (trashErr) {
-            const errStr = trashErr.message || String(trashErr);
-            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
-              error: errStr
-            });
-            trashFailures.push({ path: tfile.path, error: errStr });
-          }
-        }
-      }
-    }
-
-    this.logOperation('INFO', 'BATCH_UPLOAD', `Batch uploaded ${uploadedPairs.length} file(s), updated ${modifiedDocsCount} note(s), trashed ${trashedCount} local file(s)`, {
-      uploadedCount: uploadedPairs.length,
-      modifiedDocsCount,
-      trashedCount,
-      failuresCount: failures.length
-    });
-
-    if (onDone) {
-      onDone({
-        count: uploadedPairs.length,
-        docs: modifiedDocsCount,
-        modifiedNotePaths: Array.from(modifiedNotePaths),
-        trashed: trashedCount,
-        trashedFiles,
-        processedItems: uploadedPairs.map((p) => ({
-          name: p.name,
-          displayPath: p.displayPath,
-          size: p.size,
-          rawUrl: p.rawUrl,
-          pubUrl: p.pubUrl,
-          ext: p.keepItem.ext,
-          source: 'remote',
-          rawObj: p.keepItem.rawObj,
-          refNotesCount: Array.isArray(p.refNotes) ? p.refNotes.length : 0
-        })),
-        failures,
-        trashFailures,
-        totalBytes: uploadedPairs.reduce((s, p) => s + (p.size || 0), 0)
-      });
-    }
+    const summary = await runAttachmentOperation(this,
+      (signal) => migrateLocalAttachments(this, selectedItems, { ...options, signal }, onProgress), options?.signal);
+    onDone?.(summary);
+    return summary;
   }
 
   async scanActiveNoteLocalAttachments(activeFile) {
@@ -3029,167 +2854,15 @@ class FileMasterPlugin extends Plugin {
   }
 
   async executeMigrateNoteDirect(activeFile, onProgress = null, options = {}) {
-    let content = await this.app.vault.read(activeFile);
-    let items = Array.isArray(options?.items) ? options.items : null;
-    if (!items) {
-      items = await this.scanActiveNoteLocalAttachments(activeFile);
-    }
-
-    if (items.length === 0) {
-      return options?.returnDetails ? { count: 0, processedItems: [], failures: [] } : 0;
-    }
-
-    let migratedCount = 0;
-    const uploadedPairs = [];
-    const processedItems = [];
-    const failures = [];
-    for (let i = 0; i < items.length; i++) {
-      const entry = items[i];
-      const tfile = entry.tfile || entry.rawObj || entry;
-      const wantLock = Boolean(entry.locked);
-      if (onProgress) onProgress(i + 1, items.length, tfile.name);
-      try {
-        const buf = await this.app.vault.readBinary(tfile);
-        const res = await this.uploadBufferToServer(buf, tfile.name);
-
-        if (wantLock && !res.locked && res.year && res.month && res.filename) {
-          try {
-            await this.toggleRemoteFileLock(res.year, res.month, res.filename, true);
-            res.locked = true;
-          } catch (lockErr) {
-            console.warn(`Failed to lock ${res.filename}:`, lockErr);
-          }
-        }
-
-        const removeItem = {
-          source: 'local',
-          name: tfile.name,
-          ext: tfile.extension.toLowerCase(),
-          displayPath: tfile.path,
-          rawObj: tfile
-        };
-        const keepItem = {
-          source: 'remote',
-          name: res.filename,
-          ext: getExt(res.filename),
-          displayPath: `${res.year}/${res.month}/${res.filename}`,
-          rawObj: res
-        };
-
-        content = this.rewriteContentLinks(content, removeItem, keepItem, activeFile.path);
-        migratedCount++;
-        const otherRefNotes = Array.isArray(entry.otherRefNotes) ? entry.otherRefNotes : [];
-        uploadedPairs.push({ tfile, removeItem, keepItem, otherRefNotes });
-        processedItems.push({
-          source: 'remote',
-          name: res.filename,
-          ext: getExt(res.filename),
-          displayPath: `${res.year}/${res.month}/${res.filename}`,
-          size: tfile.stat?.size || res.size || 0,
-          locked: Boolean(res.locked || wantLock),
-          trashedLocal: false,
-          keptForOtherRefs: 0,
-          keptForOtherRefPaths: [],
-          syncedOtherNotes: 0,
-          syncedOtherNotePaths: [],
-          action: 'uploaded',
-          rawObj: res,
-          localPath: tfile.path
-        });
-      } catch (err) {
-        console.error(`Failed to migrate ${tfile.name}:`, err);
-        this.logOperation('ERROR', 'NOTE_UPLOAD', `Failed to upload ${tfile.name} in ${activeFile.path}: ${err.message}`, {
-          note: activeFile.path,
-          file: tfile.path,
-          size: tfile.stat?.size || 0
-        });
-        failures.push({
-          name: tfile.name,
-          size: tfile.stat?.size || 0,
-          error: err.message || String(err)
-        });
-      }
-    }
-
-    if (migratedCount > 0) {
-      await this.safeModifyFileContent(activeFile, () => content);
-      const shouldDeleteLocal = options?.deleteLocalAfter !== undefined
-        ? Boolean(options.deleteLocalAfter)
-        : Boolean(this.settings.deleteLocalAfterMigrate);
-      const syncOtherNotes = options?.syncOtherNotes !== undefined
-        ? Boolean(options.syncOtherNotes)
-        : true;
-
-      if (syncOtherNotes) {
-        const otherDocs = this.app.vault
-          .getFiles()
-          .filter((f) => f.path !== activeFile.path && this.isScannableDocFile(f));
-        for (let i = 0; i < uploadedPairs.length; i++) {
-          const { removeItem, keepItem } = uploadedPairs[i];
-          const syncedPaths = [];
-          for (const doc of otherDocs) {
-            const modified = await this.safeModifyFileContent(doc, (orig) => {
-              return this.rewriteContentLinks(orig, removeItem, keepItem, doc.path);
-            });
-            if (modified) syncedPaths.push(doc.path);
-          }
-          if (processedItems[i]) {
-            processedItems[i].syncedOtherNotes = syncedPaths.length;
-            processedItems[i].syncedOtherNotePaths = syncedPaths;
-          }
-        }
-      }
-
-      if (shouldDeleteLocal) {
-        const postSnapshot = !syncOtherNotes
-          ? await this.buildVaultReferenceSnapshot({ freshRead: true })
-          : null;
-        for (let i = 0; i < uploadedPairs.length; i++) {
-          const { tfile } = uploadedPairs[i];
-          if (!syncOtherNotes && postSnapshot) {
-            const remainingRefs = this.findReferencingNotesForLocalFile(tfile, postSnapshot).filter(
-              (p) => p !== activeFile.path
-            );
-            if (remainingRefs.length > 0) {
-              if (processedItems[i]) {
-                processedItems[i].keptForOtherRefs = remainingRefs.length;
-                processedItems[i].keptForOtherRefPaths = remainingRefs;
-              }
-              continue;
-            }
-          }
-          try {
-            await this.app.vault.trash(tfile, true);
-            if (processedItems[i]) {
-              processedItems[i].trashedLocal = true;
-            }
-          } catch (trashErr) {
-            this.logOperation('WARN', 'TRASH_LOCAL', `Failed to trash local file: ${tfile.path}`, {
-              error: trashErr.message || String(trashErr)
-            });
-            if (processedItems[i]) {
-              processedItems[i].trashedLocal = false;
-              processedItems[i].trashError = trashErr.message || String(trashErr);
-            }
-          }
-        }
-      }
-
-      this.logOperation('INFO', 'NOTE_UPLOAD', `Uploaded ${migratedCount} attachment(s) from ${activeFile.path}`, {
-        note: activeFile.path,
-        deleteLocalAfter: shouldDeleteLocal,
-        syncOtherNotes,
-        items: processedItems.map((p) => ({
-          name: p.name,
-          remotePath: p.displayPath,
-          locked: p.locked,
-          trashedLocal: p.trashedLocal,
-          keptForOtherRefs: p.keptForOtherRefPaths,
-          syncedOtherNotes: p.syncedOtherNotePaths
-        }))
-      });
-    }
-    return options?.returnDetails ? { count: migratedCount, processedItems, failures } : migratedCount;
+    return runAttachmentOperation(this, async (signal) => {
+      const items = Array.isArray(options.items) ? options.items : await this.scanActiveNoteLocalAttachments(activeFile);
+      const summary = await migrateLocalAttachments(this, items, {
+        ...options, signal, activeFile,
+        deleteLocalAfter: options.deleteLocalAfter ?? this.settings.deleteLocalAfterMigrate,
+        documentPaths: options.syncOtherNotes === false ? [activeFile.path] : null
+      }, onProgress);
+      return options.returnDetails ? summary : summary.count;
+    }, options.signal);
   }
 
   async migrateActiveNoteAttachments(targetFile = null, options = {}) {

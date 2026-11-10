@@ -1361,6 +1361,12 @@ class ActiveNoteActionModal extends Modal {
       });
       const wrap = box.createDiv({ cls: 'fm-progress-wrap' });
       this.progressBar = wrap.createDiv({ cls: 'fm-progress-bar', attr: { style: 'width: 10%;' } });
+      const stop = box.createEl('button', { text: this.t('transferStop') });
+      stop.onclick = () => {
+        this.transferController?.abort();
+        stop.disabled = true;
+        this.statusText.setText(this.t('transferStopping'));
+      };
     } else if (this.step === 'result') {
       const failures = this.result?.failures || [];
       const processedItems = this.result?.processedItems || [];
@@ -1372,7 +1378,7 @@ class ActiveNoteActionModal extends Modal {
           const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
           banner.createDiv({
             cls: 'fm-result-banner-title',
-            text: this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
+            text: this.result.cancelled ? this.t('transferCancelled') : this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
           });
           banner.createDiv({
             cls: 'fm-result-banner-desc',
@@ -1475,7 +1481,7 @@ class ActiveNoteActionModal extends Modal {
               });
             }
           }
-        } else if (failures.length === 0) {
+        } else if (failures.length === 0 && !this.result.cancelled) {
           const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align: center; padding: 24px 16px;' } });
           emptyBanner.createDiv({
             text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
@@ -1538,12 +1544,23 @@ class ActiveNoteActionModal extends Modal {
           }
         };
       }
+      if (this.result?.cancelled) btnRow.createSpan({ text: this.t('transferCancelled') });
+      if (this.result?.retryItems?.length) {
+        const retry = btnRow.createEl('button', { text: this.t('transferRetry') });
+        retry.onclick = async () => {
+          const pending = this.result.retryItems;
+          this.step = 'running';
+          this.render();
+          await this.execute(pending);
+        };
+      }
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
       doneBtn.onclick = () => returnToHub(this);
     }
   }
 
   async execute(selectedItems = null) {
+    this.transferController = new AbortController();
     try {
       if (this.actionType === 'migrate') {
         const res = await this.plugin.executeMigrateNoteDirect(
@@ -1561,13 +1578,14 @@ class ActiveNoteActionModal extends Modal {
             items: selectedItems || this.items.filter((i) => i.selected),
             deleteLocalAfter: this.deleteLocalAfter,
             syncOtherNotes: this.syncOtherNotes,
+            signal: this.transferController.signal,
             returnDetails: true
           }
         );
         const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
         const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
         const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
-        this.result = { success: true, count, processedItems, failures };
+        this.result = { success: true, ...res, count, processedItems, failures };
       } else {
         const res = await this.plugin.executeDownloadNoteDirect(
           this.targetFile,
@@ -1584,22 +1602,26 @@ class ActiveNoteActionModal extends Modal {
             items: selectedItems || this.items.filter((i) => i.selected),
             conflictStrategy: this.conflictStrategy,
             syncOtherNotes: this.syncOtherNotes,
+            signal: this.transferController.signal,
             returnDetails: true
           }
         );
         const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
         const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
         const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
-        this.result = { success: true, count, processedItems, failures };
+        this.result = { success: true, ...res, count, processedItems, failures };
       }
     } catch (err) {
       this.result = { success: false, message: err.message };
     }
+    this.transferController = null;
     this.step = 'result';
-    this.render();
+    if (!this.transferClosed) this.render();
   }
 
   onClose() {
+    this.transferClosed = true;
+    this.transferController?.abort();
     this.contentEl.empty();
   }
 }
@@ -2287,7 +2309,13 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => returnToHub(this);
+    cancelBtn.onclick = () => {
+      if (this.transferController) {
+        this.transferController.abort();
+        cancelBtn.disabled = true;
+        cancelBtn.setText(t('transferStopping'));
+      } else returnToHub(this);
+    };
 
     const nextBtn = btnRow.createEl('button', { text: t('migrateNextPreview'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
@@ -2362,7 +2390,13 @@ class BatchMigrateWizardModal extends Modal {
       });
       const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
       const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
-      cancelBtn.onclick = () => returnToHub(this);
+      cancelBtn.onclick = () => {
+      if (this.transferController) {
+        this.transferController.abort();
+        cancelBtn.disabled = true;
+        cancelBtn.setText(t('transferStopping'));
+      } else returnToHub(this);
+    };
       return;
     }
 
@@ -2411,7 +2445,13 @@ class BatchMigrateWizardModal extends Modal {
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
-    cancelBtn.onclick = () => returnToHub(this);
+    cancelBtn.onclick = () => {
+      if (this.transferController) {
+        this.transferController.abort();
+        cancelBtn.disabled = true;
+        cancelBtn.setText(t('transferStopping'));
+      } else returnToHub(this);
+    };
     const runBtn = btnRow.createEl('button', {
       text: t('migrateStart', { count: this.items.filter((i) => i.selected).length }),
       cls: 'mod-cta'
@@ -2425,10 +2465,11 @@ class BatchMigrateWizardModal extends Modal {
       runBtn.disabled = true;
       backBtn.disabled = true;
       progressBox.style.display = 'block';
-
+      this.transferController = new AbortController();
+      try {
       await this.plugin.executeBatchMigrateSafely(
         selected,
-        this.options,
+        { ...this.options, signal: this.transferController.signal },
         (cur, total, name) => {
           const pct = Math.round((cur / Math.max(1, total)) * 100);
           progressBar.style.width = `${pct}%`;
@@ -2437,9 +2478,14 @@ class BatchMigrateWizardModal extends Modal {
         (summary) => {
           this.step = 3;
           this.summary = summary;
-          this.render();
+          if (!this.transferClosed) this.render();
         }
       );
+      } catch (err) {
+        new Notice(err.message);
+        runBtn.disabled = false;
+        backBtn.disabled = false;
+      } finally { this.transferController = null; }
     };
   }
 
@@ -2451,7 +2497,7 @@ class BatchMigrateWizardModal extends Modal {
 
     const isPartial = failures.length > 0 && count > 0;
     const isError = count === 0 && failures.length > 0;
-    const titleKey = isError
+    const titleKey = this.summary?.cancelled ? 'transferCancelled' : isError
       ? 'batchResultErrorTitle'
       : (isPartial ? 'batchResultWarningTitle' : 'batchResultTitle');
 
@@ -2578,11 +2624,22 @@ class BatchMigrateWizardModal extends Modal {
       }
     };
 
+    if (this.summary?.cancelled) btnRow.createSpan({ text: t('transferCancelled') });
+    if (this.summary?.retryItems?.length) {
+      const retry = btnRow.createEl('button', { text: t('transferRetry') });
+      retry.onclick = () => {
+        this.items = this.summary.retryItems.map((item) => ({ ...item, selected: true, refNotes: item.refNotes || [] }));
+        this.step = 2;
+        this.render();
+      };
+    }
     const doneBtn = btnRow.createEl('button', { text: t('destBtnDone'), cls: 'mod-cta' });
     doneBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {
+    this.transferClosed = true;
+    this.transferController?.abort();
     if (this.activeProgress) this.activeProgress.abort();
     this.contentEl.empty();
   }
@@ -3141,134 +3198,11 @@ class RemoteGalleryModal extends Modal {
   }
 
   filterItems() {
-    return this.items.filter((item) => {
-      if (this.selectedBucket !== 'all' && `${item.year}/${item.month}` !== this.selectedBucket) {
-        return false;
-      }
-      if (this.selectedType !== 'all') {
-        const grp = getFileTypeGroup(getExt(item.name || item.filename));
-        if (grp !== this.selectedType) return false;
-      }
-      if (this.searchQuery) {
-        const fn = (item.name || item.filename || '').toLowerCase();
-        if (!fn.includes(this.searchQuery)) return false;
-      }
-      return true;
-    });
+    return filterRemoteGallery(this);
   }
 
   renderGrid(containerEl, countLabel) {
-    containerEl.empty();
-    const filtered = this.filterItems();
-    const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
-
-    if (countLabel) {
-      countLabel.setText(this.t('galleryStats', { count: filtered.length, size: formatBytes(totalBytes) }));
-    }
-
-    if (filtered.length === 0) {
-      containerEl.createDiv({
-        cls: 'fm-section-box',
-        text: this.t('galleryEmpty'),
-        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--text-muted);' }
-      });
-      return;
-    }
-
-    for (const item of filtered) {
-      const card = containerEl.createDiv({ cls: 'fm-gallery-card' });
-      const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
-
-      const ext = getExt(item.name || item.filename);
-      const isImg = IMAGE_EXTS.has(ext);
-
-      if (isImg) {
-        const img = thumbWrap.createEl('img', {
-          cls: 'fm-gallery-thumb',
-          attr: {
-            loading: 'lazy',
-            src: item.pubUrl || item.rawUrl,
-            alt: item.name || item.filename
-          }
-        });
-        img.onerror = () => {
-          img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:32px;' } });
-        };
-      } else {
-        thumbWrap.createDiv({
-          text: ext.toUpperCase(),
-          attr: { style: 'font-size: 16px; font-weight: 700; color: var(--text-muted);' }
-        });
-      }
-
-      if (item.locked) {
-        const lockBadge = thumbWrap.createSpan({
-          cls: 'fm-gallery-lock-badge',
-          text: '🔒',
-          attr: { title: this.t('galleryBtnUnlock') }
-        });
-        lockBadge.onclick = async (e) => {
-          e.stopPropagation();
-          try {
-            await this.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
-            item.locked = false;
-            this.renderGrid(containerEl, countLabel);
-          } catch (err) {
-            new Notice(this.t('previewLockFailed', { err: err.message }));
-          }
-        };
-      }
-
-      thumbWrap.onclick = () => {
-        new ImageLightboxModal(this.app, this.plugin, {
-          source: 'remote',
-          name: item.name || item.filename,
-          displayPath: `${item.year}/${item.month}/${item.filename}`,
-          size: item.size,
-          rawObj: item
-        }, (action, target) => {
-          if (action === 'deleted') {
-            this.items = this.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
-          }
-          this.renderGrid(containerEl, countLabel);
-        }).open();
-      };
-
-      const info = card.createDiv({ cls: 'fm-gallery-info' });
-      info.createDiv({
-        cls: 'fm-gallery-name',
-        text: item.name || item.filename,
-        attr: { title: item.name || item.filename }
-      });
-
-      const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-      meta.createSpan({ text: `${item.year}/${item.month}` });
-      meta.createSpan({ text: formatBytes(item.size) });
-
-      const actions = card.createDiv({ cls: 'fm-gallery-actions' });
-
-      // Clean single action: 📝 插入笔记
-      const isWebpMode = this.insertMode === 'webp' && item.pubUrl;
-      const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
-      const fn = item.name || item.filename;
-
-      const insertBtn = actions.createEl('button', {
-        cls: 'fm-gallery-insert-btn mod-cta',
-        attr: { title: isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw') }
-      });
-      setIcon(insertBtn.createSpan(), 'file-input');
-      insertBtn.createSpan({ text: this.t('galleryBtnInsert') });
-      insertBtn.onmousedown = (e) => {
-        // Prevent clicking button from blurring or moving cursor in Markdown editor
-        e.preventDefault();
-      };
-      insertBtn.onclick = () => {
-        const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
-        const noticeMsg = isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw');
-        this.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
-      };
-    }
+    renderRemoteGallery(this, containerEl, countLabel);
   }
 
   onClose() {
@@ -3453,152 +3387,11 @@ class RemoteGalleryView extends ItemView {
   }
 
   filterItems() {
-    return this.items.filter((item) => {
-      if (this.selectedBucket !== 'all' && `${item.year}/${item.month}` !== this.selectedBucket) {
-        return false;
-      }
-      if (this.selectedType !== 'all') {
-        const grp = getFileTypeGroup(getExt(item.name || item.filename));
-        if (grp !== this.selectedType) return false;
-      }
-      if (this.searchQuery) {
-        const fn = (item.name || item.filename || '').toLowerCase();
-        if (!fn.includes(this.searchQuery)) return false;
-      }
-      return true;
-    });
+    return filterRemoteGallery(this);
   }
 
   renderGrid(containerEl, countLabel) {
-    containerEl.empty();
-    if (this.layoutMode === 'list') {
-      containerEl.addClass('is-list');
-    } else {
-      containerEl.removeClass('is-list');
-    }
-
-    const filtered = this.filterItems();
-    const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
-
-    if (countLabel) {
-      countLabel.empty();
-      countLabel.createSpan({ cls: 'fm-gallery-stats-count', text: this.t('galleryFileCount', { count: filtered.length }) });
-      countLabel.createSpan({ cls: 'fm-gallery-stats-size', text: this.t('galleryTotalSize', { size: formatBytes(totalBytes) }) });
-    }
-
-    if (filtered.length === 0) {
-      containerEl.createDiv({
-        cls: 'fm-section-box',
-        text: this.t('galleryEmpty'),
-        attr: { style: 'grid-column: 1 / -1; text-align: center; padding: 30px 10px; color: var(--text-muted); font-size:12px;' }
-      });
-      return;
-    }
-
-    for (const item of filtered) {
-      const card = containerEl.createDiv({ cls: 'fm-gallery-card' + (this.layoutMode === 'list' ? ' is-list' : '') });
-      const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
-
-      const ext = getExt(item.name || item.filename);
-      const isImg = IMAGE_EXTS.has(ext);
-
-      if (isImg) {
-        const img = thumbWrap.createEl('img', {
-          cls: 'fm-gallery-thumb',
-          attr: {
-            loading: 'lazy',
-            src: item.pubUrl || item.rawUrl,
-            alt: item.name || item.filename
-          }
-        });
-        img.onerror = () => {
-          img.style.display = 'none';
-          thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
-        };
-      } else {
-        thumbWrap.createDiv({
-          text: ext.toUpperCase(),
-          attr: { style: 'font-size: 14px; font-weight: 700; color: var(--text-muted);' }
-        });
-      }
-
-      // Lock badge (click to unlock if locked and not protected)
-      if (item.locked) {
-        const lockBadge = thumbWrap.createSpan({
-          cls: 'fm-gallery-lock-badge',
-          text: '🔒',
-          attr: { title: this.t('galleryBtnUnlock') }
-        });
-        lockBadge.onclick = async (e) => {
-          e.stopPropagation();
-          try {
-            await this.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
-            item.locked = false;
-            this.renderGrid(containerEl, countLabel);
-          } catch (err) {
-            new Notice(this.t('previewLockFailed', { err: err.message }));
-          }
-        };
-      }
-
-      thumbWrap.onclick = () => {
-        new ImageLightboxModal(this.app, this.plugin, {
-          source: 'remote',
-          name: item.name || item.filename,
-          displayPath: `${item.year}/${item.month}/${item.filename}`,
-          size: item.size,
-          rawObj: item
-        }, (action, target) => {
-          if (action === 'deleted') {
-            this.items = this.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
-          }
-          this.renderGrid(containerEl, countLabel);
-        }).open();
-      };
-      thumbWrap.setAttribute('role', 'button');
-      thumbWrap.setAttribute('tabindex', '0');
-      thumbWrap.setAttribute('aria-label', this.t('galleryBtnPreview'));
-      thumbWrap.onkeydown = (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          thumbWrap.click();
-        }
-      };
-
-      const info = card.createDiv({ cls: 'fm-gallery-info' });
-      info.createDiv({
-        cls: 'fm-gallery-name',
-        text: item.name || item.filename,
-        attr: { title: item.name || item.filename }
-      });
-
-      const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-      meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}` });
-
-      const actions = card.createDiv({ cls: 'fm-gallery-actions' });
-
-      // Clean single action: 📝 插入笔记
-      const isWebpMode = this.insertMode === 'webp' && item.pubUrl;
-      const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
-      const fn = item.name || item.filename;
-
-      const insertBtn = actions.createEl('button', {
-        cls: 'fm-gallery-insert-btn mod-cta',
-        attr: { title: isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw') }
-      });
-      setIcon(insertBtn.createSpan(), 'file-input');
-      insertBtn.createSpan({ cls: 'fm-gallery-insert-label', text: this.t('galleryBtnInsert') });
-      insertBtn.setAttribute('aria-label', this.t('galleryBtnInsert'));
-      insertBtn.onmousedown = (e) => {
-        // Prevent clicking button from blurring or moving cursor in Markdown editor
-        e.preventDefault();
-      };
-      insertBtn.onclick = () => {
-        const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
-        const noticeMsg = isWebpMode ? this.t('galleryInsertedWebp') : this.t('galleryInsertedRaw');
-        this.plugin?.insertMarkdownToActiveEditor(mdSnippet, noticeMsg);
-      };
-    }
+    renderRemoteGallery(this, containerEl, countLabel);
   }
 
   async onClose() {

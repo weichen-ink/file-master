@@ -1,5 +1,6 @@
 node_modules/
 data.json
+migration-pending.json
 .DS_Store
 *.log
 release/
