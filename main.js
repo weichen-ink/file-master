@@ -2515,7 +2515,6 @@ var IncomingFileModal = class extends import_obsidian4.Modal {
   render() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("fm-wizard-modal");
     contentEl.addClass("fm-incoming-modal-dialog");
     if (this.step === "input") {
       this.renderInputStep();

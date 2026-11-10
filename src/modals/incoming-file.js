@@ -85,7 +85,6 @@ export class IncomingFileModal extends Modal {
   render() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass('fm-wizard-modal');
     contentEl.addClass('fm-incoming-modal-dialog');
 
     if (this.step === 'input') {
