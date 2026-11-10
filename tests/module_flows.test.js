@@ -113,7 +113,7 @@ for (const scenario of [
     const loaded = loadPlugin(async ({ url }) => url.endsWith('/version')
       ? { status: 200, json: { version: scenario.version, minPluginVersion: scenario.minPluginVersion || '1.0.0' } }
       : { status: scenario.code, json: { images: [] } });
-    const plugin = new loaded.Plugin({}); plugin.manifest = { version: '1.0.6' };
+    const plugin = new loaded.Plugin({}); plugin.manifest = { version: '1.0.7' };
     plugin.settings = { enableRemoteServer: true, serverUrl: 'https://example.com', apiToken: scenario.token };
     let saved; plugin.saveData = async (settings) => { saved = { ...settings }; };
     const result = await loaded.serverClient.checkServerCompatibility(plugin);

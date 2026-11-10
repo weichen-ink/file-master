@@ -2,6 +2,11 @@
 
 See root `CHANGELOG.md` for full ecosystem release notes.
 
+## [1.0.7] - 2026-11-10
+- Expand incoming attachment modal dialog layout to fill window width naturally without blank right margins.
+- Support server v1.0.1 smart resolution-aware and aspect-ratio-adaptive watermarking on 4K, portrait, and mobile screenshot assets.
+- Full end-to-end compatibility verification with Apple HEIC/HEIF transcode pipelines.
+
 ## [1.0.6] - 2026-11-10
 - Build explicit ESM sources with esbuild while keeping the single CommonJS Obsidian entry and three release assets.
 - Replace plugin inheritance layers with ordinary operation modules and a direct Obsidian Plugin subclass.

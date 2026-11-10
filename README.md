@@ -81,7 +81,7 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
 
 ## ⚙️ Quick Configuration
 
-FileMaster `1.0.6` requires FileMaster Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
+FileMaster `1.0.7` requires FileMaster Server `1.0.1` or newer. Update both repositories together to receive the batch reliability fixes.
 
 1. Open **Settings → FileMaster**.
 2. **Server Access URL**: Enter your self-hosted server address (e.g. `http://192.168.1.100:3000` or `https://img.yourdomain.com`).
@@ -151,7 +151,7 @@ See [batch processing, integrity semantics, and scale limits](https://github.com
 
 ### 批量操作与恢复
 
-插件 `1.0.6` 需要服务端 `1.0.1` 或更新版本，请同时更新两端。批量上传会遵守服务器限流并重试临时故障；停止后会完成已成功传输文件的链接更新，在结果页可“重试未完成项”。重启 Obsidian 后，可在命令面板运行“恢复未完成上传”，检查清单后继续；此清单对应最近一次上传，要求使用原服务器地址。
+插件 `1.0.7` 需要服务端 `1.0.1` 或更新版本，请同时更新两端。批量上传会遵守服务器限流并重试临时故障；停止后会完成已成功传输文件的链接更新，在结果页可“重试未完成项”。重启 Obsidian 后，可在命令面板运行“恢复未完成上传”，检查清单后继续；此清单对应最近一次上传，要求使用原服务器地址。
 
 迁移基于最新笔记正文修改链接，删除前重新检查引用和本地文件内容。批量下载在写入前核对原文件哈希，并集中更新相关笔记。图库每页显示 60 项，支持时使用服务器缩略图。“失效链接”检查的是可达性，原文件完整校验请在服务器文件页面运行。
 
