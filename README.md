@@ -47,7 +47,7 @@ Obsidian vaults grow heavy over time with duplicate screenshots, unreferenced or
   - **Link Health Inspector**: Scans dangling WikiLinks and broken remote 404 links with 1-click line jump and Markdown reports.
 
 - 🌐 **Dual-Track Delivery & Watermarking**:
-  Keeps lossless original assets in Obsidian while optionally serving optimized, contrast-adaptive watermarked WebP links (`/pub/*.webp`) for blog publishing (e.g. Astro).
+  Keeps lossless original assets in Obsidian by default (with optional optimized WebP link insertion), while serving contrast-adaptive watermarked WebP links (`/pub/*.webp`) for blog publishing (e.g. Astro).
 
 ---
 
@@ -131,7 +131,7 @@ FileMaster `1.0.5` requires FileMaster Server `1.0.0` or newer.
   * **内容哈希查重**：跨本地库与云端深度查重，一键合并多份冗余并重定向双链。
   * **孤儿素材清理**：扫描未被引用的图片、音视频、PDF，提供缩略图预览与安全回收。
   * **404 断链体检**：秒级排查悬空 WikiLink 与失效外链，支持一键行定位并导出 Markdown 报告。
-* 🌐 **双轨分发与自适应水印**：库内保持高清原图，外部公开发布支持按背景明暗自动适配的 WebP 动态水印。
+* 🌐 **双轨分发与自适应水印**：库内默认保持高清原图（亦可选插入轻量 WebP），公开发布支持按背景明暗自动适配的 WebP 动态水印。
 
 ### 💡 典型使用场景
 

@@ -8161,11 +8161,16 @@ class FileMasterPlugin extends Plugin {
       return null;
     };
 
+    const isDocExcalidraw =
+      (docPath && (docPath.endsWith('.excalidraw.md') || docPath.endsWith('.excalidraw'))) ||
+      (!docPath && /(^##\s+Embedded [Ff]iles\s*?\r?\n)/m.test(content)) ||
+      (typeof isExcalidrawContent === 'function' && isExcalidrawContent(content));
+
     let excalSection = null;
     let preSection = content;
     let postSection = '';
     const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
-    const match = sectionRegex.exec(content);
+    const match = isDocExcalidraw ? sectionRegex.exec(content) : null;
     if (match) {
       if (typeof rewriteExcalidrawEmbeddedFiles === 'function') {
         excalSection = rewriteExcalidrawEmbeddedFiles(match[0], removeItem, keepItem, { docPath, resolveLink });
@@ -8231,15 +8236,19 @@ class FileMasterPlugin extends Plugin {
 
           const checkBareMatchAllowed = () => {
             if (!isBare) return true;
-            if (resolveLink) {
+            const hasActiveResolver = Boolean(
+              customResolve ||
+              (this.app?.metadataCache?.getFirstLinkpathDest && docPath)
+            );
+            if (hasActiveResolver) {
               const dest = resolveLink(cand);
-              if (dest) {
-                const destPath = dest.toLowerCase().replace(/^\.?\//, '');
-                const targetPath = (removeItem.displayPath || '').toLowerCase().replace(/^\.?\//, '');
-                return destPath === targetPath;
-              } else if (customResolve) {
+              if (!dest) {
+                // Link is dangling, ambiguous, or resolves to another file -> do NOT rewrite
                 return false;
               }
+              const destPath = dest.toLowerCase().replace(/^\.?\//, '');
+              const targetPath = (removeItem.displayPath || '').toLowerCase().replace(/^\.?\//, '');
+              return destPath === targetPath;
             }
             return true;
           };

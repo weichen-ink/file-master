@@ -487,6 +487,7 @@ id_bare: [[diagram.png]]
 
   // Case 1: resolveLink resolves bare link to attachments/b/diagram.png (different file) -> must NOT rewrite
   const contextResolvesToB = {
+    docPath: 'drawing.excalidraw.md',
     resolveLink: (ref) => (ref === 'diagram.png' ? 'attachments/b/diagram.png' : null)
   };
   const resultB = rewriteContentLinks(doc, localItemA, remoteItemA, contextResolvesToB);
@@ -494,8 +495,73 @@ id_bare: [[diagram.png]]
 
   // Case 2: resolveLink resolves bare link to attachments/a/diagram.png (target file) -> must rewrite
   const contextResolvesToA = {
+    docPath: 'drawing.excalidraw.md',
     resolveLink: (ref) => (ref === 'diagram.png' ? 'attachments/a/diagram.png' : null)
   };
   const resultA = rewriteContentLinks(doc, localItemA, remoteItemA, contextResolvesToA);
   assert.ok(resultA.includes('id_bare: https://cdn.example.com/raw/2026/11/diagram.png'), 'Bare link resolving to a must be rewritten');
+});
+
+test('rewriteContentLinks in Markdown: unresolvable bare link (resolveLink returns null) is NOT rewritten', () => {
+  const localItem = {
+    id: 'local:attachments/a/diagram.png',
+    source: 'local',
+    name: 'diagram.png',
+    displayPath: 'attachments/a/diagram.png',
+    ext: 'png'
+  };
+  const remoteItem = {
+    id: 'remote:2026/11/diagram.png',
+    source: 'remote',
+    name: 'diagram.png',
+    filename: 'diagram.png',
+    displayPath: '2026/11/diagram.png',
+    ext: 'png',
+    rawObj: {
+      rawUrl: 'https://cdn.example.com/raw/2026/11/diagram.png'
+    }
+  };
+
+  const noteContent = `Here is an unresolvable or ambiguous embed: ![[diagram.png]]`;
+  const contextNull = {
+    docPath: 'notes/MyNote.md',
+    resolveLink: () => null // cannot resolve
+  };
+
+  const res = rewriteContentLinks(noteContent, localItem, remoteItem, contextNull);
+  assert.strictEqual(res, noteContent, 'Unresolvable bare link must remain untouched');
+});
+
+test('rewriteContentLinks in Markdown: normal note with ## Embedded Files is not treated as Excalidraw drawing', () => {
+  const localItem = {
+    id: 'local:attachments/diagram.png',
+    source: 'local',
+    name: 'diagram.png',
+    displayPath: 'attachments/diagram.png',
+    ext: 'png'
+  };
+  const remoteItem = {
+    id: 'remote:2026/11/diagram.png',
+    source: 'remote',
+    name: 'diagram.png',
+    filename: 'diagram.png',
+    displayPath: '2026/11/diagram.png',
+    ext: 'png',
+    rawObj: {
+      rawUrl: 'https://cdn.example.com/raw/2026/11/diagram.png'
+    }
+  };
+
+  const normalDoc = `## Embedded Files
+id: [[attachments/diagram.png]]
+`;
+  const contextNormal = {
+    docPath: 'notes/Architecture.md',
+    resolveLink: (ref) => (ref.includes('diagram.png') ? 'attachments/diagram.png' : null)
+  };
+
+  const res = rewriteContentLinks(normalDoc, localItem, remoteItem, contextNormal);
+  // Normal markdown note replaces wikilink with [name](url) markdown link, NOT bare URL!
+  assert.ok(res.includes('id: [diagram.png](https://cdn.example.com/raw/2026/11/diagram.png)'), 'Normal note must format as markdown link, not bare Excalidraw URL');
+  assert.ok(!res.includes('id: https://cdn.example.com/raw/2026/11/diagram.png'), 'Must not inject bare URL into normal Markdown note');
 });
