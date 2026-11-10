@@ -831,7 +831,7 @@ class FileMasterPlugin extends Plugin {
     const arrayBuffer = await file.arrayBuffer();
     const ext = getExt(file.name) || (file.type.startsWith('image/') ? 'png' : 'bin');
     const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), 'Pasted_image');
-    const sha256 = computeSha256Hex(arrayBuffer);
+    const sha256 = await computeSha256Hex(arrayBuffer);
     const activeFile = this.app.workspace.getActiveFile();
     const noteName = activeFile ? activeFile.basename : 'note';
 
@@ -900,10 +900,7 @@ class FileMasterPlugin extends Plugin {
     // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
     if (!options.skipProbe) {
       try {
-        const fullSha256 = crypto
-          .createHash('sha256')
-          .update(Buffer.from(arrayBuffer))
-          .digest('hex');
+        const fullSha256 = await computeSha256Hex(arrayBuffer);
         const probed = await this.probeRemoteSha256(fullSha256);
         if (probed && probed.exists) {
           probed.isInstant = true;
@@ -1573,7 +1570,7 @@ class FileMasterPlugin extends Plugin {
           if (!buf || buf.byteLength === 0) continue;
           localScanned++;
 
-          const sha256 = computeSha256Hex(buf);
+          const sha256 = await computeSha256Hex(buf);
           const refNotes = this.findReferencingNotesForLocalFile(f, snapshot);
 
           addItem(sha256, {
@@ -2501,7 +2498,7 @@ class FileMasterPlugin extends Plugin {
       if (localHashCache.has(tfile.path)) return localHashCache.get(tfile.path);
       try {
         const buf = await this.app.vault.readBinary(tfile);
-        const h = computeSha256Hex(buf);
+        const h = await computeSha256Hex(buf);
         localHashCache.set(tfile.path, h);
         return h;
       } catch {

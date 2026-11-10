@@ -6,5 +6,5 @@
   "description": "Manage vault assets with self-hosted cloud storage, clipboard auto-upload, SHA-256 deduplication, zero-broken-link batch migration, and orphan cleanup.",
   "author": "weichen-ink",
   "authorUrl": "https://github.com/weichen-ink",
-  "isDesktopOnly": true
+  "isDesktopOnly": false
 }

@@ -703,7 +703,7 @@ class IncomingFileModal extends Modal {
         if (this.progressBar) this.progressBar.style.width = '25%';
         if (this.statusLabel) this.statusLabel.setText(this.t('destProbeChecking'));
 
-        const sha256 = this.fileInfo.sha256 || computeSha256Hex(this.fileInfo.arrayBuffer);
+        const sha256 = this.fileInfo.sha256 || (await computeSha256Hex(this.fileInfo.arrayBuffer));
         let res = null;
 
         // 1. Probe remote server

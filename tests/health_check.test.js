@@ -13,12 +13,14 @@ const isAttachmentExtMatch = pluginCode.match(/function isAttachmentExt\([\s\S]*
 const getExtMatch = pluginCode.match(/function getExt\([\s\S]*?\n\}/);
 const getFileTypeGroupMatch = pluginCode.match(/function getFileTypeGroup\([\s\S]*?\n\}/);
 const isReportMatch = pluginCode.match(/function isReportFile\([\s\S]*?\n\}/);
+const normalizePosixPathMatch = pluginCode.match(/function normalizePosixPath\([\s\S]*?\n\}/);
 const computeStatsMatch = pluginCode.match(/function computeVaultStatsFromEntries\([\s\S]*?\n\}/);
 const resolveWikiMatch = pluginCode.match(/function resolveWikiTarget\([\s\S]*?\n\}/);
 const resolveLocalMdMatch = pluginCode.match(/function resolveLocalMarkdownTarget\([\s\S]*?\n\}/);
 const scanNoteMatch = pluginCode.match(/function scanNoteContentForBrokenLinks\([\s\S]*?\n\}/);
 
 assert.ok(isReportMatch, 'isReportFile must be found in main.js');
+assert.ok(normalizePosixPathMatch, 'normalizePosixPath must be found in main.js');
 assert.ok(computeStatsMatch, 'computeVaultStatsFromEntries must be found in main.js');
 assert.ok(resolveWikiMatch, 'resolveWikiTarget must be found in main.js');
 assert.ok(resolveLocalMdMatch, 'resolveLocalMarkdownTarget must be found in main.js');
@@ -33,6 +35,7 @@ const evalEnv = new Function(
    ${getExtMatch[0]}
    ${getFileTypeGroupMatch[0]}
    ${isReportMatch[0]}
+   ${normalizePosixPathMatch[0]}
    ${computeStatsMatch[0]}
    ${resolveWikiMatch[0]}
    ${resolveLocalMdMatch[0]}

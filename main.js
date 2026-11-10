@@ -9,10 +9,9 @@ const {
   ItemView,
   setIcon,
   TFile,
-  getLanguage
+  getLanguage,
+  Platform
 } = require('obsidian');
-const crypto = require('crypto');
-const path = require('path');
 
 const DEFAULT_SETTINGS = {
   language: 'auto', // 'auto' | 'zh' | 'en'
@@ -1389,8 +1388,66 @@ function formatBytes(bytes) {
   return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 1) + ' ' + sizes[i];
 }
 
-function computeSha256Hex(arrayBuffer) {
-  return crypto.createHash('sha256').update(Buffer.from(arrayBuffer)).digest('hex');
+async function computeSha256Hex(input) {
+  if (!input) return '';
+  let buffer = null;
+  if (input instanceof ArrayBuffer) {
+    buffer = input;
+  } else if (ArrayBuffer.isView(input)) {
+    buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+  } else if (typeof input === 'string') {
+    buffer = new TextEncoder().encode(input).buffer;
+  }
+  if (!buffer) return '';
+
+  if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
+    const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
+    const bytes = new Uint8Array(hashBuf);
+    let hex = '';
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, '0');
+    }
+    return hex;
+  }
+  return '';
+}
+
+function getRandomHex(len = 4) {
+  const bytesCount = Math.ceil(len / 2);
+  const bytes = new Uint8Array(bytesCount);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytesCount; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex.slice(0, len);
+}
+
+function normalizePosixPath(filePath) {
+  if (!filePath) return '';
+  const isAbsolute = filePath.startsWith('/');
+  const segments = filePath.split('/');
+  const stack = [];
+  for (const seg of segments) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') {
+      if (stack.length > 0 && stack[stack.length - 1] !== '..') {
+        stack.pop();
+      } else if (!isAbsolute) {
+        stack.push('..');
+      }
+    } else {
+      stack.push(seg);
+    }
+  }
+  const joined = stack.join('/');
+  return isAbsolute ? `/${joined}` : (joined || '.');
 }
 
 function compareSemver(v1, v2) {
@@ -1570,7 +1627,7 @@ function resolveWikiTarget(target, docPath, vaultIndex) {
     // Check relative to current document folder
     const docDir = docPath.includes('/') ? docPath.substring(0, docPath.lastIndexOf('/')) : '';
     if (docDir) {
-      const rel = path.posix.normalize(`${docDir}/${c}`).replace(/^(\.\/)+/, '');
+      const rel = normalizePosixPath(`${docDir}/${c}`).replace(/^(\.\/)+/, '').replace(/^\/+/, '');
       if (vaultIndex.paths.has(rel) || vaultIndex.paths.has(rel + '.md')) return true;
     }
   }
@@ -1596,7 +1653,7 @@ function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
     // Check relative to current document folder
     const docDir = docPath.includes('/') ? docPath.substring(0, docPath.lastIndexOf('/')) : '';
     if (docDir) {
-      const rel = path.posix.normalize(`${docDir}/${clean}`).replace(/^(\.\/)+/, '');
+      const rel = normalizePosixPath(`${docDir}/${clean}`).replace(/^(\.\/)+/, '').replace(/^\/+/, '');
       if (vaultIndex.paths.has(rel) || vaultIndex.paths.has(rel + '.md')) return true;
     }
 
@@ -1728,7 +1785,7 @@ function applyNamingPattern(pattern, { noteName, originBase, sha256 }) {
   });
   result = result.replace(/\{rand(?::(\d+))?\}/gi, (_, len) => {
     const l = Math.min(16, Math.max(2, Number(len) || 4));
-    return crypto.randomBytes(Math.ceil(l / 2)).toString('hex').slice(0, l);
+    return getRandomHex(l);
   });
 
   return sanitizeCleanBaseName(result, `file_${timestamp}`);
@@ -2704,7 +2761,7 @@ class IncomingFileModal extends Modal {
         if (this.progressBar) this.progressBar.style.width = '25%';
         if (this.statusLabel) this.statusLabel.setText(this.t('destProbeChecking'));
 
-        const sha256 = this.fileInfo.sha256 || computeSha256Hex(this.fileInfo.arrayBuffer);
+        const sha256 = this.fileInfo.sha256 || (await computeSha256Hex(this.fileInfo.arrayBuffer));
         let res = null;
 
         // 1. Probe remote server
@@ -6755,7 +6812,7 @@ class FileMasterPlugin extends Plugin {
     const arrayBuffer = await file.arrayBuffer();
     const ext = getExt(file.name) || (file.type.startsWith('image/') ? 'png' : 'bin');
     const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), 'Pasted_image');
-    const sha256 = computeSha256Hex(arrayBuffer);
+    const sha256 = await computeSha256Hex(arrayBuffer);
     const activeFile = this.app.workspace.getActiveFile();
     const noteName = activeFile ? activeFile.basename : 'note';
 
@@ -6824,10 +6881,7 @@ class FileMasterPlugin extends Plugin {
     // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
     if (!options.skipProbe) {
       try {
-        const fullSha256 = crypto
-          .createHash('sha256')
-          .update(Buffer.from(arrayBuffer))
-          .digest('hex');
+        const fullSha256 = await computeSha256Hex(arrayBuffer);
         const probed = await this.probeRemoteSha256(fullSha256);
         if (probed && probed.exists) {
           probed.isInstant = true;
@@ -7497,7 +7551,7 @@ class FileMasterPlugin extends Plugin {
           if (!buf || buf.byteLength === 0) continue;
           localScanned++;
 
-          const sha256 = computeSha256Hex(buf);
+          const sha256 = await computeSha256Hex(buf);
           const refNotes = this.findReferencingNotesForLocalFile(f, snapshot);
 
           addItem(sha256, {
@@ -8425,7 +8479,7 @@ class FileMasterPlugin extends Plugin {
       if (localHashCache.has(tfile.path)) return localHashCache.get(tfile.path);
       try {
         const buf = await this.app.vault.readBinary(tfile);
-        const h = computeSha256Hex(buf);
+        const h = await computeSha256Hex(buf);
         localHashCache.set(tfile.path, h);
         return h;
       } catch {

@@ -63,8 +63,66 @@ function formatBytes(bytes) {
   return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 1) + ' ' + sizes[i];
 }
 
-function computeSha256Hex(arrayBuffer) {
-  return crypto.createHash('sha256').update(Buffer.from(arrayBuffer)).digest('hex');
+async function computeSha256Hex(input) {
+  if (!input) return '';
+  let buffer = null;
+  if (input instanceof ArrayBuffer) {
+    buffer = input;
+  } else if (ArrayBuffer.isView(input)) {
+    buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+  } else if (typeof input === 'string') {
+    buffer = new TextEncoder().encode(input).buffer;
+  }
+  if (!buffer) return '';
+
+  if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
+    const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
+    const bytes = new Uint8Array(hashBuf);
+    let hex = '';
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, '0');
+    }
+    return hex;
+  }
+  return '';
+}
+
+function getRandomHex(len = 4) {
+  const bytesCount = Math.ceil(len / 2);
+  const bytes = new Uint8Array(bytesCount);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytesCount; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex.slice(0, len);
+}
+
+function normalizePosixPath(filePath) {
+  if (!filePath) return '';
+  const isAbsolute = filePath.startsWith('/');
+  const segments = filePath.split('/');
+  const stack = [];
+  for (const seg of segments) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') {
+      if (stack.length > 0 && stack[stack.length - 1] !== '..') {
+        stack.pop();
+      } else if (!isAbsolute) {
+        stack.push('..');
+      }
+    } else {
+      stack.push(seg);
+    }
+  }
+  const joined = stack.join('/');
+  return isAbsolute ? `/${joined}` : (joined || '.');
 }
 
 function compareSemver(v1, v2) {
@@ -244,7 +302,7 @@ function resolveWikiTarget(target, docPath, vaultIndex) {
     // Check relative to current document folder
     const docDir = docPath.includes('/') ? docPath.substring(0, docPath.lastIndexOf('/')) : '';
     if (docDir) {
-      const rel = path.posix.normalize(`${docDir}/${c}`).replace(/^(\.\/)+/, '');
+      const rel = normalizePosixPath(`${docDir}/${c}`).replace(/^(\.\/)+/, '').replace(/^\/+/, '');
       if (vaultIndex.paths.has(rel) || vaultIndex.paths.has(rel + '.md')) return true;
     }
   }
@@ -270,7 +328,7 @@ function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
     // Check relative to current document folder
     const docDir = docPath.includes('/') ? docPath.substring(0, docPath.lastIndexOf('/')) : '';
     if (docDir) {
-      const rel = path.posix.normalize(`${docDir}/${clean}`).replace(/^(\.\/)+/, '');
+      const rel = normalizePosixPath(`${docDir}/${clean}`).replace(/^(\.\/)+/, '').replace(/^\/+/, '');
       if (vaultIndex.paths.has(rel) || vaultIndex.paths.has(rel + '.md')) return true;
     }
 
@@ -402,7 +460,7 @@ function applyNamingPattern(pattern, { noteName, originBase, sha256 }) {
   });
   result = result.replace(/\{rand(?::(\d+))?\}/gi, (_, len) => {
     const l = Math.min(16, Math.max(2, Number(len) || 4));
-    return crypto.randomBytes(Math.ceil(l / 2)).toString('hex').slice(0, l);
+    return getRandomHex(l);
   });
 
   return sanitizeCleanBaseName(result, `file_${timestamp}`);

@@ -22,3 +22,18 @@ test('main.js bundle syntax and integrity', () => {
   assert.ok(content.includes('class HealthCheckModal'), 'must contain HealthCheckModal class');
   assert.ok(content.includes('class VaultAnalyticsModal'), 'must contain VaultAnalyticsModal class');
 });
+
+test('mobile compatibility: manifest isDesktopOnly is false and main.js has no Node.js dependencies', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../manifest.json'), 'utf8'));
+  assert.strictEqual(manifest.isDesktopOnly, false, 'manifest.json must have isDesktopOnly: false');
+
+  const mainPath = path.resolve(__dirname, '../main.js');
+  const content = fs.readFileSync(mainPath, 'utf8');
+
+  assert.ok(!content.includes("require('crypto')"), "main.js must not require('crypto') for mobile compatibility");
+  assert.ok(!content.includes('require("crypto")'), 'main.js must not require("crypto") for mobile compatibility');
+  assert.ok(!content.includes("require('path')"), "main.js must not require('path') for mobile compatibility");
+  assert.ok(!content.includes('require("path")'), 'main.js must not require("path") for mobile compatibility');
+  assert.ok(!content.includes("require('fs')"), "main.js must not require('fs') for mobile compatibility");
+  assert.ok(!content.includes('Buffer.from('), 'main.js must not rely on Node Buffer.from for mobile compatibility');
+});

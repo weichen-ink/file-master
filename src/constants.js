@@ -9,10 +9,9 @@ const {
   ItemView,
   setIcon,
   TFile,
-  getLanguage
+  getLanguage,
+  Platform
 } = require('obsidian');
-const crypto = require('crypto');
-const path = require('path');
 
 const DEFAULT_SETTINGS = {
   language: 'auto', // 'auto' | 'zh' | 'en'

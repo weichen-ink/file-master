@@ -2,6 +2,24 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const crypto = require('node:crypto');
 
+async function computeSha256Hex(input) {
+  if (!input) return '';
+  let buffer = null;
+  if (input instanceof ArrayBuffer) {
+    buffer = input;
+  } else if (ArrayBuffer.isView(input)) {
+    buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+  }
+  if (!buffer) return '';
+  const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
+  const bytes = new Uint8Array(hashBuf);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex;
+}
+
 // Simulate FileMasterPlugin instance
 class MockPlugin {
   constructor() {
@@ -34,10 +52,7 @@ class MockPlugin {
     // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
     if (!options.skipProbe && !toProtectedFolder) {
       try {
-        const fullSha256 = crypto
-          .createHash('sha256')
-          .update(Buffer.from(arrayBuffer))
-          .digest('hex');
+        const fullSha256 = await computeSha256Hex(arrayBuffer);
         const probed = await this.probeRemoteSha256(fullSha256);
         if (probed && probed.exists) {
           probed.isInstant = true;
