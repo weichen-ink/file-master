@@ -16,6 +16,7 @@ export class RemoteGalleryModal extends Modal {
     this.searchQuery = '';
     this.selectedBucket = 'all';
     this.selectedType = 'all';
+    this.selectedSort = 'time_desc';
     this.insertMode = this.plugin?.settings?.insertOptimizedLinkOnUpload ? 'webp' : 'raw';
   }
 
@@ -124,6 +125,21 @@ export class RemoteGalleryModal extends Modal {
       this.renderGrid(gridContainer, countLabel);
     };
 
+    // Sort dropdown
+    const sortSelect = filters.createEl('select', { attr: { 'aria-label': this.t('gallerySortLabel') } });
+    sortSelect.createEl('option', { value: 'time_desc', text: `🕒 ${this.t('gallerySortTimeDesc')}` });
+    sortSelect.createEl('option', { value: 'time_asc', text: `🕒 ${this.t('gallerySortTimeAsc')}` });
+    sortSelect.createEl('option', { value: 'size_desc', text: `⬇️ ${this.t('gallerySortSizeDesc')}` });
+    sortSelect.createEl('option', { value: 'size_asc', text: `⬆️ ${this.t('gallerySortSizeAsc')}` });
+    sortSelect.createEl('option', { value: 'name_asc', text: `🔤 ${this.t('gallerySortNameAsc')}` });
+    sortSelect.createEl('option', { value: 'name_desc', text: `🔤 ${this.t('gallerySortNameDesc')}` });
+    sortSelect.createEl('option', { value: 'hits_desc', text: `👁️ ${this.t('gallerySortHitsDesc')}` });
+    sortSelect.value = this.selectedSort;
+    sortSelect.onchange = (e) => {
+      this.selectedSort = e.target.value;
+      this.renderGrid(gridContainer, countLabel);
+    };
+
     const modeSelect = filters.createEl('select', { attr: { 'aria-label': this.t('galleryLinkFormat') } });
     modeSelect.createEl('option', { value: 'raw', text: this.t('galleryModeRaw') });
     modeSelect.createEl('option', { value: 'webp', text: this.t('galleryModeWebp') });
@@ -171,6 +187,7 @@ export class RemoteGalleryView extends ItemView {
     this.searchQuery = '';
     this.selectedBucket = 'all';
     this.selectedType = 'all';
+    this.selectedSort = 'time_desc';
     this.layoutMode = 'list'; // 'grid' | 'list'
     this.insertMode = this.plugin?.settings?.insertOptimizedLinkOnUpload ? 'webp' : 'raw';
   }
@@ -299,6 +316,22 @@ export class RemoteGalleryView extends ItemView {
     typeSelect.value = this.selectedType;
     typeSelect.onchange = (e) => {
       this.selectedType = e.target.value;
+      this.renderGrid(gridContainer, countLabel);
+    };
+
+    const sortField = row2.createDiv({ cls: 'fm-gallery-filter-field' });
+    sortField.createEl('label', { text: this.t('gallerySortLabel') });
+    const sortSelect = sortField.createEl('select', { attr: { 'aria-label': this.t('gallerySortLabel') } });
+    sortSelect.createEl('option', { value: 'time_desc', text: `🕒 ${this.t('gallerySortTimeDesc')}` });
+    sortSelect.createEl('option', { value: 'time_asc', text: `🕒 ${this.t('gallerySortTimeAsc')}` });
+    sortSelect.createEl('option', { value: 'size_desc', text: `⬇️ ${this.t('gallerySortSizeDesc')}` });
+    sortSelect.createEl('option', { value: 'size_asc', text: `⬆️ ${this.t('gallerySortSizeAsc')}` });
+    sortSelect.createEl('option', { value: 'name_asc', text: `🔤 ${this.t('gallerySortNameAsc')}` });
+    sortSelect.createEl('option', { value: 'name_desc', text: `🔤 ${this.t('gallerySortNameDesc')}` });
+    sortSelect.createEl('option', { value: 'hits_desc', text: `👁️ ${this.t('gallerySortHitsDesc')}` });
+    sortSelect.value = this.selectedSort;
+    sortSelect.onchange = (e) => {
+      this.selectedSort = e.target.value;
       this.renderGrid(gridContainer, countLabel);
     };
 

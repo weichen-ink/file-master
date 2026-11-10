@@ -1398,6 +1398,14 @@ var UI_STRINGS = {
     galleryFilterImage: "\u56FE\u7247",
     galleryFilterAudio: "\u97F3\u9891",
     galleryFilterOther: "\u5176\u4ED6",
+    gallerySortLabel: "\u6392\u5E8F",
+    gallerySortTimeDesc: "\u6700\u65B0\u4E0A\u4F20",
+    gallerySortTimeAsc: "\u6700\u65E9\u4E0A\u4F20",
+    gallerySortSizeDesc: "\u5927\u5C0F\u4ECE\u5927\u5230\u5C0F",
+    gallerySortSizeAsc: "\u5927\u5C0F\u4ECE\u5C0F\u5230\u5927",
+    gallerySortNameAsc: "\u6587\u4EF6\u540D A-Z",
+    gallerySortNameDesc: "\u6587\u4EF6\u540D Z-A",
+    gallerySortHitsDesc: "\u8BBF\u95EE\u70ED\u5EA6\u4ECE\u9AD8\u5230\u4F4E",
     galleryStats: "{count} \u4E2A\u6587\u4EF6 \xB7 \u5171 {size}",
     galleryFileCount: "{count} \u4E2A\u6587\u4EF6",
     galleryTotalSize: "\u5171 {size}",
@@ -1939,6 +1947,14 @@ var UI_STRINGS = {
     galleryFilterImage: "Images",
     galleryFilterAudio: "Audio",
     galleryFilterOther: "Others",
+    gallerySortLabel: "Sort",
+    gallerySortTimeDesc: "Newest first",
+    gallerySortTimeAsc: "Oldest first",
+    gallerySortSizeDesc: "Size: Largest first",
+    gallerySortSizeAsc: "Size: Smallest first",
+    gallerySortNameAsc: "Filename: A to Z",
+    gallerySortNameDesc: "Filename: Z to A",
+    gallerySortHitsDesc: "Hits: Most viewed",
     galleryStats: "{count} files \xB7 {size} total",
     galleryFileCount: "{count} files",
     galleryTotalSize: "{size} total",
@@ -5927,14 +5943,35 @@ var OrphanWizardModal = class extends import_obsidian13.Modal {
 var import_obsidian14 = require("obsidian");
 var REMOTE_GALLERY_PAGE_SIZE = 60;
 function filterRemoteGallery(view) {
-  return view.items.filter((item) => {
+  const filtered = view.items.filter((item) => {
     if (view.selectedBucket !== "all" && `${item.year}/${item.month}` !== view.selectedBucket) return false;
     if (view.selectedType !== "all" && getFileTypeGroup(getExt(item.name || item.filename)) !== view.selectedType) return false;
     return !view.searchQuery || (item.name || item.filename || "").toLowerCase().includes(view.searchQuery);
   });
+  const sort = view.selectedSort || "time_desc";
+  filtered.sort((a, b) => {
+    if (sort === "size_desc") return (b.size || 0) - (a.size || 0);
+    if (sort === "size_asc") return (a.size || 0) - (b.size || 0);
+    if (sort === "name_asc") {
+      const na = a.name || a.filename || "";
+      const nb = b.name || b.filename || "";
+      return na.localeCompare(nb, void 0, { numeric: true, sensitivity: "base" });
+    }
+    if (sort === "name_desc") {
+      const na = a.name || a.filename || "";
+      const nb = b.name || b.filename || "";
+      return nb.localeCompare(na, void 0, { numeric: true, sensitivity: "base" });
+    }
+    if (sort === "hits_desc") {
+      return (b.hits || 0) - (a.hits || 0) || (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    if (sort === "time_asc") return (a.createdAt || 0) - (b.createdAt || 0);
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+  return filtered;
 }
 function getRemoteGalleryPage(view, filtered) {
-  const key = `${view.selectedBucket}:${view.selectedType}:${view.searchQuery}`;
+  const key = `${view.selectedBucket}:${view.selectedType}:${view.selectedSort || "time_desc"}:${view.searchQuery}`;
   if (key !== view.galleryFilterKey) {
     view.galleryPage = 0;
     view.galleryFilterKey = key;
@@ -6041,7 +6078,8 @@ function renderRemoteGallery(view, containerEl, countLabel) {
       attr: { title: item.name || item.filename }
     });
     const meta = info.createDiv({ cls: "fm-gallery-meta" });
-    meta.createSpan({ text: `${item.year}/${item.month} \xB7 ${formatBytes(item.size)}` });
+    const hitsText = item.hits !== void 0 && item.hits !== null ? ` \xB7 \u{1F441}\uFE0F ${item.hits}` : "";
+    meta.createSpan({ text: `${item.year}/${item.month} \xB7 ${formatBytes(item.size)}${hitsText}` });
     const actions = card.createDiv({ cls: "fm-gallery-actions" });
     const isWebpMode = view.insertMode === "webp" && item.pubUrl;
     const insertTargetUrl = isWebpMode ? item.pubUrl : item.rawUrl || item.pubUrl;
@@ -6095,6 +6133,7 @@ var RemoteGalleryModal = class extends import_obsidian15.Modal {
     this.searchQuery = "";
     this.selectedBucket = "all";
     this.selectedType = "all";
+    this.selectedSort = "time_desc";
     this.insertMode = ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.insertOptimizedLinkOnUpload) ? "webp" : "raw";
   }
   t(k, p) {
@@ -6185,6 +6224,19 @@ var RemoteGalleryModal = class extends import_obsidian15.Modal {
       this.selectedType = e.target.value;
       this.renderGrid(gridContainer, countLabel);
     };
+    const sortSelect = filters.createEl("select", { attr: { "aria-label": this.t("gallerySortLabel") } });
+    sortSelect.createEl("option", { value: "time_desc", text: `\u{1F552} ${this.t("gallerySortTimeDesc")}` });
+    sortSelect.createEl("option", { value: "time_asc", text: `\u{1F552} ${this.t("gallerySortTimeAsc")}` });
+    sortSelect.createEl("option", { value: "size_desc", text: `\u2B07\uFE0F ${this.t("gallerySortSizeDesc")}` });
+    sortSelect.createEl("option", { value: "size_asc", text: `\u2B06\uFE0F ${this.t("gallerySortSizeAsc")}` });
+    sortSelect.createEl("option", { value: "name_asc", text: `\u{1F524} ${this.t("gallerySortNameAsc")}` });
+    sortSelect.createEl("option", { value: "name_desc", text: `\u{1F524} ${this.t("gallerySortNameDesc")}` });
+    sortSelect.createEl("option", { value: "hits_desc", text: `\u{1F441}\uFE0F ${this.t("gallerySortHitsDesc")}` });
+    sortSelect.value = this.selectedSort;
+    sortSelect.onchange = (e) => {
+      this.selectedSort = e.target.value;
+      this.renderGrid(gridContainer, countLabel);
+    };
     const modeSelect = filters.createEl("select", { attr: { "aria-label": this.t("galleryLinkFormat") } });
     modeSelect.createEl("option", { value: "raw", text: this.t("galleryModeRaw") });
     modeSelect.createEl("option", { value: "webp", text: this.t("galleryModeWebp") });
@@ -6222,6 +6274,7 @@ var RemoteGalleryView = class extends import_obsidian15.ItemView {
     this.searchQuery = "";
     this.selectedBucket = "all";
     this.selectedType = "all";
+    this.selectedSort = "time_desc";
     this.layoutMode = "list";
     this.insertMode = ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.insertOptimizedLinkOnUpload) ? "webp" : "raw";
   }
@@ -6331,6 +6384,21 @@ var RemoteGalleryView = class extends import_obsidian15.ItemView {
     typeSelect.value = this.selectedType;
     typeSelect.onchange = (e) => {
       this.selectedType = e.target.value;
+      this.renderGrid(gridContainer, countLabel);
+    };
+    const sortField = row2.createDiv({ cls: "fm-gallery-filter-field" });
+    sortField.createEl("label", { text: this.t("gallerySortLabel") });
+    const sortSelect = sortField.createEl("select", { attr: { "aria-label": this.t("gallerySortLabel") } });
+    sortSelect.createEl("option", { value: "time_desc", text: `\u{1F552} ${this.t("gallerySortTimeDesc")}` });
+    sortSelect.createEl("option", { value: "time_asc", text: `\u{1F552} ${this.t("gallerySortTimeAsc")}` });
+    sortSelect.createEl("option", { value: "size_desc", text: `\u2B07\uFE0F ${this.t("gallerySortSizeDesc")}` });
+    sortSelect.createEl("option", { value: "size_asc", text: `\u2B06\uFE0F ${this.t("gallerySortSizeAsc")}` });
+    sortSelect.createEl("option", { value: "name_asc", text: `\u{1F524} ${this.t("gallerySortNameAsc")}` });
+    sortSelect.createEl("option", { value: "name_desc", text: `\u{1F524} ${this.t("gallerySortNameDesc")}` });
+    sortSelect.createEl("option", { value: "hits_desc", text: `\u{1F441}\uFE0F ${this.t("gallerySortHitsDesc")}` });
+    sortSelect.value = this.selectedSort;
+    sortSelect.onchange = (e) => {
+      this.selectedSort = e.target.value;
       this.renderGrid(gridContainer, countLabel);
     };
     const row3 = toolbar.createDiv({ cls: "fm-gallery-summary-row" });

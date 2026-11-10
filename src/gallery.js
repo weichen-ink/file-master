@@ -7,15 +7,38 @@ import { Notice, setIcon } from 'obsidian';
 export const REMOTE_GALLERY_PAGE_SIZE = 60;
 
 export function filterRemoteGallery(view) {
-  return view.items.filter((item) => {
+  const filtered = view.items.filter((item) => {
     if (view.selectedBucket !== 'all' && `${item.year}/${item.month}` !== view.selectedBucket) return false;
     if (view.selectedType !== 'all' && getFileTypeGroup(getExt(item.name || item.filename)) !== view.selectedType) return false;
     return !view.searchQuery || (item.name || item.filename || '').toLowerCase().includes(view.searchQuery);
   });
+
+  const sort = view.selectedSort || 'time_desc';
+  filtered.sort((a, b) => {
+    if (sort === 'size_desc') return (b.size || 0) - (a.size || 0);
+    if (sort === 'size_asc') return (a.size || 0) - (b.size || 0);
+    if (sort === 'name_asc') {
+      const na = a.name || a.filename || '';
+      const nb = b.name || b.filename || '';
+      return na.localeCompare(nb, undefined, { numeric: true, sensitivity: 'base' });
+    }
+    if (sort === 'name_desc') {
+      const na = a.name || a.filename || '';
+      const nb = b.name || b.filename || '';
+      return nb.localeCompare(na, undefined, { numeric: true, sensitivity: 'base' });
+    }
+    if (sort === 'hits_desc') {
+      return ((b.hits || 0) - (a.hits || 0)) || ((b.createdAt || 0) - (a.createdAt || 0));
+    }
+    if (sort === 'time_asc') return (a.createdAt || 0) - (b.createdAt || 0);
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  return filtered;
 }
 
 export function getRemoteGalleryPage(view, filtered) {
-  const key = `${view.selectedBucket}:${view.selectedType}:${view.searchQuery}`;
+  const key = `${view.selectedBucket}:${view.selectedType}:${view.selectedSort || 'time_desc'}:${view.searchQuery}`;
   if (key !== view.galleryFilterKey) { view.galleryPage = 0; view.galleryFilterKey = key; }
   const totalPages = Math.max(1, Math.ceil(filtered.length / REMOTE_GALLERY_PAGE_SIZE));
   view.galleryPage = Math.min(Math.max(0, view.galleryPage || 0), totalPages - 1);
@@ -128,7 +151,8 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
     });
 
     const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-    meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}` });
+    const hitsText = (item.hits !== undefined && item.hits !== null) ? ` · 👁️ ${item.hits}` : '';
+    meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}${hitsText}` });
 
     const actions = card.createDiv({ cls: 'fm-gallery-actions' });
 
