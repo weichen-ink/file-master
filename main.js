@@ -1,3 +1,6 @@
+// src/plugin.js
+var import_obsidian23 = require("obsidian");
+
 // src/constants.js
 var DEFAULT_SETTINGS = {
   language: "auto",
@@ -2061,19 +2064,19 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
     contentEl.addClass("fm-wizard-modal");
     contentEl.addClass("fm-lightbox-modal");
     this.modalEl.addClass("fm-lightbox-dialog");
-    const t = (k, p) => this.plugin ? this.plugin.t(k, p) : translateUi("auto", k, p);
+    const t2 = (k, p) => this.plugin ? this.plugin.t(k, p) : translateUi("auto", k, p);
     const header = contentEl.createDiv({ cls: "fm-lightbox-header" });
-    header.createDiv({ cls: "fm-lightbox-eyebrow", text: t("previewTitleLabel") });
+    header.createDiv({ cls: "fm-lightbox-eyebrow", text: t2("previewTitleLabel") });
     header.createEl("h3", { text: this.item.name });
-    const srcLabel = this.item.source === "local" ? t("previewSourceLocal") : t("previewSourceRemote");
+    const srcLabel = this.item.source === "local" ? t2("previewSourceLocal") : t2("previewSourceRemote");
     const meta = header.createDiv({ cls: "fm-lightbox-meta" });
     meta.createSpan({ cls: "fm-lightbox-source", text: srcLabel });
     const details = meta.createDiv({ cls: "fm-lightbox-details" });
     const pathDetail = details.createDiv({ cls: "fm-lightbox-detail" });
-    pathDetail.createSpan({ cls: "fm-lightbox-detail-label", text: t("previewPathLabel") });
+    pathDetail.createSpan({ cls: "fm-lightbox-detail-label", text: t2("previewPathLabel") });
     pathDetail.createSpan({ cls: "fm-lightbox-detail-value", text: this.item.displayPath });
     const sizeDetail = details.createDiv({ cls: "fm-lightbox-detail" });
-    sizeDetail.createSpan({ cls: "fm-lightbox-detail-label", text: t("previewSizeLabel") });
+    sizeDetail.createSpan({ cls: "fm-lightbox-detail-label", text: t2("previewSizeLabel") });
     sizeDetail.createSpan({ cls: "fm-lightbox-detail-value", text: formatBytes(this.item.size) });
     const ext = getExt(this.item.name);
     const isImg = IMAGE_EXTS.has(ext);
@@ -2084,7 +2087,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
     } else {
       contentEl.createDiv({
         cls: "fm-section-box",
-        text: t("previewNonImageTip", { ext: ext.toUpperCase() }),
+        text: t2("previewNonImageTip", { ext: ext.toUpperCase() }),
         attr: { style: "text-align: center; padding: 30px 16px;" }
       });
     }
@@ -2092,44 +2095,44 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
       const remote = this.item.rawObj;
       const fn = this.item.name || remote.filename;
       const tracksBox = contentEl.createDiv({ cls: "fm-lightbox-tracks" });
-      tracksBox.createDiv({ cls: "fm-lightbox-section-label", text: t("previewLinksTitle") });
+      tracksBox.createDiv({ cls: "fm-lightbox-section-label", text: t2("previewLinksTitle") });
       const rawRow = tracksBox.createDiv({ cls: "fm-lightbox-track-row" });
-      rawRow.createSpan({ text: t("galleryTrackRaw"), cls: "fm-lightbox-track-name" });
-      const rawMdBtn = rawRow.createEl("button", { text: t("previewCopyMarkdown"), cls: "fm-lightbox-copy-btn" });
+      rawRow.createSpan({ text: t2("galleryTrackRaw"), cls: "fm-lightbox-track-name" });
+      const rawMdBtn = rawRow.createEl("button", { text: t2("previewCopyMarkdown"), cls: "fm-lightbox-copy-btn" });
       rawMdBtn.onclick = async () => {
         const mdSnippet = isImg ? `![${fn}](${remote.rawUrl})` : `[${fn}](${remote.rawUrl})`;
         await navigator.clipboard.writeText(mdSnippet);
-        rawMdBtn.setText(t("galleryCopied"));
+        rawMdBtn.setText(t2("galleryCopied"));
         setTimeout(() => {
-          if (rawMdBtn.isConnected) rawMdBtn.setText(t("previewCopyMarkdown"));
+          if (rawMdBtn.isConnected) rawMdBtn.setText(t2("previewCopyMarkdown"));
         }, 1500);
       };
-      const rawUrlBtn = rawRow.createEl("button", { text: t("previewCopyUrl"), cls: "fm-lightbox-copy-btn" });
+      const rawUrlBtn = rawRow.createEl("button", { text: t2("previewCopyUrl"), cls: "fm-lightbox-copy-btn" });
       rawUrlBtn.onclick = async () => {
         await navigator.clipboard.writeText(remote.rawUrl);
-        rawUrlBtn.setText(t("galleryCopied"));
+        rawUrlBtn.setText(t2("galleryCopied"));
         setTimeout(() => {
-          if (rawUrlBtn.isConnected) rawUrlBtn.setText(t("previewCopyUrl"));
+          if (rawUrlBtn.isConnected) rawUrlBtn.setText(t2("previewCopyUrl"));
         }, 1500);
       };
       if (remote.pubUrl) {
         const optRow = tracksBox.createDiv({ cls: "fm-lightbox-track-row" });
-        optRow.createSpan({ text: t("galleryTrackWebp"), cls: "fm-lightbox-track-name" });
-        const optMdBtn = optRow.createEl("button", { text: t("previewCopyMarkdown"), cls: "fm-lightbox-copy-btn" });
+        optRow.createSpan({ text: t2("galleryTrackWebp"), cls: "fm-lightbox-track-name" });
+        const optMdBtn = optRow.createEl("button", { text: t2("previewCopyMarkdown"), cls: "fm-lightbox-copy-btn" });
         optMdBtn.onclick = async () => {
           const mdSnippet = isImg ? `![${fn}](${remote.pubUrl})` : `[${fn}](${remote.pubUrl})`;
           await navigator.clipboard.writeText(mdSnippet);
-          optMdBtn.setText(t("galleryCopied"));
+          optMdBtn.setText(t2("galleryCopied"));
           setTimeout(() => {
-            if (optMdBtn.isConnected) optMdBtn.setText(t("previewCopyMarkdown"));
+            if (optMdBtn.isConnected) optMdBtn.setText(t2("previewCopyMarkdown"));
           }, 1500);
         };
-        const optUrlBtn = optRow.createEl("button", { text: t("previewCopyUrl"), cls: "fm-lightbox-copy-btn" });
+        const optUrlBtn = optRow.createEl("button", { text: t2("previewCopyUrl"), cls: "fm-lightbox-copy-btn" });
         optUrlBtn.onclick = async () => {
           await navigator.clipboard.writeText(remote.pubUrl);
-          optUrlBtn.setText(t("galleryCopied"));
+          optUrlBtn.setText(t2("galleryCopied"));
           setTimeout(() => {
-            if (optUrlBtn.isConnected) optUrlBtn.setText(t("previewCopyUrl"));
+            if (optUrlBtn.isConnected) optUrlBtn.setText(t2("previewCopyUrl"));
           }, 1500);
         };
       }
@@ -2140,7 +2143,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
     if (this.item.source === "local" && this.item.rawObj) {
       const openBtn = leftActions.createEl("button", { cls: "mod-cta" });
       (0, import_obsidian3.setIcon)(openBtn.createSpan(), "external-link");
-      openBtn.createSpan({ text: t("btnOpenInObsidian") });
+      openBtn.createSpan({ text: t2("btnOpenInObsidian") });
       openBtn.onclick = async () => {
         const leaf = this.app.workspace.getLeaf(false);
         if (leaf) await leaf.openFile(this.item.rawObj);
@@ -2151,7 +2154,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
       const fn = this.item.name || remote.filename;
       const insertBtn = leftActions.createEl("button", { cls: "mod-cta" });
       (0, import_obsidian3.setIcon)(insertBtn.createSpan(), "file-input");
-      insertBtn.createSpan({ text: t("previewInsert") });
+      insertBtn.createSpan({ text: t2("previewInsert") });
       insertBtn.onmousedown = (e) => {
         e.preventDefault();
       };
@@ -2161,7 +2164,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
         const mdSnippet = isImg ? `![${fn}](${targetUrl})
 ` : `[${fn}](${targetUrl})
 `;
-        const ok = (_c = this.plugin) == null ? void 0 : _c.insertMarkdownToActiveEditor(mdSnippet, t("galleryInserted"));
+        const ok = (_c = this.plugin) == null ? void 0 : _c.insertMarkdownToActiveEditor(mdSnippet, t2("galleryInserted"));
         if (ok) this.close();
       };
       const lockBtn = rightActions.createEl("button", { cls: "fm-lightbox-management-btn" });
@@ -2169,7 +2172,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
       const lockText = lockBtn.createSpan();
       const updateLockButton = () => {
         (0, import_obsidian3.setIcon)(lockIcon, remote.locked ? "lock-open" : "lock");
-        lockText.setText(t(remote.locked ? "galleryBtnUnlock" : "galleryBtnLock"));
+        lockText.setText(t2(remote.locked ? "galleryBtnUnlock" : "galleryBtnLock"));
         lockBtn.setAttribute("title", lockText.textContent);
       };
       updateLockButton();
@@ -2179,32 +2182,32 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
           remote.locked = !remote.locked;
           updateLockButton();
           delBtn.disabled = remote.locked;
-          new import_obsidian3.Notice(t(remote.locked ? "previewProtected" : "previewUnprotected"));
+          new import_obsidian3.Notice(t2(remote.locked ? "previewProtected" : "previewUnprotected"));
           if (this.onActionChanged) this.onActionChanged("lock", remote);
         } catch (err) {
-          new import_obsidian3.Notice(t("previewLockFailed", { err: err.message }));
+          new import_obsidian3.Notice(t2("previewLockFailed", { err: err.message }));
         }
       };
-      const delBtn = rightActions.createEl("button", { cls: "fm-lightbox-management-btn is-danger", attr: { title: t("galleryBtnDelete") } });
+      const delBtn = rightActions.createEl("button", { cls: "fm-lightbox-management-btn is-danger", attr: { title: t2("galleryBtnDelete") } });
       (0, import_obsidian3.setIcon)(delBtn.createSpan(), "trash-2");
-      delBtn.createSpan({ text: t("galleryBtnDelete") });
+      delBtn.createSpan({ text: t2("galleryBtnDelete") });
       delBtn.disabled = remote.locked;
       delBtn.onclick = () => {
         if (remote.locked) return;
         new ConfirmActionModal(
           this.app,
           fn,
-          t("galleryDeleteConfirm", { name: fn }),
-          t("galleryBtnDelete"),
+          t2("galleryDeleteConfirm", { name: fn }),
+          t2("galleryBtnDelete"),
           async (confirmed) => {
             if (!confirmed) return;
             try {
               await this.plugin.deleteRemoteFile(remote.year, remote.month, remote.filename);
-              new import_obsidian3.Notice(t("galleryDeleteSuccess", { name: fn }));
+              new import_obsidian3.Notice(t2("galleryDeleteSuccess", { name: fn }));
               if (this.onActionChanged) this.onActionChanged("deleted", remote);
               this.close();
             } catch (err) {
-              new import_obsidian3.Notice(t("previewDeleteFailed", { err: err.message }));
+              new import_obsidian3.Notice(t2("previewDeleteFailed", { err: err.message }));
             }
           },
           this.plugin
@@ -2212,7 +2215,7 @@ var ImageLightboxModal = class extends import_obsidian3.Modal {
       };
       const openBtn = leftActions.createEl("button", { cls: "fm-lightbox-secondary-btn" });
       (0, import_obsidian3.setIcon)(openBtn.createSpan(), "external-link");
-      openBtn.createSpan({ text: t("previewOpenBrowser") });
+      openBtn.createSpan({ text: t2("previewOpenBrowser") });
       openBtn.onclick = () => {
         window.open(remote.rawUrl, "_blank");
       };
@@ -2234,12 +2237,12 @@ var NoteRefsModal = class extends import_obsidian3.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("fm-wizard-modal");
-    const t = (k, p) => this.plugin ? this.plugin.t(k, p) : translateUi("auto", k, p);
-    contentEl.createEl("h3", { text: t("noteRefsTitle", { name: this.itemName, count: this.refNotePaths.length }) });
+    const t2 = (k, p) => this.plugin ? this.plugin.t(k, p) : translateUi("auto", k, p);
+    contentEl.createEl("h3", { text: t2("noteRefsTitle", { name: this.itemName, count: this.refNotePaths.length }) });
     if (this.refNotePaths.length === 0) {
       contentEl.createDiv({
         cls: "fm-section-box",
-        text: t("noteRefsNone"),
+        text: t2("noteRefsNone"),
         attr: { style: "text-align: center; padding: 24px;" }
       });
     } else {
@@ -2248,7 +2251,7 @@ var NoteRefsModal = class extends import_obsidian3.Modal {
         const row = listEl.createDiv({ cls: "fm-list-item" });
         row.createSpan({ text: `\u{1F4DD} ${notePath}`, attr: { style: "word-break: break-all; font-weight: 500;" } });
         const jumpBtn = row.createEl("button", {
-          text: t("btnOpenNote"),
+          text: t2("btnOpenNote"),
           cls: "fm-mini-btn mod-cta"
         });
         jumpBtn.onclick = async () => {
@@ -2259,13 +2262,13 @@ var NoteRefsModal = class extends import_obsidian3.Modal {
             this.close();
             if (this.onJump) this.onJump();
           } else {
-            new import_obsidian3.Notice(t("noteRefsNotFound", { path: notePath }));
+            new import_obsidian3.Notice(t2("noteRefsNotFound", { path: notePath }));
           }
         };
       }
     }
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const closeBtn = btnRow.createEl("button", { text: t("closeBtn") });
+    const closeBtn = btnRow.createEl("button", { text: t2("closeBtn") });
     closeBtn.onclick = () => this.close();
   }
   onClose() {
@@ -2276,12 +2279,12 @@ var NoteRefsModal = class extends import_obsidian3.Modal {
 // src/modals/incoming-file.js
 var import_obsidian4 = require("obsidian");
 function renderItemVisualThumb(parentEl, item, plugin) {
-  const t = (k, p) => plugin ? plugin.t(k, p) : translateUi("auto", k, p);
+  const t2 = (k, p) => plugin ? plugin.t(k, p) : translateUi("auto", k, p);
   const ext = getExt(item.name);
   if (IMAGE_EXTS.has(ext)) {
     const img = parentEl.createEl("img", {
       cls: "fm-item-thumb",
-      attr: { title: t("thumbEnlargeTooltip") }
+      attr: { title: t2("thumbEnlargeTooltip") }
     });
     img.onclick = (e) => {
       e.preventDefault();
@@ -2294,7 +2297,7 @@ function renderItemVisualThumb(parentEl, item, plugin) {
   } else {
     const box = parentEl.createDiv({
       cls: "fm-item-icon-box",
-      attr: { title: t("thumbDetailsTooltip") }
+      attr: { title: t2("thumbDetailsTooltip") }
     });
     const icon = ext === "md" ? "\u{1F4DD}" : AUDIO_EXTS.has(ext) ? "\u{1F3B5}" : ["mp4", "webm", "mov", "mkv"].includes(ext) ? "\u{1F3AC}" : ext === "pdf" ? "\u{1F4C4}" : "\u{1F4E6}";
     box.createSpan({ text: icon });
@@ -2765,20 +2768,20 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     }
   }
   renderStep1(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
-    header.createEl("h3", { text: t("migrateStep1Title"), cls: "fm-step-title" });
+    header.createSpan({ text: t2("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
+    header.createEl("h3", { text: t2("migrateStep1Title"), cls: "fm-step-title" });
     contentEl.createEl("p", {
-      text: t("migrateStep1Desc"),
+      text: t2("migrateStep1Desc"),
       attr: { style: "font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" }
     });
     const folderBox = contentEl.createDiv({ cls: "fm-section-box" });
-    folderBox.createDiv({ text: t("migrateFolderScope"), cls: "fm-section-title" });
+    folderBox.createDiv({ text: t2("migrateFolderScope"), cls: "fm-section-title" });
     const folderSelect = folderBox.createEl("select", { attr: { style: "width:100%; padding:8px 10px; border-radius:6px;" } });
     folderSelect.createEl("option", {
       value: "",
-      text: t("migrateEntireVault")
+      text: t2("migrateEntireVault")
     });
     const allFolders = this.plugin.getAllVaultFolderPaths();
     for (const fp of allFolders) {
@@ -2789,36 +2792,36 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
       this.options.folderPrefix = folderSelect.value;
     };
     const typeBox = contentEl.createDiv({ cls: "fm-section-box" });
-    typeBox.createDiv({ text: t("migrateTypeScope"), cls: "fm-section-title" });
-    this.createCheck(typeBox, t("migrateTypeImage"), "typeImage");
-    this.createCheck(typeBox, t("migrateTypeAudio"), "typeAudio");
-    this.createCheck(typeBox, t("migrateTypeOther"), "typeOther");
+    typeBox.createDiv({ text: t2("migrateTypeScope"), cls: "fm-section-title" });
+    this.createCheck(typeBox, t2("migrateTypeImage"), "typeImage");
+    this.createCheck(typeBox, t2("migrateTypeAudio"), "typeAudio");
+    this.createCheck(typeBox, t2("migrateTypeOther"), "typeOther");
     const policyBox = contentEl.createDiv({ cls: "fm-section-box" });
-    policyBox.createDiv({ text: t("migratePolicyTitle"), cls: "fm-section-title" });
+    policyBox.createDiv({ text: t2("migratePolicyTitle"), cls: "fm-section-title" });
     this.createCheck(
       policyBox,
-      t("migrateDeleteLocal"),
+      t2("migrateDeleteLocal"),
       "deleteLocalAfter"
     );
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
     cancelBtn.onclick = () => {
       if (this.transferController) {
         this.transferController.abort();
         cancelBtn.disabled = true;
-        cancelBtn.setText(t("transferStopping"));
+        cancelBtn.setText(t2("transferStopping"));
       } else returnToHub(this);
     };
-    const nextBtn = btnRow.createEl("button", { text: t("migrateNextPreview"), cls: "mod-cta" });
+    const nextBtn = btnRow.createEl("button", { text: t2("migrateNextPreview"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian5.Notice(t("migrateSelectTypeNotice"));
+        new import_obsidian5.Notice(t2("migrateSelectTypeNotice"));
         return;
       }
       nextBtn.disabled = true;
-      nextBtn.setText(t("migrateScanning"));
+      nextBtn.setText(t2("migrateScanning"));
       progressWidget.show();
       try {
         this.items = await this.plugin.scanLocalAttachmentsForBatchMigrate(this.options, {
@@ -2831,7 +2834,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         progressWidget.hide();
         new import_obsidian5.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
-        nextBtn.setText(t("migrateNextPreview"));
+        nextBtn.setText(t2("migrateNextPreview"));
       }
     };
   }
@@ -2845,21 +2848,21 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     label.createSpan({ text: labelText });
   }
   renderStep2(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
+    header.createSpan({ text: t2("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
     header.createEl("h3", {
-      text: t("migrateStep2Title", { count: this.items.length }),
+      text: t2("migrateStep2Title", { count: this.items.length }),
       cls: "fm-step-title"
     });
     const toolbar = contentEl.createDiv({ cls: "fm-toolbar-row" });
     const leftTools = toolbar.createDiv({ attr: { style: "display:flex; gap:8px; align-items:center;" } });
-    const backBtn = leftTools.createEl("button", { text: t("btnBack") });
+    const backBtn = leftTools.createEl("button", { text: t2("btnBack") });
     backBtn.onclick = () => {
       this.step = 1;
       this.render();
     };
-    const selectAllBtn = leftTools.createEl("button", { text: t("btnSelectAll") });
+    const selectAllBtn = leftTools.createEl("button", { text: t2("btnSelectAll") });
     selectAllBtn.onclick = () => {
       const allSelected = this.items.every((i) => i.selected);
       this.items.forEach((i) => {
@@ -2867,7 +2870,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
       });
       this.render();
     };
-    const onlyRefBtn = leftTools.createEl("button", { text: t("migrateSelectOnlyRef") });
+    const onlyRefBtn = leftTools.createEl("button", { text: t2("migrateSelectOnlyRef") });
     onlyRefBtn.onclick = () => {
       this.items.forEach((i) => {
         i.selected = i.refNotes.length > 0;
@@ -2877,16 +2880,16 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     if (this.items.length === 0) {
       contentEl.createDiv({
         cls: "fm-section-box",
-        text: t("migrateNoneFound"),
+        text: t2("migrateNoneFound"),
         attr: { style: "text-align: center; padding: 36px 20px;" }
       });
       const emptyBtnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-      const cancelBtn2 = emptyBtnRow.createEl("button", { text: t("btnCancel") });
+      const cancelBtn2 = emptyBtnRow.createEl("button", { text: t2("btnCancel") });
       cancelBtn2.onclick = () => {
         if (this.transferController) {
           this.transferController.abort();
           cancelBtn2.disabled = true;
-          cancelBtn2.setText(t("transferStopping"));
+          cancelBtn2.setText(t2("transferStopping"));
         } else returnToHub(this);
       };
       return;
@@ -2915,9 +2918,9 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         attr: { style: "color: var(--text-muted); font-size: 12px;" }
       });
       const refBadge = rightBox.createSpan({
-        text: t("migrateNoteRefs", { count: item.refNotes.length }),
+        text: t2("migrateNoteRefs", { count: item.refNotes.length }),
         cls: "fm-tag fm-tag-ref fm-clickable-badge",
-        attr: { title: t("migrateInspectRefs") }
+        attr: { title: t2("migrateInspectRefs") }
       });
       refBadge.onclick = (e) => {
         e.stopPropagation();
@@ -2929,22 +2932,22 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     const progressWrap = progressBox.createDiv({ cls: "fm-progress-wrap" });
     const progressBar = progressWrap.createDiv({ cls: "fm-progress-bar" });
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
     cancelBtn.onclick = () => {
       if (this.transferController) {
         this.transferController.abort();
         cancelBtn.disabled = true;
-        cancelBtn.setText(t("transferStopping"));
+        cancelBtn.setText(t2("transferStopping"));
       } else returnToHub(this);
     };
     const runBtn = btnRow.createEl("button", {
-      text: t("migrateStart", { count: this.items.filter((i) => i.selected).length }),
+      text: t2("migrateStart", { count: this.items.filter((i) => i.selected).length }),
       cls: "mod-cta"
     });
     runBtn.onclick = async () => {
       const selected = this.items.filter((i) => i.selected);
       if (selected.length === 0) {
-        new import_obsidian5.Notice(t("migrateSelectNotice"));
+        new import_obsidian5.Notice(t2("migrateSelectNotice"));
         return;
       }
       runBtn.disabled = true;
@@ -2958,7 +2961,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
           (cur, total, name) => {
             const pct = Math.round(cur / Math.max(1, total) * 100);
             progressBar.style.width = `${pct}%`;
-            progressText.setText(t("migrateProgress", { current: cur, total, name }));
+            progressText.setText(t2("migrateProgress", { current: cur, total, name }));
           },
           (summary) => {
             this.step = 3;
@@ -2977,24 +2980,24 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
   }
   renderStep3(contentEl) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const count = ((_a = this.summary) == null ? void 0 : _a.count) || 0;
     const failures = ((_b = this.summary) == null ? void 0 : _b.failures) || [];
     const processedItems = ((_c = this.summary) == null ? void 0 : _c.processedItems) || [];
     const isPartial = failures.length > 0 && count > 0;
     const isError = count === 0 && failures.length > 0;
     const titleKey = ((_d = this.summary) == null ? void 0 : _d.cancelled) ? "transferCancelled" : isError ? "batchResultErrorTitle" : isPartial ? "batchResultWarningTitle" : "batchResultTitle";
-    contentEl.createEl("h3", { text: t(titleKey) });
+    contentEl.createEl("h3", { text: t2(titleKey) });
     const bannerCls = isError ? "fm-result-banner fm-result-banner-error" : isPartial ? "fm-result-banner fm-result-banner-warning" : "fm-result-banner fm-result-banner-success";
     const banner = contentEl.createDiv({ cls: bannerCls });
-    banner.createDiv({ cls: "fm-result-banner-title", text: t(titleKey) });
-    const trashedText = ((_e = this.summary) == null ? void 0 : _e.trashed) ? t("noticeBatchMigrateTrashedPart", { trashed: this.summary.trashed }) : "";
-    const failText = failures.length > 0 ? t("batchResultFailuresPart", { count: failures.length }) : "";
+    banner.createDiv({ cls: "fm-result-banner-title", text: t2(titleKey) });
+    const trashedText = ((_e = this.summary) == null ? void 0 : _e.trashed) ? t2("noticeBatchMigrateTrashedPart", { trashed: this.summary.trashed }) : "";
+    const failText = failures.length > 0 ? t2("batchResultFailuresPart", { count: failures.length }) : "";
     const trashFailures = ((_f = this.summary) == null ? void 0 : _f.trashFailures) || [];
-    const trashFailText = trashFailures.length > 0 ? t("batchResultTrashFailuresPart", { count: trashFailures.length }) : "";
+    const trashFailText = trashFailures.length > 0 ? t2("batchResultTrashFailuresPart", { count: trashFailures.length }) : "";
     banner.createDiv({
       cls: "fm-result-banner-desc",
-      text: t("batchResultDesc", {
+      text: t2("batchResultDesc", {
         count,
         docs: ((_g = this.summary) == null ? void 0 : _g.docs) || 0,
         trashed: trashedText
@@ -3006,7 +3009,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         attr: { style: "margin-top: 10px;" }
       });
       listBox.createDiv({
-        text: t("batchResultListTitle", { count: processedItems.length }),
+        text: t2("batchResultListTitle", { count: processedItems.length }),
         cls: "fm-section-title"
       });
       const listEl = listBox.createDiv({
@@ -3036,13 +3039,13 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         if (pItem.rawUrl) {
           const copyBtn = rightBox.createEl("button", {
             cls: "clickable-icon",
-            attr: { "aria-label": t("copyRawUrl") || "Copy URL" }
+            attr: { "aria-label": t2("copyRawUrl") || "Copy URL" }
           });
           (0, import_obsidian5.setIcon)(copyBtn, "copy");
           copyBtn.onclick = async (e) => {
             e.stopPropagation();
             await navigator.clipboard.writeText(pItem.rawUrl);
-            new import_obsidian5.Notice(t("noticeCopied"));
+            new import_obsidian5.Notice(t2("noticeCopied"));
           };
         }
       }
@@ -3053,7 +3056,7 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         attr: { style: "margin-top: 10px; border-color: rgba(239, 68, 68, 0.4);" }
       });
       failBox.createDiv({
-        text: t("batchFailuresTitle", { count: failures.length }),
+        text: t2("batchFailuresTitle", { count: failures.length }),
         cls: "fm-section-title",
         attr: { style: "color: var(--text-error);" }
       });
@@ -3067,15 +3070,15 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
     }
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
     let createdReportPath = null;
-    const exportBtn = btnRow.createEl("button", { text: t("batchExportReport") });
+    const exportBtn = btnRow.createEl("button", { text: t2("batchExportReport") });
     exportBtn.onclick = async () => {
       exportBtn.disabled = true;
       try {
         createdReportPath = await this.plugin.exportBatchMigrateReportToRoot(this.summary);
-        exportBtn.setText(t("batchReportExported"));
+        exportBtn.setText(t2("batchReportExported"));
         if (!btnRow.querySelector(".fm-open-report-btn")) {
           const openBtn = btnRow.createEl("button", {
-            text: t("batchOpenReport"),
+            text: t2("batchOpenReport"),
             cls: "fm-open-report-btn"
           });
           openBtn.onclick = () => {
@@ -3090,16 +3093,16 @@ var BatchMigrateWizardModal = class extends import_obsidian5.Modal {
         exportBtn.disabled = false;
       }
     };
-    if ((_h = this.summary) == null ? void 0 : _h.cancelled) btnRow.createSpan({ text: t("transferCancelled") });
+    if ((_h = this.summary) == null ? void 0 : _h.cancelled) btnRow.createSpan({ text: t2("transferCancelled") });
     if ((_j = (_i = this.summary) == null ? void 0 : _i.retryItems) == null ? void 0 : _j.length) {
-      const retry = btnRow.createEl("button", { text: t("transferRetry") });
+      const retry = btnRow.createEl("button", { text: t2("transferRetry") });
       retry.onclick = () => {
         this.items = this.summary.retryItems.map((item) => ({ ...item, selected: true, refNotes: item.refNotes || [] }));
         this.step = 2;
         this.render();
       };
     }
-    const doneBtn = btnRow.createEl("button", { text: t("destBtnDone"), cls: "mod-cta" });
+    const doneBtn = btnRow.createEl("button", { text: t2("destBtnDone"), cls: "mod-cta" });
     doneBtn.onclick = () => returnToHub(this);
   }
   onClose() {
@@ -3149,22 +3152,22 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
   }
   renderStep1(contentEl) {
     var _a, _b;
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
-    header.createEl("h3", { text: t("dupStep1Title"), cls: "fm-step-title" });
+    header.createSpan({ text: t2("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
+    header.createEl("h3", { text: t2("dupStep1Title"), cls: "fm-step-title" });
     contentEl.createEl("p", {
-      text: t("dupStep1Desc"),
+      text: t2("dupStep1Desc"),
       attr: { style: "font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" }
     });
     const isRemote = Boolean((_b = (_a = this.plugin) == null ? void 0 : _a.isRemoteServerReady) == null ? void 0 : _b.call(_a));
     if (isRemote) {
       const scopeBox = contentEl.createDiv({ cls: "fm-section-box" });
-      scopeBox.createDiv({ text: t("dupLocScope"), cls: "fm-section-title" });
+      scopeBox.createDiv({ text: t2("dupLocScope"), cls: "fm-section-title" });
       const scopes = [
-        { key: "both", label: t("dupCompareCross") },
-        { key: "local", label: t("dupCompareLocal") },
-        { key: "remote", label: t("dupCompareRemote") }
+        { key: "both", label: t2("dupCompareCross") },
+        { key: "local", label: t2("dupCompareLocal") },
+        { key: "remote", label: t2("dupCompareRemote") }
       ];
       for (const s of scopes) {
         const row = scopeBox.createEl("label", { cls: "fm-check-row" });
@@ -3177,32 +3180,32 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
       }
     }
     const typeBox = contentEl.createDiv({ cls: "fm-section-box" });
-    typeBox.createDiv({ text: t("dupTypeScope"), cls: "fm-section-title" });
-    this.createTypeCheckbox(typeBox, t("dupTypeImage"), "typeImage");
-    this.createTypeCheckbox(typeBox, t("dupTypeAudio"), "typeAudio");
-    this.createTypeCheckbox(typeBox, t("dupTypeOther"), "typeOther");
-    this.createTypeCheckbox(typeBox, t("dupTypeNote"), "typeNote");
+    typeBox.createDiv({ text: t2("dupTypeScope"), cls: "fm-section-title" });
+    this.createTypeCheckbox(typeBox, t2("dupTypeImage"), "typeImage");
+    this.createTypeCheckbox(typeBox, t2("dupTypeAudio"), "typeAudio");
+    this.createTypeCheckbox(typeBox, t2("dupTypeOther"), "typeOther");
+    this.createTypeCheckbox(typeBox, t2("dupTypeNote"), "typeNote");
     const exclFolders = this.plugin.getExcludedLocalFolderList();
     const protBox = contentEl.createDiv({
       cls: "fm-section-box",
       attr: { style: "font-size: 12px; color: var(--text-muted); padding: 10px 14px;" }
     });
     protBox.createDiv({
-      text: t("dupProtRuleHint", { folders: exclFolders.join(", ") || "-" })
+      text: t2("dupProtRuleHint", { folders: exclFolders.join(", ") || "-" })
     });
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
     cancelBtn.onclick = () => returnToHub(this);
-    const nextBtn = btnRow.createEl("button", { text: t("btnNext"), cls: "mod-cta" });
+    const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.fileTypes.typeImage && !this.fileTypes.typeAudio && !this.fileTypes.typeOther && !this.fileTypes.typeNote) {
         new import_obsidian6.Notice(this.plugin.t("dupSelectTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
-      nextBtn.setText(t("dupComparing"));
+      nextBtn.setText(t2("dupComparing"));
       progressWidget.show();
       try {
         const res = await this.plugin.scanDuplicateGroups(this.scope, this.fileTypes, {
@@ -3218,7 +3221,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
         progressWidget.hide();
         new import_obsidian6.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
         nextBtn.disabled = false;
-        nextBtn.setText(t("btnNext"));
+        nextBtn.setText(t2("btnNext"));
       }
     };
   }
@@ -3257,27 +3260,27 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
   }
   renderStep2(contentEl) {
     var _a;
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const totalDupes = this.groups.reduce((acc, g) => acc + Math.max(0, g.items.length - 1), 0);
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
+    header.createSpan({ text: t2("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
     header.createEl("h3", {
-      text: t("dupStep2Title", { groups: this.groups.length, redundant: totalDupes }),
+      text: t2("dupStep2Title", { groups: this.groups.length, redundant: totalDupes }),
       cls: "fm-step-title"
     });
     const toolbar = contentEl.createDiv({ cls: "fm-toolbar-row" });
     const leftTools = toolbar.createDiv({ attr: { style: "display:flex; gap:8px; align-items:center; flex-wrap:wrap;" } });
-    const backBtn = leftTools.createEl("button", { text: t("btnBack") });
+    const backBtn = leftTools.createEl("button", { text: t2("btnBack") });
     backBtn.onclick = () => {
       this.step = 1;
       this.render();
     };
-    leftTools.createSpan({ text: t("dupStrategyLabel"), attr: { style: "font-size:13px; font-weight:600; margin-left:4px;" } });
+    leftTools.createSpan({ text: t2("dupStrategyLabel"), attr: { style: "font-size:13px; font-weight:600; margin-left:4px;" } });
     const modeSelect = leftTools.createEl("select", { attr: { style: "padding: 5px 8px; border-radius: 6px;" } });
     const modeOptions = [
-      { value: "auto", label: t("dupStrategyAuto") },
-      { value: "prefer-remote", label: t("dupStrategyPreferRemote") },
-      { value: "prefer-local", label: t("dupStrategyPreferLocal") }
+      { value: "auto", label: t2("dupStrategyAuto") },
+      { value: "prefer-remote", label: t2("dupStrategyPreferRemote") },
+      { value: "prefer-local", label: t2("dupStrategyPreferLocal") }
     ];
     for (const opt of modeOptions) {
       const o = modeSelect.createEl("option", { value: opt.value, text: opt.label });
@@ -3288,7 +3291,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
       this.render();
     };
     const exportBtn = toolbar.createEl("button", {
-      text: t("btnExportReport")
+      text: t2("btnExportReport")
     });
     exportBtn.onclick = async () => {
       await this.plugin.exportDuplicateReportToRoot(this.groups);
@@ -3296,18 +3299,18 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
     if ((_a = this.scanStats) == null ? void 0 : _a.remoteError) {
       contentEl.createDiv({
         cls: "fm-section-box",
-        text: t("noticeRemoteUnreachable", { err: this.scanStats.remoteError }),
+        text: t2("noticeRemoteUnreachable", { err: this.scanStats.remoteError }),
         attr: { style: "font-size: 12px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); padding: 10px 14px;" }
       });
     }
     if (this.groups.length === 0) {
       contentEl.createDiv({
         cls: "fm-section-box",
-        text: t("dupNoneFound"),
+        text: t2("dupNoneFound"),
         attr: { style: "text-align: center; padding: 36px 20px;" }
       });
       const emptyBtnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-      const closeBtn = emptyBtnRow.createEl("button", { text: t("closeBtn"), cls: "mod-cta" });
+      const closeBtn = emptyBtnRow.createEl("button", { text: t2("closeBtn"), cls: "mod-cta" });
       closeBtn.onclick = () => returnToHub(this);
       return;
     }
@@ -3316,9 +3319,9 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
       const grpBox = listEl.createDiv({ cls: "fm-dup-group" });
       const grpHead = grpBox.createDiv({ cls: "fm-dup-group-header" });
       grpHead.createSpan({
-        text: t("dupGroupHeader", { idx: idx + 1, hash: grp.sha256.slice(0, 12), size: formatBytes(grp.size) })
+        text: t2("dupGroupHeader", { idx: idx + 1, hash: grp.sha256.slice(0, 12), size: formatBytes(grp.size) })
       });
-      grpHead.createSpan({ text: t("dupGroupSubhint") });
+      grpHead.createSpan({ text: t2("dupGroupSubhint") });
       for (const item of grp.items) {
         const isKeep = grp.keepId === item.id;
         const row = grpBox.createDiv({ cls: "fm-list-item" });
@@ -3336,11 +3339,11 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
         };
         renderItemVisualThumb(left, item, this.plugin);
         left.createSpan({
-          text: isKeep ? t("dupTagKeep") : item.locked ? t("dupTagProtected") : t("dupTagRemove"),
+          text: isKeep ? t2("dupTagKeep") : item.locked ? t2("dupTagProtected") : t2("dupTagRemove"),
           attr: { style: `font-size:12px; font-weight:700; color:${isKeep ? "#10b981" : item.locked ? "#f59e0b" : "#ef4444"}; width:68px; flex-shrink:0;` }
         });
         left.createSpan({
-          text: item.source === "local" ? t("analyticsBadgeLocal") : t("analyticsBadgeRemote"),
+          text: item.source === "local" ? t2("analyticsBadgeLocal") : t2("analyticsBadgeRemote"),
           cls: `fm-tag ${item.source === "local" ? "fm-tag-local" : "fm-tag-remote"}`
         });
         if (item.locked) {
@@ -3351,7 +3354,7 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
         }
         left.createSpan({
           text: item.displayPath,
-          attr: { title: t("dupDesignateKeepTitle"), attr: { style: "word-break:break-all; cursor:pointer;" } }
+          attr: { title: t2("dupDesignateKeepTitle"), attr: { style: "word-break:break-all; cursor:pointer;" } }
         }).onclick = () => {
           grp.keepId = item.id;
           this.render();
@@ -3360,9 +3363,9 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
           attr: { style: "display:flex; align-items:center; gap:6px; flex-shrink:0;" }
         });
         const refBadge = rightBox.createSpan({
-          text: t("migrateNoteRefs", { count: item.refNotes.length }),
+          text: t2("migrateNoteRefs", { count: item.refNotes.length }),
           cls: "fm-tag fm-tag-ref fm-clickable-badge",
-          attr: { title: t("migrateInspectRefs") }
+          attr: { title: t2("migrateInspectRefs") }
         });
         refBadge.onclick = (e) => {
           e.stopPropagation();
@@ -3371,10 +3374,10 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
       }
     });
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
     cancelBtn.onclick = () => returnToHub(this);
     const execBtn = btnRow.createEl("button", {
-      text: t("dupMergeRewrite", { count: totalDupes }),
+      text: t2("dupMergeRewrite", { count: totalDupes }),
       cls: "mod-cta"
     });
     execBtn.onclick = async () => {
@@ -3387,21 +3390,21 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
   }
   renderStep3(contentEl) {
     var _a, _b, _c, _d;
-    const t = (k, p) => this.plugin.t(k, p);
-    contentEl.createEl("h3", { text: t("dupResultTitle") });
+    const t2 = (k, p) => this.plugin.t(k, p);
+    contentEl.createEl("h3", { text: t2("dupResultTitle") });
     const banner = contentEl.createDiv({ cls: "fm-result-banner fm-result-banner-success" });
-    banner.createDiv({ cls: "fm-result-banner-title", text: t("dupResultTitle") });
+    banner.createDiv({ cls: "fm-result-banner-title", text: t2("dupResultTitle") });
     banner.createDiv({
       cls: "fm-result-banner-desc",
-      text: t("dupResultDesc", {
+      text: t2("dupResultDesc", {
         modified: ((_a = this.summary) == null ? void 0 : _a.modified) || 0,
         local: ((_b = this.summary) == null ? void 0 : _b.local) || 0,
         remote: ((_c = this.summary) == null ? void 0 : _c.remote) || 0,
-        skipped: ((_d = this.summary) == null ? void 0 : _d.skipped) > 0 ? t("dupResultSkipped", { count: this.summary.skipped }) : ""
+        skipped: ((_d = this.summary) == null ? void 0 : _d.skipped) > 0 ? t2("dupResultSkipped", { count: this.summary.skipped }) : ""
       })
     });
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const doneBtn = btnRow.createEl("button", { text: t("destBtnDone"), cls: "mod-cta" });
+    const doneBtn = btnRow.createEl("button", { text: t2("destBtnDone"), cls: "mod-cta" });
     doneBtn.onclick = () => returnToHub(this);
   }
   onClose() {
@@ -3410,9 +3413,243 @@ var DuplicateWizardModal = class extends import_obsidian6.Modal {
   }
 };
 
-// src/modals/orphan-wizard.js
+// src/modals/health-check.js
 var import_obsidian7 = require("obsidian");
-var OrphanWizardModal = class extends import_obsidian7.Modal {
+var HealthCheckModal = class extends import_obsidian7.Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.step = 1;
+    this.activeProgress = null;
+    this.options = {
+      checkWikiLinks: true,
+      checkLocalMarkdown: true,
+      checkRemote: false
+    };
+    this.totalDocsScanned = 0;
+    this.issues = [];
+    this.activeFilter = "all";
+    this.searchQuery = "";
+  }
+  onOpen() {
+    this.render();
+  }
+  render() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fm-wizard-modal");
+    if (this.step === 1) {
+      this.renderStep1(contentEl);
+    } else {
+      this.renderStep2(contentEl);
+    }
+  }
+  renderStep1(contentEl) {
+    const t2 = (k, p) => this.plugin.t(k, p);
+    const header = contentEl.createDiv({ cls: "fm-step-header" });
+    header.createSpan({ text: t2("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
+    header.createEl("h3", { text: t2("healthStep1Title"), cls: "fm-step-title" });
+    contentEl.createEl("p", {
+      text: t2("healthStep1Desc"),
+      attr: { style: "font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" }
+    });
+    const box = contentEl.createDiv({ cls: "fm-section-box" });
+    box.createDiv({ text: t2("healthScopeTitle"), cls: "fm-section-title" });
+    this.createCheckbox(box, t2("healthCheckWiki"), "checkWikiLinks");
+    this.createCheckbox(box, t2("healthCheckLocal"), "checkLocalMarkdown");
+    this.createCheckbox(box, t2("healthCheckRemote"), "checkRemote");
+    const progressWidget = createScanProgressWidget(contentEl, this.plugin);
+    this.activeProgress = progressWidget;
+    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
+    cancelBtn.onclick = () => returnToHub(this);
+    const startBtn = btnRow.createEl("button", { text: t2("healthStartScan"), cls: "mod-cta" });
+    startBtn.onclick = async () => {
+      if (!this.options.checkWikiLinks && !this.options.checkLocalMarkdown && !this.options.checkRemote) {
+        return;
+      }
+      startBtn.disabled = true;
+      startBtn.setText(t2("healthScanning"));
+      progressWidget.show();
+      try {
+        const scanResult = await this.plugin.scanVaultLinkHealth(this.options, {
+          signal: progressWidget.signal,
+          onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
+        });
+        this.issues = scanResult.issues;
+        this.totalDocsScanned = scanResult.totalDocs;
+        this.step = 2;
+        this.render();
+      } catch (err) {
+        progressWidget.hide();
+        new import_obsidian7.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
+        startBtn.disabled = false;
+        startBtn.setText(t2("healthStartScan"));
+      }
+    };
+  }
+  createCheckbox(parent, labelText, optKey) {
+    const label = parent.createEl("label", { cls: "fm-check-row" });
+    const cb = label.createEl("input", { type: "checkbox" });
+    cb.checked = Boolean(this.options[optKey]);
+    cb.onchange = () => {
+      this.options[optKey] = cb.checked;
+    };
+    label.createSpan({ text: labelText });
+  }
+  renderStep2(contentEl) {
+    const t2 = (k, p) => this.plugin.t(k, p);
+    const wikiIssues = this.issues.filter((i) => i.category === "wikilink");
+    const localIssues = this.issues.filter((i) => i.category === "local");
+    const remoteIssues = this.issues.filter((i) => i.category === "remote");
+    const header = contentEl.createDiv({ cls: "fm-step-header" });
+    header.createSpan({ text: t2("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
+    header.createEl("h3", {
+      text: t2("healthStep2Title", { docs: this.totalDocsScanned, issues: this.issues.length }),
+      cls: "fm-step-title"
+    });
+    const statGrid = contentEl.createDiv({ cls: "fm-health-stat-grid" });
+    const addStat = (num, label, color) => {
+      const card = statGrid.createDiv({ cls: "fm-health-stat-card" });
+      const numEl = card.createDiv({ cls: "fm-health-stat-num", text: String(num) });
+      if (color) numEl.style.color = color;
+      card.createDiv({ cls: "fm-health-stat-label", text: label });
+    };
+    addStat(this.totalDocsScanned, t2("healthStatNotes"));
+    addStat(wikiIssues.length, t2("healthStatWiki"), wikiIssues.length > 0 ? "#ef4444" : void 0);
+    addStat(localIssues.length, t2("healthStatLocal"), localIssues.length > 0 ? "#f59e0b" : void 0);
+    addStat(remoteIssues.length, t2("healthStatRemote"), remoteIssues.length > 0 ? "#3b82f6" : void 0);
+    const toolbar = contentEl.createDiv({ cls: "fm-toolbar-row" });
+    const leftTools = toolbar.createDiv({ attr: { style: "display:flex; gap:8px; align-items:center;" } });
+    const backBtn = leftTools.createEl("button", { text: t2("healthRescan") });
+    backBtn.onclick = () => {
+      this.step = 1;
+      this.render();
+    };
+    const exportBtn = toolbar.createEl("button", {
+      text: t2("btnExportReport"),
+      cls: "mod-cta"
+    });
+    exportBtn.onclick = async () => {
+      await this.plugin.exportHealthReportToRoot(this.issues, this.totalDocsScanned);
+    };
+    if (this.issues.length === 0) {
+      contentEl.createDiv({
+        cls: "fm-section-box",
+        text: t2("healthNoneFound"),
+        attr: { style: "text-align: center; padding: 36px 20px; font-weight: 500;" }
+      });
+      const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
+      const closeBtn2 = btnRow.createEl("button", { text: t2("closeBtn") });
+      closeBtn2.onclick = () => returnToHub(this);
+      return;
+    }
+    const filterRow = contentEl.createDiv({
+      attr: { style: "display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;" }
+    });
+    const chipBox = filterRow.createDiv({ attr: { style: "display:flex; gap:6px;" } });
+    const createChip = (id, label, count) => {
+      const chip = chipBox.createEl("button", {
+        text: `${label} (${count})`,
+        cls: this.activeFilter === id ? "mod-cta" : ""
+      });
+      chip.onclick = () => {
+        this.activeFilter = id;
+        this.renderStep2(contentEl);
+      };
+    };
+    createChip("all", t2("healthFilterAll"), this.issues.length);
+    createChip("wikilink", t2("healthStatWiki"), wikiIssues.length);
+    createChip("local", t2("healthStatLocal"), localIssues.length);
+    createChip("remote", t2("healthStatRemote"), remoteIssues.length);
+    const searchInput = filterRow.createEl("input", {
+      type: "search",
+      placeholder: t2("healthSearchPlaceholder"),
+      value: this.searchQuery,
+      attr: { style: "padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;" }
+    });
+    searchInput.oninput = (e) => {
+      this.searchQuery = e.target.value.toLowerCase();
+      this.renderIssueList(listEl);
+    };
+    const listEl = contentEl.createDiv({ cls: "fm-scroll-list", attr: { style: "max-height: 380px;" } });
+    this.renderIssueList(listEl);
+    const bottomRow = contentEl.createDiv({ cls: "fm-btn-row" });
+    const closeBtn = bottomRow.createEl("button", { text: t2("closeBtn") });
+    closeBtn.onclick = () => returnToHub(this);
+  }
+  renderIssueList(listEl) {
+    const t2 = (k, p) => this.plugin.t(k, p);
+    listEl.empty();
+    let filtered = this.issues;
+    if (this.activeFilter !== "all") {
+      filtered = filtered.filter((i) => i.category === this.activeFilter);
+    }
+    if (this.searchQuery) {
+      filtered = filtered.filter(
+        (i) => i.sourcePath.toLowerCase().includes(this.searchQuery) || i.target.toLowerCase().includes(this.searchQuery) || i.lineText && i.lineText.toLowerCase().includes(this.searchQuery)
+      );
+    }
+    if (filtered.length === 0) {
+      listEl.createDiv({
+        cls: "fm-section-box",
+        text: t2("healthNoMatches"),
+        attr: { style: "text-align: center; padding: 24px;" }
+      });
+      return;
+    }
+    for (const item of filtered) {
+      const row = listEl.createDiv({ cls: "fm-list-item" });
+      const leftCol = row.createDiv({
+        attr: { style: "display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;" }
+      });
+      const topMeta = leftCol.createDiv({ attr: { style: "display:flex; align-items:center; gap:6px;" } });
+      let tagCls = "fm-tag-error";
+      let tagLabel = "\u{1F534} Broken Link";
+      if (item.category === "wikilink") {
+        tagCls = "fm-tag-error";
+        tagLabel = item.type === "wikilink-embed" ? t2("healthTagWikiEmbed") : t2("healthTagDanglingNote");
+      } else if (item.category === "local") {
+        tagCls = "fm-tag-warning";
+        tagLabel = item.type === "local-embed" ? t2("healthTagMissingImage") : t2("healthTagMissingFile");
+      } else if (item.category === "remote") {
+        tagCls = "fm-tag-info";
+        tagLabel = t2("healthTagRemote404");
+      }
+      topMeta.createSpan({ text: tagLabel, cls: `fm-tag ${tagCls}` });
+      topMeta.createEl("code", { text: item.target, attr: { style: "font-size: 12px; font-weight: 600;" } });
+      topMeta.createSpan({
+        text: t2("healthLine", { line: item.line }),
+        attr: { style: "font-size: 11px; color: var(--text-muted); margin-left: auto;" }
+      });
+      const noteRef = leftCol.createDiv({
+        attr: { style: "font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;" }
+      });
+      noteRef.createSpan({ text: t2("healthInNote", { path: item.sourcePath }) });
+      if (item.lineText) {
+        leftCol.createDiv({
+          text: item.lineText,
+          cls: "fm-health-context-quote"
+        });
+      }
+      const openBtn = row.createEl("button", {
+        text: t2("healthJumpToLine"),
+        attr: { style: "flex-shrink:0; align-self:center;" }
+      });
+      openBtn.onclick = async () => {
+        await this.plugin.openNoteAtLine(item.sourcePath, item.line);
+      };
+    }
+  }
+  onClose() {
+    if (this.activeProgress) this.activeProgress.abort();
+    this.contentEl.empty();
+  }
+};
+
+// src/modals/orphan-wizard.js
+var import_obsidian8 = require("obsidian");
+var OrphanWizardModal = class extends import_obsidian8.Modal {
   constructor(app, plugin) {
     var _a;
     super(app);
@@ -3445,52 +3682,52 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
   }
   renderStep1(contentEl) {
     var _a, _b;
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
-    header.createEl("h3", { text: t("orphanStep1Title"), cls: "fm-step-title" });
+    header.createSpan({ text: t2("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
+    header.createEl("h3", { text: t2("orphanStep1Title"), cls: "fm-step-title" });
     contentEl.createEl("p", {
-      text: t("orphanStep1Desc"),
+      text: t2("orphanStep1Desc"),
       attr: { style: "font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" }
     });
     if ((_b = (_a = this.plugin) == null ? void 0 : _a.isRemoteServerReady) == null ? void 0 : _b.call(_a)) {
       const locBox = contentEl.createDiv({ cls: "fm-section-box" });
-      locBox.createDiv({ text: t("orphanLocScope"), cls: "fm-section-title" });
-      this.createCheckbox(locBox, t("orphanScanLocal"), "scanLocal");
-      this.createCheckbox(locBox, t("orphanScanRemote"), "scanRemote");
+      locBox.createDiv({ text: t2("orphanLocScope"), cls: "fm-section-title" });
+      this.createCheckbox(locBox, t2("orphanScanLocal"), "scanLocal");
+      this.createCheckbox(locBox, t2("orphanScanRemote"), "scanRemote");
     }
     const typeBox = contentEl.createDiv({ cls: "fm-section-box" });
-    typeBox.createDiv({ text: t("orphanTypeScope"), cls: "fm-section-title" });
-    this.createCheckbox(typeBox, t("orphanTypeNote"), "typeNote");
-    this.createCheckbox(typeBox, t("orphanTypeImage"), "typeImage");
-    this.createCheckbox(typeBox, t("orphanTypeAudio"), "typeAudio");
-    this.createCheckbox(typeBox, t("orphanTypeOther"), "typeOther");
+    typeBox.createDiv({ text: t2("orphanTypeScope"), cls: "fm-section-title" });
+    this.createCheckbox(typeBox, t2("orphanTypeNote"), "typeNote");
+    this.createCheckbox(typeBox, t2("orphanTypeImage"), "typeImage");
+    this.createCheckbox(typeBox, t2("orphanTypeAudio"), "typeAudio");
+    this.createCheckbox(typeBox, t2("orphanTypeOther"), "typeOther");
     const exclFolders = this.plugin.getExcludedLocalFolderList();
     const protInfo = contentEl.createDiv({
       cls: "fm-section-box",
       attr: { style: "font-size: 12px; color: var(--text-muted); padding: 10px 14px;" }
     });
-    const exclHint = exclFolders.length ? t("orphanExclHint", { folders: exclFolders.join(", ") }) : "";
+    const exclHint = exclFolders.length ? t2("orphanExclHint", { folders: exclFolders.join(", ") }) : "";
     protInfo.createDiv({
-      text: t("orphanProtActive", { excl: exclHint })
+      text: t2("orphanProtActive", { excl: exclHint })
     });
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
     cancelBtn.onclick = () => returnToHub(this);
-    const nextBtn = btnRow.createEl("button", { text: t("btnNext"), cls: "mod-cta" });
+    const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.scanLocal && !this.options.scanRemote) {
-        new import_obsidian7.Notice(t("orphanLocRequired"));
+        new import_obsidian8.Notice(t2("orphanLocRequired"));
         return;
       }
       if (!this.options.typeNote && !this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian7.Notice(t("orphanTypeRequired"));
+        new import_obsidian8.Notice(t2("orphanTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
-      nextBtn.setText(t("orphanScanning"));
+      nextBtn.setText(t2("orphanScanning"));
       progressWidget.show();
       try {
         this.results = await this.plugin.scanUnusedFiles(this.options, {
@@ -3501,9 +3738,9 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian7.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian8.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
-        nextBtn.setText(t("btnNext"));
+        nextBtn.setText(t2("btnNext"));
       }
     };
   }
@@ -3517,16 +3754,16 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
     label.createSpan({ text: labelText });
   }
   renderStep2(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
-    header.createEl("h3", { text: t("orphanStep2Title", { count: this.results.length }), cls: "fm-step-title" });
+    header.createSpan({ text: t2("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
+    header.createEl("h3", { text: t2("orphanStep2Title", { count: this.results.length }), cls: "fm-step-title" });
     if (this.lastCleanSummary) {
       const banner = contentEl.createDiv({ cls: "fm-result-banner fm-result-banner-success" });
-      banner.createDiv({ cls: "fm-result-banner-title", text: t("orphanResultTitle") });
+      banner.createDiv({ cls: "fm-result-banner-title", text: t2("orphanResultTitle") });
       banner.createDiv({
         cls: "fm-result-banner-desc",
-        text: t("orphanResultDesc", {
+        text: t2("orphanResultDesc", {
           count: this.lastCleanSummary.total || 0,
           local: this.lastCleanSummary.local || 0,
           remote: this.lastCleanSummary.remote || 0
@@ -3535,12 +3772,12 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
     }
     const toolbar = contentEl.createDiv({ cls: "fm-toolbar-row" });
     const leftTools = toolbar.createDiv({ attr: { style: "display:flex; gap:8px; align-items:center;" } });
-    const backBtn = leftTools.createEl("button", { text: t("btnBack") });
+    const backBtn = leftTools.createEl("button", { text: t2("btnBack") });
     backBtn.onclick = () => {
       this.step = 1;
       this.render();
     };
-    const selectAllBtn = leftTools.createEl("button", { text: t("btnSelectAll") });
+    const selectAllBtn = leftTools.createEl("button", { text: t2("btnSelectAll") });
     selectAllBtn.onclick = () => {
       const allSelected = this.results.every((r) => r.selected);
       this.results.forEach((r) => {
@@ -3549,7 +3786,7 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
       this.render();
     };
     const exportBtn = toolbar.createEl("button", {
-      text: t("btnExportReport"),
+      text: t2("btnExportReport"),
       cls: "mod-cta"
     });
     exportBtn.onclick = async () => {
@@ -3558,11 +3795,11 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
     if (this.results.length === 0) {
       contentEl.createDiv({
         cls: "fm-section-box",
-        text: t("orphanNoneFound"),
+        text: t2("orphanNoneFound"),
         attr: { style: "text-align: center; padding: 36px 20px;" }
       });
       const emptyBtnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-      const cancelBtn2 = emptyBtnRow.createEl("button", { text: t("btnCancel") });
+      const cancelBtn2 = emptyBtnRow.createEl("button", { text: t2("btnCancel") });
       cancelBtn2.onclick = () => returnToHub(this);
       return;
     }
@@ -3597,33 +3834,33 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
       });
       if (item.source === "remote") {
         const lockBtn = rightBox.createEl("button", {
-          text: t("lockBtnText"),
+          text: t2("lockBtnText"),
           cls: "fm-mini-btn",
-          attr: { title: t("lockBtnTitle") }
+          attr: { title: t2("lockBtnTitle") }
         });
         lockBtn.onclick = async () => {
           try {
             await this.plugin.toggleRemoteFileLock(item.rawObj.year, item.rawObj.month, item.rawObj.filename, true);
-            new import_obsidian7.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
+            new import_obsidian8.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
             this.results = this.results.filter((r) => r.id !== item.id);
             this.render();
           } catch (err) {
-            new import_obsidian7.Notice(this.plugin.t("noticeLockFailed", { err: err.message }));
+            new import_obsidian8.Notice(this.plugin.t("noticeLockFailed", { err: err.message }));
           }
         };
       }
     }
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
+    const cancelBtn = btnRow.createEl("button", { text: t2("btnCancel") });
     cancelBtn.onclick = () => returnToHub(this);
     const cleanBtn = btnRow.createEl("button", {
-      text: t("orphanDeleteSelected", { count: this.results.filter((r) => r.selected).length }),
+      text: t2("orphanDeleteSelected", { count: this.results.filter((r) => r.selected).length }),
       cls: "mod-warning"
     });
     cleanBtn.onclick = async () => {
       const selected = this.results.filter((r) => r.selected);
       if (selected.length === 0) {
-        new import_obsidian7.Notice(this.plugin.t("orphanSelectRequired"));
+        new import_obsidian8.Notice(this.plugin.t("orphanSelectRequired"));
         return;
       }
       await this.plugin.cleanSelectedOrphans(selected, (summary) => {
@@ -3641,7 +3878,7 @@ var OrphanWizardModal = class extends import_obsidian7.Modal {
 };
 
 // src/gallery.js
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 var REMOTE_GALLERY_PAGE_SIZE = 60;
 function filterRemoteGallery(view) {
   return view.items.filter((item) => {
@@ -3724,7 +3961,7 @@ function renderRemoteGallery(view, containerEl, countLabel) {
           item.locked = false;
           view.renderGrid(containerEl, countLabel);
         } catch (err) {
-          new import_obsidian8.Notice(view.t("previewLockFailed", { err: err.message }));
+          new import_obsidian9.Notice(view.t("previewLockFailed", { err: err.message }));
         }
       };
     }
@@ -3767,7 +4004,7 @@ function renderRemoteGallery(view, containerEl, countLabel) {
       cls: "fm-gallery-insert-btn mod-cta",
       attr: { title: isWebpMode ? view.t("galleryInsertedWebp") : view.t("galleryInsertedRaw") }
     });
-    (0, import_obsidian8.setIcon)(insertBtn.createSpan(), "file-input");
+    (0, import_obsidian9.setIcon)(insertBtn.createSpan(), "file-input");
     insertBtn.createSpan({ cls: "fm-gallery-insert-label", text: view.t("galleryBtnInsert") });
     insertBtn.setAttribute("aria-label", view.t("galleryBtnInsert"));
     insertBtn.onmousedown = (e) => {
@@ -3801,8 +4038,8 @@ function renderRemoteGallery(view, containerEl, countLabel) {
 }
 
 // src/modals/remote-gallery.js
-var import_obsidian9 = require("obsidian");
-var RemoteGalleryModal = class extends import_obsidian9.Modal {
+var import_obsidian10 = require("obsidian");
+var RemoteGalleryModal = class extends import_obsidian10.Modal {
   constructor(app, plugin) {
     var _a, _b;
     super(app);
@@ -3880,7 +4117,7 @@ var RemoteGalleryModal = class extends import_obsidian9.Modal {
       cls: "fm-icon-button",
       attr: { title: this.t("galleryBtnRefresh"), "aria-label": this.t("galleryBtnRefresh") }
     });
-    (0, import_obsidian9.setIcon)(refreshBtn, "refresh-cw");
+    (0, import_obsidian10.setIcon)(refreshBtn, "refresh-cw");
     refreshBtn.onclick = () => this.loadData();
     const filters = toolbar.createDiv({ cls: "fm-gallery-filter-row" });
     const bucketSelect = filters.createEl("select", { attr: { "aria-label": this.t("galleryFilterAllTime") } });
@@ -3929,7 +4166,7 @@ var RemoteGalleryModal = class extends import_obsidian9.Modal {
     this.contentEl.empty();
   }
 };
-var RemoteGalleryView = class extends import_obsidian9.ItemView {
+var RemoteGalleryView = class extends import_obsidian10.ItemView {
   constructor(leaf, plugin) {
     var _a, _b;
     super(leaf);
@@ -4011,10 +4248,10 @@ var RemoteGalleryView = class extends import_obsidian9.ItemView {
       cls: "fm-icon-button",
       attr: { title: this.layoutMode === "list" ? this.t("galleryLayoutGrid") : this.t("galleryLayoutList"), "aria-label": this.layoutMode === "list" ? this.t("galleryLayoutGrid") : this.t("galleryLayoutList") }
     });
-    (0, import_obsidian9.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
+    (0, import_obsidian10.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
     layoutBtn.onclick = () => {
       this.layoutMode = this.layoutMode === "list" ? "grid" : "list";
-      (0, import_obsidian9.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
+      (0, import_obsidian10.setIcon)(layoutBtn, this.layoutMode === "list" ? "layout-grid" : "list");
       const label = this.layoutMode === "list" ? this.t("galleryLayoutGrid") : this.t("galleryLayoutList");
       layoutBtn.setAttribute("title", label);
       layoutBtn.setAttribute("aria-label", label);
@@ -4024,7 +4261,7 @@ var RemoteGalleryView = class extends import_obsidian9.ItemView {
       cls: "fm-icon-button",
       attr: { title: this.t("galleryBtnRefresh"), "aria-label": this.t("galleryBtnRefresh") }
     });
-    (0, import_obsidian9.setIcon)(refreshBtn, "refresh-cw");
+    (0, import_obsidian10.setIcon)(refreshBtn, "refresh-cw");
     refreshBtn.onclick = () => this.loadData();
     const row2 = toolbar.createDiv({ cls: "fm-gallery-toolbar-row fm-gallery-filter-fields" });
     const folderField = row2.createDiv({ cls: "fm-gallery-filter-field" });
@@ -4092,24 +4329,24 @@ var RemoteGalleryView = class extends import_obsidian9.ItemView {
 };
 
 // src/modals/vault-analytics.js
-var import_obsidian10 = require("obsidian");
-var VaultAnalyticsModal = class extends import_obsidian10.Modal {
+var import_obsidian11 = require("obsidian");
+var VaultAnalyticsModal = class extends import_obsidian11.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
     this.stats = null;
   }
   async onOpen() {
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("fm-wizard-modal");
     const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("analyticsBadge"), cls: "fm-step-badge" });
-    header.createEl("h3", { text: t("analyticsTitle"), cls: "fm-step-title" });
+    header.createSpan({ text: t2("analyticsBadge"), cls: "fm-step-badge" });
+    header.createEl("h3", { text: t2("analyticsTitle"), cls: "fm-step-title" });
     const loadingEl = contentEl.createDiv({
       cls: "fm-section-box",
-      text: t("analyticsLoading"),
+      text: t2("analyticsLoading"),
       attr: { style: "text-align: center; padding: 32px 20px;" }
     });
     try {
@@ -4117,11 +4354,11 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
       loadingEl.remove();
       this.renderDashboard(contentEl);
     } catch (err) {
-      loadingEl.setText(t("analyticsFail", { err: err.message }));
+      loadingEl.setText(t2("analyticsFail", { err: err.message }));
     }
   }
   renderDashboard(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
+    const t2 = (k, p) => this.plugin.t(k, p);
     const s = this.stats;
     const statGrid = contentEl.createDiv({ cls: "fm-health-stat-grid" });
     const addStat = (num, label, color) => {
@@ -4130,16 +4367,16 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
       if (color) numEl.style.color = color;
       card.createDiv({ cls: "fm-health-stat-label", text: label });
     };
-    addStat(s.noteCount + s.canvasCount, `${t("analyticsStatNotes")} (${s.noteCount} md / ${s.canvasCount} canvas)`);
-    addStat(s.totalWords.toLocaleString(), t("analyticsStatWords"), "#10b981");
-    addStat(s.totalInternalLinks.toLocaleString(), t("analyticsStatLinks"), "#3b82f6");
+    addStat(s.noteCount + s.canvasCount, `${t2("analyticsStatNotes")} (${s.noteCount} md / ${s.canvasCount} canvas)`);
+    addStat(s.totalWords.toLocaleString(), t2("analyticsStatWords"), "#10b981");
+    addStat(s.totalInternalLinks.toLocaleString(), t2("analyticsStatLinks"), "#3b82f6");
     addStat(
       formatBytes(s.local.totalBytes + s.remote.rawBytes),
-      t("analyticsStatStorage"),
+      t2("analyticsStatStorage"),
       "#8b5cf6"
     );
     const storageBox = contentEl.createDiv({ cls: "fm-section-box" });
-    storageBox.createDiv({ text: t("analyticsStorageComparison"), cls: "fm-section-title" });
+    storageBox.createDiv({ text: t2("analyticsStorageComparison"), cls: "fm-section-title" });
     const totalCombinedBytes = Math.max(1, s.local.totalBytes + s.remote.rawBytes);
     const localPct = Math.round(s.local.totalBytes / totalCombinedBytes * 100);
     const remotePct = 100 - localPct;
@@ -4149,13 +4386,13 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
     const localCard = summaryRow.createDiv({
       attr: { style: "padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);" }
     });
-    localCard.createDiv({ text: t("analyticsLocalVault"), attr: { style: "font-weight: 600; font-size: 13px;" } });
+    localCard.createDiv({ text: t2("analyticsLocalVault"), attr: { style: "font-weight: 600; font-size: 13px;" } });
     localCard.createDiv({
       text: `${s.local.totalCount} \xB7 ${formatBytes(s.local.totalBytes)} (${localPct}%)`,
       attr: { style: "font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent);" }
     });
     localCard.createDiv({
-      text: t("analyticsLocalStats", {
+      text: t2("analyticsLocalStats", {
         img: s.local.imageCount,
         imgBytes: formatBytes(s.local.imageBytes),
         aud: s.local.audioCount,
@@ -4168,13 +4405,13 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
     const remoteCard = summaryRow.createDiv({
       attr: { style: "padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);" }
     });
-    remoteCard.createDiv({ text: t("analyticsRemoteServer"), attr: { style: "font-weight: 600; font-size: 13px;" } });
+    remoteCard.createDiv({ text: t2("analyticsRemoteServer"), attr: { style: "font-weight: 600; font-size: 13px;" } });
     remoteCard.createDiv({
       text: `${s.remote.totalCount} \xB7 ${formatBytes(s.remote.rawBytes)} (${remotePct}%)`,
       attr: { style: "font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981;" }
     });
     remoteCard.createDiv({
-      text: t("analyticsRemoteStats", {
+      text: t2("analyticsRemoteStats", {
         cache: formatBytes(s.remote.cacheBytes),
         locked: s.remote.lockedCount
       }),
@@ -4182,11 +4419,11 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
     });
     if (s.topLargestAttachments.length > 0) {
       const topBox = contentEl.createDiv({ cls: "fm-section-box" });
-      topBox.createDiv({ text: t("analyticsTopLargest"), cls: "fm-section-title" });
+      topBox.createDiv({ text: t2("analyticsTopLargest"), cls: "fm-section-title" });
       const listEl = topBox.createDiv({ cls: "fm-scroll-list", attr: { style: "max-height: 210px;" } });
       for (const item of s.topLargestAttachments) {
         const row = listEl.createDiv({ cls: "fm-list-item" });
-        const badge = item.source === "local" ? t("analyticsBadgeLocal") : t("analyticsBadgeRemote");
+        const badge = item.source === "local" ? t2("analyticsBadgeLocal") : t2("analyticsBadgeRemote");
         row.createSpan({
           text: `${badge} \xB7 ${item.path}`,
           attr: { style: "font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" }
@@ -4199,13 +4436,13 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
     }
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
     const exportBtn = btnRow.createEl("button", {
-      text: t("analyticsExportReport"),
+      text: t2("analyticsExportReport"),
       cls: "mod-cta"
     });
     exportBtn.onclick = async () => {
       await this.plugin.exportAnalyticsReportToRoot(s);
     };
-    const closeBtn = btnRow.createEl("button", { text: t("closeBtn") });
+    const closeBtn = btnRow.createEl("button", { text: t2("closeBtn") });
     closeBtn.onclick = () => returnToHub(this);
   }
   onClose() {
@@ -4214,8 +4451,8 @@ var VaultAnalyticsModal = class extends import_obsidian10.Modal {
 };
 
 // src/modals/hub.js
-var import_obsidian11 = require("obsidian");
-var FileMasterHubModal = class extends import_obsidian11.Modal {
+var import_obsidian12 = require("obsidian");
+var FileMasterHubModal = class extends import_obsidian12.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
@@ -4227,11 +4464,11 @@ var FileMasterHubModal = class extends import_obsidian11.Modal {
     this.modalEl.addClass("fm-hub-dialog");
     contentEl.addClass("fm-wizard-modal");
     contentEl.addClass("fm-hub-content");
-    const t = (key, params) => this.plugin.t(key, params);
+    const t2 = (key, params) => this.plugin.t(key, params);
     const header = contentEl.createDiv({ cls: "fm-hub-header" });
     const heading = header.createDiv();
-    heading.createEl("h3", { text: t("hubTitle"), cls: "fm-step-title" });
-    heading.createEl("p", { text: t("hubSubtitle") });
+    heading.createEl("h3", { text: t2("hubTitle"), cls: "fm-step-title" });
+    heading.createEl("p", { text: t2("hubSubtitle") });
     const isRemote = Boolean((_b = (_a = this.plugin) == null ? void 0 : _a.isRemoteServerReady) == null ? void 0 : _b.call(_a));
     const openFromHub = (modal) => {
       modal.fromHub = true;
@@ -4240,44 +4477,44 @@ var FileMasterHubModal = class extends import_obsidian11.Modal {
     const govActions = [
       {
         icon: "link",
-        title: t("actHealthTitle"),
-        desc: t("actHealthDesc"),
+        title: t2("actHealthTitle"),
+        desc: t2("actHealthDesc"),
         run: () => openFromHub(new HealthCheckModal(this.app, this.plugin))
       },
       {
         icon: "files",
-        title: t("actDupTitle"),
-        desc: t("actDupDesc"),
+        title: t2("actDupTitle"),
+        desc: t2("actDupDesc"),
         run: () => openFromHub(new DuplicateWizardModal(this.app, this.plugin))
       },
       {
         icon: "search",
-        title: t("actOrphanTitle"),
-        desc: t("actOrphanDesc"),
+        title: t2("actOrphanTitle"),
+        desc: t2("actOrphanDesc"),
         run: () => openFromHub(new OrphanWizardModal(this.app, this.plugin))
       }
     ];
     govActions.push({
       icon: "bar-chart-3",
-      title: t("actAnalyticsTitle"),
-      desc: t("actAnalyticsDesc"),
+      title: t2("actAnalyticsTitle"),
+      desc: t2("actAnalyticsDesc"),
       run: () => openFromHub(new VaultAnalyticsModal(this.app, this.plugin))
     });
     const sections = [];
     if (isRemote) {
       sections.push({
-        category: t("catFiles"),
+        category: t2("catFiles"),
         actions: [
           {
             icon: "image",
-            title: t("actRemoteGalleryTitle"),
-            desc: t("actRemoteGalleryDesc"),
+            title: t2("actRemoteGalleryTitle"),
+            desc: t2("actRemoteGalleryDesc"),
             run: () => openFromHub(new RemoteGalleryModal(this.app, this.plugin))
           },
           {
             icon: "panel-right",
-            title: t("actRemoteGalleryViewTitle"),
-            desc: t("actRemoteGalleryViewDesc"),
+            title: t2("actRemoteGalleryViewTitle"),
+            desc: t2("actRemoteGalleryViewDesc"),
             run: () => {
               this.close();
               this.plugin.activateGalleryView();
@@ -4285,46 +4522,46 @@ var FileMasterHubModal = class extends import_obsidian11.Modal {
           },
           {
             icon: "cloud-upload",
-            title: t("actMigrateTitle"),
-            desc: t("actMigrateDesc"),
+            title: t2("actMigrateTitle"),
+            desc: t2("actMigrateDesc"),
             run: () => openFromHub(new BatchMigrateWizardModal(this.app, this.plugin))
           }
         ]
       });
     }
-    sections.push({ category: t("catGovernance"), actions: govActions });
+    sections.push({ category: t2("catGovernance"), actions: govActions });
     if (isRemote) {
       sections.push({
-        category: t("catActiveNote"),
+        category: t2("catActiveNote"),
         actions: [
           {
             icon: "upload",
-            title: t("actNoteUpTitle"),
-            desc: t("actNoteUpDesc"),
+            title: t2("actNoteUpTitle"),
+            desc: t2("actNoteUpDesc"),
             run: () => this.plugin.migrateActiveNoteAttachments(null, { fromHub: true })
           },
           {
             icon: "download",
-            title: t("actNoteDownTitle"),
-            desc: t("actNoteDownDesc"),
+            title: t2("actNoteDownTitle"),
+            desc: t2("actNoteDownDesc"),
             run: () => this.plugin.downloadActiveNoteRemoteAttachments(null, { fromHub: true })
           },
           {
             icon: "copy",
-            title: t("actNoteAstroTitle"),
-            desc: t("actNoteAstroDesc"),
+            title: t2("actNoteAstroTitle"),
+            desc: t2("actNoteAstroDesc"),
             run: () => this.plugin.copyActiveNoteForAstro()
           }
         ]
       });
     }
     sections.push({
-      category: t("catSettings"),
+      category: t2("catSettings"),
       actions: [
         {
           icon: "settings-2",
-          title: t("actOpenSettingsTitle"),
-          desc: t("actOpenSettingsDesc"),
+          title: t2("actOpenSettingsTitle"),
+          desc: t2("actOpenSettingsDesc"),
           run: () => {
             if (this.app.setting) {
               this.app.setting.open();
@@ -4342,7 +4579,7 @@ var FileMasterHubModal = class extends import_obsidian11.Modal {
         const card = grid.createEl("button", { cls: "fm-hub-card", type: "button" });
         const left = card.createDiv({ cls: "fm-hub-card-left" });
         const icon = left.createSpan({ cls: "fm-hub-card-icon" });
-        (0, import_obsidian11.setIcon)(icon, act.icon);
+        (0, import_obsidian12.setIcon)(icon, act.icon);
         const textCol = left.createDiv({ cls: "fm-hub-card-text" });
         textCol.createDiv({ text: act.title, cls: "fm-hub-card-title" });
         textCol.createDiv({ text: act.desc, cls: "fm-hub-card-desc" });
@@ -4370,21 +4607,21 @@ function returnToHub(modal) {
 }
 function formatFriendlyError(modal, rawErr) {
   const errStr = String(rawErr || "").trim();
-  const t = (k, p) => {
+  const t2 = (k, p) => {
     var _a;
     return modal && typeof modal.t === "function" ? modal.t(k, p) : ((_a = modal == null ? void 0 : modal.plugin) == null ? void 0 : _a.t) ? modal.plugin.t(k, p) : errStr;
   };
   if (/file too large|too large|413/i.test(errStr)) {
-    return t("activeNoteFailedTooLarge");
+    return t2("activeNoteFailedTooLarge");
   }
   if (/401|unauthorized|invalid.*token/i.test(errStr)) {
-    return t("activeNoteFailedAuth");
+    return t2("activeNoteFailedAuth");
   }
   if (/404|not found/i.test(errStr)) {
-    return t("activeNoteFailedNotFound");
+    return t2("activeNoteFailedNotFound");
   }
   if (/network|fetch|econnrefused|offline/i.test(errStr)) {
-    return t("activeNoteFailedNetwork");
+    return t2("activeNoteFailedNetwork");
   }
   return errStr;
 }
@@ -4434,240 +4671,6 @@ function createScanProgressWidget(contentEl, plugin) {
     }
   };
 }
-
-// src/modals/health-check.js
-var import_obsidian12 = require("obsidian");
-var HealthCheckModal = class extends import_obsidian12.Modal {
-  constructor(app, plugin) {
-    super(app);
-    this.plugin = plugin;
-    this.step = 1;
-    this.activeProgress = null;
-    this.options = {
-      checkWikiLinks: true,
-      checkLocalMarkdown: true,
-      checkRemote: false
-    };
-    this.totalDocsScanned = 0;
-    this.issues = [];
-    this.activeFilter = "all";
-    this.searchQuery = "";
-  }
-  onOpen() {
-    this.render();
-  }
-  render() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("fm-wizard-modal");
-    if (this.step === 1) {
-      this.renderStep1(contentEl);
-    } else {
-      this.renderStep2(contentEl);
-    }
-  }
-  renderStep1(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 1, total: 2 }), cls: "fm-step-badge" });
-    header.createEl("h3", { text: t("healthStep1Title"), cls: "fm-step-title" });
-    contentEl.createEl("p", {
-      text: t("healthStep1Desc"),
-      attr: { style: "font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" }
-    });
-    const box = contentEl.createDiv({ cls: "fm-section-box" });
-    box.createDiv({ text: t("healthScopeTitle"), cls: "fm-section-title" });
-    this.createCheckbox(box, t("healthCheckWiki"), "checkWikiLinks");
-    this.createCheckbox(box, t("healthCheckLocal"), "checkLocalMarkdown");
-    this.createCheckbox(box, t("healthCheckRemote"), "checkRemote");
-    const progressWidget = createScanProgressWidget(contentEl, this.plugin);
-    this.activeProgress = progressWidget;
-    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelBtn = btnRow.createEl("button", { text: t("btnCancel") });
-    cancelBtn.onclick = () => returnToHub(this);
-    const startBtn = btnRow.createEl("button", { text: t("healthStartScan"), cls: "mod-cta" });
-    startBtn.onclick = async () => {
-      if (!this.options.checkWikiLinks && !this.options.checkLocalMarkdown && !this.options.checkRemote) {
-        return;
-      }
-      startBtn.disabled = true;
-      startBtn.setText(t("healthScanning"));
-      progressWidget.show();
-      try {
-        const scanResult = await this.plugin.scanVaultLinkHealth(this.options, {
-          signal: progressWidget.signal,
-          onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
-        });
-        this.issues = scanResult.issues;
-        this.totalDocsScanned = scanResult.totalDocs;
-        this.step = 2;
-        this.render();
-      } catch (err) {
-        progressWidget.hide();
-        new import_obsidian12.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
-        startBtn.disabled = false;
-        startBtn.setText(t("healthStartScan"));
-      }
-    };
-  }
-  createCheckbox(parent, labelText, optKey) {
-    const label = parent.createEl("label", { cls: "fm-check-row" });
-    const cb = label.createEl("input", { type: "checkbox" });
-    cb.checked = Boolean(this.options[optKey]);
-    cb.onchange = () => {
-      this.options[optKey] = cb.checked;
-    };
-    label.createSpan({ text: labelText });
-  }
-  renderStep2(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
-    const wikiIssues = this.issues.filter((i) => i.category === "wikilink");
-    const localIssues = this.issues.filter((i) => i.category === "local");
-    const remoteIssues = this.issues.filter((i) => i.category === "remote");
-    const header = contentEl.createDiv({ cls: "fm-step-header" });
-    header.createSpan({ text: t("stepOf", { current: 2, total: 2 }), cls: "fm-step-badge" });
-    header.createEl("h3", {
-      text: t("healthStep2Title", { docs: this.totalDocsScanned, issues: this.issues.length }),
-      cls: "fm-step-title"
-    });
-    const statGrid = contentEl.createDiv({ cls: "fm-health-stat-grid" });
-    const addStat = (num, label, color) => {
-      const card = statGrid.createDiv({ cls: "fm-health-stat-card" });
-      const numEl = card.createDiv({ cls: "fm-health-stat-num", text: String(num) });
-      if (color) numEl.style.color = color;
-      card.createDiv({ cls: "fm-health-stat-label", text: label });
-    };
-    addStat(this.totalDocsScanned, t("healthStatNotes"));
-    addStat(wikiIssues.length, t("healthStatWiki"), wikiIssues.length > 0 ? "#ef4444" : void 0);
-    addStat(localIssues.length, t("healthStatLocal"), localIssues.length > 0 ? "#f59e0b" : void 0);
-    addStat(remoteIssues.length, t("healthStatRemote"), remoteIssues.length > 0 ? "#3b82f6" : void 0);
-    const toolbar = contentEl.createDiv({ cls: "fm-toolbar-row" });
-    const leftTools = toolbar.createDiv({ attr: { style: "display:flex; gap:8px; align-items:center;" } });
-    const backBtn = leftTools.createEl("button", { text: t("healthRescan") });
-    backBtn.onclick = () => {
-      this.step = 1;
-      this.render();
-    };
-    const exportBtn = toolbar.createEl("button", {
-      text: t("btnExportReport"),
-      cls: "mod-cta"
-    });
-    exportBtn.onclick = async () => {
-      await this.plugin.exportHealthReportToRoot(this.issues, this.totalDocsScanned);
-    };
-    if (this.issues.length === 0) {
-      contentEl.createDiv({
-        cls: "fm-section-box",
-        text: t("healthNoneFound"),
-        attr: { style: "text-align: center; padding: 36px 20px; font-weight: 500;" }
-      });
-      const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-      const closeBtn2 = btnRow.createEl("button", { text: t("closeBtn") });
-      closeBtn2.onclick = () => returnToHub(this);
-      return;
-    }
-    const filterRow = contentEl.createDiv({
-      attr: { style: "display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;" }
-    });
-    const chipBox = filterRow.createDiv({ attr: { style: "display:flex; gap:6px;" } });
-    const createChip = (id, label, count) => {
-      const chip = chipBox.createEl("button", {
-        text: `${label} (${count})`,
-        cls: this.activeFilter === id ? "mod-cta" : ""
-      });
-      chip.onclick = () => {
-        this.activeFilter = id;
-        this.renderStep2(contentEl);
-      };
-    };
-    createChip("all", t("healthFilterAll"), this.issues.length);
-    createChip("wikilink", t("healthStatWiki"), wikiIssues.length);
-    createChip("local", t("healthStatLocal"), localIssues.length);
-    createChip("remote", t("healthStatRemote"), remoteIssues.length);
-    const searchInput = filterRow.createEl("input", {
-      type: "search",
-      placeholder: t("healthSearchPlaceholder"),
-      value: this.searchQuery,
-      attr: { style: "padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;" }
-    });
-    searchInput.oninput = (e) => {
-      this.searchQuery = e.target.value.toLowerCase();
-      this.renderIssueList(listEl);
-    };
-    const listEl = contentEl.createDiv({ cls: "fm-scroll-list", attr: { style: "max-height: 380px;" } });
-    this.renderIssueList(listEl);
-    const bottomRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const closeBtn = bottomRow.createEl("button", { text: t("closeBtn") });
-    closeBtn.onclick = () => returnToHub(this);
-  }
-  renderIssueList(listEl) {
-    const t = (k, p) => this.plugin.t(k, p);
-    listEl.empty();
-    let filtered = this.issues;
-    if (this.activeFilter !== "all") {
-      filtered = filtered.filter((i) => i.category === this.activeFilter);
-    }
-    if (this.searchQuery) {
-      filtered = filtered.filter(
-        (i) => i.sourcePath.toLowerCase().includes(this.searchQuery) || i.target.toLowerCase().includes(this.searchQuery) || i.lineText && i.lineText.toLowerCase().includes(this.searchQuery)
-      );
-    }
-    if (filtered.length === 0) {
-      listEl.createDiv({
-        cls: "fm-section-box",
-        text: t("healthNoMatches"),
-        attr: { style: "text-align: center; padding: 24px;" }
-      });
-      return;
-    }
-    for (const item of filtered) {
-      const row = listEl.createDiv({ cls: "fm-list-item" });
-      const leftCol = row.createDiv({
-        attr: { style: "display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;" }
-      });
-      const topMeta = leftCol.createDiv({ attr: { style: "display:flex; align-items:center; gap:6px;" } });
-      let tagCls = "fm-tag-error";
-      let tagLabel = "\u{1F534} Broken Link";
-      if (item.category === "wikilink") {
-        tagCls = "fm-tag-error";
-        tagLabel = item.type === "wikilink-embed" ? t("healthTagWikiEmbed") : t("healthTagDanglingNote");
-      } else if (item.category === "local") {
-        tagCls = "fm-tag-warning";
-        tagLabel = item.type === "local-embed" ? t("healthTagMissingImage") : t("healthTagMissingFile");
-      } else if (item.category === "remote") {
-        tagCls = "fm-tag-info";
-        tagLabel = t("healthTagRemote404");
-      }
-      topMeta.createSpan({ text: tagLabel, cls: `fm-tag ${tagCls}` });
-      topMeta.createEl("code", { text: item.target, attr: { style: "font-size: 12px; font-weight: 600;" } });
-      topMeta.createSpan({
-        text: t("healthLine", { line: item.line }),
-        attr: { style: "font-size: 11px; color: var(--text-muted); margin-left: auto;" }
-      });
-      const noteRef = leftCol.createDiv({
-        attr: { style: "font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;" }
-      });
-      noteRef.createSpan({ text: t("healthInNote", { path: item.sourcePath }) });
-      if (item.lineText) {
-        leftCol.createDiv({
-          text: item.lineText,
-          cls: "fm-health-context-quote"
-        });
-      }
-      const openBtn = row.createEl("button", {
-        text: t("healthJumpToLine"),
-        attr: { style: "flex-shrink:0; align-self:center;" }
-      });
-      openBtn.onclick = async () => {
-        await this.plugin.openNoteAtLine(item.sourcePath, item.line);
-      };
-    }
-  }
-  onClose() {
-    if (this.activeProgress) this.activeProgress.abort();
-    this.contentEl.empty();
-  }
-};
 
 // src/modals/active-note.js
 var import_obsidian13 = require("obsidian");
@@ -5627,9 +5630,1211 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
   return summary;
 }
 
-// src/modals/operation-log.js
+// src/plugin/attachment-ops.js
 var import_obsidian14 = require("obsidian");
-var OperationLogModal = class extends import_obsidian14.Modal {
+async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
+  return runAttachmentOperation(plugin, () => plugin.mergeDuplicateGroups(groups, onComplete));
+}
+async function mergeDuplicateGroups(plugin, groups, onComplete) {
+  const tasks = [];
+  const remoteItemsToDelete = [];
+  for (const grp of groups) {
+    const keepItem = grp.items.find((i) => i.id === grp.keepId);
+    if (!keepItem) continue;
+    const removeItems = grp.items.filter((i) => i.id !== grp.keepId);
+    if (removeItems.length === 0) continue;
+    for (const rem of removeItems) {
+      if (rem.source === "remote" && !rem.locked) {
+        remoteItemsToDelete.push({ removeItem: rem, keepItem });
+      }
+    }
+    tasks.push({ keepItem, removeItems });
+  }
+  if (tasks.length === 0) {
+    new import_obsidian14.Notice(plugin.t("noDupToProcess"));
+    return;
+  }
+  if (remoteItemsToDelete.length > 0) {
+    const totalRemoteBytes = remoteItemsToDelete.reduce((s, x) => s + (x.removeItem.size || 0), 0);
+    const confirmed = await new Promise((resolve) => {
+      new ConfirmActionModal(
+        plugin.app,
+        plugin.t("confirmRemoteDupTitle"),
+        plugin.t("confirmRemoteDupMsg", { count: remoteItemsToDelete.length, size: formatBytes(totalRemoteBytes) }),
+        plugin.t("confirmRemoteDupBtn", { count: remoteItemsToDelete.length }),
+        resolve
+      ).open();
+    });
+    if (!confirmed) return;
+  }
+  const allDocs = plugin.app.vault.getFiles().filter((f) => plugin.isScannableDocFile(f));
+  const localPathsBeingRemoved = /* @__PURE__ */ new Set();
+  for (const { removeItems } of tasks) {
+    for (const rem of removeItems) {
+      if (rem.source === "local" && !rem.locked) {
+        localPathsBeingRemoved.add(rem.displayPath);
+      }
+    }
+  }
+  const pairs = tasks.flatMap(({ keepItem, removeItems }) => removeItems.map((removeItem) => ({ removeItem, keepItem })));
+  const rewritten = await rewriteAttachmentPairs(
+    plugin,
+    pairs,
+    allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path)
+  );
+  const modifiedDocsCount = rewritten.modified.size;
+  const postSnapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  await plugin.indexRemoteReferences(pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj), postSnapshot);
+  const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === "local").map(({ removeItem, keepItem }) => ({
+    value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
+    id: removeItem.displayPath
+  }));
+  const matchLocalGate = createTextReferenceMatcher(localGatePatterns);
+  const remainingLocal = /* @__PURE__ */ new Map();
+  for (const doc of postSnapshot.docContents) {
+    if (localPathsBeingRemoved.has(doc.path)) continue;
+    for (const path of matchLocalGate(doc.rawText)) addReference(remainingLocal, path, doc.path);
+    if (doc.decodedText !== doc.rawText) {
+      for (const path of matchLocalGate(doc.decodedText)) addReference(remainingLocal, path, doc.path);
+    }
+  }
+  let deletedLocalCount = 0;
+  let deletedRemoteCount = 0;
+  let skippedBySafetyGate = 0;
+  for (const { keepItem, removeItems } of tasks) {
+    for (const rem of removeItems) {
+      if (rem.locked) {
+        continue;
+      }
+      if (!plugin.isReferenceSnapshotCurrent(postSnapshot)) {
+        skippedBySafetyGate++;
+        continue;
+      }
+      let remainingRefs = [];
+      if (rem.source === "local") {
+        remainingRefs = [...remainingLocal.get(rem.displayPath) || []];
+      } else {
+        remainingRefs = plugin.findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
+      }
+      if (remainingRefs.length > 0) {
+        console.warn(
+          `[FileMaster Safety Gate] Blocked deletion of ${rem.displayPath}; dangling references detected in notes:`,
+          remainingRefs
+        );
+        plugin.logOperation("WARN", "DEDUP_SAFETY_GATE", `Kept ${rem.displayPath} because references remain in notes`, { remainingRefs });
+        skippedBySafetyGate++;
+        continue;
+      }
+      if (rem.source === "local") {
+        try {
+          await plugin.app.vault.trash(rem.rawObj, true);
+          deletedLocalCount++;
+        } catch (err) {
+          skippedBySafetyGate++;
+          plugin.logOperation("WARN", "DEDUP_MERGE", `Failed to trash ${rem.displayPath}`, { error: err.message });
+        }
+      } else {
+        try {
+          await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
+          deletedRemoteCount++;
+        } catch (err) {
+          new import_obsidian14.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
+          plugin.logOperation("ERROR", "DEDUP_MERGE", `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
+        }
+      }
+    }
+  }
+  plugin.logOperation("INFO", "DEDUP_MERGE", `Merged duplicates: updated ${modifiedDocsCount} note(s), removed ${deletedLocalCount} local & ${deletedRemoteCount} remote file(s)`, {
+    modifiedDocsCount,
+    deletedLocalCount,
+    deletedRemoteCount,
+    skippedBySafetyGate
+  });
+  if (skippedBySafetyGate > 0) {
+    new import_obsidian14.Notice(
+      plugin.t("noticeDedupSafetyWarning", {
+        modified: modifiedDocsCount,
+        local: deletedLocalCount,
+        remote: deletedRemoteCount,
+        skipped: skippedBySafetyGate
+      })
+    );
+  } else {
+    new import_obsidian14.Notice(
+      plugin.t("noticeDedupSuccess", {
+        modified: modifiedDocsCount,
+        local: deletedLocalCount,
+        remote: deletedRemoteCount
+      })
+    );
+  }
+  if (onComplete) {
+    onComplete({
+      modified: modifiedDocsCount,
+      local: deletedLocalCount,
+      remote: deletedRemoteCount,
+      skipped: skippedBySafetyGate
+    });
+  }
+}
+async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLocal = true } = {}) {
+  var _a;
+  const result = await plugin.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
+  if (!result.count) throw new Error(((_a = result.failures[0]) == null ? void 0 : _a.error) || plugin.t("transferIntegrityFailed"));
+  new import_obsidian14.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
+  return result.processedItems[0].rawObj;
+}
+async function resumePendingMigration(plugin) {
+  if (!plugin.isRemoteServerReady()) {
+    new import_obsidian14.Notice(plugin.t("noticeRemoteNotReady"));
+    return;
+  }
+  const adapter = plugin.app.vault.adapter;
+  const path = migrationCheckpointPath(plugin);
+  if (!await adapter.exists(path)) {
+    new import_obsidian14.Notice(plugin.t("transferNothingPending"));
+    return;
+  }
+  const checkpoint = JSON.parse(await adapter.read(path));
+  if (checkpoint.serverUrl !== plugin.getCleanServerUrl()) throw new Error(plugin.t("transferServerChanged"));
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  const items = checkpoint.items.map((entry) => {
+    var _a;
+    const file = plugin.app.vault.getAbstractFileByPath(entry.path);
+    if (!file || Array.isArray(file.children)) return null;
+    return {
+      name: file.name,
+      displayPath: file.path,
+      size: ((_a = file.stat) == null ? void 0 : _a.size) || 0,
+      rawObj: file,
+      locked: Boolean(entry.locked),
+      selected: true,
+      refNotes: plugin.findReferencingNotesForLocalFile(file, snapshot)
+    };
+  }).filter(Boolean);
+  if (!items.length) {
+    new import_obsidian14.Notice(plugin.t("transferNothingPending"));
+    return;
+  }
+  const modal = new BatchMigrateWizardModal(plugin.app, plugin);
+  modal.options = { ...modal.options, ...checkpoint.options };
+  modal.items = items;
+  modal.step = 2;
+  modal.open();
+}
+async function downloadSingleRemoteItemToLocal(plugin, remoteMatch, options = {}) {
+  const task = (signal) => plugin.downloadRemoteItemToLocal(remoteMatch, { ...options, signal });
+  return options.deferRewrite ? task(options.signal) : runAttachmentOperation(plugin, task, options.signal);
+}
+async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
+  var _a;
+  const silent = Boolean(options == null ? void 0 : options.silent);
+  try {
+    const { year, month, filename } = remoteMatch;
+    if (!silent) {
+      new import_obsidian14.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
+    }
+    let remoteObj = remoteMatch.rawObj || null;
+    if (!remoteObj) {
+      try {
+        const list = await plugin.fetchRemoteFileList();
+        remoteObj = list.find(
+          (r) => r.year === year && r.month === month && r.filename === filename
+        );
+      } catch (e) {
+      }
+    }
+    const activeFile = (options == null ? void 0 : options.activeFile) || plugin.app.workspace.getActiveFile();
+    const sourcePath = activeFile ? activeFile.path : "";
+    const availablePath = remoteMatch.availablePath || await plugin.app.fileManager.getAvailablePathForAttachment(
+      filename,
+      sourcePath
+    );
+    const slashIdx = availablePath.lastIndexOf("/");
+    const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : "";
+    const idealPath = remoteMatch.idealPath || (targetDir ? `${targetDir}/${filename}` : filename);
+    let existingFile = remoteMatch.existingFile || null;
+    if (!existingFile) {
+      const byName = plugin.app.vault.getAbstractFileByPath(idealPath);
+      if (byName && !Array.isArray(byName.children)) {
+        existingFile = byName;
+      }
+    }
+    const hasConflict = Boolean(existingFile && !Array.isArray(existingFile.children));
+    const conflictStrategy = (options == null ? void 0 : options.conflictStrategy) || "rename";
+    let targetLocalFile = null;
+    let action = "downloaded";
+    if (hasConflict && conflictStrategy === "reuse") {
+      if (!(remoteObj == null ? void 0 : remoteObj.sha256) || await computeSha256Hex(await plugin.app.vault.readBinary(existingFile)) !== remoteObj.sha256) {
+        throw new Error(plugin.t("transferIntegrityFailed"));
+      }
+      targetLocalFile = existingFile;
+      action = "reused";
+    } else {
+      const downloadUrl = (remoteObj == null ? void 0 : remoteObj.rawUrl) ? `${remoteObj.rawUrl}?download=1` : `${remoteMatch.matchedUrl}?download=1`;
+      const response = await requestWithBackoff(() => (0, import_obsidian14.requestUrl)({
+        url: downloadUrl,
+        method: "GET",
+        headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+        throw: false
+      }), { signal: options.signal });
+      if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
+        throw new Error(`Failed to download remote file (HTTP ${response.status})`);
+      }
+      if (!(remoteObj == null ? void 0 : remoteObj.sha256) || await computeSha256Hex(response.arrayBuffer) !== remoteObj.sha256) {
+        throw new Error(plugin.t("transferIntegrityFailed"));
+      }
+      throwIfTransferCancelled(options.signal);
+      if (hasConflict && conflictStrategy === "overwrite") {
+        await plugin.app.vault.modifyBinary(existingFile, response.arrayBuffer);
+        targetLocalFile = existingFile;
+        action = "overwritten";
+      } else {
+        targetLocalFile = await plugin.app.vault.createBinary(availablePath, response.arrayBuffer);
+        action = "downloaded";
+      }
+    }
+    const removeItem = {
+      source: "remote",
+      name: filename,
+      ext: getExt(filename),
+      displayPath: `${year}/${month}/${filename}`,
+      rawObj: remoteObj || {
+        year,
+        month,
+        filename,
+        rawUrl: remoteMatch.matchedUrl,
+        pubUrl: `${plugin.getCleanServerUrl()}/pub/${year}/${month}/${getBaseName(filename)}.webp`
+      }
+    };
+    const keepItem = {
+      source: "local",
+      name: targetLocalFile.name,
+      ext: targetLocalFile.extension.toLowerCase(),
+      displayPath: targetLocalFile.path,
+      rawObj: targetLocalFile
+    };
+    const syncOtherNotes = (options == null ? void 0 : options.syncOtherNotes) !== void 0 ? Boolean(options.syncOtherNotes) : true;
+    const pair = { removeItem, keepItem };
+    const rewritten = options.deferRewrite ? null : await rewriteAttachmentPairs(
+      plugin,
+      [pair],
+      !syncOtherNotes && activeFile ? [activeFile.path] : null
+    );
+    const modifiedCount = (rewritten == null ? void 0 : rewritten.modified.size) || 0;
+    const syncedOtherNotePaths = [...(rewritten == null ? void 0 : rewritten.modified) || []].filter((path) => path !== (activeFile == null ? void 0 : activeFile.path));
+    if (!silent) {
+      new import_obsidian14.Notice(
+        plugin.t("noticeDownloadedToVault", {
+          name: filename,
+          path: targetLocalFile.path,
+          docs: modifiedCount
+        })
+      );
+    }
+    if (options == null ? void 0 : options.returnDetails) {
+      return {
+        file: targetLocalFile,
+        name: targetLocalFile.name,
+        originName: filename,
+        displayPath: targetLocalFile.path,
+        remotePath: `${year}/${month}/${filename}`,
+        size: ((_a = targetLocalFile.stat) == null ? void 0 : _a.size) || (remoteObj == null ? void 0 : remoteObj.size) || 0,
+        action,
+        pair,
+        modifiedDocs: modifiedCount,
+        syncedOtherNotes: syncedOtherNotePaths.length,
+        syncedOtherNotePaths
+      };
+    }
+    return targetLocalFile;
+  } catch (err) {
+    if (!silent) {
+      new import_obsidian14.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
+    }
+    throw err;
+  }
+}
+async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
+  var _a;
+  const content = await plugin.app.vault.read(activeFile);
+  const serverBase = escapeRegExp(plugin.getCleanServerUrl());
+  const re = new RegExp(
+    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    "gi"
+  );
+  const matchesMap = /* @__PURE__ */ new Map();
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    const fullUrl = m[1];
+    let filename = m[5].split(/[?#]/)[0];
+    try {
+      filename = decodeURIComponent(filename);
+    } catch (e) {
+    }
+    const key = `${m[3]}/${m[4]}/${filename}`;
+    if (!matchesMap.has(key)) {
+      matchesMap.set(key, {
+        matchedUrl: fullUrl,
+        cleanUrl: fullUrl.split(/[?#]/)[0],
+        routePrefix: m[2],
+        year: m[3],
+        month: m[4],
+        filename
+      });
+    }
+  }
+  if (matchesMap.size === 0) {
+    return [];
+  }
+  let remoteList = [];
+  try {
+    remoteList = await plugin.fetchRemoteFileList();
+  } catch (e) {
+  }
+  const snapshot = await plugin.buildVaultReferenceSnapshot();
+  await plugin.indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
+  const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
+  const localFilesBySize = /* @__PURE__ */ new Map();
+  const localHashCache = /* @__PURE__ */ new Map();
+  const getLocalFileSha256 = async (tfile) => {
+    if (!tfile || Array.isArray(tfile.children)) return null;
+    if (localHashCache.has(tfile.path)) return localHashCache.get(tfile.path);
+    try {
+      const buf = await plugin.app.vault.readBinary(tfile);
+      const h = await computeSha256Hex(buf);
+      localHashCache.set(tfile.path, h);
+      return h;
+    } catch (e) {
+      return null;
+    }
+  };
+  for (const f of plugin.app.vault.getFiles()) {
+    if (!isAttachmentExt(f.extension)) continue;
+    if (plugin.isLocalPathExcluded(f.path)) continue;
+    const sz = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
+    if (sz <= 0) continue;
+    if (!localFilesBySize.has(sz)) localFilesBySize.set(sz, []);
+    localFilesBySize.get(sz).push(f);
+  }
+  const out = [];
+  for (const match of matchesMap.values()) {
+    const { year, month, filename, matchedUrl, routePrefix } = match;
+    const remoteObj = remoteByPath.get(`${year}/${month}/${filename}`);
+    const availablePath = await plugin.app.fileManager.getAvailablePathForAttachment(
+      filename,
+      activeFile.path
+    );
+    const slashIdx = availablePath.lastIndexOf("/");
+    const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : "";
+    const idealPath = targetDir ? `${targetDir}/${filename}` : filename;
+    const existingByName = plugin.app.vault.getAbstractFileByPath(idealPath);
+    const hasSameName = Boolean(existingByName && !Array.isArray(existingByName.children));
+    let existingFile = hasSameName ? existingByName : null;
+    let conflictType = null;
+    const remoteSha256 = (remoteObj == null ? void 0 : remoteObj.sha256) || null;
+    const remoteSize = (remoteObj == null ? void 0 : remoteObj.size) || 0;
+    if (remoteSha256) {
+      if (hasSameName) {
+        const sameNameHash = await getLocalFileSha256(existingByName);
+        if (sameNameHash && sameNameHash === remoteSha256) {
+          conflictType = "hash_and_name";
+          existingFile = existingByName;
+        }
+      }
+      if (!conflictType && remoteSize > 0) {
+        const candidates = localFilesBySize.get(remoteSize) || [];
+        const sortedCandidates = [...candidates].sort((a, b) => {
+          var _a2, _b;
+          const aInTarget = (((_a2 = a.parent) == null ? void 0 : _a2.path) || "") === targetDir ? 0 : 1;
+          const bInTarget = (((_b = b.parent) == null ? void 0 : _b.path) || "") === targetDir ? 0 : 1;
+          return aInTarget - bInTarget;
+        });
+        for (const cand of sortedCandidates) {
+          const candHash = await getLocalFileSha256(cand);
+          if (candHash && candHash === remoteSha256) {
+            conflictType = cand.path === idealPath ? "hash_and_name" : "hash_only";
+            existingFile = cand;
+            break;
+          }
+        }
+      }
+    }
+    if (!conflictType && hasSameName) {
+      conflictType = "name_only";
+      existingFile = existingByName;
+    }
+    const hasConflict = Boolean(conflictType && existingFile);
+    const refNotes = plugin.findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
+    const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
+    out.push({
+      id: `remote:${year}/${month}/${filename}`,
+      source: "remote",
+      name: filename,
+      filename,
+      ext: getExt(filename),
+      year,
+      month,
+      matchedUrl,
+      routePrefix,
+      displayPath: `${year}/${month}/${filename}`,
+      size: remoteSize,
+      sha256: remoteSha256,
+      rawObj: remoteObj || {
+        year,
+        month,
+        filename,
+        rawUrl: matchedUrl,
+        pubUrl: `${plugin.getCleanServerUrl()}/pub/${year}/${month}/${encodeURIComponent(getBaseName(filename))}.webp`
+      },
+      targetDir: targetDir || "/",
+      idealPath,
+      availablePath,
+      existingFile: hasConflict ? existingFile : null,
+      conflictType,
+      hasConflict,
+      refNotes,
+      otherRefNotes,
+      selected: true
+    });
+  }
+  return out;
+}
+async function executeDownloadNoteDirect(plugin, activeFile, onProgress = null, options = {}) {
+  return runAttachmentOperation(plugin, async (signal) => {
+    const items = Array.isArray(options.items) ? options.items : await plugin.scanActiveNoteRemoteAttachments(activeFile);
+    const processedItems = [], failures = [], retryItems = [], pairs = [];
+    for (let i = 0; i < items.length; i++) {
+      if (signal.aborted) {
+        retryItems.push(...items.slice(i));
+        break;
+      }
+      const item = items[i];
+      onProgress == null ? void 0 : onProgress(i + 1, items.length, item.filename || item.name);
+      try {
+        const detail = await plugin.downloadSingleRemoteItemToLocal(item, {
+          ...options,
+          signal,
+          activeFile,
+          silent: true,
+          returnDetails: true,
+          deferRewrite: true
+        });
+        pairs.push(detail.pair);
+        processedItems.push({
+          source: "local",
+          name: detail.name,
+          ext: getExt(detail.name),
+          displayPath: detail.displayPath,
+          remotePath: detail.remotePath,
+          size: detail.size,
+          action: detail.action,
+          rawObj: detail.file
+        });
+      } catch (err) {
+        retryItems.push(item);
+        if (err.name === "AbortError") {
+          retryItems.push(...items.slice(i + 1));
+          break;
+        }
+        failures.push({ name: item.filename || item.name, size: item.size || 0, error: err.message || String(err) });
+        plugin.logOperation("ERROR", "NOTE_DOWNLOAD", `Failed to download ${item.filename || item.name}`, { error: err.message });
+      }
+    }
+    const rewritten = pairs.length ? await rewriteAttachmentPairs(
+      plugin,
+      pairs,
+      options.syncOtherNotes === false ? [activeFile.path] : null
+    ) : null;
+    processedItems.forEach((item, i) => {
+      item.syncedOtherNotePaths = ((rewritten == null ? void 0 : rewritten.changedPaths.get(pairs[i])) || []).filter((path) => path !== activeFile.path);
+      item.syncedOtherNotes = item.syncedOtherNotePaths.length;
+    });
+    const summary = {
+      count: processedItems.length,
+      processedItems,
+      failures,
+      retryItems,
+      cancelled: Boolean(signal.aborted)
+    };
+    return options.returnDetails ? summary : summary.count;
+  }, options.signal);
+}
+async function downloadActiveNoteRemoteAttachments(plugin, targetFile = null, options = {}) {
+  const activeFile = targetFile || plugin.app.workspace.getActiveFile();
+  if (!activeFile || !plugin.isDocFile(activeFile)) {
+    new import_obsidian14.Notice(plugin.t("noticeOpenMdFirst"));
+    return;
+  }
+  const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "download", options);
+  if (options == null ? void 0 : options.fromHub) {
+    plugin.openModalSafely(modal);
+  } else {
+    modal.open();
+  }
+}
+async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanCtx = {}) {
+  var _a;
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const allowedGroups = /* @__PURE__ */ new Set();
+  if (options.typeImage) allowedGroups.add("image");
+  if (options.typeAudio) allowedGroups.add("audio");
+  if (options.typeOther) allowedGroups.add("other");
+  const prefix = String(options.folderPrefix || "").replace(/^\/+|\/+$/g, "");
+  const list = [];
+  const allFiles = plugin.app.vault.getFiles();
+  for (let i = 0; i < allFiles.length; i++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const f = allFiles[i];
+    if (onProgress && i % 30 === 0) {
+      onProgress(i + 1, allFiles.length, f.path);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    if (!isAttachmentExt(f.extension)) continue;
+    if (plugin.settings.uploadNonImageAttachments === false && !IMAGE_EXTS.has(f.extension.toLowerCase())) {
+      continue;
+    }
+    if (prefix) {
+      if (f.path !== prefix && !f.path.startsWith(prefix + "/")) continue;
+    } else if (plugin.isLocalPathExcluded(f.path)) {
+      continue;
+    }
+    const grp = getFileTypeGroup(f.extension);
+    if (!allowedGroups.has(grp)) continue;
+    const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
+    list.push({
+      id: `local:${f.path}`,
+      source: "local",
+      name: f.name,
+      ext: f.extension.toLowerCase(),
+      displayPath: f.path,
+      size: ((_a = f.stat) == null ? void 0 : _a.size) || 0,
+      refNotes,
+      rawObj: f,
+      selected: true
+    });
+  }
+  return list;
+}
+async function executeBatchMigrateSafely(plugin, selectedItems, options, onProgress, onDone) {
+  const summary = await runAttachmentOperation(
+    plugin,
+    (signal) => migrateLocalAttachments(plugin, selectedItems, { ...options, signal }, onProgress),
+    options == null ? void 0 : options.signal
+  );
+  onDone == null ? void 0 : onDone(summary);
+  return summary;
+}
+async function scanActiveNoteLocalAttachments(plugin, activeFile) {
+  const content = await plugin.app.vault.read(activeFile);
+  const wikiRegex = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
+  const mdLinkRegex = /!?\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
+  const localFilesMap = /* @__PURE__ */ new Map();
+  let m;
+  while ((m = wikiRegex.exec(content)) !== null) {
+    const tf = plugin.app.metadataCache.getFirstLinkpathDest(m[1].trim(), activeFile.path);
+    if (tf && isAttachmentExt(tf.extension)) {
+      localFilesMap.set(tf.path, tf);
+    }
+  }
+  while ((m = mdLinkRegex.exec(content)) !== null) {
+    let rawTarget = m[2].trim().replace(/^<|>$/g, "");
+    try {
+      rawTarget = decodeURIComponent(rawTarget);
+    } catch (e) {
+    }
+    const tf = plugin.app.metadataCache.getFirstLinkpathDest(rawTarget, activeFile.path);
+    if (tf && isAttachmentExt(tf.extension)) {
+      localFilesMap.set(tf.path, tf);
+    }
+  }
+  const snapshot = await plugin.buildVaultReferenceSnapshot();
+  return Array.from(localFilesMap.values()).map((tf) => {
+    var _a;
+    const refNotes = plugin.findReferencingNotesForLocalFile(tf, snapshot);
+    const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
+    return {
+      id: `local:${tf.path}`,
+      source: "local",
+      name: tf.name,
+      ext: tf.extension.toLowerCase(),
+      displayPath: tf.path,
+      size: ((_a = tf.stat) == null ? void 0 : _a.size) || 0,
+      rawObj: tf,
+      tfile: tf,
+      refNotes,
+      otherRefNotes,
+      selected: true,
+      locked: false
+    };
+  });
+}
+async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, options = {}) {
+  return runAttachmentOperation(plugin, async (signal) => {
+    var _a;
+    const items = Array.isArray(options.items) ? options.items : await plugin.scanActiveNoteLocalAttachments(activeFile);
+    const summary = await migrateLocalAttachments(plugin, items, {
+      ...options,
+      signal,
+      activeFile,
+      deleteLocalAfter: (_a = options.deleteLocalAfter) != null ? _a : plugin.settings.deleteLocalAfterMigrate,
+      documentPaths: options.syncOtherNotes === false ? [activeFile.path] : null
+    }, onProgress);
+    return options.returnDetails ? summary : summary.count;
+  }, options.signal);
+}
+async function migrateActiveNoteAttachments(plugin, targetFile = null, options = {}) {
+  const activeFile = targetFile || plugin.app.workspace.getActiveFile();
+  if (!activeFile || !plugin.isDocFile(activeFile)) {
+    new import_obsidian14.Notice(plugin.t("noticeOpenMdFirst"));
+    return;
+  }
+  const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "migrate", options);
+  if (options == null ? void 0 : options.fromHub) {
+    plugin.openModalSafely(modal);
+  } else {
+    modal.open();
+  }
+}
+async function copyActiveNoteForAstro(plugin, targetFile = null) {
+  const activeFile = targetFile || plugin.app.workspace.getActiveFile();
+  if (!activeFile || !plugin.isDocFile(activeFile)) {
+    new import_obsidian14.Notice(plugin.t("noticeOpenMdFirst"));
+    return;
+  }
+  const content = await plugin.app.vault.read(activeFile);
+  const converted = content.replace(
+    /\/[a-zA-Z0-9_-]+\/((?:protected|\d{4})\/(?:keep|\d{2})\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
+    "/pub/$1.webp"
+  );
+  await navigator.clipboard.writeText(converted);
+  new import_obsidian14.Notice(plugin.t("noticeAstroCopied"));
+}
+
+// src/plugin/context-menus.js
+var import_obsidian15 = require("obsidian");
+function registerContextMenus(plugin) {
+  plugin.registerEvent(
+    plugin.app.workspace.on("file-menu", (menu, abstractFile) => {
+      if (!abstractFile) return;
+      if (Array.isArray(abstractFile.children)) {
+        const folderPath = abstractFile.path;
+        if (!folderPath || folderPath === "/") return;
+        if (plugin.isRemoteServerReady()) {
+          menu.addItem((item) => {
+            item.setTitle(plugin.t("menuMigrateFolder")).setIcon("upload-cloud").onClick(() => {
+              new BatchMigrateWizardModal(plugin.app, plugin, folderPath).open();
+            });
+          });
+        }
+        const isExcluded = plugin.isLocalPathExcluded(folderPath);
+        menu.addItem((item) => {
+          item.setTitle(isExcluded ? plugin.t("menuRemoveExclusion") : plugin.t("menuAddExclusion")).setIcon("shield").onClick(() => {
+            plugin.toggleLocalFolderExclusion(folderPath);
+          });
+        });
+        return;
+      }
+      if (abstractFile.extension && isAttachmentExt(abstractFile.extension)) {
+        if (plugin.isRemoteServerReady()) {
+          menu.addItem((item) => {
+            item.setTitle(plugin.t("menuUploadCloud")).setIcon("upload-cloud").onClick(async () => {
+              await plugin.migrateSingleLocalFileToRemote(abstractFile, {
+                deleteLocal: plugin.settings.deleteLocalAfterMigrate
+              });
+            });
+          });
+        }
+        return;
+      }
+      const isNoteOrExcalidraw = abstractFile.extension === "md" || abstractFile.extension === "excalidraw" || plugin.isExcalidrawFile(abstractFile);
+      if (isNoteOrExcalidraw && plugin.isRemoteServerReady()) {
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteMigrate")).setIcon("upload-cloud").onClick(() => {
+            plugin.migrateActiveNoteAttachments(abstractFile);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteDownload")).setIcon("download-cloud").onClick(() => {
+            plugin.downloadActiveNoteRemoteAttachments(abstractFile);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteAstro")).setIcon("external-link").onClick(() => {
+            plugin.copyActiveNoteForAstro(abstractFile);
+          });
+        });
+      }
+    })
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("editor-menu", (menu, editor) => {
+      if (!plugin.isRemoteServerReady()) return;
+      const cursor = editor.getCursor();
+      const lineText = editor.getLine(cursor.line) || "";
+      if (!lineText.trim()) return;
+      const remoteMatch = plugin.extractRemoteItemFromLine(lineText);
+      if (remoteMatch) {
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuCopyRaw", { name: remoteMatch.filename })).setIcon("copy").onClick(async () => {
+            await navigator.clipboard.writeText(remoteMatch.matchedUrl);
+            new import_obsidian15.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuCopyWebp")).setIcon("zap").onClick(async () => {
+            const base = getBaseName(remoteMatch.filename);
+            const optUrl = `${plugin.getCleanServerUrl()}/pub/${remoteMatch.year}/${remoteMatch.month}/${encodeURIComponent(base)}.webp`;
+            await navigator.clipboard.writeText(optUrl);
+            new import_obsidian15.Notice(plugin.t("noticeCopiedWebp", { name: base + ".webp" }));
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuDownloadToVault", { name: remoteMatch.filename })).setIcon("download").onClick(async () => {
+            await plugin.downloadSingleRemoteItemToLocal(remoteMatch);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuLockRemote", { name: remoteMatch.filename })).setIcon("lock").onClick(async () => {
+            try {
+              await plugin.toggleRemoteFileLock(
+                remoteMatch.year,
+                remoteMatch.month,
+                remoteMatch.filename,
+                true
+              );
+              new import_obsidian15.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
+            } catch (err) {
+              new import_obsidian15.Notice(plugin.t("noticeLockFailed", { err: err.message }));
+            }
+          });
+        });
+      }
+      const localTFile = plugin.extractLocalAttachmentFromLine(lineText);
+      if (localTFile) {
+        menu.addItem((item) => {
+          item.setTitle(`${plugin.t("menuUploadCloud")} (${localTFile.name})`).setIcon("upload-cloud").onClick(async () => {
+            await plugin.migrateSingleLocalFileToRemote(localTFile, {
+              toProtected: false,
+              deleteLocal: plugin.settings.deleteLocalAfterMigrate
+            });
+          });
+        });
+      }
+    })
+  );
+}
+function extractRemoteItemFromLine(plugin, lineText) {
+  const serverBase = escapeRegExp(plugin.getCleanServerUrl());
+  const re = new RegExp(
+    `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
+    "i"
+  );
+  const m = re.exec(lineText);
+  if (!m) return null;
+  let filename = m[5];
+  try {
+    filename = decodeURIComponent(filename);
+  } catch (e) {
+  }
+  return {
+    matchedUrl: m[1],
+    routePrefix: m[2],
+    year: m[3],
+    month: m[4],
+    filename
+  };
+}
+function extractLocalAttachmentFromLine(plugin, lineText) {
+  const activeFile = plugin.app.workspace.getActiveFile();
+  const sourcePath = activeFile ? activeFile.path : "";
+  const wikiMatch = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/.exec(lineText);
+  if (wikiMatch) {
+    const tf = plugin.app.metadataCache.getFirstLinkpathDest(wikiMatch[1].trim(), sourcePath);
+    if (tf && isAttachmentExt(tf.extension)) return tf;
+  }
+  const mdMatch = /!?\[[^\]]*\]\((?!https?:\/\/)([^)]+)\)/.exec(lineText);
+  if (mdMatch) {
+    let linkPath = mdMatch[1].trim();
+    try {
+      linkPath = decodeURIComponent(linkPath);
+    } catch (e) {
+    }
+    const tf = plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+    if (tf && isAttachmentExt(tf.extension)) return tf;
+  }
+  return null;
+}
+function setupHeicInlinePreviewObserver(plugin) {
+  const scanEmbeds = () => {
+    const embeds = document.querySelectorAll(".internal-embed[src]");
+    embeds.forEach((el) => {
+      const rawSrc = el.getAttribute("src") || "";
+      const cleanSrc = rawSrc.split("#")[0].split("|")[0].trim();
+      const ext = getExt(cleanSrc);
+      if (!NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) return;
+      if (el.dataset.fmHeicStatus === "done" || el.dataset.fmHeicStatus === "loading") return;
+      el.dataset.fmHeicStatus = "loading";
+      plugin.renderSingleHeicEmbed(el, cleanSrc, ext).catch(() => {
+        el.dataset.fmHeicStatus = "error";
+      });
+    });
+  };
+  plugin.app.workspace.onLayoutReady(() => {
+    scanEmbeds();
+    plugin.heicObserver = new MutationObserver(() => scanEmbeds());
+    plugin.heicObserver.observe(document.body, { childList: true, subtree: true });
+  });
+  plugin.registerEvent(plugin.app.workspace.on("layout-change", () => scanEmbeds()));
+  plugin.registerEvent(plugin.app.workspace.on("file-open", () => setTimeout(scanEmbeds, 80)));
+}
+async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
+  var _a;
+  const activeFile = plugin.app.workspace.getActiveFile();
+  const sourcePath = activeFile ? activeFile.path : "";
+  let tfile = plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+  if (!tfile) {
+    tfile = plugin.app.vault.getFiles().find((f) => f.path === linkPath || f.name === linkPath);
+  }
+  if (!tfile) {
+    embedEl.dataset.fmHeicStatus = "missing";
+    return;
+  }
+  const cacheKey = `${tfile.path}:${((_a = tfile.stat) == null ? void 0 : _a.mtime) || 0}`;
+  let previewUrl = plugin.heicPreviewCache.get(cacheKey);
+  if (!previewUrl) {
+    const buf = await plugin.app.vault.readBinary(tfile);
+    previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
+    plugin.heicPreviewCache.set(cacheKey, previewUrl);
+  }
+  embedEl.empty();
+  embedEl.removeClass("file-embed", "mod-generic");
+  embedEl.addClass("image-embed", "is-loaded");
+  const img = embedEl.createEl("img", {
+    attr: {
+      src: previewUrl,
+      alt: tfile.name
+    }
+  });
+  img.style.maxWidth = "100%";
+  img.style.borderRadius = "6px";
+  img.style.display = "block";
+  embedEl.dataset.fmHeicStatus = "done";
+}
+
+// src/plugin/health-analytics.js
+var import_obsidian16 = require("obsidian");
+async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
+  const { signal, onProgress } = scanCtx || {};
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter(
+    (f) => plugin.isScannableDocFile(f) && !plugin.isLocalPathExcluded(f.path)
+  );
+  const vaultFilePaths = new Set(allFiles.map((f) => f.path));
+  const vaultFileNames = new Set(allFiles.map((f) => f.name));
+  const vaultFileBasenames = new Set(allFiles.map((f) => f.basename));
+  const vaultIndex = {
+    paths: vaultFilePaths,
+    names: vaultFileNames,
+    basenames: vaultFileBasenames
+  };
+  const issues = [];
+  const remoteToCheck = [];
+  for (let i = 0; i < docFiles.length; i++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const doc = docFiles[i];
+    if (onProgress && i % 15 === 0) {
+      onProgress(i + 1, docFiles.length, doc.path);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    const rawText = await plugin.app.vault.cachedRead(doc);
+    if (doc.extension === "canvas") {
+      try {
+        const data = JSON.parse(rawText);
+        if (Array.isArray(data.nodes)) {
+          for (const node of data.nodes) {
+            if (node.type === "file" && node.file && options.checkLocalMarkdown !== false) {
+              if (!vaultFilePaths.has(node.file) && !vaultFileNames.has(node.file.split("/").pop())) {
+                issues.push({
+                  type: "canvas-node",
+                  category: "local",
+                  sourcePath: doc.path,
+                  target: node.file,
+                  rawText: `{"type": "file", "file": "${node.file}"}`,
+                  line: 1,
+                  lineText: `Canvas File Card: ${node.file}`,
+                  reason: "Referenced canvas attachment does not exist in vault"
+                });
+              }
+            } else if (node.type === "text" && node.text) {
+              const subIssues = scanNoteContentForBrokenLinks(doc.path, node.text, vaultIndex, {
+                checkWikiLinks: options.checkWikiLinks !== false,
+                checkLocalMarkdown: options.checkLocalMarkdown !== false,
+                checkRemote: options.checkRemote
+              });
+              for (const iss of subIssues) {
+                if (iss.category === "remote") {
+                  remoteToCheck.push(iss);
+                } else {
+                  issues.push(iss);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+      }
+    } else {
+      const docIssues = scanNoteContentForBrokenLinks(doc.path, rawText, vaultIndex, {
+        checkWikiLinks: options.checkWikiLinks !== false,
+        checkLocalMarkdown: options.checkLocalMarkdown !== false,
+        checkRemote: options.checkRemote
+      });
+      for (const iss of docIssues) {
+        if (iss.category === "remote") {
+          remoteToCheck.push(iss);
+        } else {
+          issues.push(iss);
+        }
+      }
+    }
+  }
+  if (options.checkRemote && remoteToCheck.length > 0) {
+    const uniqueUrls = Array.from(new Set(remoteToCheck.map((r) => r.target)));
+    const failedUrlMap = /* @__PURE__ */ new Map();
+    for (let i = 0; i < uniqueUrls.length; i += 5) {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const batch = uniqueUrls.slice(i, i + 5);
+      if (onProgress) {
+        onProgress(i + 1, uniqueUrls.length, batch[0]);
+      }
+      await Promise.all(
+        batch.map(async (url) => {
+          try {
+            const res = await (0, import_obsidian16.requestUrl)({ url, method: "HEAD", throw: false });
+            if (res.status >= 400) {
+              failedUrlMap.set(url, `HTTP ${res.status}`);
+            }
+          } catch (err) {
+            failedUrlMap.set(url, err.message || "Network error");
+          }
+        })
+      );
+    }
+    for (const item of remoteToCheck) {
+      if (failedUrlMap.has(item.target)) {
+        item.reason = `Remote resource returned ${failedUrlMap.get(item.target)}`;
+        issues.push(item);
+      }
+    }
+  }
+  plugin.logOperation("INFO", "HEALTH_SCAN", `Scanned ${docFiles.length} document(s), found ${issues.length} broken link issue(s)`, {
+    docsScanned: docFiles.length,
+    issuesFound: issues.length
+  });
+  return { issues, totalDocs: docFiles.length };
+}
+async function exportHealthReportToRoot(plugin, issues, totalDocsScanned) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Broken_Links_Report_${dateStr}.md`;
+  const zh = plugin.getEffectiveLanguage() === "zh";
+  const locale = zh ? "zh-CN" : "en-US";
+  const labels = zh ? {
+    title: "\u5931\u6548\u94FE\u63A5\u62A5\u544A",
+    generated: "\u751F\u6210\u65F6\u95F4",
+    checked: "\u5DF2\u68C0\u67E5\u6587\u6863",
+    issues: "\u53D1\u73B0\u95EE\u9898",
+    summary: "\u6982\u89C8",
+    wiki: "\u5931\u6548\u5185\u90E8\u94FE\u63A5",
+    local: "\u7F3A\u5931\u672C\u5730\u6587\u4EF6",
+    remote: "\u7F51\u9875\u94FE\u63A5\u5F02\u5E38",
+    source: "\u6240\u5728\u6587\u6863",
+    target: "\u76EE\u6807",
+    type: "\u7C7B\u578B",
+    line: "\u884C\u53F7",
+    context: "\u4E0A\u4E0B\u6587",
+    url: "\u7F51\u9875\u94FE\u63A5",
+    error: "\u9519\u8BEF",
+    link: "\u94FE\u63A5",
+    none: "\u6240\u9009\u68C0\u67E5\u8303\u56F4\u5185\u672A\u53D1\u73B0\u94FE\u63A5\u95EE\u9898\u3002"
+  } : {
+    title: "Broken links report",
+    generated: "Generated",
+    checked: "Documents checked",
+    issues: "Issues found",
+    summary: "Overview",
+    wiki: "Broken note links",
+    local: "Missing local files",
+    remote: "Web link errors",
+    source: "Document",
+    target: "Target",
+    type: "Type",
+    line: "Line",
+    context: "Context",
+    url: "Web link",
+    error: "Error",
+    link: "Link",
+    none: "No link issues found in the selected scope."
+  };
+  const wikiIssues = issues.filter((i) => i.category === "wikilink");
+  const localIssues = issues.filter((i) => i.category === "local");
+  const remoteIssues = issues.filter((i) => i.category === "remote");
+  const lines = [
+    `# ${labels.title} (${dateStr})`,
+    ``,
+    `> ${labels.generated}: ${now.toLocaleString(locale)}  |  ${labels.checked}: **${totalDocsScanned}**  |  ${labels.issues}: **${issues.length}**`,
+    ``,
+    `## ${labels.summary}`,
+    `- ${labels.wiki}: **${wikiIssues.length}**`,
+    `- ${labels.local}: **${localIssues.length}**`,
+    `- ${labels.remote}: **${remoteIssues.length}**`,
+    ``
+  ];
+  if (wikiIssues.length > 0) {
+    lines.push(`## 1. ${labels.wiki} (${wikiIssues.length})`);
+    lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
+    lines.push(`|---|---|---|---|---|`);
+    for (const item of wikiIssues) {
+      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
+      lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
+    }
+    lines.push(``);
+  }
+  if (localIssues.length > 0) {
+    lines.push(`## 2. ${labels.local} (${localIssues.length})`);
+    lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
+    lines.push(`|---|---|---|---|---|`);
+    for (const item of localIssues) {
+      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
+      lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
+    }
+    lines.push(``);
+  }
+  if (remoteIssues.length > 0) {
+    lines.push(`## 3. ${labels.remote} (${remoteIssues.length})`);
+    lines.push(`| ${labels.source} | ${labels.url} | ${labels.error} | ${labels.line} | ${labels.context} |`);
+    lines.push(`|---|---|---|---|---|`);
+    for (const item of remoteIssues) {
+      const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
+      lines.push(`| [[${item.sourcePath}]] | [${labels.link}](${item.target}) | ${item.reason} | ${item.line} | \`${safeContext}\` |`);
+    }
+    lines.push(``);
+  }
+  if (issues.length === 0) {
+    lines.push(labels.none);
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian16.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+async function scanVaultAnalytics(plugin) {
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
+  const docTexts = [];
+  for (const doc of docFiles) {
+    try {
+      const text = await plugin.app.vault.cachedRead(doc);
+      docTexts.push(text);
+    } catch (e) {
+    }
+  }
+  let remoteImages = [];
+  try {
+    remoteImages = await plugin.fetchRemoteFileList();
+  } catch (e) {
+  }
+  return computeVaultStatsFromEntries(allFiles, docTexts, remoteImages);
+}
+async function exportAnalyticsReportToRoot(plugin, stats) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
+  const zh = plugin.getEffectiveLanguage() === "zh";
+  const locale = zh ? "zh-CN" : "en-US";
+  const labels = zh ? {
+    title: "\u77E5\u8BC6\u5E93\u62A5\u544A",
+    generated: "\u751F\u6210\u65F6\u95F4",
+    overview: "\u77E5\u8BC6\u5E93\u6982\u89C8",
+    notes: "\u7B14\u8BB0",
+    canvases: "\u767D\u677F",
+    words: "\u5B57\u8BCD\u6570",
+    links: "\u94FE\u63A5\u4E0E\u5D4C\u5165",
+    storage: "\u5B58\u50A8\u7528\u91CF",
+    location: "\u4F4D\u7F6E",
+    count: "\u6587\u4EF6\u6570",
+    size: "\u5927\u5C0F",
+    details: "\u5206\u7C7B",
+    vault: "\u77E5\u8BC6\u5E93",
+    server: "\u670D\u52A1\u5668",
+    images: "\u56FE\u7247",
+    audio: "\u97F3\u9891",
+    other: "\u5176\u4ED6",
+    cache: "WebP \u7F13\u5B58",
+    protected: "\u53D7\u4FDD\u62A4\u6587\u4EF6",
+    largest: "\u4F53\u79EF\u6700\u5927\u7684\u9644\u4EF6",
+    source: "\u6765\u6E90",
+    path: "\u6587\u4EF6\u8DEF\u5F84"
+  } : {
+    title: "Vault report",
+    generated: "Generated",
+    overview: "Vault overview",
+    notes: "Notes",
+    canvases: "Canvases",
+    words: "Words and CJK characters",
+    links: "Links and embeds",
+    storage: "Storage use",
+    location: "Location",
+    count: "Files",
+    size: "Size",
+    details: "Breakdown",
+    vault: "Vault",
+    server: "Server",
+    images: "Images",
+    audio: "Audio",
+    other: "Other",
+    cache: "WebP cache",
+    protected: "Protected files",
+    largest: "Largest attachments",
+    source: "Source",
+    path: "File path"
+  };
+  const lines = [
+    `# ${labels.title} (${dateStr})`,
+    ``,
+    `> ${labels.generated}: ${now.toLocaleString(locale)}`,
+    ``,
+    `## 1. ${labels.overview}`,
+    `- ${labels.notes}: **${stats.noteCount}**`,
+    `- ${labels.canvases}: **${stats.canvasCount}**`,
+    `- ${labels.words}: **${stats.totalWords.toLocaleString(locale)}**`,
+    `- ${labels.links}: **${stats.totalInternalLinks.toLocaleString(locale)}**`,
+    ``,
+    `## 2. ${labels.storage}`,
+    `| ${labels.location} | ${labels.count} | ${labels.size} | ${labels.details} |`,
+    `|---|---|---|---|`,
+    `| ${labels.vault} | ${stats.local.totalCount} | ${formatBytes(stats.local.totalBytes)} | ${labels.images}: ${stats.local.imageCount} (${formatBytes(stats.local.imageBytes)}), ${labels.audio}: ${stats.local.audioCount} (${formatBytes(stats.local.audioBytes)}), ${labels.other}: ${stats.local.otherCount} (${formatBytes(stats.local.otherBytes)}) |`,
+    `| ${labels.server} | ${stats.remote.totalCount} | ${formatBytes(stats.remote.rawBytes)} | ${labels.cache}: ${formatBytes(stats.remote.cacheBytes)}, ${labels.protected}: ${stats.remote.lockedCount} |`,
+    ``
+  ];
+  if (stats.topLargestAttachments && stats.topLargestAttachments.length > 0) {
+    lines.push(`## 3. ${labels.largest}`);
+    lines.push(`| ${labels.source} | ${labels.path} | ${labels.details} | ${labels.size} |`);
+    lines.push(`|---|---|---|---|`);
+    for (const item of stats.topLargestAttachments) {
+      const srcLabel = item.source === "local" ? labels.vault : labels.server;
+      const category = item.group === "image" ? labels.images : item.group === "audio" ? labels.audio : labels.other;
+      lines.push(`| ${srcLabel} | \`${item.path}\` | ${category} | ${formatBytes(item.size)} |`);
+    }
+    lines.push(``);
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian16.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+
+// src/modals/operation-log.js
+var import_obsidian17 = require("obsidian");
+var OperationLogModal = class extends import_obsidian17.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
@@ -5701,7 +6906,7 @@ var OperationLogModal = class extends import_obsidian14.Modal {
       var _a2, _b2;
       const text = ((_b2 = (_a2 = this.plugin) == null ? void 0 : _a2.formatLogsForExport) == null ? void 0 : _b2.call(_a2)) || "";
       await navigator.clipboard.writeText(text);
-      new import_obsidian14.Notice(this.t("opLogCopiedNotice"));
+      new import_obsidian17.Notice(this.t("opLogCopiedNotice"));
     };
     const exportBtn = leftBtns.createEl("button", { text: this.t("opLogExportFile") });
     exportBtn.onclick = () => {
@@ -5725,7 +6930,7 @@ var OperationLogModal = class extends import_obsidian14.Modal {
       if ((_a2 = this.plugin) == null ? void 0 : _a2.clearOperationLogs) {
         await this.plugin.clearOperationLogs();
       }
-      new import_obsidian14.Notice(this.t("opLogClearedNotice"));
+      new import_obsidian17.Notice(this.t("opLogClearedNotice"));
       this.render();
     };
     const closeBtn = btnRow.createEl("button", { text: this.t("closeBtn") });
@@ -5789,8 +6994,8 @@ var OperationLogModal = class extends import_obsidian14.Modal {
 };
 
 // src/settings-tab.js
-var import_obsidian15 = require("obsidian");
-var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
+var import_obsidian18 = require("obsidian");
+var FileMasterSettingTab = class extends import_obsidian18.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -5830,7 +7035,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
       cls: "clickable-icon fm-settings-back",
       attr: { "aria-label": this.plugin.t("settingsBack"), title: this.plugin.t("settingsBack") }
     });
-    (0, import_obsidian15.setIcon)(back, "arrow-left");
+    (0, import_obsidian18.setIcon)(back, "arrow-left");
     back.onclick = () => {
       this.activePage = "home";
       this.display();
@@ -5853,16 +7058,16 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
       this.createHeading(section, "h3", icon, this.plugin.t(title));
       const list = section.createDiv({ cls: "fm-settings-nav-list" });
       for (const [page, label, icon2] of entries) {
-        const setting = new import_obsidian15.Setting(list).setName(this.plugin.t(label));
+        const setting = new import_obsidian18.Setting(list).setName(this.plugin.t(label));
         const row = setting.settingEl;
         row.addClass("fm-settings-nav-item");
         (_a = setting.descEl) == null ? void 0 : _a.remove();
         row.setAttribute("role", "button");
         row.setAttribute("tabindex", "0");
         const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
-        (0, import_obsidian15.setIcon)(iconEl, icon2);
+        (0, import_obsidian18.setIcon)(iconEl, icon2);
         setting.nameEl.prepend(iconEl);
-        (0, import_obsidian15.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        (0, import_obsidian18.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
         const open = () => {
           if (page === "hub") {
             this.plugin.openModalSafely(new FileMasterHubModal(this.app, this.plugin));
@@ -5902,7 +7107,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     ]);
   }
   renderGeneralSettings(containerEl) {
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
       (drop) => drop.addOption("auto", this.plugin.t("langAuto")).addOption("zh", "\u7B80\u4F53\u4E2D\u6587").addOption("en", "English").setValue(this.plugin.settings.language || "auto").onChange(async (value) => {
         this.plugin.settings.language = value;
         await this.plugin.saveSettings();
@@ -5910,7 +7115,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
         this.display();
       })
     );
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
         this.plugin.settings.enableSidebarButton = value;
         await this.plugin.saveSettings();
@@ -5919,7 +7124,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     );
   }
   renderServerSettings(containerEl) {
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
       (toggle) => toggle.setValue(Boolean(this.plugin.settings.enableRemoteServer)).onChange(async (value) => {
         this.plugin.settings.enableRemoteServer = value;
         if (!value) {
@@ -5935,7 +7140,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
       hint.setText(this.plugin.t("serverDisabledHint"));
       return;
     }
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
       (text) => text.setPlaceholder("http://localhost:3000").setValue(this.plugin.settings.serverUrl).onChange(async (value) => {
         this.plugin.settings.serverUrl = value.trim();
         this.plugin.settings.serverVerified = false;
@@ -5951,7 +7156,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
       statusBox.textContent = this.plugin.getCompatibilityMessage(compat);
     };
     let tokenInput;
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
       tokenInput = text.inputEl;
       tokenInput.type = "password";
       text.setPlaceholder("API token").setValue(this.plugin.settings.apiToken).onChange(async (value) => {
@@ -5970,7 +7175,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     const connectionRow = containerEl.createDiv({ cls: "fm-settings-connection-row" });
     statusBox = connectionRow.createDiv({ cls: "fm-server-compat-banner" });
     updateStatusBox(this.plugin.lastServerCompatStatus);
-    new import_obsidian15.Setting(connectionRow).addButton(
+    new import_obsidian18.Setting(connectionRow).addButton(
       (btn) => btn.setButtonText(this.plugin.t("btnTestConn")).onClick(async () => {
         btn.disabled = true;
         btn.setButtonText(this.plugin.t("compatStatusChecking"));
@@ -5980,7 +7185,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
         try {
           compat = await this.plugin.checkServerCompatibility();
           updateStatusBox(compat);
-          new import_obsidian15.Notice(this.plugin.getCompatibilityMessage(compat));
+          new import_obsidian18.Notice(this.plugin.getCompatibilityMessage(compat));
         } finally {
           btn.disabled = false;
           btn.setButtonText(this.plugin.t("btnTestConn"));
@@ -5990,32 +7195,32 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     );
   }
   renderUploadSettings(containerEl) {
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
         this.plugin.settings.enableClipboardMonitor = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
       (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
         this.plugin.settings.saveLocationMode = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
       (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
         this.plugin.settings.defaultSaveLocation = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
         this.plugin.settings.insertOptimizedLinkOnUpload = value;
         await this.plugin.saveSettings();
       })
     );
     let patternSetting = null;
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
       (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).addOption("prompt", this.plugin.t("optNamingPrompt")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
         this.plugin.settings.namingMode = value;
         await this.plugin.saveSettings();
@@ -6024,7 +7229,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
         }
       })
     );
-    patternSetting = new import_obsidian15.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
+    patternSetting = new import_obsidian18.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
       (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
         this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
         await this.plugin.saveSettings();
@@ -6033,7 +7238,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
     }
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
         this.plugin.settings.uploadNonImageAttachments = value;
         await this.plugin.saveSettings();
@@ -6041,13 +7246,13 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     );
   }
   renderExemptionsSettings(containerEl) {
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
       (text) => text.setPlaceholder("templates, assets/protected").setValue(this.plugin.settings.excludedLocalFolders).onChange(async (value) => {
         this.plugin.settings.excludedLocalFolders = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
         this.plugin.settings.excludeLockedRemoteFiles = value;
         await this.plugin.saveSettings();
@@ -6060,9 +7265,9 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
     const author = manifest.author || "weichen-ink";
     const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
     const repoUrl = "https://github.com/weichen-ink/file-master";
-    const intro = new import_obsidian15.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
+    const intro = new import_obsidian18.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
     intro.controlEl.createSpan({ text: `v${version}` });
-    const addRow = (label) => new import_obsidian15.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
+    const addRow = (label) => new import_obsidian18.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
     addRow("aboutAuthor").createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutRepo").createEl("a", { text: "weichen-ink/file-master", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutServerCompat").createSpan({ text: `v${MIN_SERVER_VERSION}+` });
@@ -6071,7 +7276,7 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
       cls: `fm-about-status ${(sCompat == null ? void 0 : sCompat.ok) ? "is-connected" : ""}`,
       text: sCompat ? this.plugin.getCompatibilityMessage(sCompat) : this.plugin.t("aboutServerOffline")
     });
-    new import_obsidian15.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
+    new import_obsidian18.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
       (btn) => btn.setButtonText(this.plugin.t("opLogBtnOpen")).onClick(() => {
         this.plugin.openModalSafely(new OperationLogModal(this.app, this.plugin));
       })
@@ -6080,2636 +7285,960 @@ var FileMasterSettingTab = class extends import_obsidian15.PluginSettingTab {
   }
 };
 
-// src/plugin/logging.js
-var import_obsidian16 = require("obsidian");
-var FileMasterLogging = class extends import_obsidian16.Plugin {
-  getEffectiveLanguage() {
-    var _a;
-    return getEffectiveLanguage((_a = this.settings) == null ? void 0 : _a.language);
-  }
-  t(key, params = {}) {
-    return translateUi(this.getEffectiveLanguage(), key, params);
-  }
-  isRemoteServerReady() {
-    var _a, _b;
-    return Boolean(((_a = this.settings) == null ? void 0 : _a.enableRemoteServer) && ((_b = this.settings) == null ? void 0 : _b.serverVerified));
-  }
-  getLogFilePath() {
-    var _a, _b, _c, _d;
-    const dir = ((_a = this.manifest) == null ? void 0 : _a.dir) || `${((_c = (_b = this.app) == null ? void 0 : _b.vault) == null ? void 0 : _c.configDir) || ".obsidian"}/plugins/${((_d = this.manifest) == null ? void 0 : _d.id) || "file-master"}`;
-    return `${dir}/operation.log`;
-  }
-  async loadOperationLogs() {
-    var _a, _b;
-    if (!Array.isArray(this.operationLogs)) {
-      this.operationLogs = [];
-    }
-    try {
-      const adapter = (_b = (_a = this.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
-      const logPath = this.getLogFilePath();
-      if (adapter && await adapter.exists(logPath)) {
-        const raw = await adapter.read(logPath);
-        const parsed = [];
-        for (const line of String(raw || "").split("\n")) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          try {
-            parsed.push(JSON.parse(trimmed));
-          } catch (e) {
-          }
-        }
-        this.operationLogs = parsed.slice(-500);
-      }
-    } catch (e) {
-    }
-    return this.operationLogs;
-  }
-  async saveOperationLogs() {
-    var _a, _b;
-    try {
-      const adapter = (_b = (_a = this.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
-      if (!adapter) return;
-      const logPath = this.getLogFilePath();
-      const lines = (this.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
-      await adapter.write(logPath, lines.join("\n") + (lines.length ? "\n" : ""));
-    } catch (e) {
-    }
-  }
-  logOperation(level, action, summary, details = null) {
-    if (!Array.isArray(this.operationLogs)) {
-      this.operationLogs = [];
-    }
-    const now = /* @__PURE__ */ new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    const entry = {
-      ts,
-      level: String(level || "INFO").toUpperCase(),
-      action: String(action || "GENERAL"),
-      summary: String(summary || "")
-    };
-    if (details && typeof details === "object" && Object.keys(details).length > 0) {
-      entry.details = details;
-    }
-    this.operationLogs.push(entry);
-    if (this.operationLogs.length > 500) {
-      this.operationLogs = this.operationLogs.slice(-500);
-    }
-    this.saveOperationLogs();
-  }
-  async clearOperationLogs() {
-    this.operationLogs = [];
-    await this.saveOperationLogs();
-  }
-  formatLogsForExport() {
-    var _a, _b, _c;
-    const version = ((_a = this.manifest) == null ? void 0 : _a.version) || "1.0.2";
-    const serverStatus = this.lastServerCompatStatus ? `${this.lastServerCompatStatus.status} (server v${this.lastServerCompatStatus.serverVersion || "?"})` : ((_b = this.settings) == null ? void 0 : _b.enableRemoteServer) ? "unverified" : "disabled";
-    const header = [
-      `# File Master Diagnostic & Operation Logs`,
-      `# Plugin Version: v${version}`,
-      `# Exported At: ${(/* @__PURE__ */ new Date()).toISOString()}`,
-      `# Server Status: ${serverStatus}`,
-      `# Excluded Local Folders: ${((_c = this.settings) == null ? void 0 : _c.excludedLocalFolders) || "(none)"}`,
-      `# Total Entries: ${(this.operationLogs || []).length}`,
-      `------------------------------------------------------------`
-    ];
-    const body = (this.operationLogs || []).map((e) => {
-      const detailStr = e.details ? ` | ${JSON.stringify(e.details)}` : "";
-      return `[${e.ts}] [${e.level}] [${e.action}] ${e.summary}${detailStr}`;
-    });
-    return [...header, ...body].join("\n");
-  }
-};
-
 // src/plugin/lifecycle.js
-var import_obsidian17 = require("obsidian");
-var FileMasterLifecycle = class extends FileMasterLogging {
-  async onload() {
-    await this.loadSettings();
-    this.operationLogs = [];
-    await this.loadOperationLogs();
-    this.heicPreviewCache = /* @__PURE__ */ new Map();
-    this.sidebarRibbonEl = null;
-    this.lastServerCompatStatus = null;
-    this.lastActiveMarkdownView = null;
-    this.referenceRevision = 0;
-    for (const event of ["create", "modify", "delete", "rename"]) {
-      this.registerEvent(this.app.vault.on(event, (file) => {
-        if (this.isScannableDocFile(file)) this.referenceRevision++;
-      }));
-    }
-    this.updateSidebarRibbonButton();
-    this.registerView(
-      VIEW_TYPE_REMOTE_GALLERY,
-      (leaf) => new RemoteGalleryView(leaf, this)
-    );
-    this.registerEvent(
-      this.app.workspace.on("active-leaf-change", (leaf) => {
-        if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian17.MarkdownView) {
-          this.lastActiveMarkdownView = leaf.view;
-        }
-      })
-    );
-    this.registerEvent(
-      this.app.workspace.on("file-open", () => {
-        const mdView = this.app.workspace.getActiveViewOfType(import_obsidian17.MarkdownView);
-        if (mdView) {
-          this.lastActiveMarkdownView = mdView;
-        }
-      })
-    );
-    this.app.workspace.onLayoutReady(() => {
-      const activeMd = this.app.workspace.getActiveViewOfType(import_obsidian17.MarkdownView);
-      if (activeMd) {
-        this.lastActiveMarkdownView = activeMd;
-      }
-      this.initGalleryLeaf(false);
-    });
-    setTimeout(() => {
-      this.checkServerCompatibility().catch(() => {
-      });
-    }, 1200);
-    this.registerEvent(
-      this.app.workspace.on("editor-paste", async (evt, editor) => {
-        var _a;
-        if (!this.settings.enableClipboardMonitor) return;
-        const files = (_a = evt.clipboardData) == null ? void 0 : _a.files;
-        if (!files || files.length === 0) return;
-        const targetFiles = this.filterAllowedFiles(files);
-        if (targetFiles.length === 0) return;
-        evt.preventDefault();
-        for (const f of targetFiles) {
-          await this.handleIncomingBrowserFile(f, editor);
-        }
-      })
-    );
-    this.registerEvent(
-      this.app.workspace.on("editor-drop", async (evt, editor) => {
-        var _a;
-        if (!this.settings.enableClipboardMonitor) return;
-        const files = (_a = evt.dataTransfer) == null ? void 0 : _a.files;
-        if (!files || files.length === 0) return;
-        const targetFiles = this.filterAllowedFiles(files);
-        if (targetFiles.length === 0) return;
-        evt.preventDefault();
-        for (const f of targetFiles) {
-          await this.handleIncomingBrowserFile(f, editor);
-        }
-      })
-    );
-    this.setupHeicInlinePreviewObserver();
-    this.registerContextMenus();
-    this.registerPluginCommands();
-    this.addSettingTab(new FileMasterSettingTab(this.app, this));
-    console.log("[FileMaster] Plugin loaded successfully");
-  }
-  registerPluginCommands() {
-    this.pluginCommandDefs = [
-      {
-        id: "resume-pending-upload",
-        nameKey: "cmdResumeUpload",
-        requiresRemote: true,
-        callback: () => this.resumePendingMigration().catch((err) => new import_obsidian17.Notice(err.message))
-      },
-      {
-        id: "open-control-center",
-        nameKey: "cmdOpenHub",
-        callback: () => this.openModalSafely(new FileMasterHubModal(this.app, this))
-      },
-      {
-        id: "open-health-check-wizard",
-        nameKey: "cmdScanHealth",
-        callback: () => this.openModalSafely(new HealthCheckModal(this.app, this))
-      },
-      {
-        id: "open-orphan-wizard",
-        nameKey: "cmdScanOrphan",
-        callback: () => this.openModalSafely(new OrphanWizardModal(this.app, this))
-      },
-      {
-        id: "open-duplicate-wizard",
-        nameKey: "cmdScanDuplicate",
-        callback: () => this.openModalSafely(new DuplicateWizardModal(this.app, this))
-      },
-      {
-        id: "open-remote-gallery",
-        nameKey: "cmdRemoteGallery",
-        requiresRemote: true,
-        callback: () => this.openModalSafely(new RemoteGalleryModal(this.app, this))
-      },
-      {
-        id: "open-remote-gallery-view",
-        nameKey: "cmdRemoteGalleryView",
-        requiresRemote: true,
-        callback: () => this.activateGalleryView()
-      },
-      {
-        id: "open-batch-migrate-wizard",
-        nameKey: "cmdBatchMigrate",
-        requiresRemote: true,
-        callback: () => this.openModalSafely(new BatchMigrateWizardModal(this.app, this))
-      },
-      {
-        id: "open-vault-analytics-dashboard",
-        nameKey: "cmdVaultAnalytics",
-        callback: () => this.openModalSafely(new VaultAnalyticsModal(this.app, this))
-      },
-      {
-        id: "migrate-current-note-attachments",
-        nameKey: "cmdMigrateActiveNote",
-        requiresRemote: true,
-        callback: () => this.migrateActiveNoteAttachments()
-      },
-      {
-        id: "download-current-note-remote-attachments",
-        nameKey: "cmdDownloadActiveNote",
-        requiresRemote: true,
-        callback: () => this.downloadActiveNoteRemoteAttachments()
-      },
-      {
-        id: "copy-note-with-astro-pub-links",
-        nameKey: "cmdCopyAstroLinks",
-        requiresRemote: true,
-        callback: () => this.copyActiveNoteForAstro()
-      },
-      {
-        id: "open-operation-logs",
-        nameKey: "cmdOpenOpLogs",
-        callback: () => this.openModalSafely(new OperationLogModal(this.app, this))
-      }
-    ];
-    for (const cmd of this.pluginCommandDefs) {
-      this.addCommand({
-        id: cmd.id,
-        name: this.t(cmd.nameKey),
-        checkCallback: (checking) => {
-          if (cmd.requiresRemote && !this.isRemoteServerReady()) {
-            return false;
-          }
-          if (checking) return true;
-          cmd.callback();
-        }
-      });
-    }
-  }
-  updateCommandNames() {
-    var _a, _b;
-    if (!this.pluginCommandDefs || !((_b = (_a = this.app) == null ? void 0 : _a.commands) == null ? void 0 : _b.commands)) return;
-    for (const cmd of this.pluginCommandDefs) {
-      const fullId = `${this.manifest.id}:${cmd.id}`;
-      const registered = this.app.commands.commands[fullId];
-      if (registered) {
-        registered.name = this.t(cmd.nameKey);
-      }
-    }
-  }
-  onLanguageChange() {
-    var _a, _b, _c, _d, _e;
-    this.updateSidebarRibbonButton();
-    this.updateCommandNames();
-    for (const leaf of ((_c = (_b = (_a = this.app) == null ? void 0 : _a.workspace) == null ? void 0 : _b.getLeavesOfType) == null ? void 0 : _c.call(_b, VIEW_TYPE_REMOTE_GALLERY)) || []) {
-      (_e = (_d = leaf.view) == null ? void 0 : _d.render) == null ? void 0 : _e.call(_d);
-    }
-  }
-  getCompatibilityMessage(compat) {
-    if (!compat) return this.t(this.settings.serverVerified ? "serverVerifiedBadge" : "serverUnverifiedHint");
-    switch (compat.status) {
-      case "compatible":
-        return this.t("compatStatusOk", { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
-      case "server_outdated":
-        return this.t("compatStatusServerOld", { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
-      case "plugin_outdated":
-        return this.t("compatStatusPluginOld", { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
-      case "auth_failed":
-        return this.t("compatStatusAuthFail");
-      case "token_missing":
-        return this.t("compatStatusTokenMissing");
-      case "server_error":
-        return this.t("compatStatusServerError", { code: compat.statusCode || "" });
-      default:
-        return this.t("compatStatusOffline", { err: compat.error || "" });
-    }
-  }
-  onunload() {
-    var _a;
-    (_a = this.activeTransferController) == null ? void 0 : _a.abort();
-    if (this.sidebarRibbonEl) {
-      this.sidebarRibbonEl.remove();
-      this.sidebarRibbonEl = null;
-    }
-    if (this.heicObserver) {
-      this.heicObserver.disconnect();
-      this.heicObserver = null;
-    }
-  }
-  async initGalleryLeaf(reveal = false) {
-    if (!this.isRemoteServerReady()) return null;
-    const { workspace } = this.app;
-    let leaves = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY);
-    let leaf = leaves[0];
-    if (!leaf) {
-      const rightLeaf = workspace.getRightLeaf(false);
-      if (rightLeaf) {
-        await rightLeaf.setViewState({
-          type: VIEW_TYPE_REMOTE_GALLERY,
-          active: false
-        });
-        leaf = rightLeaf;
-      }
-    }
-    if (leaf && reveal) {
-      workspace.revealLeaf(leaf);
-    }
-    return leaf;
-  }
-  async activateGalleryView() {
-    if (!this.isRemoteServerReady()) {
-      new import_obsidian17.Notice(this.t("remoteServerRequiredNotice") || "Remote server not ready");
-      return;
-    }
-    await this.initGalleryLeaf(true);
-  }
-  insertMarkdownToActiveEditor(mdSnippet, successNotice) {
-    let mdView = this.app.workspace.getActiveViewOfType(import_obsidian17.MarkdownView);
-    if (!mdView && this.lastActiveMarkdownView) {
-      const leaves = this.app.workspace.getLeavesOfType("markdown");
-      if (leaves.some((l) => l.view === this.lastActiveMarkdownView)) {
-        mdView = this.lastActiveMarkdownView;
-      }
-    }
-    if (!mdView) {
-      const leaves = this.app.workspace.getLeavesOfType("markdown");
-      if (leaves.length > 0) {
-        const visibleLeaf = leaves.find((l) => {
-          var _a, _b, _c;
-          return ((_a = l.view) == null ? void 0 : _a.containerEl) && ((_c = (_b = l.view.containerEl).isShown) == null ? void 0 : _c.call(_b)) !== false;
-        });
-        mdView = (visibleLeaf || leaves[0]).view;
-      }
-    }
-    const activeFile = (mdView == null ? void 0 : mdView.file) || this.app.workspace.getActiveFile();
-    if (!activeFile || activeFile.extension !== "md") {
-      new import_obsidian17.Notice(this.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
-      return false;
-    }
-    if (mdView == null ? void 0 : mdView.editor) {
-      const editor = mdView.editor;
-      editor.replaceSelection(mdSnippet);
-      if (mdView.leaf) {
-        this.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
-      }
-      editor.focus();
-      if (successNotice) new import_obsidian17.Notice(successNotice);
-      return true;
-    } else {
-      this.safeModifyFileContent(activeFile, (content) => content + "\n" + mdSnippet).then(() => {
-        if (successNotice) new import_obsidian17.Notice(successNotice);
-      });
-      return true;
-    }
-  }
-};
-
-// src/plugin/vault-utils.js
-var import_obsidian18 = require("obsidian");
-var FileMasterVaultUtils = class extends FileMasterLifecycle {
-  isDocFile(file) {
-    return isDocFile(file, this.app);
-  }
-  isScannableDocFile(file) {
-    return Boolean(file) && this.isDocFile(file) && !isReportFile(file.name);
-  }
-  isExcalidrawFile(file, content = null) {
-    return isExcalidrawFile(file, this.app, content);
-  }
-  reloadOpenExcalidrawViews(filePath) {
-    var _a, _b;
-    if (!filePath || !((_a = this.app) == null ? void 0 : _a.workspace)) return;
-    try {
-      const leaves = this.app.workspace.getLeavesOfType("excalidraw");
-      for (const leaf of leaves) {
-        const viewFile = (_b = leaf.view) == null ? void 0 : _b.file;
-        if (viewFile && (viewFile.path === filePath || viewFile.name === filePath)) {
-          if (typeof leaf.view.reload === "function") {
-            leaf.view.reload();
-          } else if (typeof leaf.rebuildView === "function") {
-            leaf.rebuildView();
-          } else if (typeof leaf.setViewState === "function") {
-            const state = leaf.getViewState();
-            leaf.setViewState(state);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("[FileMaster] Could not reload Excalidraw view:", err);
-    }
-  }
-  async safeModifyFileContent(tfile, transformFn) {
-    let changed = false;
-    if (typeof this.app.vault.process === "function") {
-      await this.app.vault.process(tfile, (data) => {
-        const next = transformFn(data);
-        if (next !== data) changed = true;
-        return next;
-      });
-    } else {
-      const orig = await this.app.vault.read(tfile);
-      const next = transformFn(orig);
-      if (next !== orig) {
-        await this.app.vault.modify(tfile, next);
-        changed = true;
-      }
-    }
-    if (changed && this.isExcalidrawFile(tfile)) {
-      this.reloadOpenExcalidrawViews(tfile.path);
-    }
-    return changed;
-  }
-  openModalSafely(modal) {
-    setTimeout(() => {
-      modal.open();
-      if (modal.bgEl) {
-        modal.bgEl.style.pointerEvents = "none";
-        setTimeout(() => {
-          if (modal.bgEl) modal.bgEl.style.pointerEvents = "";
-        }, 250);
-      }
-    }, 40);
-  }
-  updateSidebarRibbonButton() {
-    if (this.sidebarRibbonEl) {
-      this.sidebarRibbonEl.remove();
-      this.sidebarRibbonEl = null;
-    }
-    if (this.settings.enableSidebarButton === false) {
-      return;
-    }
-    this.sidebarRibbonEl = this.addRibbonIcon(
-      "layers",
-      this.t("hubTitle"),
-      () => {
-        this.openModalSafely(new FileMasterHubModal(this.app, this));
-      }
-    );
-  }
-  getExcludedLocalFolderList() {
-    return String(this.settings.excludedLocalFolders || "").split(/[,;\n]+/).map((s) => s.trim().replace(/^\/+|\/+$/g, "")).filter(Boolean);
-  }
-  isLocalPathExcluded(filePath) {
-    const p = String(filePath || "").replace(/^\/+/, "");
-    const list = this.getExcludedLocalFolderList();
-    return list.some((folder) => p === folder || p.startsWith(folder + "/"));
-  }
-  async toggleLocalFolderExclusion(folderPath) {
-    const clean = String(folderPath || "").replace(/^\/+|\/+$/g, "");
-    if (!clean) return;
-    const list = this.getExcludedLocalFolderList();
-    const idx = list.indexOf(clean);
-    if (idx > -1) {
-      list.splice(idx, 1);
-      new import_obsidian18.Notice(this.t("noticeExclRemoved", { path: clean }));
-    } else {
-      list.push(clean);
-      new import_obsidian18.Notice(this.t("noticeExclAdded", { path: clean }));
-    }
-    this.settings.excludedLocalFolders = list.join(", ");
-    await this.saveSettings();
-  }
-  getAllVaultFolderPaths() {
-    var _a;
-    const folderSet = /* @__PURE__ */ new Set();
-    for (const f of this.app.vault.getFiles()) {
-      const parentPath = (_a = f.parent) == null ? void 0 : _a.path;
-      if (parentPath && parentPath !== "/") {
-        folderSet.add(parentPath);
-      }
-    }
-    return [...folderSet].sort();
-  }
-  async getItemPreviewUrl(item) {
-    var _a, _b;
-    const ext = getExt(item.name);
-    if (!IMAGE_EXTS.has(ext)) return null;
-    if (item.source === "remote") {
-      return ((_a = item.rawObj) == null ? void 0 : _a.rawUrl) || null;
-    }
-    const tfile = item.rawObj;
-    if (!tfile) return null;
-    if (NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) {
-      const cacheKey = `${tfile.path}:${((_b = tfile.stat) == null ? void 0 : _b.mtime) || 0}`;
-      let previewUrl = this.heicPreviewCache.get(cacheKey);
-      if (!previewUrl) {
-        const buf = await this.app.vault.readBinary(tfile);
-        previewUrl = await convertBufferToPreviewUrl(buf, ext, this);
-        this.heicPreviewCache.set(cacheKey, previewUrl);
-      }
-      return previewUrl;
-    }
-    return this.app.vault.getResourcePath(tfile);
-  }
-};
-
-// src/plugin/context-menus.js
 var import_obsidian19 = require("obsidian");
-var FileMasterContextMenus = class extends FileMasterVaultUtils {
-  registerContextMenus() {
-    this.registerEvent(
-      this.app.workspace.on("file-menu", (menu, abstractFile) => {
-        if (!abstractFile) return;
-        if (Array.isArray(abstractFile.children)) {
-          const folderPath = abstractFile.path;
-          if (!folderPath || folderPath === "/") return;
-          if (this.isRemoteServerReady()) {
-            menu.addItem((item) => {
-              item.setTitle(this.t("menuMigrateFolder")).setIcon("upload-cloud").onClick(() => {
-                new BatchMigrateWizardModal(this.app, this, folderPath).open();
-              });
-            });
-          }
-          const isExcluded = this.isLocalPathExcluded(folderPath);
-          menu.addItem((item) => {
-            item.setTitle(isExcluded ? this.t("menuRemoveExclusion") : this.t("menuAddExclusion")).setIcon("shield").onClick(() => {
-              this.toggleLocalFolderExclusion(folderPath);
-            });
-          });
-          return;
-        }
-        if (abstractFile.extension && isAttachmentExt(abstractFile.extension)) {
-          if (this.isRemoteServerReady()) {
-            menu.addItem((item) => {
-              item.setTitle(this.t("menuUploadCloud")).setIcon("upload-cloud").onClick(async () => {
-                await this.migrateSingleLocalFileToRemote(abstractFile, {
-                  deleteLocal: this.settings.deleteLocalAfterMigrate
-                });
-              });
-            });
-          }
-          return;
-        }
-        const isNoteOrExcalidraw = abstractFile.extension === "md" || abstractFile.extension === "excalidraw" || this.isExcalidrawFile(abstractFile);
-        if (isNoteOrExcalidraw && this.isRemoteServerReady()) {
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuActiveNoteMigrate")).setIcon("upload-cloud").onClick(() => {
-              this.migrateActiveNoteAttachments(abstractFile);
-            });
-          });
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuActiveNoteDownload")).setIcon("download-cloud").onClick(() => {
-              this.downloadActiveNoteRemoteAttachments(abstractFile);
-            });
-          });
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuActiveNoteAstro")).setIcon("external-link").onClick(() => {
-              this.copyActiveNoteForAstro(abstractFile);
-            });
-          });
-        }
-      })
-    );
-    this.registerEvent(
-      this.app.workspace.on("editor-menu", (menu, editor) => {
-        if (!this.isRemoteServerReady()) return;
-        const cursor = editor.getCursor();
-        const lineText = editor.getLine(cursor.line) || "";
-        if (!lineText.trim()) return;
-        const remoteMatch = this.extractRemoteItemFromLine(lineText);
-        if (remoteMatch) {
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuCopyRaw", { name: remoteMatch.filename })).setIcon("copy").onClick(async () => {
-              await navigator.clipboard.writeText(remoteMatch.matchedUrl);
-              new import_obsidian19.Notice(this.t("noticeCopiedRaw", { name: remoteMatch.filename }));
-            });
-          });
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuCopyWebp")).setIcon("zap").onClick(async () => {
-              const base = getBaseName(remoteMatch.filename);
-              const optUrl = `${this.getCleanServerUrl()}/pub/${remoteMatch.year}/${remoteMatch.month}/${encodeURIComponent(base)}.webp`;
-              await navigator.clipboard.writeText(optUrl);
-              new import_obsidian19.Notice(this.t("noticeCopiedWebp", { name: base + ".webp" }));
-            });
-          });
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuDownloadToVault", { name: remoteMatch.filename })).setIcon("download").onClick(async () => {
-              await this.downloadSingleRemoteItemToLocal(remoteMatch);
-            });
-          });
-          menu.addItem((item) => {
-            item.setTitle(this.t("menuLockRemote", { name: remoteMatch.filename })).setIcon("lock").onClick(async () => {
-              try {
-                await this.toggleRemoteFileLock(
-                  remoteMatch.year,
-                  remoteMatch.month,
-                  remoteMatch.filename,
-                  true
-                );
-                new import_obsidian19.Notice(this.t("noticeProtectedRemote", { name: remoteMatch.filename }));
-              } catch (err) {
-                new import_obsidian19.Notice(this.t("noticeLockFailed", { err: err.message }));
-              }
-            });
-          });
-        }
-        const localTFile = this.extractLocalAttachmentFromLine(lineText);
-        if (localTFile) {
-          menu.addItem((item) => {
-            item.setTitle(`${this.t("menuUploadCloud")} (${localTFile.name})`).setIcon("upload-cloud").onClick(async () => {
-              await this.migrateSingleLocalFileToRemote(localTFile, {
-                toProtected: false,
-                deleteLocal: this.settings.deleteLocalAfterMigrate
-              });
-            });
-          });
-        }
-      })
-    );
+async function onload(plugin) {
+  await plugin.loadSettings();
+  plugin.operationLogs = [];
+  await plugin.loadOperationLogs();
+  plugin.heicPreviewCache = /* @__PURE__ */ new Map();
+  plugin.sidebarRibbonEl = null;
+  plugin.lastServerCompatStatus = null;
+  plugin.lastActiveMarkdownView = null;
+  plugin.referenceRevision = 0;
+  for (const event of ["create", "modify", "delete", "rename"]) {
+    plugin.registerEvent(plugin.app.vault.on(event, (file) => {
+      if (plugin.isScannableDocFile(file)) plugin.referenceRevision++;
+    }));
   }
-  extractRemoteItemFromLine(lineText) {
-    const serverBase = escapeRegExp(this.getCleanServerUrl());
-    const re = new RegExp(
-      `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
-      "i"
-    );
-    const m = re.exec(lineText);
-    if (!m) return null;
-    let filename = m[5];
-    try {
-      filename = decodeURIComponent(filename);
-    } catch (e) {
-    }
-    return {
-      matchedUrl: m[1],
-      routePrefix: m[2],
-      year: m[3],
-      month: m[4],
-      filename
-    };
-  }
-  extractLocalAttachmentFromLine(lineText) {
-    const activeFile = this.app.workspace.getActiveFile();
-    const sourcePath = activeFile ? activeFile.path : "";
-    const wikiMatch = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/.exec(lineText);
-    if (wikiMatch) {
-      const tf = this.app.metadataCache.getFirstLinkpathDest(wikiMatch[1].trim(), sourcePath);
-      if (tf && isAttachmentExt(tf.extension)) return tf;
-    }
-    const mdMatch = /!?\[[^\]]*\]\((?!https?:\/\/)([^)]+)\)/.exec(lineText);
-    if (mdMatch) {
-      let linkPath = mdMatch[1].trim();
-      try {
-        linkPath = decodeURIComponent(linkPath);
-      } catch (e) {
+  plugin.updateSidebarRibbonButton();
+  plugin.registerView(
+    VIEW_TYPE_REMOTE_GALLERY,
+    (leaf) => new RemoteGalleryView(leaf, plugin)
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("active-leaf-change", (leaf) => {
+      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian19.MarkdownView) {
+        plugin.lastActiveMarkdownView = leaf.view;
       }
-      const tf = this.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
-      if (tf && isAttachmentExt(tf.extension)) return tf;
+    })
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("file-open", () => {
+      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
+      if (mdView) {
+        plugin.lastActiveMarkdownView = mdView;
+      }
+    })
+  );
+  plugin.app.workspace.onLayoutReady(() => {
+    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
+    if (activeMd) {
+      plugin.lastActiveMarkdownView = activeMd;
+    }
+    plugin.initGalleryLeaf(false);
+  });
+  setTimeout(() => {
+    plugin.checkServerCompatibility().catch(() => {
+    });
+  }, 1200);
+  plugin.registerEvent(
+    plugin.app.workspace.on("editor-paste", async (evt, editor) => {
+      var _a;
+      if (!plugin.settings.enableClipboardMonitor) return;
+      const files = (_a = evt.clipboardData) == null ? void 0 : _a.files;
+      if (!files || files.length === 0) return;
+      const targetFiles = plugin.filterAllowedFiles(files);
+      if (targetFiles.length === 0) return;
+      evt.preventDefault();
+      for (const f of targetFiles) {
+        await plugin.handleIncomingBrowserFile(f, editor);
+      }
+    })
+  );
+  plugin.registerEvent(
+    plugin.app.workspace.on("editor-drop", async (evt, editor) => {
+      var _a;
+      if (!plugin.settings.enableClipboardMonitor) return;
+      const files = (_a = evt.dataTransfer) == null ? void 0 : _a.files;
+      if (!files || files.length === 0) return;
+      const targetFiles = plugin.filterAllowedFiles(files);
+      if (targetFiles.length === 0) return;
+      evt.preventDefault();
+      for (const f of targetFiles) {
+        await plugin.handleIncomingBrowserFile(f, editor);
+      }
+    })
+  );
+  plugin.setupHeicInlinePreviewObserver();
+  plugin.registerContextMenus();
+  plugin.registerPluginCommands();
+  plugin.addSettingTab(new FileMasterSettingTab(plugin.app, plugin));
+  console.log("[FileMaster] Plugin loaded successfully");
+}
+function registerPluginCommands(plugin) {
+  plugin.pluginCommandDefs = [
+    {
+      id: "resume-pending-upload",
+      nameKey: "cmdResumeUpload",
+      requiresRemote: true,
+      callback: () => plugin.resumePendingMigration().catch((err) => new import_obsidian19.Notice(err.message))
+    },
+    {
+      id: "open-control-center",
+      nameKey: "cmdOpenHub",
+      callback: () => plugin.openModalSafely(new FileMasterHubModal(plugin.app, plugin))
+    },
+    {
+      id: "open-health-check-wizard",
+      nameKey: "cmdScanHealth",
+      callback: () => plugin.openModalSafely(new HealthCheckModal(plugin.app, plugin))
+    },
+    {
+      id: "open-orphan-wizard",
+      nameKey: "cmdScanOrphan",
+      callback: () => plugin.openModalSafely(new OrphanWizardModal(plugin.app, plugin))
+    },
+    {
+      id: "open-duplicate-wizard",
+      nameKey: "cmdScanDuplicate",
+      callback: () => plugin.openModalSafely(new DuplicateWizardModal(plugin.app, plugin))
+    },
+    {
+      id: "open-remote-gallery",
+      nameKey: "cmdRemoteGallery",
+      requiresRemote: true,
+      callback: () => plugin.openModalSafely(new RemoteGalleryModal(plugin.app, plugin))
+    },
+    {
+      id: "open-remote-gallery-view",
+      nameKey: "cmdRemoteGalleryView",
+      requiresRemote: true,
+      callback: () => plugin.activateGalleryView()
+    },
+    {
+      id: "open-batch-migrate-wizard",
+      nameKey: "cmdBatchMigrate",
+      requiresRemote: true,
+      callback: () => plugin.openModalSafely(new BatchMigrateWizardModal(plugin.app, plugin))
+    },
+    {
+      id: "open-vault-analytics-dashboard",
+      nameKey: "cmdVaultAnalytics",
+      callback: () => plugin.openModalSafely(new VaultAnalyticsModal(plugin.app, plugin))
+    },
+    {
+      id: "migrate-current-note-attachments",
+      nameKey: "cmdMigrateActiveNote",
+      requiresRemote: true,
+      callback: () => plugin.migrateActiveNoteAttachments()
+    },
+    {
+      id: "download-current-note-remote-attachments",
+      nameKey: "cmdDownloadActiveNote",
+      requiresRemote: true,
+      callback: () => plugin.downloadActiveNoteRemoteAttachments()
+    },
+    {
+      id: "copy-note-with-astro-pub-links",
+      nameKey: "cmdCopyAstroLinks",
+      requiresRemote: true,
+      callback: () => plugin.copyActiveNoteForAstro()
+    },
+    {
+      id: "open-operation-logs",
+      nameKey: "cmdOpenOpLogs",
+      callback: () => plugin.openModalSafely(new OperationLogModal(plugin.app, plugin))
+    }
+  ];
+  for (const cmd of plugin.pluginCommandDefs) {
+    plugin.addCommand({
+      id: cmd.id,
+      name: plugin.t(cmd.nameKey),
+      checkCallback: (checking) => {
+        if (cmd.requiresRemote && !plugin.isRemoteServerReady()) {
+          return false;
+        }
+        if (checking) return true;
+        cmd.callback();
+      }
+    });
+  }
+}
+function updateCommandNames(plugin) {
+  var _a, _b;
+  if (!plugin.pluginCommandDefs || !((_b = (_a = plugin.app) == null ? void 0 : _a.commands) == null ? void 0 : _b.commands)) return;
+  for (const cmd of plugin.pluginCommandDefs) {
+    const fullId = `${plugin.manifest.id}:${cmd.id}`;
+    const registered = plugin.app.commands.commands[fullId];
+    if (registered) {
+      registered.name = plugin.t(cmd.nameKey);
+    }
+  }
+}
+function onLanguageChange(plugin) {
+  var _a, _b, _c, _d, _e;
+  plugin.updateSidebarRibbonButton();
+  plugin.updateCommandNames();
+  for (const leaf of ((_c = (_b = (_a = plugin.app) == null ? void 0 : _a.workspace) == null ? void 0 : _b.getLeavesOfType) == null ? void 0 : _c.call(_b, VIEW_TYPE_REMOTE_GALLERY)) || []) {
+    (_e = (_d = leaf.view) == null ? void 0 : _d.render) == null ? void 0 : _e.call(_d);
+  }
+}
+function getCompatibilityMessage(plugin, compat) {
+  if (!compat) return plugin.t(plugin.settings.serverVerified ? "serverVerifiedBadge" : "serverUnverifiedHint");
+  switch (compat.status) {
+    case "compatible":
+      return plugin.t("compatStatusOk", { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
+    case "server_outdated":
+      return plugin.t("compatStatusServerOld", { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
+    case "plugin_outdated":
+      return plugin.t("compatStatusPluginOld", { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
+    case "auth_failed":
+      return plugin.t("compatStatusAuthFail");
+    case "token_missing":
+      return plugin.t("compatStatusTokenMissing");
+    case "server_error":
+      return plugin.t("compatStatusServerError", { code: compat.statusCode || "" });
+    default:
+      return plugin.t("compatStatusOffline", { err: compat.error || "" });
+  }
+}
+function onunload(plugin) {
+  var _a;
+  (_a = plugin.activeTransferController) == null ? void 0 : _a.abort();
+  if (plugin.sidebarRibbonEl) {
+    plugin.sidebarRibbonEl.remove();
+    plugin.sidebarRibbonEl = null;
+  }
+  if (plugin.heicObserver) {
+    plugin.heicObserver.disconnect();
+    plugin.heicObserver = null;
+  }
+}
+async function initGalleryLeaf(plugin, reveal = false) {
+  if (!plugin.isRemoteServerReady()) return null;
+  const { workspace } = plugin.app;
+  let leaves = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY);
+  let leaf = leaves[0];
+  if (!leaf) {
+    const rightLeaf = workspace.getRightLeaf(false);
+    if (rightLeaf) {
+      await rightLeaf.setViewState({
+        type: VIEW_TYPE_REMOTE_GALLERY,
+        active: false
+      });
+      leaf = rightLeaf;
+    }
+  }
+  if (leaf && reveal) {
+    workspace.revealLeaf(leaf);
+  }
+  return leaf;
+}
+async function activateGalleryView(plugin) {
+  if (!plugin.isRemoteServerReady()) {
+    new import_obsidian19.Notice(plugin.t("remoteServerRequiredNotice") || "Remote server not ready");
+    return;
+  }
+  await plugin.initGalleryLeaf(true);
+}
+function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
+  let mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
+  if (!mdView && plugin.lastActiveMarkdownView) {
+    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
+    if (leaves.some((l) => l.view === plugin.lastActiveMarkdownView)) {
+      mdView = plugin.lastActiveMarkdownView;
+    }
+  }
+  if (!mdView) {
+    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
+    if (leaves.length > 0) {
+      const visibleLeaf = leaves.find((l) => {
+        var _a, _b, _c;
+        return ((_a = l.view) == null ? void 0 : _a.containerEl) && ((_c = (_b = l.view.containerEl).isShown) == null ? void 0 : _c.call(_b)) !== false;
+      });
+      mdView = (visibleLeaf || leaves[0]).view;
+    }
+  }
+  const activeFile = (mdView == null ? void 0 : mdView.file) || plugin.app.workspace.getActiveFile();
+  if (!activeFile || activeFile.extension !== "md") {
+    new import_obsidian19.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
+    return false;
+  }
+  if (mdView == null ? void 0 : mdView.editor) {
+    const editor = mdView.editor;
+    editor.replaceSelection(mdSnippet);
+    if (mdView.leaf) {
+      plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
+    }
+    editor.focus();
+    if (successNotice) new import_obsidian19.Notice(successNotice);
+    return true;
+  } else {
+    plugin.safeModifyFileContent(activeFile, (content) => content + "\n" + mdSnippet).then(() => {
+      if (successNotice) new import_obsidian19.Notice(successNotice);
+    });
+    return true;
+  }
+}
+
+// src/plugin/link-rewrite.js
+function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrContext = "") {
+  if (typeof content !== "string" || !content) return content;
+  const docPath = typeof docPathOrContext === "string" ? docPathOrContext : (docPathOrContext == null ? void 0 : docPathOrContext.docPath) || "";
+  const customResolve = typeof docPathOrContext === "object" && typeof (docPathOrContext == null ? void 0 : docPathOrContext.resolveLink) === "function" ? docPathOrContext.resolveLink : null;
+  const resolveLink = (ref) => {
+    var _a, _b;
+    if (customResolve) return customResolve(ref);
+    if ((_b = (_a = plugin.app) == null ? void 0 : _a.metadataCache) == null ? void 0 : _b.getFirstLinkpathDest) {
+      const tfile = plugin.app.metadataCache.getFirstLinkpathDest(ref, docPath || "");
+      return tfile ? tfile.path : null;
     }
     return null;
+  };
+  const isDocExcalidraw = docPath && (docPath.endsWith(".excalidraw.md") || docPath.endsWith(".excalidraw")) || !docPath && /(^##\s+Embedded [Ff]iles\s*?\r?\n)/m.test(content) || typeof isExcalidrawContent === "function" && isExcalidrawContent(content);
+  let excalSection = null;
+  let preSection = content;
+  let postSection = "";
+  const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
+  const match = isDocExcalidraw ? sectionRegex.exec(content) : null;
+  if (match) {
+    if (typeof rewriteExcalidrawEmbeddedFiles === "function") {
+      excalSection = rewriteExcalidrawEmbeddedFiles(match[0], removeItem, keepItem, { docPath, resolveLink });
+    } else {
+      excalSection = match[0];
+    }
+    preSection = content.slice(0, match.index);
+    postSection = content.slice(match.index + match[0].length);
   }
-  setupHeicInlinePreviewObserver() {
-    const scanEmbeds = () => {
-      const embeds = document.querySelectorAll(".internal-embed[src]");
-      embeds.forEach((el) => {
-        const rawSrc = el.getAttribute("src") || "";
-        const cleanSrc = rawSrc.split("#")[0].split("|")[0].trim();
-        const ext = getExt(cleanSrc);
-        if (!NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) return;
-        if (el.dataset.fmHeicStatus === "done" || el.dataset.fmHeicStatus === "loading") return;
-        el.dataset.fmHeicStatus = "loading";
-        this.renderSingleHeicEmbed(el, cleanSrc, ext).catch(() => {
-          el.dataset.fmHeicStatus = "error";
-        });
-      });
-    };
-    this.app.workspace.onLayoutReady(() => {
-      scanEmbeds();
-      this.heicObserver = new MutationObserver(() => scanEmbeds());
-      this.heicObserver.observe(document.body, { childList: true, subtree: true });
-    });
-    this.registerEvent(this.app.workspace.on("layout-change", () => scanEmbeds()));
-    this.registerEvent(this.app.workspace.on("file-open", () => setTimeout(scanEmbeds, 80)));
-  }
-  async renderSingleHeicEmbed(embedEl, linkPath, ext) {
-    var _a;
-    const activeFile = this.app.workspace.getActiveFile();
-    const sourcePath = activeFile ? activeFile.path : "";
-    let tfile = this.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
-    if (!tfile) {
-      tfile = this.app.vault.getFiles().find((f) => f.path === linkPath || f.name === linkPath);
+  const buildReplacementForWikiEmbed = (aliasOrWidth) => {
+    if (keepItem.source === "local") {
+      const suffix = aliasOrWidth ? `|${aliasOrWidth}` : "";
+      return `![[${keepItem.displayPath}${suffix}]]`;
+    } else {
+      const alt = aliasOrWidth || "";
+      return IMAGE_EXTS.has(keepItem.ext) ? `![${alt}](${keepItem.rawObj.rawUrl})` : `[\u{1F4CE} ${aliasOrWidth || keepItem.name}](${keepItem.rawObj.rawUrl})`;
     }
-    if (!tfile) {
-      embedEl.dataset.fmHeicStatus = "missing";
-      return;
+  };
+  const buildReplacementForWikiLink = (aliasText) => {
+    if (keepItem.source === "local") {
+      const suffix = aliasText ? `|${aliasText}` : "";
+      return `[[${keepItem.displayPath}${suffix}]]`;
+    } else {
+      return `[${aliasText || keepItem.name}](${keepItem.rawObj.rawUrl})`;
     }
-    const cacheKey = `${tfile.path}:${((_a = tfile.stat) == null ? void 0 : _a.mtime) || 0}`;
-    let previewUrl = this.heicPreviewCache.get(cacheKey);
-    if (!previewUrl) {
-      const buf = await this.app.vault.readBinary(tfile);
-      previewUrl = await convertBufferToPreviewUrl(buf, ext, this);
-      this.heicPreviewCache.set(cacheKey, previewUrl);
-    }
-    embedEl.empty();
-    embedEl.removeClass("file-embed", "mod-generic");
-    embedEl.addClass("image-embed", "is-loaded");
-    const img = embedEl.createEl("img", {
-      attr: {
-        src: previewUrl,
-        alt: tfile.name
+  };
+  const buildReplacementForMdLink = (isEmbed, altText) => {
+    if (keepItem.source === "local") {
+      const prefix = isEmbed ? "!" : "";
+      const alias = altText ? `|${altText}` : "";
+      return `${prefix}[[${keepItem.displayPath}${alias}]]`;
+    } else {
+      if (isEmbed && IMAGE_EXTS.has(keepItem.ext)) {
+        return `![${altText || ""}](${keepItem.rawObj.rawUrl})`;
       }
-    });
-    img.style.maxWidth = "100%";
-    img.style.borderRadius = "6px";
-    img.style.display = "block";
-    embedEl.dataset.fmHeicStatus = "done";
+      return `[${altText || "\u{1F4CE} " + keepItem.name}](${keepItem.rawObj.rawUrl})`;
+    }
+  };
+  const rewriteMarkdownFragment = (fragment) => {
+    if (!fragment) return fragment;
+    let updated = fragment;
+    if (removeItem.source === "local") {
+      const candidates = /* @__PURE__ */ new Set([
+        removeItem.displayPath,
+        removeItem.name,
+        encodeURI(removeItem.displayPath),
+        encodeURI(removeItem.name),
+        encodeURIComponent(removeItem.name)
+      ]);
+      const isBareCandidate = (c) => !c.includes("/");
+      for (const cand of candidates) {
+        const esc = escapeRegExp(cand);
+        const isBare = isBareCandidate(cand);
+        const checkBareMatchAllowed = () => {
+          var _a, _b;
+          if (!isBare) return true;
+          const hasActiveResolver = Boolean(
+            customResolve || ((_b = (_a = plugin.app) == null ? void 0 : _a.metadataCache) == null ? void 0 : _b.getFirstLinkpathDest) && docPath
+          );
+          if (hasActiveResolver) {
+            const dest = resolveLink(cand);
+            if (!dest) {
+              return false;
+            }
+            const destPath = dest.toLowerCase().replace(/^\.?\//, "");
+            const targetPath = (removeItem.displayPath || "").toLowerCase().replace(/^\.?\//, "");
+            return destPath === targetPath;
+          }
+          return true;
+        };
+        const wikiEmbedRe = new RegExp(`!\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, "g");
+        updated = updated.replace(wikiEmbedRe, (m, alias) => {
+          if (!checkBareMatchAllowed()) return m;
+          return buildReplacementForWikiEmbed(alias);
+        });
+        const wikiLinkRe = new RegExp(`(?<!!)\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, "g");
+        updated = updated.replace(wikiLinkRe, (m, alias) => {
+          if (!checkBareMatchAllowed()) return m;
+          return buildReplacementForWikiLink(alias);
+        });
+        const mdLinkRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(<?(?:\\.\\.?\\/)*${esc}(?:[?#][^)\\s>]*)?>?\\)`, "g");
+        updated = updated.replace(mdLinkRe, (m, bang, alt) => {
+          if (!checkBareMatchAllowed()) return m;
+          return buildReplacementForMdLink(bang === "!", alt);
+        });
+      }
+      if (keepItem.source === "local") {
+        updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.displayPath}"`);
+      } else {
+        updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.rawObj.rawUrl}"`);
+      }
+    } else {
+      const r = removeItem.rawObj;
+      const encodedName = encodeURIComponent(r.filename);
+      const urlPatterns = /* @__PURE__ */ new Set([
+        r.rawUrl,
+        r.pubUrl,
+        `${r.year}/${r.month}/${r.filename}`,
+        `${r.year}/${r.month}/${encodedName}`
+      ]);
+      for (const pat of urlPatterns) {
+        if (!pat) continue;
+        const esc = escapeRegExp(pat);
+        const remoteMdRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(([^)\\s]*${esc})(?:[?#][^)\\s]*)?\\)`, "g");
+        updated = updated.replace(
+          remoteMdRe,
+          (_, bang, alt) => buildReplacementForMdLink(bang === "!", alt)
+        );
+      }
+      if (keepItem.source === "remote") {
+        if (r.rawUrl) updated = updated.split(r.rawUrl).join(keepItem.rawObj.rawUrl);
+        if (r.pubUrl) updated = updated.split(r.pubUrl).join(keepItem.rawObj.pubUrl);
+      }
+    }
+    return updated;
+  };
+  const rewrittenPre = rewriteMarkdownFragment(preSection);
+  const rewrittenPost = rewriteMarkdownFragment(postSection);
+  if (match && excalSection !== null) {
+    return rewrittenPre + excalSection + rewrittenPost;
   }
-};
+  return rewrittenPre;
+}
+
+// src/plugin/logging.js
+function getEffectiveLanguage2(plugin) {
+  var _a;
+  return getEffectiveLanguage((_a = plugin.settings) == null ? void 0 : _a.language);
+}
+function t(plugin, key, params = {}) {
+  return translateUi(plugin.getEffectiveLanguage(), key, params);
+}
+function isRemoteServerReady(plugin) {
+  var _a, _b;
+  return Boolean(((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer) && ((_b = plugin.settings) == null ? void 0 : _b.serverVerified));
+}
+function getLogFilePath(plugin) {
+  var _a, _b, _c, _d;
+  const dir = ((_a = plugin.manifest) == null ? void 0 : _a.dir) || `${((_c = (_b = plugin.app) == null ? void 0 : _b.vault) == null ? void 0 : _c.configDir) || ".obsidian"}/plugins/${((_d = plugin.manifest) == null ? void 0 : _d.id) || "file-master"}`;
+  return `${dir}/operation.log`;
+}
+async function loadOperationLogs(plugin) {
+  var _a, _b;
+  if (!Array.isArray(plugin.operationLogs)) {
+    plugin.operationLogs = [];
+  }
+  try {
+    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
+    const logPath = plugin.getLogFilePath();
+    if (adapter && await adapter.exists(logPath)) {
+      const raw = await adapter.read(logPath);
+      const parsed = [];
+      for (const line of String(raw || "").split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          parsed.push(JSON.parse(trimmed));
+        } catch (e) {
+        }
+      }
+      plugin.operationLogs = parsed.slice(-500);
+    }
+  } catch (e) {
+  }
+  return plugin.operationLogs;
+}
+async function saveOperationLogs(plugin) {
+  var _a, _b;
+  try {
+    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
+    if (!adapter) return;
+    const logPath = plugin.getLogFilePath();
+    const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
+    await adapter.write(logPath, lines.join("\n") + (lines.length ? "\n" : ""));
+  } catch (e) {
+  }
+}
+function logOperation(plugin, level, action, summary, details = null) {
+  if (!Array.isArray(plugin.operationLogs)) {
+    plugin.operationLogs = [];
+  }
+  const now = /* @__PURE__ */ new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const entry = {
+    ts,
+    level: String(level || "INFO").toUpperCase(),
+    action: String(action || "GENERAL"),
+    summary: String(summary || "")
+  };
+  if (details && typeof details === "object" && Object.keys(details).length > 0) {
+    entry.details = details;
+  }
+  plugin.operationLogs.push(entry);
+  if (plugin.operationLogs.length > 500) {
+    plugin.operationLogs = plugin.operationLogs.slice(-500);
+  }
+  plugin.saveOperationLogs();
+}
+async function clearOperationLogs(plugin) {
+  plugin.operationLogs = [];
+  await plugin.saveOperationLogs();
+}
+function formatLogsForExport(plugin) {
+  var _a, _b, _c;
+  const version = ((_a = plugin.manifest) == null ? void 0 : _a.version) || "1.0.2";
+  const serverStatus = plugin.lastServerCompatStatus ? `${plugin.lastServerCompatStatus.status} (server v${plugin.lastServerCompatStatus.serverVersion || "?"})` : ((_b = plugin.settings) == null ? void 0 : _b.enableRemoteServer) ? "unverified" : "disabled";
+  const header = [
+    `# File Master Diagnostic & Operation Logs`,
+    `# Plugin Version: v${version}`,
+    `# Exported At: ${(/* @__PURE__ */ new Date()).toISOString()}`,
+    `# Server Status: ${serverStatus}`,
+    `# Excluded Local Folders: ${((_c = plugin.settings) == null ? void 0 : _c.excludedLocalFolders) || "(none)"}`,
+    `# Total Entries: ${(plugin.operationLogs || []).length}`,
+    `------------------------------------------------------------`
+  ];
+  const body = (plugin.operationLogs || []).map((e) => {
+    const detailStr = e.details ? ` | ${JSON.stringify(e.details)}` : "";
+    return `[${e.ts}] [${e.level}] [${e.action}] ${e.summary}${detailStr}`;
+  });
+  return [...header, ...body].join("\n");
+}
 
 // src/plugin/server-client.js
 var import_obsidian20 = require("obsidian");
-var FileMasterServerClient = class extends FileMasterContextMenus {
-  filterAllowedFiles(fileList) {
-    const out = [];
-    for (let i = 0; i < fileList.length; i++) {
-      const f = fileList[i];
-      const ext = getExt(f.name) || (f.type.startsWith("image/") ? "png" : "");
-      if (IMAGE_EXTS.has(ext)) {
-        out.push(f);
-      } else if (this.settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
-        out.push(f);
-      }
+function filterAllowedFiles(plugin, fileList) {
+  const out = [];
+  for (let i = 0; i < fileList.length; i++) {
+    const f = fileList[i];
+    const ext = getExt(f.name) || (f.type.startsWith("image/") ? "png" : "");
+    if (IMAGE_EXTS.has(ext)) {
+      out.push(f);
+    } else if (plugin.settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
+      out.push(f);
     }
-    return out;
   }
-  getCleanServerUrl() {
-    return String(this.settings.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
-  }
-  async handleIncomingBrowserFile(file, editor) {
-    const arrayBuffer = await file.arrayBuffer();
-    const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
-    const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
-    const sha256 = await computeSha256Hex(arrayBuffer);
-    const activeFile = this.app.workspace.getActiveFile();
-    const noteName = activeFile ? activeFile.basename : "note";
-    let defaultBaseName = rawOriginBase;
-    if (this.settings.namingMode === "rule") {
-      defaultBaseName = applyNamingPattern(this.settings.namingPattern, {
-        noteName,
-        originBase: rawOriginBase,
-        sha256
-      });
-    } else if (/^image$/i.test(rawOriginBase)) {
-      defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
-    }
-    const askLocation = this.settings.saveLocationMode === "ask";
-    const promptRename = this.settings.namingMode === "prompt";
-    const fileInfo = {
-      arrayBuffer,
-      defaultBaseName,
-      ext,
-      size: file.size || arrayBuffer.byteLength,
-      mimeType: file.type || "application/octet-stream",
+  return out;
+}
+function getCleanServerUrl(plugin) {
+  return String(plugin.settings.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
+}
+async function handleIncomingBrowserFile(plugin, file, editor) {
+  const arrayBuffer = await file.arrayBuffer();
+  const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
+  const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
+  const sha256 = await computeSha256Hex(arrayBuffer);
+  const activeFile = plugin.app.workspace.getActiveFile();
+  const noteName = activeFile ? activeFile.basename : "note";
+  let defaultBaseName = rawOriginBase;
+  if (plugin.settings.namingMode === "rule") {
+    defaultBaseName = applyNamingPattern(plugin.settings.namingPattern, {
+      noteName,
+      originBase: rawOriginBase,
       sha256
-    };
-    const modalOptions = {
-      askLocation,
-      fixedLocation: this.settings.saveLocationMode,
-      promptRename,
-      plugin: this,
-      editor,
-      activeFile
-    };
-    new IncomingFileModal(this.app, fileInfo, modalOptions).open();
+    });
+  } else if (/^image$/i.test(rawOriginBase)) {
+    defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
   }
-  async probeRemoteSha256(sha256) {
-    var _a;
+  const askLocation = plugin.settings.saveLocationMode === "ask";
+  const promptRename = plugin.settings.namingMode === "prompt";
+  const fileInfo = {
+    arrayBuffer,
+    defaultBaseName,
+    ext,
+    size: file.size || arrayBuffer.byteLength,
+    mimeType: file.type || "application/octet-stream",
+    sha256
+  };
+  const modalOptions = {
+    askLocation,
+    fixedLocation: plugin.settings.saveLocationMode,
+    promptRename,
+    plugin,
+    editor,
+    activeFile
+  };
+  new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
+}
+async function probeRemoteSha256(plugin, sha256) {
+  var _a;
+  try {
+    const serverUrl = plugin.getCleanServerUrl();
+    if (!serverUrl || !plugin.settings.apiToken || !sha256) return null;
+    const response = await (0, import_obsidian20.requestUrl)({
+      url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${plugin.settings.apiToken}`
+      },
+      throw: false
+    });
+    if (response.status === 200 && ((_a = response.json) == null ? void 0 : _a.exists)) {
+      return response.json;
+    }
+  } catch (e) {
+  }
+  return null;
+}
+async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
+  var _a;
+  const opts = typeof options === "boolean" ? { uploadToProtected: options } : options || {};
+  throwIfTransferCancelled(opts.signal);
+  const fullSha256 = await computeSha256Hex(arrayBuffer);
+  if (!opts.skipProbe) {
     try {
-      const serverUrl = this.getCleanServerUrl();
-      if (!serverUrl || !this.settings.apiToken || !sha256) return null;
-      const response = await (0, import_obsidian20.requestUrl)({
-        url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${this.settings.apiToken}`
-        },
-        throw: false
-      });
-      if (response.status === 200 && ((_a = response.json) == null ? void 0 : _a.exists)) {
-        return response.json;
+      const probed = await plugin.probeRemoteSha256(fullSha256);
+      if (probed && probed.exists && probed.sha256 === fullSha256) {
+        probed.isInstant = true;
+        return probed;
       }
     } catch (e) {
     }
+  }
+  const url = `${plugin.getCleanServerUrl()}/api/image/upload`;
+  const { boundary, arrayBuffer: bodyBuffer } = buildMultipartBuffer(arrayBuffer, filename, mimeType);
+  const headers = {
+    Authorization: `Bearer ${plugin.settings.apiToken}`,
+    "X-File-Name": encodeURIComponent(filename),
+    "Content-Type": `multipart/form-data; boundary=${boundary}`
+  };
+  const response = await requestWithBackoff(() => (0, import_obsidian20.requestUrl)({
+    url,
+    method: "POST",
+    headers,
+    body: bodyBuffer,
+    throw: false
+  }), { signal: opts.signal });
+  if (response.status < 200 || response.status >= 300) {
+    const errMsg = ((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`;
+    throw new Error(errMsg);
+  }
+  const result = response.json;
+  if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(plugin.t("transferIntegrityFailed"));
+  return result;
+}
+async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/lock`;
+  const response = await (0, import_obsidian20.requestUrl)({
+    url,
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${plugin.settings.apiToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ year, month, filename, locked }),
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Lock operation failed (HTTP ${response.status})`);
+  }
+  return response.json;
+}
+async function checkServerCompatibility(plugin) {
+  var _a, _b, _c;
+  if (!((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer)) {
+    plugin.lastServerCompatStatus = null;
+    if (plugin.settings) {
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+    }
     return null;
   }
-  async uploadBufferToServer(arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
-    var _a;
-    const opts = typeof options === "boolean" ? { uploadToProtected: options } : options || {};
-    throwIfTransferCancelled(opts.signal);
-    const fullSha256 = await computeSha256Hex(arrayBuffer);
-    if (!opts.skipProbe) {
-      try {
-        const probed = await this.probeRemoteSha256(fullSha256);
-        if (probed && probed.exists && probed.sha256 === fullSha256) {
-          probed.isInstant = true;
-          return probed;
-        }
-      } catch (e) {
-      }
-    }
-    const url = `${this.getCleanServerUrl()}/api/image/upload`;
-    const { boundary, arrayBuffer: bodyBuffer } = buildMultipartBuffer(arrayBuffer, filename, mimeType);
-    const headers = {
-      Authorization: `Bearer ${this.settings.apiToken}`,
-      "X-File-Name": encodeURIComponent(filename),
-      "Content-Type": `multipart/form-data; boundary=${boundary}`
+  const pluginVer = ((_b = plugin.manifest) == null ? void 0 : _b.version) || "0.1.1";
+  const serverUrl = plugin.getCleanServerUrl();
+  if (!serverUrl) {
+    plugin.lastServerCompatStatus = {
+      ok: false,
+      status: "offline",
+      error: "No URL configured",
+      serverVersion: null
     };
-    const response = await requestWithBackoff(() => (0, import_obsidian20.requestUrl)({
-      url,
-      method: "POST",
-      headers,
-      body: bodyBuffer,
-      throw: false
-    }), { signal: opts.signal });
-    if (response.status < 200 || response.status >= 300) {
-      const errMsg = ((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`;
-      throw new Error(errMsg);
-    }
-    const result = response.json;
-    if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(this.t("transferIntegrityFailed"));
-    return result;
+    plugin.settings.serverVerified = false;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
   }
-  async toggleRemoteFileLock(year, month, filename, locked = true) {
-    var _a;
-    const url = `${this.getCleanServerUrl()}/api/modules/image-host/lock`;
-    const response = await (0, import_obsidian20.requestUrl)({
-      url,
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.settings.apiToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ year, month, filename, locked }),
+  try {
+    const verUrl = `${serverUrl}/api/platform/version`;
+    const verRes = await (0, import_obsidian20.requestUrl)({
+      url: verUrl,
+      method: "GET",
       throw: false
     });
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Lock operation failed (HTTP ${response.status})`);
-    }
-    return response.json;
-  }
-  async checkServerCompatibility() {
-    var _a, _b, _c;
-    if (!((_a = this.settings) == null ? void 0 : _a.enableRemoteServer)) {
-      this.lastServerCompatStatus = null;
-      if (this.settings) {
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-      }
-      return null;
-    }
-    const pluginVer = ((_b = this.manifest) == null ? void 0 : _b.version) || "0.1.1";
-    const serverUrl = this.getCleanServerUrl();
-    if (!serverUrl) {
-      this.lastServerCompatStatus = {
-        ok: false,
-        status: "offline",
-        error: "No URL configured",
-        serverVersion: null
-      };
-      this.settings.serverVerified = false;
-      await this.saveSettings();
-      return this.lastServerCompatStatus;
-    }
-    try {
-      const verUrl = `${serverUrl}/api/platform/version`;
-      const verRes = await (0, import_obsidian20.requestUrl)({
-        url: verUrl,
-        method: "GET",
-        throw: false
-      });
-      if (verRes.status !== 200) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "offline",
-          serverVersion: null,
-          error: `HTTP ${verRes.status}`
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      const verData = verRes.json || {};
-      const serverVer = verData.version || "0.1.0";
-      const minPluginReq = verData.minPluginVersion || "0.1.0";
-      if (compareSemver(pluginVer, minPluginReq) < 0) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "plugin_outdated",
-          serverVersion: serverVer,
-          pluginVersion: pluginVer,
-          minPluginVersion: minPluginReq,
-          features: verData.features || {}
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      if (compareSemver(serverVer, MIN_SERVER_VERSION) < 0) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "server_outdated",
-          serverVersion: serverVer,
-          pluginVersion: pluginVer,
-          minServerVersion: MIN_SERVER_VERSION,
-          features: verData.features || {}
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      let assetCount = 0;
-      const token = (this.settings.apiToken || "").trim();
-      if (!token) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "token_missing",
-          serverVersion: serverVer,
-          pluginVersion: pluginVer,
-          features: verData.features || {}
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      let listRes;
-      try {
-        listRes = await (0, import_obsidian20.requestUrl)({
-          url: `${serverUrl}/api/modules/image-host/list`,
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-          throw: false
-        });
-      } catch (netErr) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "offline",
-          serverVersion: serverVer,
-          pluginVersion: pluginVer,
-          error: netErr.message || String(netErr)
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      if (listRes.status === 401 || listRes.status === 403) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "auth_failed",
-          serverVersion: serverVer,
-          pluginVersion: pluginVer,
-          features: verData.features || {}
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      if (listRes.status !== 200) {
-        this.lastServerCompatStatus = {
-          ok: false,
-          status: "server_error",
-          statusCode: listRes.status,
-          serverVersion: serverVer,
-          pluginVersion: pluginVer,
-          features: verData.features || {}
-        };
-        this.settings.serverVerified = false;
-        await this.saveSettings();
-        return this.lastServerCompatStatus;
-      }
-      assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
-      this.lastServerCompatStatus = {
-        ok: true,
-        status: "compatible",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        apiVersion: verData.apiVersion || 1,
-        assetCount,
-        features: verData.features || {}
-      };
-      this.settings.serverVerified = true;
-      await this.saveSettings();
-      return this.lastServerCompatStatus;
-    } catch (err) {
-      this.lastServerCompatStatus = {
+    if (verRes.status !== 200) {
+      plugin.lastServerCompatStatus = {
         ok: false,
         status: "offline",
         serverVersion: null,
-        error: err.message || "Network error"
+        error: `HTTP ${verRes.status}`
       };
-      this.settings.serverVerified = false;
-      await this.saveSettings();
-      return this.lastServerCompatStatus;
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
     }
-  }
-  async fetchServerVersion() {
+    const verData = verRes.json || {};
+    const serverVer = verData.version || "0.1.0";
+    const minPluginReq = verData.minPluginVersion || "0.1.0";
+    if (compareSemver(pluginVer, minPluginReq) < 0) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "plugin_outdated",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        minPluginVersion: minPluginReq,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (compareSemver(serverVer, MIN_SERVER_VERSION) < 0) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "server_outdated",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        minServerVersion: MIN_SERVER_VERSION,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    let assetCount = 0;
+    const token = (plugin.settings.apiToken || "").trim();
+    if (!token) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "token_missing",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    let listRes;
     try {
-      const url = `${this.getCleanServerUrl()}/api/platform/version`;
-      const response = await (0, import_obsidian20.requestUrl)({
-        url,
+      listRes = await (0, import_obsidian20.requestUrl)({
+        url: `${serverUrl}/api/modules/image-host/list`,
         method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
         throw: false
       });
-      if (response.status >= 200 && response.status < 300) {
-        return response.json;
-      }
-    } catch (e) {
+    } catch (netErr) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "offline",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        error: netErr.message || String(netErr)
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
     }
-    return null;
+    if (listRes.status === 401 || listRes.status === 403) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "auth_failed",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (listRes.status !== 200) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "server_error",
+        statusCode: listRes.status,
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
+    plugin.lastServerCompatStatus = {
+      ok: true,
+      status: "compatible",
+      serverVersion: serverVer,
+      pluginVersion: pluginVer,
+      apiVersion: verData.apiVersion || 1,
+      assetCount,
+      features: verData.features || {}
+    };
+    plugin.settings.serverVerified = true;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  } catch (err) {
+    plugin.lastServerCompatStatus = {
+      ok: false,
+      status: "offline",
+      serverVersion: null,
+      error: err.message || "Network error"
+    };
+    plugin.settings.serverVerified = false;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
   }
-  async fetchRemoteFileList() {
-    var _a;
-    const url = `${this.getCleanServerUrl()}/api/modules/image-host/list`;
+}
+async function fetchServerVersion(plugin) {
+  try {
+    const url = `${plugin.getCleanServerUrl()}/api/platform/version`;
     const response = await (0, import_obsidian20.requestUrl)({
       url,
       method: "GET",
-      headers: { Authorization: `Bearer ${this.settings.apiToken}` },
       throw: false
     });
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
+    if (response.status >= 200 && response.status < 300) {
+      return response.json;
     }
-    return response.json.images || [];
+  } catch (e) {
   }
-  async deleteRemoteFile(year, month, filename) {
-    var _a;
-    const url = `${this.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
-    const response = await (0, import_obsidian20.requestUrl)({
-      url,
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${this.settings.apiToken}` },
-      throw: false
-    });
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Failed to delete remote file (HTTP ${response.status})`);
-    }
-    return true;
+  return null;
+}
+async function fetchRemoteFileList(plugin) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list`;
+  const response = await (0, import_obsidian20.requestUrl)({
+    url,
+    method: "GET",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
-};
+  return response.json.images || [];
+}
+async function deleteRemoteFile(plugin, year, month, filename) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
+  const response = await (0, import_obsidian20.requestUrl)({
+    url,
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Failed to delete remote file (HTTP ${response.status})`);
+  }
+  return true;
+}
 
 // src/plugin/vault-scans.js
 var import_obsidian21 = require("obsidian");
-var FileMasterVaultScans = class extends FileMasterServerClient {
-  async buildVaultReferenceSnapshot(scanCtx = {}) {
-    const { signal, onProgress, freshRead = false } = scanCtx || {};
-    const revision = this.referenceRevision || 0;
-    const allFiles = this.app.vault.getFiles();
-    const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
-    const matchLocal = createLocalReferenceMatcher(allFiles, (file) => this.isExcalidrawFile(file));
-    const localReferences = /* @__PURE__ */ new Map();
-    const docContents = [];
-    for (let i = 0; i < docFiles.length; i++) {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const doc = docFiles[i];
-      if (i % 25 === 0) {
-        onProgress == null ? void 0 : onProgress(i + 1, docFiles.length, doc.path);
-        await new Promise((r) => setTimeout(r, 0));
-      }
-      const rawText = freshRead ? await this.app.vault.read(doc) : await this.app.vault.cachedRead(doc);
-      let decodedText = rawText;
-      try {
-        decodedText = decodeURIComponent(rawText);
-      } catch (e) {
-      }
-      for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
-      if (decodedText !== rawText) {
-        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
-      }
-      docContents.push({
-        file: doc,
-        path: doc.path,
-        rawText,
-        decodedText
-      });
+async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
+  const { signal, onProgress, freshRead = false } = scanCtx || {};
+  const revision = plugin.referenceRevision || 0;
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
+  const matchLocal = createLocalReferenceMatcher(allFiles, (file) => plugin.isExcalidrawFile(file));
+  const localReferences = /* @__PURE__ */ new Map();
+  const docContents = [];
+  for (let i = 0; i < docFiles.length; i++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const doc = docFiles[i];
+    if (i % 25 === 0) {
+      onProgress == null ? void 0 : onProgress(i + 1, docFiles.length, doc.path);
+      await new Promise((r) => setTimeout(r, 0));
     }
-    if (!freshRead) {
-      const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
-      for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
-        if (isReportFile(sourcePath)) {
-          continue;
-        }
-        for (const targetPath of Object.keys(targets || {})) {
-          addReference(localReferences, targetPath, sourcePath);
-        }
-      }
-    }
-    return {
-      docContents,
-      localReferences,
-      revision,
-      signal,
-      stable: revision === (this.referenceRevision || 0)
-    };
-  }
-  isReferenceSnapshotCurrent(snapshot) {
-    return snapshot.stable && snapshot.revision === (this.referenceRevision || 0);
-  }
-  async indexRemoteReferences(items, snapshot) {
-    var _a;
-    const patterns = [];
-    for (const item of items) {
-      const id = `${item.year}/${item.month}/${item.filename}`;
-      const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
-      for (const value of /* @__PURE__ */ new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
-        if (value) patterns.push({ value, id });
-      }
-    }
-    const match = createTextReferenceMatcher(patterns);
-    snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, /* @__PURE__ */ new Set()]));
-    for (let i = 0; i < snapshot.docContents.length; i++) {
-      if ((_a = snapshot.signal) == null ? void 0 : _a.aborted) throw new Error("SCAN_ABORTED");
-      if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
-      const doc = snapshot.docContents[i];
-      for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
-      if (doc.decodedText !== doc.rawText) {
-        for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
-      }
-    }
-  }
-  findReferencingNotesForLocalFile(tfile, snapshot) {
-    return [...snapshot.localReferences.get(tfile.path) || []];
-  }
-  findReferencingNotesForRemoteItem(remoteItem, snapshot) {
-    return [...snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || []];
-  }
-  /**
-   * Wizard 1 engine: scans unused assets (supports progress reporting + abortSignal)
-   */
-  async scanUnusedFiles(options, scanCtx = {}) {
-    var _a;
-    const { signal, onProgress } = scanCtx || {};
-    const snapshot = await this.buildVaultReferenceSnapshot({ signal, onProgress });
-    const allowedGroups = /* @__PURE__ */ new Set();
-    if (options.typeNote) allowedGroups.add("note");
-    if (options.typeImage) allowedGroups.add("image");
-    if (options.typeAudio) allowedGroups.add("audio");
-    if (options.typeOther) allowedGroups.add("other");
-    const unusedList = [];
-    if (options.scanLocal) {
-      const allFiles = this.app.vault.getFiles();
-      for (let i = 0; i < allFiles.length; i++) {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        const f = allFiles[i];
-        if (onProgress && i % 30 === 0) {
-          onProgress(i + 1, allFiles.length, f.path);
-          await new Promise((r) => setTimeout(r, 0));
-        }
-        if (isReportFile(f.name) || f.extension === "canvas") {
-          continue;
-        }
-        if (this.isLocalPathExcluded(f.path)) continue;
-        const grp = getFileTypeGroup(f.extension);
-        if (!allowedGroups.has(grp)) continue;
-        const refs = this.findReferencingNotesForLocalFile(f, snapshot);
-        if (refs.length === 0) {
-          unusedList.push({
-            id: `local:${f.path}`,
-            source: "local",
-            typeGroup: grp,
-            name: f.name,
-            displayPath: f.path,
-            size: ((_a = f.stat) == null ? void 0 : _a.size) || 0,
-            rawObj: f,
-            selected: true
-          });
-        }
-      }
-    }
-    if (options.scanRemote) {
-      try {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        const remoteFiles = await this.fetchRemoteFileList();
-        await this.indexRemoteReferences(remoteFiles, snapshot);
-        for (let i = 0; i < remoteFiles.length; i++) {
-          if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-          const r = remoteFiles[i];
-          if (onProgress && i % 30 === 0) {
-            onProgress(i + 1, remoteFiles.length, r.filename);
-            await new Promise((res) => setTimeout(res, 0));
-          }
-          if (this.settings.excludeLockedRemoteFiles && (r.locked || r.inProtectedFolder)) {
-            continue;
-          }
-          const ext = getExt(r.filename);
-          const grp = getFileTypeGroup(ext);
-          if (!allowedGroups.has(grp)) continue;
-          const refs = this.findReferencingNotesForRemoteItem(r, snapshot);
-          if (refs.length === 0) {
-            unusedList.push({
-              id: `remote:${r.year}/${r.month}/${r.filename}`,
-              source: "remote",
-              typeGroup: grp,
-              name: r.filename,
-              displayPath: `${r.year}/${r.month}/${r.filename}`,
-              size: r.size || 0,
-              rawObj: r,
-              selected: true
-            });
-          }
-        }
-      } catch (err) {
-        if (err.message === "SCAN_ABORTED") throw err;
-        if (!options.scanLocal) {
-          throw err;
-        }
-        new import_obsidian21.Notice(this.t("noticeRemoteUnreachable", { err: err.message }));
-      }
-    }
-    return unusedList;
-  }
-  async exportOrphanReportToRoot(results) {
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = formatDateYMD(now);
-    const reportPath = `Unused_Files_Report_${dateStr}.md`;
-    const localItems = results.filter((r) => r.source === "local");
-    const remoteItems = results.filter((r) => r.source === "remote");
-    const totalBytes = results.reduce((s, r) => s + (r.size || 0), 0);
-    const lines = [
-      `# \u{1F9F9} Unused Files Inspection Report (${dateStr})`,
-      ``,
-      `> Generated: ${now.toLocaleString("en-US")}  |  Total Unused Files: **${results.length}**  |  Total Reclaimable Space: **${formatBytes(totalBytes)}**`,
-      ``
-    ];
-    lines.push(`## \u{1F4BB} 1. Local Vault Unused Files (${localItems.length})`);
-    if (localItems.length === 0) {
-      lines.push(`- No unused local files`);
-    } else {
-      for (const item of localItems) {
-        lines.push(`- [[${item.displayPath}]] \u2014 \`${formatBytes(item.size)}\``);
-      }
-    }
-    lines.push(``);
-    lines.push(`## \u2601\uFE0F 2. Remote Server Unused Files (${remoteItems.length})`);
-    if (remoteItems.length === 0) {
-      lines.push(`- No unused remote files`);
-    } else {
-      for (const item of remoteItems) {
-        lines.push(`- [${item.displayPath}](${item.rawObj.rawUrl}) \u2014 \`${formatBytes(item.size)}\``);
-      }
-    }
-    await this.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-    new import_obsidian21.Notice(this.t("noticeReportGenerated", { path: reportPath }));
-  }
-  async writeOrUpdateRootReport(reportPath, content) {
-    const existing = this.app.vault.getAbstractFileByPath(reportPath);
-    let targetFile;
-    if (existing) {
-      await this.app.vault.modify(existing, content);
-      targetFile = existing;
-    } else {
-      targetFile = await this.app.vault.create(reportPath, content);
-    }
-    const leaf = this.app.workspace.getLeaf(false);
-    if (leaf && targetFile) {
-      await leaf.openFile(targetFile);
-    }
-  }
-  async cleanSelectedOrphans(selectedItems, onDone) {
-    return runAttachmentOperation(this, () => this.cleanOrphanItems(selectedItems, onDone));
-  }
-  async cleanOrphanItems(selectedItems, onDone) {
-    const remoteToClean = selectedItems.filter((i) => i.source === "remote");
-    const localToClean = selectedItems.filter((i) => i.source === "local");
-    if (remoteToClean.length > 0) {
-      const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
-      const confirmed = await new Promise((resolve) => {
-        new ConfirmActionModal(
-          this.app,
-          this.t("confirmRemoteOrphanTitle"),
-          this.t("confirmRemoteOrphanMsg", { count: remoteToClean.length, size: formatBytes(remoteBytes) }),
-          this.t("confirmRemoteOrphanBtn", { count: remoteToClean.length }),
-          resolve
-        ).open();
-      });
-      if (!confirmed) return;
-    }
-    let deletedLocal = 0;
-    let deletedRemote = 0;
-    let skipped = 0;
-    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-    await this.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
-    for (const item of localToClean) {
-      if (!this.isReferenceSnapshotCurrent(snapshot)) {
-        skipped++;
-        continue;
-      }
-      if (this.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) {
-        skipped++;
-        continue;
-      }
-      try {
-        await this.app.vault.trash(item.rawObj, true);
-        deletedLocal++;
-      } catch (err) {
-        console.error("Failed to delete local file:", err);
-        this.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
-      }
-    }
-    for (const item of remoteToClean) {
-      if (!this.isReferenceSnapshotCurrent(snapshot)) {
-        skipped++;
-        continue;
-      }
-      if (this.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) {
-        skipped++;
-        continue;
-      }
-      try {
-        await this.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
-        deletedRemote++;
-      } catch (err) {
-        new import_obsidian21.Notice(this.t("noticeRemoteDeleteFailed", { name: item.name, err: err.message }));
-        this.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
-      }
-    }
-    this.logOperation("INFO", "ORPHAN_CLEANUP", `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
-      files: selectedItems.map((i) => i.displayPath)
-    });
-    new import_obsidian21.Notice(this.t("noticeCleanupComplete", { local: deletedLocal, remote: deletedRemote }));
-    if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
-  }
-  /**
-   * Wizard 2 engine: scans duplicate asset groups with SHA-256 (supports progress + abortSignal)
-   */
-  async scanDuplicateGroups(scope, fileTypeOpts = null, scanCtx = {}) {
-    var _a, _b;
-    const { signal, onProgress } = scanCtx || {};
-    const snapshot = await this.buildVaultReferenceSnapshot({ signal, onProgress });
-    const hashMap = /* @__PURE__ */ new Map();
-    const allowedGroups = /* @__PURE__ */ new Set();
-    if (!fileTypeOpts) {
-      allowedGroups.add("image");
-      allowedGroups.add("audio");
-      allowedGroups.add("other");
-      allowedGroups.add("note");
-    } else {
-      if (fileTypeOpts.typeImage) allowedGroups.add("image");
-      if (fileTypeOpts.typeAudio) allowedGroups.add("audio");
-      if (fileTypeOpts.typeOther) allowedGroups.add("other");
-      if (fileTypeOpts.typeNote) allowedGroups.add("note");
-    }
-    let localScanned = 0;
-    let remoteScanned = 0;
-    let remoteError = null;
-    const addItem = (sha256, itemObj) => {
-      if (!sha256) return;
-      if (!hashMap.has(sha256)) hashMap.set(sha256, []);
-      hashMap.get(sha256).push(itemObj);
-    };
-    const sizeBuckets = /* @__PURE__ */ new Map();
-    const getBucket = (sz) => {
-      let b = sizeBuckets.get(sz);
-      if (!b) {
-        b = { local: [], remote: [] };
-        sizeBuckets.set(sz, b);
-      }
-      return b;
-    };
-    if (scope === "local" || scope === "both") {
-      const allFiles = this.app.vault.getFiles();
-      for (const f of allFiles) {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        if (isReportFile(f.name) || f.extension === "canvas") {
-          continue;
-        }
-        if (this.isLocalPathExcluded(f.path)) continue;
-        const grp = getFileTypeGroup(f.extension);
-        if (!allowedGroups.has(grp)) continue;
-        const size = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
-        if (size <= 0) continue;
-        getBucket(size).local.push(f);
-      }
-    }
-    if (scope === "remote" || scope === "both") {
-      try {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        const remoteFiles = await this.fetchRemoteFileList();
-        await this.indexRemoteReferences(remoteFiles, snapshot);
-        for (const r of remoteFiles) {
-          if (!r.sha256) continue;
-          const ext = getExt(r.filename);
-          const grp = getFileTypeGroup(ext);
-          if (!allowedGroups.has(grp)) continue;
-          const size = r.size || 0;
-          getBucket(size).remote.push(r);
-        }
-      } catch (err) {
-        if (err.message === "SCAN_ABORTED") throw err;
-        if (scope === "remote") {
-          throw err;
-        }
-        remoteError = err.message;
-      }
-    }
-    const bucketEntries = [...sizeBuckets.entries()];
-    for (let bIdx = 0; bIdx < bucketEntries.length; bIdx++) {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const [, bucket] = bucketEntries[bIdx];
-      let hasConflict = false;
-      if (scope === "both") {
-        hasConflict = bucket.local.length + bucket.remote.length >= 2;
-      } else if (scope === "local") {
-        hasConflict = bucket.local.length >= 2;
-      } else if (scope === "remote") {
-        hasConflict = bucket.remote.length >= 2;
-      }
-      if (!hasConflict) continue;
-      if (scope === "remote" || scope === "both") {
-        for (const r of bucket.remote) {
-          if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-          remoteScanned++;
-          const ext = getExt(r.filename);
-          const refNotes = this.findReferencingNotesForRemoteItem(r, snapshot);
-          addItem(r.sha256, {
-            id: `remote:${r.year}/${r.month}/${r.filename}`,
-            source: "remote",
-            name: r.filename,
-            ext,
-            displayPath: `${r.year}/${r.month}/${r.filename}`,
-            size: r.size || 0,
-            locked: Boolean(r.locked || r.inProtectedFolder),
-            refNotes,
-            rawObj: r
-          });
-        }
-      }
-      if (scope === "local" || scope === "both") {
-        for (const f of bucket.local) {
-          if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-          if (onProgress) {
-            onProgress(bIdx + 1, bucketEntries.length, f.path);
-          }
-          const buf = await this.app.vault.readBinary(f);
-          if (!buf || buf.byteLength === 0) continue;
-          localScanned++;
-          const sha256 = await computeSha256Hex(buf);
-          const refNotes = this.findReferencingNotesForLocalFile(f, snapshot);
-          addItem(sha256, {
-            id: `local:${f.path}`,
-            source: "local",
-            name: f.name,
-            ext: f.extension.toLowerCase(),
-            displayPath: f.path,
-            size: ((_b = f.stat) == null ? void 0 : _b.size) || buf.byteLength,
-            locked: false,
-            refNotes,
-            rawObj: f
-          });
-        }
-      }
-    }
-    const duplicateGroups = [];
-    for (const [sha256, items] of hashMap.entries()) {
-      if (items.length < 2) continue;
-      duplicateGroups.push({
-        sha256,
-        size: items[0].size || 0,
-        items,
-        keepId: items[0].id
-      });
-    }
-    return {
-      groups: duplicateGroups,
-      stats: { localScanned, remoteScanned, remoteError }
-    };
-  }
-  async exportDuplicateReportToRoot(groups) {
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = formatDateYMD(now);
-    const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
-    const lines = [
-      `# \u{1F50D} Duplicate Files Inspection Report (${dateStr})`,
-      ``,
-      `> Generated: ${now.toLocaleString("en-US")}  |  Duplicate Groups: **${groups.length}**`,
-      ``
-    ];
-    if (groups.length === 0) {
-      lines.push(`\u{1F389} No duplicate files found.`);
-    } else {
-      groups.forEach((grp, idx) => {
-        lines.push(`## Duplicate Group #${idx + 1} (\`${grp.sha256.slice(0, 12)}...\`, Size: ${formatBytes(grp.size)})`);
-        for (const item of grp.items) {
-          const isKeep = grp.keepId === item.id ? " **[Current Keep Selection]**" : "";
-          const lockTag = item.locked ? " `\u{1F512} Protected`" : "";
-          const linkStr = item.source === "local" ? `\u{1F4BB} Local: [[${item.displayPath}]]` : `\u2601\uFE0F Remote: [${item.displayPath}](${item.rawObj.rawUrl})`;
-          const refsStr = item.refNotes.length > 0 ? `Referencing Notes: ${item.refNotes.map((n) => `[[${n}]]`).join(", ")}` : `No direct note references`;
-          lines.push(`- ${linkStr}${lockTag}${isKeep} \u2014 (${refsStr})`);
-        }
-        lines.push(``);
-      });
-    }
-    await this.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-    new import_obsidian21.Notice(this.t("noticeReportGenerated", { path: reportPath }));
-  }
-  async exportBatchMigrateReportToRoot(summary) {
-    const now = /* @__PURE__ */ new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const dateStr = formatDateYMD(now);
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
-    const count = (summary == null ? void 0 : summary.count) || 0;
-    const docs = (summary == null ? void 0 : summary.docs) || 0;
-    const totalBytes = (summary == null ? void 0 : summary.totalBytes) || 0;
-    const trashed = (summary == null ? void 0 : summary.trashed) || 0;
-    const items = (summary == null ? void 0 : summary.processedItems) || [];
-    const failures = (summary == null ? void 0 : summary.failures) || [];
-    const trashFailures = (summary == null ? void 0 : summary.trashFailures) || [];
-    const lines = [
-      `# \u{1F680} \u6279\u91CF\u4E91\u7AEF\u8FC1\u79FB\u62A5\u544A / Batch Migration Report (${dateStr})`,
-      ``,
-      `> \u751F\u6210\u65F6\u95F4 / Generated: ${dateStr} ${timeStr}  |  \u6210\u529F\u8FC1\u79FB\u9644\u4EF6 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  \u66F4\u65B0\u7B14\u8BB0 / Notes Updated: **${docs}**  |  \u672C\u5730\u6E05\u7406 / Trashed: **${trashed}**`,
-      ``,
-      `## \u{1F4CA} \u8FC1\u79FB\u6C47\u603B\u7EDF\u8BA1 / Summary Statistics`,
-      `- **\u6210\u529F\u4E0A\u4F20\u6587\u4EF6 (Total Uploaded)**: ${count} \u4E2A (${formatBytes(totalBytes)})`,
-      `- **\u5F15\u7528\u94FE\u63A5\u5DF2\u66F4\u65B0\u7B14\u8BB0 (Notes Updated)**: ${docs} \u7BC7`,
-      `- **\u672C\u5730\u539F\u6587\u4EF6\u5DF2\u79FB\u5165\u56DE\u6536\u7AD9 (Local Trashed)**: ${trashed} \u4E2A`,
-      `- **\u4E0A\u4F20\u5931\u8D25\u9879 (Failed Uploads)**: ${failures.length} \u4E2A`,
-      ...trashFailures.length > 0 ? [`- **\u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 (Failed Local Cleanups)**: ${trashFailures.length} \u4E2A`] : [],
-      ``,
-      `## \u2601\uFE0F \u5DF2\u8FC1\u79FB\u9644\u4EF6\u6E05\u5355 / Migrated Assets (${items.length})`,
-      ``
-    ];
-    if (items.length === 0) {
-      lines.push(`- \u65E0\u5DF2\u8FC1\u79FB\u9644\u4EF6 / No assets were migrated.`);
-    } else {
-      lines.push(`| # | \u672C\u5730\u539F\u8DEF\u5F84 (Local Path) | \u670D\u52A1\u5668\u94FE\u63A5 (Remote URL) | \u6587\u4EF6\u5927\u5C0F (Size) | \u5F15\u7528\u6570 (Refs) |`);
-      lines.push(`|---|---|---|---|---|`);
-      items.forEach((item, idx) => {
-        const localPath = item.displayPath || item.name;
-        const remoteUrl = item.rawUrl || item.rawObj && item.rawObj.rawUrl || "";
-        const sizeStr = formatBytes(item.size || 0);
-        const refsCount = item.refNotesCount !== void 0 ? `${item.refNotesCount} \u7BC7` : "-";
-        const remoteLink = remoteUrl ? `[${item.name || "Link"}](${remoteUrl})` : "-";
-        lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
-      });
-    }
-    if (failures.length > 0) {
-      lines.push(``);
-      lines.push(`## \u26A0\uFE0F \u4E0A\u4F20\u5931\u8D25\u9879 / Failed Uploads (${failures.length})`);
-      lines.push(``);
-      failures.forEach((f, idx) => {
-        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${f.error}`);
-      });
-    }
-    if (trashFailures.length > 0) {
-      lines.push(``);
-      lines.push(`## \u26A0\uFE0F \u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 / Failed Local Cleanups (${trashFailures.length})`);
-      lines.push(``);
-      trashFailures.forEach((tf, idx) => {
-        lines.push(`- **#${idx + 1}**: \`${tf.path}\` \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${tf.error}`);
-      });
-    }
-    lines.push(``);
-    lines.push(`---`);
-    lines.push(`*Generated by File Master Obsidian Plugin*`);
-    await this.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-    new import_obsidian21.Notice(this.t("noticeReportGenerated", { path: reportPath }));
-    return reportPath;
-  }
-  async openNoteAtLine(filePath, lineNumber) {
-    const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (file && file instanceof import_obsidian21.TFile) {
-      const leaf = this.app.workspace.getLeaf(false);
-      await leaf.openFile(file);
-      const view = leaf.view;
-      if (view && view.editor && lineNumber) {
-        const lineIdx = Math.max(0, lineNumber - 1);
-        view.editor.setCursor({ line: lineIdx, ch: 0 });
-        view.editor.scrollIntoView(
-          { from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } },
-          true
-        );
-      }
-    } else {
-      new import_obsidian21.Notice(this.t("noticeCannotOpenFile", { path: filePath }));
-    }
-  }
-};
-
-// src/plugin/health-analytics.js
-var import_obsidian22 = require("obsidian");
-var FileMasterHealthAnalytics = class extends FileMasterVaultScans {
-  /**
-   * Scans vault notes and canvas files for broken links (supports progress + abortSignal)
-   */
-  async scanVaultLinkHealth(options = {}, scanCtx = {}) {
-    const { signal, onProgress } = scanCtx || {};
-    const allFiles = this.app.vault.getFiles();
-    const docFiles = allFiles.filter(
-      (f) => this.isScannableDocFile(f) && !this.isLocalPathExcluded(f.path)
-    );
-    const vaultFilePaths = new Set(allFiles.map((f) => f.path));
-    const vaultFileNames = new Set(allFiles.map((f) => f.name));
-    const vaultFileBasenames = new Set(allFiles.map((f) => f.basename));
-    const vaultIndex = {
-      paths: vaultFilePaths,
-      names: vaultFileNames,
-      basenames: vaultFileBasenames
-    };
-    const issues = [];
-    const remoteToCheck = [];
-    for (let i = 0; i < docFiles.length; i++) {
-      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-      const doc = docFiles[i];
-      if (onProgress && i % 15 === 0) {
-        onProgress(i + 1, docFiles.length, doc.path);
-        await new Promise((r) => setTimeout(r, 0));
-      }
-      const rawText = await this.app.vault.cachedRead(doc);
-      if (doc.extension === "canvas") {
-        try {
-          const data = JSON.parse(rawText);
-          if (Array.isArray(data.nodes)) {
-            for (const node of data.nodes) {
-              if (node.type === "file" && node.file && options.checkLocalMarkdown !== false) {
-                if (!vaultFilePaths.has(node.file) && !vaultFileNames.has(node.file.split("/").pop())) {
-                  issues.push({
-                    type: "canvas-node",
-                    category: "local",
-                    sourcePath: doc.path,
-                    target: node.file,
-                    rawText: `{"type": "file", "file": "${node.file}"}`,
-                    line: 1,
-                    lineText: `Canvas File Card: ${node.file}`,
-                    reason: "Referenced canvas attachment does not exist in vault"
-                  });
-                }
-              } else if (node.type === "text" && node.text) {
-                const subIssues = scanNoteContentForBrokenLinks(doc.path, node.text, vaultIndex, {
-                  checkWikiLinks: options.checkWikiLinks !== false,
-                  checkLocalMarkdown: options.checkLocalMarkdown !== false,
-                  checkRemote: options.checkRemote
-                });
-                for (const iss of subIssues) {
-                  if (iss.category === "remote") {
-                    remoteToCheck.push(iss);
-                  } else {
-                    issues.push(iss);
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-        }
-      } else {
-        const docIssues = scanNoteContentForBrokenLinks(doc.path, rawText, vaultIndex, {
-          checkWikiLinks: options.checkWikiLinks !== false,
-          checkLocalMarkdown: options.checkLocalMarkdown !== false,
-          checkRemote: options.checkRemote
-        });
-        for (const iss of docIssues) {
-          if (iss.category === "remote") {
-            remoteToCheck.push(iss);
-          } else {
-            issues.push(iss);
-          }
-        }
-      }
-    }
-    if (options.checkRemote && remoteToCheck.length > 0) {
-      const uniqueUrls = Array.from(new Set(remoteToCheck.map((r) => r.target)));
-      const failedUrlMap = /* @__PURE__ */ new Map();
-      for (let i = 0; i < uniqueUrls.length; i += 5) {
-        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
-        const batch = uniqueUrls.slice(i, i + 5);
-        if (onProgress) {
-          onProgress(i + 1, uniqueUrls.length, batch[0]);
-        }
-        await Promise.all(
-          batch.map(async (url) => {
-            try {
-              const res = await (0, import_obsidian22.requestUrl)({ url, method: "HEAD", throw: false });
-              if (res.status >= 400) {
-                failedUrlMap.set(url, `HTTP ${res.status}`);
-              }
-            } catch (err) {
-              failedUrlMap.set(url, err.message || "Network error");
-            }
-          })
-        );
-      }
-      for (const item of remoteToCheck) {
-        if (failedUrlMap.has(item.target)) {
-          item.reason = `Remote resource returned ${failedUrlMap.get(item.target)}`;
-          issues.push(item);
-        }
-      }
-    }
-    this.logOperation("INFO", "HEALTH_SCAN", `Scanned ${docFiles.length} document(s), found ${issues.length} broken link issue(s)`, {
-      docsScanned: docFiles.length,
-      issuesFound: issues.length
-    });
-    return { issues, totalDocs: docFiles.length };
-  }
-  async exportHealthReportToRoot(issues, totalDocsScanned) {
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = formatDateYMD(now);
-    const reportPath = `Broken_Links_Report_${dateStr}.md`;
-    const zh = this.getEffectiveLanguage() === "zh";
-    const locale = zh ? "zh-CN" : "en-US";
-    const labels = zh ? {
-      title: "\u5931\u6548\u94FE\u63A5\u62A5\u544A",
-      generated: "\u751F\u6210\u65F6\u95F4",
-      checked: "\u5DF2\u68C0\u67E5\u6587\u6863",
-      issues: "\u53D1\u73B0\u95EE\u9898",
-      summary: "\u6982\u89C8",
-      wiki: "\u5931\u6548\u5185\u90E8\u94FE\u63A5",
-      local: "\u7F3A\u5931\u672C\u5730\u6587\u4EF6",
-      remote: "\u7F51\u9875\u94FE\u63A5\u5F02\u5E38",
-      source: "\u6240\u5728\u6587\u6863",
-      target: "\u76EE\u6807",
-      type: "\u7C7B\u578B",
-      line: "\u884C\u53F7",
-      context: "\u4E0A\u4E0B\u6587",
-      url: "\u7F51\u9875\u94FE\u63A5",
-      error: "\u9519\u8BEF",
-      link: "\u94FE\u63A5",
-      none: "\u6240\u9009\u68C0\u67E5\u8303\u56F4\u5185\u672A\u53D1\u73B0\u94FE\u63A5\u95EE\u9898\u3002"
-    } : {
-      title: "Broken links report",
-      generated: "Generated",
-      checked: "Documents checked",
-      issues: "Issues found",
-      summary: "Overview",
-      wiki: "Broken note links",
-      local: "Missing local files",
-      remote: "Web link errors",
-      source: "Document",
-      target: "Target",
-      type: "Type",
-      line: "Line",
-      context: "Context",
-      url: "Web link",
-      error: "Error",
-      link: "Link",
-      none: "No link issues found in the selected scope."
-    };
-    const wikiIssues = issues.filter((i) => i.category === "wikilink");
-    const localIssues = issues.filter((i) => i.category === "local");
-    const remoteIssues = issues.filter((i) => i.category === "remote");
-    const lines = [
-      `# ${labels.title} (${dateStr})`,
-      ``,
-      `> ${labels.generated}: ${now.toLocaleString(locale)}  |  ${labels.checked}: **${totalDocsScanned}**  |  ${labels.issues}: **${issues.length}**`,
-      ``,
-      `## ${labels.summary}`,
-      `- ${labels.wiki}: **${wikiIssues.length}**`,
-      `- ${labels.local}: **${localIssues.length}**`,
-      `- ${labels.remote}: **${remoteIssues.length}**`,
-      ``
-    ];
-    if (wikiIssues.length > 0) {
-      lines.push(`## 1. ${labels.wiki} (${wikiIssues.length})`);
-      lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
-      lines.push(`|---|---|---|---|---|`);
-      for (const item of wikiIssues) {
-        const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
-        lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
-      }
-      lines.push(``);
-    }
-    if (localIssues.length > 0) {
-      lines.push(`## 2. ${labels.local} (${localIssues.length})`);
-      lines.push(`| ${labels.source} | ${labels.target} | ${labels.type} | ${labels.line} | ${labels.context} |`);
-      lines.push(`|---|---|---|---|---|`);
-      for (const item of localIssues) {
-        const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
-        lines.push(`| [[${item.sourcePath}]] | \`${item.target}\` | ${item.type} | ${item.line} | \`${safeContext}\` |`);
-      }
-      lines.push(``);
-    }
-    if (remoteIssues.length > 0) {
-      lines.push(`## 3. ${labels.remote} (${remoteIssues.length})`);
-      lines.push(`| ${labels.source} | ${labels.url} | ${labels.error} | ${labels.line} | ${labels.context} |`);
-      lines.push(`|---|---|---|---|---|`);
-      for (const item of remoteIssues) {
-        const safeContext = (item.lineText || "").replace(/\|/g, "\\|");
-        lines.push(`| [[${item.sourcePath}]] | [${labels.link}](${item.target}) | ${item.reason} | ${item.line} | \`${safeContext}\` |`);
-      }
-      lines.push(``);
-    }
-    if (issues.length === 0) {
-      lines.push(labels.none);
-    }
-    await this.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-    new import_obsidian22.Notice(this.t("noticeReportGenerated", { path: reportPath }));
-  }
-  async scanVaultAnalytics() {
-    const allFiles = this.app.vault.getFiles();
-    const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
-    const docTexts = [];
-    for (const doc of docFiles) {
-      try {
-        const text = await this.app.vault.cachedRead(doc);
-        docTexts.push(text);
-      } catch (e) {
-      }
-    }
-    let remoteImages = [];
+    const rawText = freshRead ? await plugin.app.vault.read(doc) : await plugin.app.vault.cachedRead(doc);
+    let decodedText = rawText;
     try {
-      remoteImages = await this.fetchRemoteFileList();
+      decodedText = decodeURIComponent(rawText);
     } catch (e) {
     }
-    return computeVaultStatsFromEntries(allFiles, docTexts, remoteImages);
-  }
-  async exportAnalyticsReportToRoot(stats) {
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = formatDateYMD(now);
-    const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
-    const zh = this.getEffectiveLanguage() === "zh";
-    const locale = zh ? "zh-CN" : "en-US";
-    const labels = zh ? {
-      title: "\u77E5\u8BC6\u5E93\u62A5\u544A",
-      generated: "\u751F\u6210\u65F6\u95F4",
-      overview: "\u77E5\u8BC6\u5E93\u6982\u89C8",
-      notes: "\u7B14\u8BB0",
-      canvases: "\u767D\u677F",
-      words: "\u5B57\u8BCD\u6570",
-      links: "\u94FE\u63A5\u4E0E\u5D4C\u5165",
-      storage: "\u5B58\u50A8\u7528\u91CF",
-      location: "\u4F4D\u7F6E",
-      count: "\u6587\u4EF6\u6570",
-      size: "\u5927\u5C0F",
-      details: "\u5206\u7C7B",
-      vault: "\u77E5\u8BC6\u5E93",
-      server: "\u670D\u52A1\u5668",
-      images: "\u56FE\u7247",
-      audio: "\u97F3\u9891",
-      other: "\u5176\u4ED6",
-      cache: "WebP \u7F13\u5B58",
-      protected: "\u53D7\u4FDD\u62A4\u6587\u4EF6",
-      largest: "\u4F53\u79EF\u6700\u5927\u7684\u9644\u4EF6",
-      source: "\u6765\u6E90",
-      path: "\u6587\u4EF6\u8DEF\u5F84"
-    } : {
-      title: "Vault report",
-      generated: "Generated",
-      overview: "Vault overview",
-      notes: "Notes",
-      canvases: "Canvases",
-      words: "Words and CJK characters",
-      links: "Links and embeds",
-      storage: "Storage use",
-      location: "Location",
-      count: "Files",
-      size: "Size",
-      details: "Breakdown",
-      vault: "Vault",
-      server: "Server",
-      images: "Images",
-      audio: "Audio",
-      other: "Other",
-      cache: "WebP cache",
-      protected: "Protected files",
-      largest: "Largest attachments",
-      source: "Source",
-      path: "File path"
-    };
-    const lines = [
-      `# ${labels.title} (${dateStr})`,
-      ``,
-      `> ${labels.generated}: ${now.toLocaleString(locale)}`,
-      ``,
-      `## 1. ${labels.overview}`,
-      `- ${labels.notes}: **${stats.noteCount}**`,
-      `- ${labels.canvases}: **${stats.canvasCount}**`,
-      `- ${labels.words}: **${stats.totalWords.toLocaleString(locale)}**`,
-      `- ${labels.links}: **${stats.totalInternalLinks.toLocaleString(locale)}**`,
-      ``,
-      `## 2. ${labels.storage}`,
-      `| ${labels.location} | ${labels.count} | ${labels.size} | ${labels.details} |`,
-      `|---|---|---|---|`,
-      `| ${labels.vault} | ${stats.local.totalCount} | ${formatBytes(stats.local.totalBytes)} | ${labels.images}: ${stats.local.imageCount} (${formatBytes(stats.local.imageBytes)}), ${labels.audio}: ${stats.local.audioCount} (${formatBytes(stats.local.audioBytes)}), ${labels.other}: ${stats.local.otherCount} (${formatBytes(stats.local.otherBytes)}) |`,
-      `| ${labels.server} | ${stats.remote.totalCount} | ${formatBytes(stats.remote.rawBytes)} | ${labels.cache}: ${formatBytes(stats.remote.cacheBytes)}, ${labels.protected}: ${stats.remote.lockedCount} |`,
-      ``
-    ];
-    if (stats.topLargestAttachments && stats.topLargestAttachments.length > 0) {
-      lines.push(`## 3. ${labels.largest}`);
-      lines.push(`| ${labels.source} | ${labels.path} | ${labels.details} | ${labels.size} |`);
-      lines.push(`|---|---|---|---|`);
-      for (const item of stats.topLargestAttachments) {
-        const srcLabel = item.source === "local" ? labels.vault : labels.server;
-        const category = item.group === "image" ? labels.images : item.group === "audio" ? labels.audio : labels.other;
-        lines.push(`| ${srcLabel} | \`${item.path}\` | ${category} | ${formatBytes(item.size)} |`);
-      }
-      lines.push(``);
+    for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
+    if (decodedText !== rawText) {
+      for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
     }
-    await this.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-    new import_obsidian22.Notice(this.t("noticeReportGenerated", { path: reportPath }));
-  }
-};
-
-// src/plugin/link-rewrite.js
-var FileMasterLinkRewrite = class extends FileMasterHealthAnalytics {
-  rewriteContentLinks(content, removeItem, keepItem, docPathOrContext = "") {
-    if (typeof content !== "string" || !content) return content;
-    const docPath = typeof docPathOrContext === "string" ? docPathOrContext : (docPathOrContext == null ? void 0 : docPathOrContext.docPath) || "";
-    const customResolve = typeof docPathOrContext === "object" && typeof (docPathOrContext == null ? void 0 : docPathOrContext.resolveLink) === "function" ? docPathOrContext.resolveLink : null;
-    const resolveLink = (ref) => {
-      var _a, _b;
-      if (customResolve) return customResolve(ref);
-      if ((_b = (_a = this.app) == null ? void 0 : _a.metadataCache) == null ? void 0 : _b.getFirstLinkpathDest) {
-        const tfile = this.app.metadataCache.getFirstLinkpathDest(ref, docPath || "");
-        return tfile ? tfile.path : null;
-      }
-      return null;
-    };
-    const isDocExcalidraw = docPath && (docPath.endsWith(".excalidraw.md") || docPath.endsWith(".excalidraw")) || !docPath && /(^##\s+Embedded [Ff]iles\s*?\r?\n)/m.test(content) || typeof isExcalidrawContent === "function" && isExcalidrawContent(content);
-    let excalSection = null;
-    let preSection = content;
-    let postSection = "";
-    const sectionRegex = /(^##\s+Embedded [Ff]iles\s*?\r?\n)([\s\S]*?)(?=(?:\r?\n## |\r?\n%%|\r?\n# |$))/m;
-    const match = isDocExcalidraw ? sectionRegex.exec(content) : null;
-    if (match) {
-      if (typeof rewriteExcalidrawEmbeddedFiles === "function") {
-        excalSection = rewriteExcalidrawEmbeddedFiles(match[0], removeItem, keepItem, { docPath, resolveLink });
-      } else {
-        excalSection = match[0];
-      }
-      preSection = content.slice(0, match.index);
-      postSection = content.slice(match.index + match[0].length);
-    }
-    const buildReplacementForWikiEmbed = (aliasOrWidth) => {
-      if (keepItem.source === "local") {
-        const suffix = aliasOrWidth ? `|${aliasOrWidth}` : "";
-        return `![[${keepItem.displayPath}${suffix}]]`;
-      } else {
-        const alt = aliasOrWidth || "";
-        return IMAGE_EXTS.has(keepItem.ext) ? `![${alt}](${keepItem.rawObj.rawUrl})` : `[\u{1F4CE} ${aliasOrWidth || keepItem.name}](${keepItem.rawObj.rawUrl})`;
-      }
-    };
-    const buildReplacementForWikiLink = (aliasText) => {
-      if (keepItem.source === "local") {
-        const suffix = aliasText ? `|${aliasText}` : "";
-        return `[[${keepItem.displayPath}${suffix}]]`;
-      } else {
-        return `[${aliasText || keepItem.name}](${keepItem.rawObj.rawUrl})`;
-      }
-    };
-    const buildReplacementForMdLink = (isEmbed, altText) => {
-      if (keepItem.source === "local") {
-        const prefix = isEmbed ? "!" : "";
-        const alias = altText ? `|${altText}` : "";
-        return `${prefix}[[${keepItem.displayPath}${alias}]]`;
-      } else {
-        if (isEmbed && IMAGE_EXTS.has(keepItem.ext)) {
-          return `![${altText || ""}](${keepItem.rawObj.rawUrl})`;
-        }
-        return `[${altText || "\u{1F4CE} " + keepItem.name}](${keepItem.rawObj.rawUrl})`;
-      }
-    };
-    const rewriteMarkdownFragment = (fragment) => {
-      if (!fragment) return fragment;
-      let updated = fragment;
-      if (removeItem.source === "local") {
-        const candidates = /* @__PURE__ */ new Set([
-          removeItem.displayPath,
-          removeItem.name,
-          encodeURI(removeItem.displayPath),
-          encodeURI(removeItem.name),
-          encodeURIComponent(removeItem.name)
-        ]);
-        const isBareCandidate = (c) => !c.includes("/");
-        for (const cand of candidates) {
-          const esc = escapeRegExp(cand);
-          const isBare = isBareCandidate(cand);
-          const checkBareMatchAllowed = () => {
-            var _a, _b;
-            if (!isBare) return true;
-            const hasActiveResolver = Boolean(
-              customResolve || ((_b = (_a = this.app) == null ? void 0 : _a.metadataCache) == null ? void 0 : _b.getFirstLinkpathDest) && docPath
-            );
-            if (hasActiveResolver) {
-              const dest = resolveLink(cand);
-              if (!dest) {
-                return false;
-              }
-              const destPath = dest.toLowerCase().replace(/^\.?\//, "");
-              const targetPath = (removeItem.displayPath || "").toLowerCase().replace(/^\.?\//, "");
-              return destPath === targetPath;
-            }
-            return true;
-          };
-          const wikiEmbedRe = new RegExp(`!\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, "g");
-          updated = updated.replace(wikiEmbedRe, (m, alias) => {
-            if (!checkBareMatchAllowed()) return m;
-            return buildReplacementForWikiEmbed(alias);
-          });
-          const wikiLinkRe = new RegExp(`(?<!!)\\[\\[(?:\\.\\/)?${esc}(?:#[^\\]|]*)?(?:\\|([^\\]]*))?\\]\\]`, "g");
-          updated = updated.replace(wikiLinkRe, (m, alias) => {
-            if (!checkBareMatchAllowed()) return m;
-            return buildReplacementForWikiLink(alias);
-          });
-          const mdLinkRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(<?(?:\\.\\.?\\/)*${esc}(?:[?#][^)\\s>]*)?>?\\)`, "g");
-          updated = updated.replace(mdLinkRe, (m, bang, alt) => {
-            if (!checkBareMatchAllowed()) return m;
-            return buildReplacementForMdLink(bang === "!", alt);
-          });
-        }
-        if (keepItem.source === "local") {
-          updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.displayPath}"`);
-        } else {
-          updated = updated.split(`"${removeItem.displayPath}"`).join(`"${keepItem.rawObj.rawUrl}"`);
-        }
-      } else {
-        const r = removeItem.rawObj;
-        const encodedName = encodeURIComponent(r.filename);
-        const urlPatterns = /* @__PURE__ */ new Set([
-          r.rawUrl,
-          r.pubUrl,
-          `${r.year}/${r.month}/${r.filename}`,
-          `${r.year}/${r.month}/${encodedName}`
-        ]);
-        for (const pat of urlPatterns) {
-          if (!pat) continue;
-          const esc = escapeRegExp(pat);
-          const remoteMdRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(([^)\\s]*${esc})(?:[?#][^)\\s]*)?\\)`, "g");
-          updated = updated.replace(
-            remoteMdRe,
-            (_, bang, alt) => buildReplacementForMdLink(bang === "!", alt)
-          );
-        }
-        if (keepItem.source === "remote") {
-          if (r.rawUrl) updated = updated.split(r.rawUrl).join(keepItem.rawObj.rawUrl);
-          if (r.pubUrl) updated = updated.split(r.pubUrl).join(keepItem.rawObj.pubUrl);
-        }
-      }
-      return updated;
-    };
-    const rewrittenPre = rewriteMarkdownFragment(preSection);
-    const rewrittenPost = rewriteMarkdownFragment(postSection);
-    if (match && excalSection !== null) {
-      return rewrittenPre + excalSection + rewrittenPost;
-    }
-    return rewrittenPre;
-  }
-};
-
-// src/plugin/attachment-ops.js
-var import_obsidian23 = require("obsidian");
-var FileMasterAttachmentOps = class extends FileMasterLinkRewrite {
-  async executeDuplicateMergeSafely(groups, onComplete) {
-    return runAttachmentOperation(this, () => this.mergeDuplicateGroups(groups, onComplete));
-  }
-  async mergeDuplicateGroups(groups, onComplete) {
-    const tasks = [];
-    const remoteItemsToDelete = [];
-    for (const grp of groups) {
-      const keepItem = grp.items.find((i) => i.id === grp.keepId);
-      if (!keepItem) continue;
-      const removeItems = grp.items.filter((i) => i.id !== grp.keepId);
-      if (removeItems.length === 0) continue;
-      for (const rem of removeItems) {
-        if (rem.source === "remote" && !rem.locked) {
-          remoteItemsToDelete.push({ removeItem: rem, keepItem });
-        }
-      }
-      tasks.push({ keepItem, removeItems });
-    }
-    if (tasks.length === 0) {
-      new import_obsidian23.Notice(this.t("noDupToProcess"));
-      return;
-    }
-    if (remoteItemsToDelete.length > 0) {
-      const totalRemoteBytes = remoteItemsToDelete.reduce((s, x) => s + (x.removeItem.size || 0), 0);
-      const confirmed = await new Promise((resolve) => {
-        new ConfirmActionModal(
-          this.app,
-          this.t("confirmRemoteDupTitle"),
-          this.t("confirmRemoteDupMsg", { count: remoteItemsToDelete.length, size: formatBytes(totalRemoteBytes) }),
-          this.t("confirmRemoteDupBtn", { count: remoteItemsToDelete.length }),
-          resolve
-        ).open();
-      });
-      if (!confirmed) return;
-    }
-    const allDocs = this.app.vault.getFiles().filter((f) => this.isScannableDocFile(f));
-    const localPathsBeingRemoved = /* @__PURE__ */ new Set();
-    for (const { removeItems } of tasks) {
-      for (const rem of removeItems) {
-        if (rem.source === "local" && !rem.locked) {
-          localPathsBeingRemoved.add(rem.displayPath);
-        }
-      }
-    }
-    const pairs = tasks.flatMap(({ keepItem, removeItems }) => removeItems.map((removeItem) => ({ removeItem, keepItem })));
-    const rewritten = await rewriteAttachmentPairs(
-      this,
-      pairs,
-      allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path)
-    );
-    const modifiedDocsCount = rewritten.modified.size;
-    const postSnapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-    await this.indexRemoteReferences(pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj), postSnapshot);
-    const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === "local").map(({ removeItem, keepItem }) => ({
-      value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
-      id: removeItem.displayPath
-    }));
-    const matchLocalGate = createTextReferenceMatcher(localGatePatterns);
-    const remainingLocal = /* @__PURE__ */ new Map();
-    for (const doc of postSnapshot.docContents) {
-      if (localPathsBeingRemoved.has(doc.path)) continue;
-      for (const path of matchLocalGate(doc.rawText)) addReference(remainingLocal, path, doc.path);
-      if (doc.decodedText !== doc.rawText) {
-        for (const path of matchLocalGate(doc.decodedText)) addReference(remainingLocal, path, doc.path);
-      }
-    }
-    let deletedLocalCount = 0;
-    let deletedRemoteCount = 0;
-    let skippedBySafetyGate = 0;
-    for (const { keepItem, removeItems } of tasks) {
-      for (const rem of removeItems) {
-        if (rem.locked) {
-          continue;
-        }
-        if (!this.isReferenceSnapshotCurrent(postSnapshot)) {
-          skippedBySafetyGate++;
-          continue;
-        }
-        let remainingRefs = [];
-        if (rem.source === "local") {
-          remainingRefs = [...remainingLocal.get(rem.displayPath) || []];
-        } else {
-          remainingRefs = this.findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
-        }
-        if (remainingRefs.length > 0) {
-          console.warn(
-            `[FileMaster Safety Gate] Blocked deletion of ${rem.displayPath}; dangling references detected in notes:`,
-            remainingRefs
-          );
-          this.logOperation("WARN", "DEDUP_SAFETY_GATE", `Kept ${rem.displayPath} because references remain in notes`, { remainingRefs });
-          skippedBySafetyGate++;
-          continue;
-        }
-        if (rem.source === "local") {
-          try {
-            await this.app.vault.trash(rem.rawObj, true);
-            deletedLocalCount++;
-          } catch (err) {
-            skippedBySafetyGate++;
-            this.logOperation("WARN", "DEDUP_MERGE", `Failed to trash ${rem.displayPath}`, { error: err.message });
-          }
-        } else {
-          try {
-            await this.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
-            deletedRemoteCount++;
-          } catch (err) {
-            new import_obsidian23.Notice(this.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
-            this.logOperation("ERROR", "DEDUP_MERGE", `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
-          }
-        }
-      }
-    }
-    this.logOperation("INFO", "DEDUP_MERGE", `Merged duplicates: updated ${modifiedDocsCount} note(s), removed ${deletedLocalCount} local & ${deletedRemoteCount} remote file(s)`, {
-      modifiedDocsCount,
-      deletedLocalCount,
-      deletedRemoteCount,
-      skippedBySafetyGate
+    docContents.push({
+      file: doc,
+      path: doc.path,
+      rawText,
+      decodedText
     });
-    if (skippedBySafetyGate > 0) {
-      new import_obsidian23.Notice(
-        this.t("noticeDedupSafetyWarning", {
-          modified: modifiedDocsCount,
-          local: deletedLocalCount,
-          remote: deletedRemoteCount,
-          skipped: skippedBySafetyGate
-        })
-      );
-    } else {
-      new import_obsidian23.Notice(
-        this.t("noticeDedupSuccess", {
-          modified: modifiedDocsCount,
-          local: deletedLocalCount,
-          remote: deletedRemoteCount
-        })
-      );
-    }
-    if (onComplete) {
-      onComplete({
-        modified: modifiedDocsCount,
-        local: deletedLocalCount,
-        remote: deletedRemoteCount,
-        skipped: skippedBySafetyGate
-      });
+  }
+  if (!freshRead) {
+    const resolvedLinks = plugin.app.metadataCache.resolvedLinks || {};
+    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+      if (isReportFile(sourcePath)) {
+        continue;
+      }
+      for (const targetPath of Object.keys(targets || {})) {
+        addReference(localReferences, targetPath, sourcePath);
+      }
     }
   }
-  async migrateSingleLocalFileToRemote(tfile, { deleteLocal = true } = {}) {
-    var _a;
-    const result = await this.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
-    if (!result.count) throw new Error(((_a = result.failures[0]) == null ? void 0 : _a.error) || this.t("transferIntegrityFailed"));
-    new import_obsidian23.Notice(this.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
-    return result.processedItems[0].rawObj;
-  }
-  async resumePendingMigration() {
-    if (!this.isRemoteServerReady()) {
-      new import_obsidian23.Notice(this.t("noticeRemoteNotReady"));
-      return;
-    }
-    const adapter = this.app.vault.adapter;
-    const path = migrationCheckpointPath(this);
-    if (!await adapter.exists(path)) {
-      new import_obsidian23.Notice(this.t("transferNothingPending"));
-      return;
-    }
-    const checkpoint = JSON.parse(await adapter.read(path));
-    if (checkpoint.serverUrl !== this.getCleanServerUrl()) throw new Error(this.t("transferServerChanged"));
-    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-    const items = checkpoint.items.map((entry) => {
-      var _a;
-      const file = this.app.vault.getAbstractFileByPath(entry.path);
-      if (!file || Array.isArray(file.children)) return null;
-      return {
-        name: file.name,
-        displayPath: file.path,
-        size: ((_a = file.stat) == null ? void 0 : _a.size) || 0,
-        rawObj: file,
-        locked: Boolean(entry.locked),
-        selected: true,
-        refNotes: this.findReferencingNotesForLocalFile(file, snapshot)
-      };
-    }).filter(Boolean);
-    if (!items.length) {
-      new import_obsidian23.Notice(this.t("transferNothingPending"));
-      return;
-    }
-    const modal = new BatchMigrateWizardModal(this.app, this);
-    modal.options = { ...modal.options, ...checkpoint.options };
-    modal.items = items;
-    modal.step = 2;
-    modal.open();
-  }
-  async downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
-    const task = (signal) => this.downloadRemoteItemToLocal(remoteMatch, { ...options, signal });
-    return options.deferRewrite ? task(options.signal) : runAttachmentOperation(this, task, options.signal);
-  }
-  async downloadRemoteItemToLocal(remoteMatch, options = {}) {
-    var _a;
-    const silent = Boolean(options == null ? void 0 : options.silent);
-    try {
-      const { year, month, filename } = remoteMatch;
-      if (!silent) {
-        new import_obsidian23.Notice(this.t("noticeDownloadingFile", { name: filename }));
-      }
-      let remoteObj = remoteMatch.rawObj || null;
-      if (!remoteObj) {
-        try {
-          const list = await this.fetchRemoteFileList();
-          remoteObj = list.find(
-            (r) => r.year === year && r.month === month && r.filename === filename
-          );
-        } catch (e) {
-        }
-      }
-      const activeFile = (options == null ? void 0 : options.activeFile) || this.app.workspace.getActiveFile();
-      const sourcePath = activeFile ? activeFile.path : "";
-      const availablePath = remoteMatch.availablePath || await this.app.fileManager.getAvailablePathForAttachment(
-        filename,
-        sourcePath
-      );
-      const slashIdx = availablePath.lastIndexOf("/");
-      const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : "";
-      const idealPath = remoteMatch.idealPath || (targetDir ? `${targetDir}/${filename}` : filename);
-      let existingFile = remoteMatch.existingFile || null;
-      if (!existingFile) {
-        const byName = this.app.vault.getAbstractFileByPath(idealPath);
-        if (byName && !Array.isArray(byName.children)) {
-          existingFile = byName;
-        }
-      }
-      const hasConflict = Boolean(existingFile && !Array.isArray(existingFile.children));
-      const conflictStrategy = (options == null ? void 0 : options.conflictStrategy) || "rename";
-      let targetLocalFile = null;
-      let action = "downloaded";
-      if (hasConflict && conflictStrategy === "reuse") {
-        if (!(remoteObj == null ? void 0 : remoteObj.sha256) || await computeSha256Hex(await this.app.vault.readBinary(existingFile)) !== remoteObj.sha256) {
-          throw new Error(this.t("transferIntegrityFailed"));
-        }
-        targetLocalFile = existingFile;
-        action = "reused";
-      } else {
-        const downloadUrl = (remoteObj == null ? void 0 : remoteObj.rawUrl) ? `${remoteObj.rawUrl}?download=1` : `${remoteMatch.matchedUrl}?download=1`;
-        const response = await requestWithBackoff(() => (0, import_obsidian23.requestUrl)({
-          url: downloadUrl,
-          method: "GET",
-          headers: { Authorization: `Bearer ${this.settings.apiToken}` },
-          throw: false
-        }), { signal: options.signal });
-        if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) {
-          throw new Error(`Failed to download remote file (HTTP ${response.status})`);
-        }
-        if (!(remoteObj == null ? void 0 : remoteObj.sha256) || await computeSha256Hex(response.arrayBuffer) !== remoteObj.sha256) {
-          throw new Error(this.t("transferIntegrityFailed"));
-        }
-        throwIfTransferCancelled(options.signal);
-        if (hasConflict && conflictStrategy === "overwrite") {
-          await this.app.vault.modifyBinary(existingFile, response.arrayBuffer);
-          targetLocalFile = existingFile;
-          action = "overwritten";
-        } else {
-          targetLocalFile = await this.app.vault.createBinary(availablePath, response.arrayBuffer);
-          action = "downloaded";
-        }
-      }
-      const removeItem = {
-        source: "remote",
-        name: filename,
-        ext: getExt(filename),
-        displayPath: `${year}/${month}/${filename}`,
-        rawObj: remoteObj || {
-          year,
-          month,
-          filename,
-          rawUrl: remoteMatch.matchedUrl,
-          pubUrl: `${this.getCleanServerUrl()}/pub/${year}/${month}/${getBaseName(filename)}.webp`
-        }
-      };
-      const keepItem = {
-        source: "local",
-        name: targetLocalFile.name,
-        ext: targetLocalFile.extension.toLowerCase(),
-        displayPath: targetLocalFile.path,
-        rawObj: targetLocalFile
-      };
-      const syncOtherNotes = (options == null ? void 0 : options.syncOtherNotes) !== void 0 ? Boolean(options.syncOtherNotes) : true;
-      const pair = { removeItem, keepItem };
-      const rewritten = options.deferRewrite ? null : await rewriteAttachmentPairs(
-        this,
-        [pair],
-        !syncOtherNotes && activeFile ? [activeFile.path] : null
-      );
-      const modifiedCount = (rewritten == null ? void 0 : rewritten.modified.size) || 0;
-      const syncedOtherNotePaths = [...(rewritten == null ? void 0 : rewritten.modified) || []].filter((path) => path !== (activeFile == null ? void 0 : activeFile.path));
-      if (!silent) {
-        new import_obsidian23.Notice(
-          this.t("noticeDownloadedToVault", {
-            name: filename,
-            path: targetLocalFile.path,
-            docs: modifiedCount
-          })
-        );
-      }
-      if (options == null ? void 0 : options.returnDetails) {
-        return {
-          file: targetLocalFile,
-          name: targetLocalFile.name,
-          originName: filename,
-          displayPath: targetLocalFile.path,
-          remotePath: `${year}/${month}/${filename}`,
-          size: ((_a = targetLocalFile.stat) == null ? void 0 : _a.size) || (remoteObj == null ? void 0 : remoteObj.size) || 0,
-          action,
-          pair,
-          modifiedDocs: modifiedCount,
-          syncedOtherNotes: syncedOtherNotePaths.length,
-          syncedOtherNotePaths
-        };
-      }
-      return targetLocalFile;
-    } catch (err) {
-      if (!silent) {
-        new import_obsidian23.Notice(this.t("noticeDownloadFailed", { err: err.message }));
-      }
-      throw err;
+  return {
+    docContents,
+    localReferences,
+    revision,
+    signal,
+    stable: revision === (plugin.referenceRevision || 0)
+  };
+}
+function isReferenceSnapshotCurrent(plugin, snapshot) {
+  return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
+}
+async function indexRemoteReferences(plugin, items, snapshot) {
+  var _a;
+  const patterns = [];
+  for (const item of items) {
+    const id = `${item.year}/${item.month}/${item.filename}`;
+    const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
+    for (const value of /* @__PURE__ */ new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+      if (value) patterns.push({ value, id });
     }
   }
-  async scanActiveNoteRemoteAttachments(activeFile) {
-    var _a;
-    const content = await this.app.vault.read(activeFile);
-    const serverBase = escapeRegExp(this.getCleanServerUrl());
-    const re = new RegExp(
-      `(${serverBase}\\/([^/\\s)]+)\\/(protected|\\d{4})\\/(keep|\\d{2})\\/([^)\\s]+))`,
-      "gi"
-    );
-    const matchesMap = /* @__PURE__ */ new Map();
-    let m;
-    while ((m = re.exec(content)) !== null) {
-      const fullUrl = m[1];
-      let filename = m[5].split(/[?#]/)[0];
-      try {
-        filename = decodeURIComponent(filename);
-      } catch (e) {
-      }
-      const key = `${m[3]}/${m[4]}/${filename}`;
-      if (!matchesMap.has(key)) {
-        matchesMap.set(key, {
-          matchedUrl: fullUrl,
-          cleanUrl: fullUrl.split(/[?#]/)[0],
-          routePrefix: m[2],
-          year: m[3],
-          month: m[4],
-          filename
-        });
-      }
-    }
-    if (matchesMap.size === 0) {
-      return [];
-    }
-    let remoteList = [];
-    try {
-      remoteList = await this.fetchRemoteFileList();
-    } catch (e) {
-    }
-    const snapshot = await this.buildVaultReferenceSnapshot();
-    await this.indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
-    const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
-    const localFilesBySize = /* @__PURE__ */ new Map();
-    const localHashCache = /* @__PURE__ */ new Map();
-    const getLocalFileSha256 = async (tfile) => {
-      if (!tfile || Array.isArray(tfile.children)) return null;
-      if (localHashCache.has(tfile.path)) return localHashCache.get(tfile.path);
-      try {
-        const buf = await this.app.vault.readBinary(tfile);
-        const h = await computeSha256Hex(buf);
-        localHashCache.set(tfile.path, h);
-        return h;
-      } catch (e) {
-        return null;
-      }
-    };
-    for (const f of this.app.vault.getFiles()) {
-      if (!isAttachmentExt(f.extension)) continue;
-      if (this.isLocalPathExcluded(f.path)) continue;
-      const sz = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
-      if (sz <= 0) continue;
-      if (!localFilesBySize.has(sz)) localFilesBySize.set(sz, []);
-      localFilesBySize.get(sz).push(f);
-    }
-    const out = [];
-    for (const match of matchesMap.values()) {
-      const { year, month, filename, matchedUrl, routePrefix } = match;
-      const remoteObj = remoteByPath.get(`${year}/${month}/${filename}`);
-      const availablePath = await this.app.fileManager.getAvailablePathForAttachment(
-        filename,
-        activeFile.path
-      );
-      const slashIdx = availablePath.lastIndexOf("/");
-      const targetDir = slashIdx > -1 ? availablePath.slice(0, slashIdx) : "";
-      const idealPath = targetDir ? `${targetDir}/${filename}` : filename;
-      const existingByName = this.app.vault.getAbstractFileByPath(idealPath);
-      const hasSameName = Boolean(existingByName && !Array.isArray(existingByName.children));
-      let existingFile = hasSameName ? existingByName : null;
-      let conflictType = null;
-      const remoteSha256 = (remoteObj == null ? void 0 : remoteObj.sha256) || null;
-      const remoteSize = (remoteObj == null ? void 0 : remoteObj.size) || 0;
-      if (remoteSha256) {
-        if (hasSameName) {
-          const sameNameHash = await getLocalFileSha256(existingByName);
-          if (sameNameHash && sameNameHash === remoteSha256) {
-            conflictType = "hash_and_name";
-            existingFile = existingByName;
-          }
-        }
-        if (!conflictType && remoteSize > 0) {
-          const candidates = localFilesBySize.get(remoteSize) || [];
-          const sortedCandidates = [...candidates].sort((a, b) => {
-            var _a2, _b;
-            const aInTarget = (((_a2 = a.parent) == null ? void 0 : _a2.path) || "") === targetDir ? 0 : 1;
-            const bInTarget = (((_b = b.parent) == null ? void 0 : _b.path) || "") === targetDir ? 0 : 1;
-            return aInTarget - bInTarget;
-          });
-          for (const cand of sortedCandidates) {
-            const candHash = await getLocalFileSha256(cand);
-            if (candHash && candHash === remoteSha256) {
-              conflictType = cand.path === idealPath ? "hash_and_name" : "hash_only";
-              existingFile = cand;
-              break;
-            }
-          }
-        }
-      }
-      if (!conflictType && hasSameName) {
-        conflictType = "name_only";
-        existingFile = existingByName;
-      }
-      const hasConflict = Boolean(conflictType && existingFile);
-      const refNotes = this.findReferencingNotesForRemoteItem({ year, month, filename }, snapshot);
-      const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
-      out.push({
-        id: `remote:${year}/${month}/${filename}`,
-        source: "remote",
-        name: filename,
-        filename,
-        ext: getExt(filename),
-        year,
-        month,
-        matchedUrl,
-        routePrefix,
-        displayPath: `${year}/${month}/${filename}`,
-        size: remoteSize,
-        sha256: remoteSha256,
-        rawObj: remoteObj || {
-          year,
-          month,
-          filename,
-          rawUrl: matchedUrl,
-          pubUrl: `${this.getCleanServerUrl()}/pub/${year}/${month}/${encodeURIComponent(getBaseName(filename))}.webp`
-        },
-        targetDir: targetDir || "/",
-        idealPath,
-        availablePath,
-        existingFile: hasConflict ? existingFile : null,
-        conflictType,
-        hasConflict,
-        refNotes,
-        otherRefNotes,
-        selected: true
-      });
-    }
-    return out;
-  }
-  async executeDownloadNoteDirect(activeFile, onProgress = null, options = {}) {
-    return runAttachmentOperation(this, async (signal) => {
-      const items = Array.isArray(options.items) ? options.items : await this.scanActiveNoteRemoteAttachments(activeFile);
-      const processedItems = [], failures = [], retryItems = [], pairs = [];
-      for (let i = 0; i < items.length; i++) {
-        if (signal.aborted) {
-          retryItems.push(...items.slice(i));
-          break;
-        }
-        const item = items[i];
-        onProgress == null ? void 0 : onProgress(i + 1, items.length, item.filename || item.name);
-        try {
-          const detail = await this.downloadSingleRemoteItemToLocal(item, {
-            ...options,
-            signal,
-            activeFile,
-            silent: true,
-            returnDetails: true,
-            deferRewrite: true
-          });
-          pairs.push(detail.pair);
-          processedItems.push({
-            source: "local",
-            name: detail.name,
-            ext: getExt(detail.name),
-            displayPath: detail.displayPath,
-            remotePath: detail.remotePath,
-            size: detail.size,
-            action: detail.action,
-            rawObj: detail.file
-          });
-        } catch (err) {
-          retryItems.push(item);
-          if (err.name === "AbortError") {
-            retryItems.push(...items.slice(i + 1));
-            break;
-          }
-          failures.push({ name: item.filename || item.name, size: item.size || 0, error: err.message || String(err) });
-          this.logOperation("ERROR", "NOTE_DOWNLOAD", `Failed to download ${item.filename || item.name}`, { error: err.message });
-        }
-      }
-      const rewritten = pairs.length ? await rewriteAttachmentPairs(
-        this,
-        pairs,
-        options.syncOtherNotes === false ? [activeFile.path] : null
-      ) : null;
-      processedItems.forEach((item, i) => {
-        item.syncedOtherNotePaths = ((rewritten == null ? void 0 : rewritten.changedPaths.get(pairs[i])) || []).filter((path) => path !== activeFile.path);
-        item.syncedOtherNotes = item.syncedOtherNotePaths.length;
-      });
-      const summary = {
-        count: processedItems.length,
-        processedItems,
-        failures,
-        retryItems,
-        cancelled: Boolean(signal.aborted)
-      };
-      return options.returnDetails ? summary : summary.count;
-    }, options.signal);
-  }
-  async downloadActiveNoteRemoteAttachments(targetFile = null, options = {}) {
-    const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || !this.isDocFile(activeFile)) {
-      new import_obsidian23.Notice(this.t("noticeOpenMdFirst"));
-      return;
-    }
-    const modal = new ActiveNoteActionModal(this.app, this, activeFile, "download", options);
-    if (options == null ? void 0 : options.fromHub) {
-      this.openModalSafely(modal);
-    } else {
-      modal.open();
+  const match = createTextReferenceMatcher(patterns);
+  snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, /* @__PURE__ */ new Set()]));
+  for (let i = 0; i < snapshot.docContents.length; i++) {
+    if ((_a = snapshot.signal) == null ? void 0 : _a.aborted) throw new Error("SCAN_ABORTED");
+    if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+    const doc = snapshot.docContents[i];
+    for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
+    if (doc.decodedText !== doc.rawText) {
+      for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
     }
   }
-  /**
-   * Wizard 3 engine: scans local attachments eligible for batch migration (supports progress + abortSignal)
-   */
-  async scanLocalAttachmentsForBatchMigrate(options, scanCtx = {}) {
-    var _a;
-    const { signal, onProgress } = scanCtx || {};
-    const snapshot = await this.buildVaultReferenceSnapshot({ signal, onProgress });
-    const allowedGroups = /* @__PURE__ */ new Set();
-    if (options.typeImage) allowedGroups.add("image");
-    if (options.typeAudio) allowedGroups.add("audio");
-    if (options.typeOther) allowedGroups.add("other");
-    const prefix = String(options.folderPrefix || "").replace(/^\/+|\/+$/g, "");
-    const list = [];
-    const allFiles = this.app.vault.getFiles();
+}
+function findReferencingNotesForLocalFile(plugin, tfile, snapshot) {
+  return [...snapshot.localReferences.get(tfile.path) || []];
+}
+function findReferencingNotesForRemoteItem(plugin, remoteItem, snapshot) {
+  return [...snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || []];
+}
+async function scanUnusedFiles(plugin, options, scanCtx = {}) {
+  var _a;
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const allowedGroups = /* @__PURE__ */ new Set();
+  if (options.typeNote) allowedGroups.add("note");
+  if (options.typeImage) allowedGroups.add("image");
+  if (options.typeAudio) allowedGroups.add("audio");
+  if (options.typeOther) allowedGroups.add("other");
+  const unusedList = [];
+  if (options.scanLocal) {
+    const allFiles = plugin.app.vault.getFiles();
     for (let i = 0; i < allFiles.length; i++) {
       if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
       const f = allFiles[i];
@@ -8717,130 +8246,810 @@ var FileMasterAttachmentOps = class extends FileMasterLinkRewrite {
         onProgress(i + 1, allFiles.length, f.path);
         await new Promise((r) => setTimeout(r, 0));
       }
-      if (!isAttachmentExt(f.extension)) continue;
-      if (this.settings.uploadNonImageAttachments === false && !IMAGE_EXTS.has(f.extension.toLowerCase())) {
+      if (isReportFile(f.name) || f.extension === "canvas") {
         continue;
       }
-      if (prefix) {
-        if (f.path !== prefix && !f.path.startsWith(prefix + "/")) continue;
-      } else if (this.isLocalPathExcluded(f.path)) {
-        continue;
-      }
+      if (plugin.isLocalPathExcluded(f.path)) continue;
       const grp = getFileTypeGroup(f.extension);
       if (!allowedGroups.has(grp)) continue;
-      const refNotes = this.findReferencingNotesForLocalFile(f, snapshot);
-      list.push({
-        id: `local:${f.path}`,
-        source: "local",
-        name: f.name,
-        ext: f.extension.toLowerCase(),
-        displayPath: f.path,
-        size: ((_a = f.stat) == null ? void 0 : _a.size) || 0,
-        refNotes,
-        rawObj: f,
-        selected: true
-      });
+      const refs = plugin.findReferencingNotesForLocalFile(f, snapshot);
+      if (refs.length === 0) {
+        unusedList.push({
+          id: `local:${f.path}`,
+          source: "local",
+          typeGroup: grp,
+          name: f.name,
+          displayPath: f.path,
+          size: ((_a = f.stat) == null ? void 0 : _a.size) || 0,
+          rawObj: f,
+          selected: true
+        });
+      }
     }
-    return list;
   }
-  async executeBatchMigrateSafely(selectedItems, options, onProgress, onDone) {
-    const summary = await runAttachmentOperation(
-      this,
-      (signal) => migrateLocalAttachments(this, selectedItems, { ...options, signal }, onProgress),
-      options == null ? void 0 : options.signal
-    );
-    onDone == null ? void 0 : onDone(summary);
-    return summary;
+  if (options.scanRemote) {
+    try {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const remoteFiles = await plugin.fetchRemoteFileList();
+      await plugin.indexRemoteReferences(remoteFiles, snapshot);
+      for (let i = 0; i < remoteFiles.length; i++) {
+        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+        const r = remoteFiles[i];
+        if (onProgress && i % 30 === 0) {
+          onProgress(i + 1, remoteFiles.length, r.filename);
+          await new Promise((res) => setTimeout(res, 0));
+        }
+        if (plugin.settings.excludeLockedRemoteFiles && (r.locked || r.inProtectedFolder)) {
+          continue;
+        }
+        const ext = getExt(r.filename);
+        const grp = getFileTypeGroup(ext);
+        if (!allowedGroups.has(grp)) continue;
+        const refs = plugin.findReferencingNotesForRemoteItem(r, snapshot);
+        if (refs.length === 0) {
+          unusedList.push({
+            id: `remote:${r.year}/${r.month}/${r.filename}`,
+            source: "remote",
+            typeGroup: grp,
+            name: r.filename,
+            displayPath: `${r.year}/${r.month}/${r.filename}`,
+            size: r.size || 0,
+            rawObj: r,
+            selected: true
+          });
+        }
+      }
+    } catch (err) {
+      if (err.message === "SCAN_ABORTED") throw err;
+      if (!options.scanLocal) {
+        throw err;
+      }
+      new import_obsidian21.Notice(plugin.t("noticeRemoteUnreachable", { err: err.message }));
+    }
   }
-  async scanActiveNoteLocalAttachments(activeFile) {
-    const content = await this.app.vault.read(activeFile);
-    const wikiRegex = /!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
-    const mdLinkRegex = /!?\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
-    const localFilesMap = /* @__PURE__ */ new Map();
-    let m;
-    while ((m = wikiRegex.exec(content)) !== null) {
-      const tf = this.app.metadataCache.getFirstLinkpathDest(m[1].trim(), activeFile.path);
-      if (tf && isAttachmentExt(tf.extension)) {
-        localFilesMap.set(tf.path, tf);
+  return unusedList;
+}
+async function exportOrphanReportToRoot(plugin, results) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Unused_Files_Report_${dateStr}.md`;
+  const localItems = results.filter((r) => r.source === "local");
+  const remoteItems = results.filter((r) => r.source === "remote");
+  const totalBytes = results.reduce((s, r) => s + (r.size || 0), 0);
+  const lines = [
+    `# \u{1F9F9} Unused Files Inspection Report (${dateStr})`,
+    ``,
+    `> Generated: ${now.toLocaleString("en-US")}  |  Total Unused Files: **${results.length}**  |  Total Reclaimable Space: **${formatBytes(totalBytes)}**`,
+    ``
+  ];
+  lines.push(`## \u{1F4BB} 1. Local Vault Unused Files (${localItems.length})`);
+  if (localItems.length === 0) {
+    lines.push(`- No unused local files`);
+  } else {
+    for (const item of localItems) {
+      lines.push(`- [[${item.displayPath}]] \u2014 \`${formatBytes(item.size)}\``);
+    }
+  }
+  lines.push(``);
+  lines.push(`## \u2601\uFE0F 2. Remote Server Unused Files (${remoteItems.length})`);
+  if (remoteItems.length === 0) {
+    lines.push(`- No unused remote files`);
+  } else {
+    for (const item of remoteItems) {
+      lines.push(`- [${item.displayPath}](${item.rawObj.rawUrl}) \u2014 \`${formatBytes(item.size)}\``);
+    }
+  }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian21.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+async function writeOrUpdateRootReport(plugin, reportPath, content) {
+  const existing = plugin.app.vault.getAbstractFileByPath(reportPath);
+  let targetFile;
+  if (existing) {
+    await plugin.app.vault.modify(existing, content);
+    targetFile = existing;
+  } else {
+    targetFile = await plugin.app.vault.create(reportPath, content);
+  }
+  const leaf = plugin.app.workspace.getLeaf(false);
+  if (leaf && targetFile) {
+    await leaf.openFile(targetFile);
+  }
+}
+async function cleanSelectedOrphans(plugin, selectedItems, onDone) {
+  return runAttachmentOperation(plugin, () => plugin.cleanOrphanItems(selectedItems, onDone));
+}
+async function cleanOrphanItems(plugin, selectedItems, onDone) {
+  const remoteToClean = selectedItems.filter((i) => i.source === "remote");
+  const localToClean = selectedItems.filter((i) => i.source === "local");
+  if (remoteToClean.length > 0) {
+    const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
+    const confirmed = await new Promise((resolve) => {
+      new ConfirmActionModal(
+        plugin.app,
+        plugin.t("confirmRemoteOrphanTitle"),
+        plugin.t("confirmRemoteOrphanMsg", { count: remoteToClean.length, size: formatBytes(remoteBytes) }),
+        plugin.t("confirmRemoteOrphanBtn", { count: remoteToClean.length }),
+        resolve
+      ).open();
+    });
+    if (!confirmed) return;
+  }
+  let deletedLocal = 0;
+  let deletedRemote = 0;
+  let skipped = 0;
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  await plugin.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
+  for (const item of localToClean) {
+    if (!plugin.isReferenceSnapshotCurrent(snapshot)) {
+      skipped++;
+      continue;
+    }
+    if (plugin.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) {
+      skipped++;
+      continue;
+    }
+    try {
+      await plugin.app.vault.trash(item.rawObj, true);
+      deletedLocal++;
+    } catch (err) {
+      console.error("Failed to delete local file:", err);
+      plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
+    }
+  }
+  for (const item of remoteToClean) {
+    if (!plugin.isReferenceSnapshotCurrent(snapshot)) {
+      skipped++;
+      continue;
+    }
+    if (plugin.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) {
+      skipped++;
+      continue;
+    }
+    try {
+      await plugin.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
+      deletedRemote++;
+    } catch (err) {
+      new import_obsidian21.Notice(plugin.t("noticeRemoteDeleteFailed", { name: item.name, err: err.message }));
+      plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
+    }
+  }
+  plugin.logOperation("INFO", "ORPHAN_CLEANUP", `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
+    files: selectedItems.map((i) => i.displayPath)
+  });
+  new import_obsidian21.Notice(plugin.t("noticeCleanupComplete", { local: deletedLocal, remote: deletedRemote }));
+  if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
+}
+async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, scanCtx = {}) {
+  var _a, _b;
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const hashMap = /* @__PURE__ */ new Map();
+  const allowedGroups = /* @__PURE__ */ new Set();
+  if (!fileTypeOpts) {
+    allowedGroups.add("image");
+    allowedGroups.add("audio");
+    allowedGroups.add("other");
+    allowedGroups.add("note");
+  } else {
+    if (fileTypeOpts.typeImage) allowedGroups.add("image");
+    if (fileTypeOpts.typeAudio) allowedGroups.add("audio");
+    if (fileTypeOpts.typeOther) allowedGroups.add("other");
+    if (fileTypeOpts.typeNote) allowedGroups.add("note");
+  }
+  let localScanned = 0;
+  let remoteScanned = 0;
+  let remoteError = null;
+  const addItem = (sha256, itemObj) => {
+    if (!sha256) return;
+    if (!hashMap.has(sha256)) hashMap.set(sha256, []);
+    hashMap.get(sha256).push(itemObj);
+  };
+  const sizeBuckets = /* @__PURE__ */ new Map();
+  const getBucket = (sz) => {
+    let b = sizeBuckets.get(sz);
+    if (!b) {
+      b = { local: [], remote: [] };
+      sizeBuckets.set(sz, b);
+    }
+    return b;
+  };
+  if (scope === "local" || scope === "both") {
+    const allFiles = plugin.app.vault.getFiles();
+    for (const f of allFiles) {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      if (isReportFile(f.name) || f.extension === "canvas") {
+        continue;
+      }
+      if (plugin.isLocalPathExcluded(f.path)) continue;
+      const grp = getFileTypeGroup(f.extension);
+      if (!allowedGroups.has(grp)) continue;
+      const size = ((_a = f.stat) == null ? void 0 : _a.size) || 0;
+      if (size <= 0) continue;
+      getBucket(size).local.push(f);
+    }
+  }
+  if (scope === "remote" || scope === "both") {
+    try {
+      if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+      const remoteFiles = await plugin.fetchRemoteFileList();
+      await plugin.indexRemoteReferences(remoteFiles, snapshot);
+      for (const r of remoteFiles) {
+        if (!r.sha256) continue;
+        const ext = getExt(r.filename);
+        const grp = getFileTypeGroup(ext);
+        if (!allowedGroups.has(grp)) continue;
+        const size = r.size || 0;
+        getBucket(size).remote.push(r);
+      }
+    } catch (err) {
+      if (err.message === "SCAN_ABORTED") throw err;
+      if (scope === "remote") {
+        throw err;
+      }
+      remoteError = err.message;
+    }
+  }
+  const bucketEntries = [...sizeBuckets.entries()];
+  for (let bIdx = 0; bIdx < bucketEntries.length; bIdx++) {
+    if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+    const [, bucket] = bucketEntries[bIdx];
+    let hasConflict = false;
+    if (scope === "both") {
+      hasConflict = bucket.local.length + bucket.remote.length >= 2;
+    } else if (scope === "local") {
+      hasConflict = bucket.local.length >= 2;
+    } else if (scope === "remote") {
+      hasConflict = bucket.remote.length >= 2;
+    }
+    if (!hasConflict) continue;
+    if (scope === "remote" || scope === "both") {
+      for (const r of bucket.remote) {
+        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+        remoteScanned++;
+        const ext = getExt(r.filename);
+        const refNotes = plugin.findReferencingNotesForRemoteItem(r, snapshot);
+        addItem(r.sha256, {
+          id: `remote:${r.year}/${r.month}/${r.filename}`,
+          source: "remote",
+          name: r.filename,
+          ext,
+          displayPath: `${r.year}/${r.month}/${r.filename}`,
+          size: r.size || 0,
+          locked: Boolean(r.locked || r.inProtectedFolder),
+          refNotes,
+          rawObj: r
+        });
       }
     }
-    while ((m = mdLinkRegex.exec(content)) !== null) {
-      let rawTarget = m[2].trim().replace(/^<|>$/g, "");
-      try {
-        rawTarget = decodeURIComponent(rawTarget);
-      } catch (e) {
-      }
-      const tf = this.app.metadataCache.getFirstLinkpathDest(rawTarget, activeFile.path);
-      if (tf && isAttachmentExt(tf.extension)) {
-        localFilesMap.set(tf.path, tf);
+    if (scope === "local" || scope === "both") {
+      for (const f of bucket.local) {
+        if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
+        if (onProgress) {
+          onProgress(bIdx + 1, bucketEntries.length, f.path);
+        }
+        const buf = await plugin.app.vault.readBinary(f);
+        if (!buf || buf.byteLength === 0) continue;
+        localScanned++;
+        const sha256 = await computeSha256Hex(buf);
+        const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
+        addItem(sha256, {
+          id: `local:${f.path}`,
+          source: "local",
+          name: f.name,
+          ext: f.extension.toLowerCase(),
+          displayPath: f.path,
+          size: ((_b = f.stat) == null ? void 0 : _b.size) || buf.byteLength,
+          locked: false,
+          refNotes,
+          rawObj: f
+        });
       }
     }
-    const snapshot = await this.buildVaultReferenceSnapshot();
-    return Array.from(localFilesMap.values()).map((tf) => {
-      var _a;
-      const refNotes = this.findReferencingNotesForLocalFile(tf, snapshot);
-      const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
-      return {
-        id: `local:${tf.path}`,
-        source: "local",
-        name: tf.name,
-        ext: tf.extension.toLowerCase(),
-        displayPath: tf.path,
-        size: ((_a = tf.stat) == null ? void 0 : _a.size) || 0,
-        rawObj: tf,
-        tfile: tf,
-        refNotes,
-        otherRefNotes,
-        selected: true,
-        locked: false
-      };
+  }
+  const duplicateGroups = [];
+  for (const [sha256, items] of hashMap.entries()) {
+    if (items.length < 2) continue;
+    duplicateGroups.push({
+      sha256,
+      size: items[0].size || 0,
+      items,
+      keepId: items[0].id
     });
   }
-  async executeMigrateNoteDirect(activeFile, onProgress = null, options = {}) {
-    return runAttachmentOperation(this, async (signal) => {
-      var _a;
-      const items = Array.isArray(options.items) ? options.items : await this.scanActiveNoteLocalAttachments(activeFile);
-      const summary = await migrateLocalAttachments(this, items, {
-        ...options,
-        signal,
-        activeFile,
-        deleteLocalAfter: (_a = options.deleteLocalAfter) != null ? _a : this.settings.deleteLocalAfterMigrate,
-        documentPaths: options.syncOtherNotes === false ? [activeFile.path] : null
-      }, onProgress);
-      return options.returnDetails ? summary : summary.count;
-    }, options.signal);
+  return {
+    groups: duplicateGroups,
+    stats: { localScanned, remoteScanned, remoteError }
+  };
+}
+async function exportDuplicateReportToRoot(plugin, groups) {
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
+  const lines = [
+    `# \u{1F50D} Duplicate Files Inspection Report (${dateStr})`,
+    ``,
+    `> Generated: ${now.toLocaleString("en-US")}  |  Duplicate Groups: **${groups.length}**`,
+    ``
+  ];
+  if (groups.length === 0) {
+    lines.push(`\u{1F389} No duplicate files found.`);
+  } else {
+    groups.forEach((grp, idx) => {
+      lines.push(`## Duplicate Group #${idx + 1} (\`${grp.sha256.slice(0, 12)}...\`, Size: ${formatBytes(grp.size)})`);
+      for (const item of grp.items) {
+        const isKeep = grp.keepId === item.id ? " **[Current Keep Selection]**" : "";
+        const lockTag = item.locked ? " `\u{1F512} Protected`" : "";
+        const linkStr = item.source === "local" ? `\u{1F4BB} Local: [[${item.displayPath}]]` : `\u2601\uFE0F Remote: [${item.displayPath}](${item.rawObj.rawUrl})`;
+        const refsStr = item.refNotes.length > 0 ? `Referencing Notes: ${item.refNotes.map((n) => `[[${n}]]`).join(", ")}` : `No direct note references`;
+        lines.push(`- ${linkStr}${lockTag}${isKeep} \u2014 (${refsStr})`);
+      }
+      lines.push(``);
+    });
   }
-  async migrateActiveNoteAttachments(targetFile = null, options = {}) {
-    const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || !this.isDocFile(activeFile)) {
-      new import_obsidian23.Notice(this.t("noticeOpenMdFirst"));
-      return;
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian21.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+}
+async function exportBatchMigrateReportToRoot(plugin, summary) {
+  const now = /* @__PURE__ */ new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateStr = formatDateYMD(now);
+  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
+  const count = (summary == null ? void 0 : summary.count) || 0;
+  const docs = (summary == null ? void 0 : summary.docs) || 0;
+  const totalBytes = (summary == null ? void 0 : summary.totalBytes) || 0;
+  const trashed = (summary == null ? void 0 : summary.trashed) || 0;
+  const items = (summary == null ? void 0 : summary.processedItems) || [];
+  const failures = (summary == null ? void 0 : summary.failures) || [];
+  const trashFailures = (summary == null ? void 0 : summary.trashFailures) || [];
+  const lines = [
+    `# \u{1F680} \u6279\u91CF\u4E91\u7AEF\u8FC1\u79FB\u62A5\u544A / Batch Migration Report (${dateStr})`,
+    ``,
+    `> \u751F\u6210\u65F6\u95F4 / Generated: ${dateStr} ${timeStr}  |  \u6210\u529F\u8FC1\u79FB\u9644\u4EF6 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  \u66F4\u65B0\u7B14\u8BB0 / Notes Updated: **${docs}**  |  \u672C\u5730\u6E05\u7406 / Trashed: **${trashed}**`,
+    ``,
+    `## \u{1F4CA} \u8FC1\u79FB\u6C47\u603B\u7EDF\u8BA1 / Summary Statistics`,
+    `- **\u6210\u529F\u4E0A\u4F20\u6587\u4EF6 (Total Uploaded)**: ${count} \u4E2A (${formatBytes(totalBytes)})`,
+    `- **\u5F15\u7528\u94FE\u63A5\u5DF2\u66F4\u65B0\u7B14\u8BB0 (Notes Updated)**: ${docs} \u7BC7`,
+    `- **\u672C\u5730\u539F\u6587\u4EF6\u5DF2\u79FB\u5165\u56DE\u6536\u7AD9 (Local Trashed)**: ${trashed} \u4E2A`,
+    `- **\u4E0A\u4F20\u5931\u8D25\u9879 (Failed Uploads)**: ${failures.length} \u4E2A`,
+    ...trashFailures.length > 0 ? [`- **\u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 (Failed Local Cleanups)**: ${trashFailures.length} \u4E2A`] : [],
+    ``,
+    `## \u2601\uFE0F \u5DF2\u8FC1\u79FB\u9644\u4EF6\u6E05\u5355 / Migrated Assets (${items.length})`,
+    ``
+  ];
+  if (items.length === 0) {
+    lines.push(`- \u65E0\u5DF2\u8FC1\u79FB\u9644\u4EF6 / No assets were migrated.`);
+  } else {
+    lines.push(`| # | \u672C\u5730\u539F\u8DEF\u5F84 (Local Path) | \u670D\u52A1\u5668\u94FE\u63A5 (Remote URL) | \u6587\u4EF6\u5927\u5C0F (Size) | \u5F15\u7528\u6570 (Refs) |`);
+    lines.push(`|---|---|---|---|---|`);
+    items.forEach((item, idx) => {
+      const localPath = item.displayPath || item.name;
+      const remoteUrl = item.rawUrl || item.rawObj && item.rawObj.rawUrl || "";
+      const sizeStr = formatBytes(item.size || 0);
+      const refsCount = item.refNotesCount !== void 0 ? `${item.refNotesCount} \u7BC7` : "-";
+      const remoteLink = remoteUrl ? `[${item.name || "Link"}](${remoteUrl})` : "-";
+      lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
+    });
+  }
+  if (failures.length > 0) {
+    lines.push(``);
+    lines.push(`## \u26A0\uFE0F \u4E0A\u4F20\u5931\u8D25\u9879 / Failed Uploads (${failures.length})`);
+    lines.push(``);
+    failures.forEach((f, idx) => {
+      lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${f.error}`);
+    });
+  }
+  if (trashFailures.length > 0) {
+    lines.push(``);
+    lines.push(`## \u26A0\uFE0F \u672C\u5730\u6E05\u7406\u5931\u8D25\u9879 / Failed Local Cleanups (${trashFailures.length})`);
+    lines.push(``);
+    trashFailures.forEach((tf, idx) => {
+      lines.push(`- **#${idx + 1}**: \`${tf.path}\` \u2014 \u9519\u8BEF\u539F\u56E0 / Reason: ${tf.error}`);
+    });
+  }
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(`*Generated by File Master Obsidian Plugin*`);
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
+  new import_obsidian21.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  return reportPath;
+}
+async function openNoteAtLine(plugin, filePath, lineNumber) {
+  const file = plugin.app.vault.getAbstractFileByPath(filePath);
+  if (file && file instanceof import_obsidian21.TFile) {
+    const leaf = plugin.app.workspace.getLeaf(false);
+    await leaf.openFile(file);
+    const view = leaf.view;
+    if (view && view.editor && lineNumber) {
+      const lineIdx = Math.max(0, lineNumber - 1);
+      view.editor.setCursor({ line: lineIdx, ch: 0 });
+      view.editor.scrollIntoView(
+        { from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } },
+        true
+      );
     }
-    const modal = new ActiveNoteActionModal(this.app, this, activeFile, "migrate", options);
-    if (options == null ? void 0 : options.fromHub) {
-      this.openModalSafely(modal);
-    } else {
-      modal.open();
+  } else {
+    new import_obsidian21.Notice(plugin.t("noticeCannotOpenFile", { path: filePath }));
+  }
+}
+
+// src/plugin/vault-utils.js
+var import_obsidian22 = require("obsidian");
+function isDocFile2(plugin, file) {
+  return isDocFile(file, plugin.app);
+}
+function isScannableDocFile(plugin, file) {
+  return Boolean(file) && plugin.isDocFile(file) && !isReportFile(file.name);
+}
+function isExcalidrawFile2(plugin, file, content = null) {
+  return isExcalidrawFile(file, plugin.app, content);
+}
+function reloadOpenExcalidrawViews(plugin, filePath) {
+  var _a, _b;
+  if (!filePath || !((_a = plugin.app) == null ? void 0 : _a.workspace)) return;
+  try {
+    const leaves = plugin.app.workspace.getLeavesOfType("excalidraw");
+    for (const leaf of leaves) {
+      const viewFile = (_b = leaf.view) == null ? void 0 : _b.file;
+      if (viewFile && (viewFile.path === filePath || viewFile.name === filePath)) {
+        if (typeof leaf.view.reload === "function") {
+          leaf.view.reload();
+        } else if (typeof leaf.rebuildView === "function") {
+          leaf.rebuildView();
+        } else if (typeof leaf.setViewState === "function") {
+          const state = leaf.getViewState();
+          leaf.setViewState(state);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[FileMaster] Could not reload Excalidraw view:", err);
+  }
+}
+async function safeModifyFileContent(plugin, tfile, transformFn) {
+  let changed = false;
+  if (typeof plugin.app.vault.process === "function") {
+    await plugin.app.vault.process(tfile, (data) => {
+      const next = transformFn(data);
+      if (next !== data) changed = true;
+      return next;
+    });
+  } else {
+    const orig = await plugin.app.vault.read(tfile);
+    const next = transformFn(orig);
+    if (next !== orig) {
+      await plugin.app.vault.modify(tfile, next);
+      changed = true;
     }
   }
-  async copyActiveNoteForAstro(targetFile = null) {
-    const activeFile = targetFile || this.app.workspace.getActiveFile();
-    if (!activeFile || !this.isDocFile(activeFile)) {
-      new import_obsidian23.Notice(this.t("noticeOpenMdFirst"));
-      return;
-    }
-    const content = await this.app.vault.read(activeFile);
-    const converted = content.replace(
-      /\/[a-zA-Z0-9_-]+\/((?:protected|\d{4})\/(?:keep|\d{2})\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
-      "/pub/$1.webp"
-    );
-    await navigator.clipboard.writeText(converted);
-    new import_obsidian23.Notice(this.t("noticeAstroCopied"));
+  if (changed && plugin.isExcalidrawFile(tfile)) {
+    plugin.reloadOpenExcalidrawViews(tfile.path);
   }
-};
+  return changed;
+}
+function openModalSafely(plugin, modal) {
+  setTimeout(() => {
+    modal.open();
+    if (modal.bgEl) {
+      modal.bgEl.style.pointerEvents = "none";
+      setTimeout(() => {
+        if (modal.bgEl) modal.bgEl.style.pointerEvents = "";
+      }, 250);
+    }
+  }, 40);
+}
+function updateSidebarRibbonButton(plugin) {
+  if (plugin.sidebarRibbonEl) {
+    plugin.sidebarRibbonEl.remove();
+    plugin.sidebarRibbonEl = null;
+  }
+  if (plugin.settings.enableSidebarButton === false) {
+    return;
+  }
+  plugin.sidebarRibbonEl = plugin.addRibbonIcon(
+    "layers",
+    plugin.t("hubTitle"),
+    () => {
+      plugin.openModalSafely(new FileMasterHubModal(plugin.app, plugin));
+    }
+  );
+}
+function getExcludedLocalFolderList(plugin) {
+  return String(plugin.settings.excludedLocalFolders || "").split(/[,;\n]+/).map((s) => s.trim().replace(/^\/+|\/+$/g, "")).filter(Boolean);
+}
+function isLocalPathExcluded(plugin, filePath) {
+  const p = String(filePath || "").replace(/^\/+/, "");
+  const list = plugin.getExcludedLocalFolderList();
+  return list.some((folder) => p === folder || p.startsWith(folder + "/"));
+}
+async function toggleLocalFolderExclusion(plugin, folderPath) {
+  const clean = String(folderPath || "").replace(/^\/+|\/+$/g, "");
+  if (!clean) return;
+  const list = plugin.getExcludedLocalFolderList();
+  const idx = list.indexOf(clean);
+  if (idx > -1) {
+    list.splice(idx, 1);
+    new import_obsidian22.Notice(plugin.t("noticeExclRemoved", { path: clean }));
+  } else {
+    list.push(clean);
+    new import_obsidian22.Notice(plugin.t("noticeExclAdded", { path: clean }));
+  }
+  plugin.settings.excludedLocalFolders = list.join(", ");
+  await plugin.saveSettings();
+}
+function getAllVaultFolderPaths(plugin) {
+  var _a;
+  const folderSet = /* @__PURE__ */ new Set();
+  for (const f of plugin.app.vault.getFiles()) {
+    const parentPath = (_a = f.parent) == null ? void 0 : _a.path;
+    if (parentPath && parentPath !== "/") {
+      folderSet.add(parentPath);
+    }
+  }
+  return [...folderSet].sort();
+}
+async function getItemPreviewUrl(plugin, item) {
+  var _a, _b;
+  const ext = getExt(item.name);
+  if (!IMAGE_EXTS.has(ext)) return null;
+  if (item.source === "remote") {
+    return ((_a = item.rawObj) == null ? void 0 : _a.rawUrl) || null;
+  }
+  const tfile = item.rawObj;
+  if (!tfile) return null;
+  if (NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) {
+    const cacheKey = `${tfile.path}:${((_b = tfile.stat) == null ? void 0 : _b.mtime) || 0}`;
+    let previewUrl = plugin.heicPreviewCache.get(cacheKey);
+    if (!previewUrl) {
+      const buf = await plugin.app.vault.readBinary(tfile);
+      previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
+      plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    }
+    return previewUrl;
+  }
+  return plugin.app.vault.getResourcePath(tfile);
+}
 
 // src/plugin.js
-var FileMasterPlugin = class extends FileMasterAttachmentOps {
+var FileMasterPlugin = class extends import_obsidian23.Plugin {
+  executeDuplicateMergeSafely(...args) {
+    return executeDuplicateMergeSafely(this, ...args);
+  }
+  mergeDuplicateGroups(...args) {
+    return mergeDuplicateGroups(this, ...args);
+  }
+  migrateSingleLocalFileToRemote(...args) {
+    return migrateSingleLocalFileToRemote(this, ...args);
+  }
+  resumePendingMigration(...args) {
+    return resumePendingMigration(this, ...args);
+  }
+  downloadSingleRemoteItemToLocal(...args) {
+    return downloadSingleRemoteItemToLocal(this, ...args);
+  }
+  downloadRemoteItemToLocal(...args) {
+    return downloadRemoteItemToLocal(this, ...args);
+  }
+  scanActiveNoteRemoteAttachments(...args) {
+    return scanActiveNoteRemoteAttachments(this, ...args);
+  }
+  executeDownloadNoteDirect(...args) {
+    return executeDownloadNoteDirect(this, ...args);
+  }
+  downloadActiveNoteRemoteAttachments(...args) {
+    return downloadActiveNoteRemoteAttachments(this, ...args);
+  }
+  scanLocalAttachmentsForBatchMigrate(...args) {
+    return scanLocalAttachmentsForBatchMigrate(this, ...args);
+  }
+  executeBatchMigrateSafely(...args) {
+    return executeBatchMigrateSafely(this, ...args);
+  }
+  scanActiveNoteLocalAttachments(...args) {
+    return scanActiveNoteLocalAttachments(this, ...args);
+  }
+  executeMigrateNoteDirect(...args) {
+    return executeMigrateNoteDirect(this, ...args);
+  }
+  migrateActiveNoteAttachments(...args) {
+    return migrateActiveNoteAttachments(this, ...args);
+  }
+  copyActiveNoteForAstro(...args) {
+    return copyActiveNoteForAstro(this, ...args);
+  }
+  registerContextMenus(...args) {
+    return registerContextMenus(this, ...args);
+  }
+  extractRemoteItemFromLine(...args) {
+    return extractRemoteItemFromLine(this, ...args);
+  }
+  extractLocalAttachmentFromLine(...args) {
+    return extractLocalAttachmentFromLine(this, ...args);
+  }
+  setupHeicInlinePreviewObserver(...args) {
+    return setupHeicInlinePreviewObserver(this, ...args);
+  }
+  renderSingleHeicEmbed(...args) {
+    return renderSingleHeicEmbed(this, ...args);
+  }
+  scanVaultLinkHealth(...args) {
+    return scanVaultLinkHealth(this, ...args);
+  }
+  exportHealthReportToRoot(...args) {
+    return exportHealthReportToRoot(this, ...args);
+  }
+  scanVaultAnalytics(...args) {
+    return scanVaultAnalytics(this, ...args);
+  }
+  exportAnalyticsReportToRoot(...args) {
+    return exportAnalyticsReportToRoot(this, ...args);
+  }
+  onload(...args) {
+    return onload(this, ...args);
+  }
+  registerPluginCommands(...args) {
+    return registerPluginCommands(this, ...args);
+  }
+  updateCommandNames(...args) {
+    return updateCommandNames(this, ...args);
+  }
+  onLanguageChange(...args) {
+    return onLanguageChange(this, ...args);
+  }
+  getCompatibilityMessage(...args) {
+    return getCompatibilityMessage(this, ...args);
+  }
+  onunload(...args) {
+    return onunload(this, ...args);
+  }
+  initGalleryLeaf(...args) {
+    return initGalleryLeaf(this, ...args);
+  }
+  activateGalleryView(...args) {
+    return activateGalleryView(this, ...args);
+  }
+  insertMarkdownToActiveEditor(...args) {
+    return insertMarkdownToActiveEditor(this, ...args);
+  }
+  rewriteContentLinks(...args) {
+    return rewriteContentLinks(this, ...args);
+  }
+  getEffectiveLanguage(...args) {
+    return getEffectiveLanguage2(this, ...args);
+  }
+  t(...args) {
+    return t(this, ...args);
+  }
+  isRemoteServerReady(...args) {
+    return isRemoteServerReady(this, ...args);
+  }
+  getLogFilePath(...args) {
+    return getLogFilePath(this, ...args);
+  }
+  loadOperationLogs(...args) {
+    return loadOperationLogs(this, ...args);
+  }
+  saveOperationLogs(...args) {
+    return saveOperationLogs(this, ...args);
+  }
+  logOperation(...args) {
+    return logOperation(this, ...args);
+  }
+  clearOperationLogs(...args) {
+    return clearOperationLogs(this, ...args);
+  }
+  formatLogsForExport(...args) {
+    return formatLogsForExport(this, ...args);
+  }
+  filterAllowedFiles(...args) {
+    return filterAllowedFiles(this, ...args);
+  }
+  getCleanServerUrl(...args) {
+    return getCleanServerUrl(this, ...args);
+  }
+  handleIncomingBrowserFile(...args) {
+    return handleIncomingBrowserFile(this, ...args);
+  }
+  probeRemoteSha256(...args) {
+    return probeRemoteSha256(this, ...args);
+  }
+  uploadBufferToServer(...args) {
+    return uploadBufferToServer(this, ...args);
+  }
+  toggleRemoteFileLock(...args) {
+    return toggleRemoteFileLock(this, ...args);
+  }
+  checkServerCompatibility(...args) {
+    return checkServerCompatibility(this, ...args);
+  }
+  fetchServerVersion(...args) {
+    return fetchServerVersion(this, ...args);
+  }
+  fetchRemoteFileList(...args) {
+    return fetchRemoteFileList(this, ...args);
+  }
+  deleteRemoteFile(...args) {
+    return deleteRemoteFile(this, ...args);
+  }
+  buildVaultReferenceSnapshot(...args) {
+    return buildVaultReferenceSnapshot(this, ...args);
+  }
+  isReferenceSnapshotCurrent(...args) {
+    return isReferenceSnapshotCurrent(this, ...args);
+  }
+  indexRemoteReferences(...args) {
+    return indexRemoteReferences(this, ...args);
+  }
+  findReferencingNotesForLocalFile(...args) {
+    return findReferencingNotesForLocalFile(this, ...args);
+  }
+  findReferencingNotesForRemoteItem(...args) {
+    return findReferencingNotesForRemoteItem(this, ...args);
+  }
+  scanUnusedFiles(...args) {
+    return scanUnusedFiles(this, ...args);
+  }
+  exportOrphanReportToRoot(...args) {
+    return exportOrphanReportToRoot(this, ...args);
+  }
+  writeOrUpdateRootReport(...args) {
+    return writeOrUpdateRootReport(this, ...args);
+  }
+  cleanSelectedOrphans(...args) {
+    return cleanSelectedOrphans(this, ...args);
+  }
+  cleanOrphanItems(...args) {
+    return cleanOrphanItems(this, ...args);
+  }
+  scanDuplicateGroups(...args) {
+    return scanDuplicateGroups(this, ...args);
+  }
+  exportDuplicateReportToRoot(...args) {
+    return exportDuplicateReportToRoot(this, ...args);
+  }
+  exportBatchMigrateReportToRoot(...args) {
+    return exportBatchMigrateReportToRoot(this, ...args);
+  }
+  openNoteAtLine(...args) {
+    return openNoteAtLine(this, ...args);
+  }
+  isDocFile(...args) {
+    return isDocFile2(this, ...args);
+  }
+  isScannableDocFile(...args) {
+    return isScannableDocFile(this, ...args);
+  }
+  isExcalidrawFile(...args) {
+    return isExcalidrawFile2(this, ...args);
+  }
+  reloadOpenExcalidrawViews(...args) {
+    return reloadOpenExcalidrawViews(this, ...args);
+  }
+  safeModifyFileContent(...args) {
+    return safeModifyFileContent(this, ...args);
+  }
+  openModalSafely(...args) {
+    return openModalSafely(this, ...args);
+  }
+  updateSidebarRibbonButton(...args) {
+    return updateSidebarRibbonButton(this, ...args);
+  }
+  getExcludedLocalFolderList(...args) {
+    return getExcludedLocalFolderList(this, ...args);
+  }
+  isLocalPathExcluded(...args) {
+    return isLocalPathExcluded(this, ...args);
+  }
+  toggleLocalFolderExclusion(...args) {
+    return toggleLocalFolderExclusion(this, ...args);
+  }
+  getAllVaultFolderPaths(...args) {
+    return getAllVaultFolderPaths(this, ...args);
+  }
+  getItemPreviewUrl(...args) {
+    return getItemPreviewUrl(this, ...args);
+  }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
   }

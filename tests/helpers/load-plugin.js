@@ -21,6 +21,6 @@ function loadPlugin(requestUrl = async () => { throw new Error('Unexpected netwo
   helpersSource ||= esbuild.buildSync({ ...options, entryPoints: ['tests/helpers/entry.js'], write: false }).outputFiles[0].text;
   const helpers = evaluate(helpersSource);
   const Plugin = evaluate(fs.readFileSync(path.join(__dirname, '../../main.js'), 'utf8'));
-  return { ...helpers, Plugin, rewriteContentLinks: (...args) => Plugin.prototype.rewriteContentLinks(...args) };
+  return { ...helpers, Plugin, HostPlugin: obsidian.Plugin, rewriteContentLinks: (...args) => Plugin.prototype.rewriteContentLinks(...args) };
 }
 module.exports = { loadPlugin };

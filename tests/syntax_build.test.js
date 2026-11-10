@@ -33,3 +33,13 @@ test('mobile compatibility: manifest isDesktopOnly is false and main.js has no N
   assert.ok(!content.includes("require('fs')"), "main.js must not require('fs') for mobile compatibility");
   assert.ok(!content.includes('Buffer.from('), 'main.js must not rely on Node Buffer.from for mobile compatibility');
 });
+
+// Host inheritance is the only inheritance needed; services have explicit inputs.
+test('Plugin directly extends the Obsidian host and preserves public command methods', () => {
+  const { Plugin, HostPlugin } = require('./helpers/load-plugin').loadPlugin();
+  assert.strictEqual(Object.getPrototypeOf(Plugin.prototype), HostPlugin.prototype);
+  for (const name of ['registerPluginCommands', 'registerContextMenus', 'buildVaultReferenceSnapshot',
+    'uploadBufferToServer', 'resumePendingMigration', 'scanVaultLinkHealth', 'loadSettings', 'saveSettings']) {
+    assert.strictEqual(typeof Plugin.prototype[name], 'function');
+  }
+});

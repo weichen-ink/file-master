@@ -2,589 +2,581 @@ import { computeSha256Hex, formatBytes, formatDateYMD, getBaseName, getExt, getF
 import { ConfirmActionModal } from '../modals/dialogs.js';
 import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, stripRemoteReferenceText } from '../references.js';
 import { runAttachmentOperation } from '../transfers.js';
-import { FileMasterServerClient } from './server-client.js';
 import { Notice, TFile } from 'obsidian';
 
-export class FileMasterVaultScans extends FileMasterServerClient {
-  async buildVaultReferenceSnapshot(scanCtx = {}) {
-    const { signal, onProgress, freshRead = false } = scanCtx || {};
-    const revision = this.referenceRevision || 0;
-    const allFiles = this.app.vault.getFiles();
-    const docFiles = allFiles.filter((f) => this.isScannableDocFile(f));
-    const matchLocal = createLocalReferenceMatcher(allFiles, (file) => this.isExcalidrawFile(file));
-    const localReferences = new Map();
+// The plugin owns host state; these operations receive it explicitly.
+export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
+  const { signal, onProgress, freshRead = false } = scanCtx || {};
+  const revision = plugin.referenceRevision || 0;
+  const allFiles = plugin.app.vault.getFiles();
+  const docFiles = allFiles.filter((f) => plugin.isScannableDocFile(f));
+  const matchLocal = createLocalReferenceMatcher(allFiles, (file) => plugin.isExcalidrawFile(file));
+  const localReferences = new Map();
 
-    const docContents = [];
-    for (let i = 0; i < docFiles.length; i++) {
+  const docContents = [];
+  for (let i = 0; i < docFiles.length; i++) {
+    if (signal?.aborted) throw new Error('SCAN_ABORTED');
+    const doc = docFiles[i];
+    if (i % 25 === 0) {
+      onProgress?.(i + 1, docFiles.length, doc.path);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    const rawText = freshRead
+      ? await plugin.app.vault.read(doc)
+      : await plugin.app.vault.cachedRead(doc);
+    let decodedText = rawText;
+    try {
+      decodedText = decodeURIComponent(rawText);
+    } catch { }
+    for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
+    if (decodedText !== rawText) {
+      for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+    }
+    docContents.push({
+      file: doc,
+      path: doc.path,
+      rawText,
+      decodedText
+    });
+  }
+
+  if (!freshRead) {
+    const resolvedLinks = plugin.app.metadataCache.resolvedLinks || {};
+    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+      if (isReportFile(sourcePath)) {
+        continue;
+      }
+      for (const targetPath of Object.keys(targets || {})) {
+        addReference(localReferences, targetPath, sourcePath);
+      }
+    }
+  }
+
+  return { docContents, localReferences, revision, signal,
+    stable: revision === (plugin.referenceRevision || 0) };
+}
+
+export function isReferenceSnapshotCurrent(plugin, snapshot) {
+  return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
+}
+
+export async function indexRemoteReferences(plugin, items, snapshot) {
+  const patterns = [];
+  for (const item of items) {
+    const id = `${item.year}/${item.month}/${item.filename}`;
+    const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
+    for (const value of new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+      if (value) patterns.push({ value, id });
+    }
+  }
+  const match = createTextReferenceMatcher(patterns);
+  snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, new Set()]));
+  for (let i = 0; i < snapshot.docContents.length; i++) {
+    if (snapshot.signal?.aborted) throw new Error('SCAN_ABORTED');
+    if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+    const doc = snapshot.docContents[i];
+    for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
+    if (doc.decodedText !== doc.rawText) {
+      for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+    }
+  }
+}
+
+export function findReferencingNotesForLocalFile(plugin, tfile, snapshot) {
+  return [...(snapshot.localReferences.get(tfile.path) || [])];
+}
+
+export function findReferencingNotesForRemoteItem(plugin, remoteItem, snapshot) {
+  return [...(snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || [])];
+}
+
+export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const allowedGroups = new Set();
+  if (options.typeNote) allowedGroups.add('note');
+  if (options.typeImage) allowedGroups.add('image');
+  if (options.typeAudio) allowedGroups.add('audio');
+  if (options.typeOther) allowedGroups.add('other');
+
+  const unusedList = [];
+
+  if (options.scanLocal) {
+    const allFiles = plugin.app.vault.getFiles();
+    for (let i = 0; i < allFiles.length; i++) {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
-      const doc = docFiles[i];
-      if (i % 25 === 0) {
-        onProgress?.(i + 1, docFiles.length, doc.path);
+      const f = allFiles[i];
+      if (onProgress && i % 30 === 0) {
+        onProgress(i + 1, allFiles.length, f.path);
         await new Promise((r) => setTimeout(r, 0));
       }
-      const rawText = freshRead
-        ? await this.app.vault.read(doc)
-        : await this.app.vault.cachedRead(doc);
-      let decodedText = rawText;
-      try {
-        decodedText = decodeURIComponent(rawText);
-      } catch { }
-      for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
-      if (decodedText !== rawText) {
-        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+      if (isReportFile(f.name) || f.extension === 'canvas') {
+        continue;
       }
-      docContents.push({
-        file: doc,
-        path: doc.path,
-        rawText,
-        decodedText
-      });
-    }
+      if (plugin.isLocalPathExcluded(f.path)) continue;
 
-    if (!freshRead) {
-      const resolvedLinks = this.app.metadataCache.resolvedLinks || {};
-      for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
-        if (isReportFile(sourcePath)) {
-          continue;
-        }
-        for (const targetPath of Object.keys(targets || {})) {
-          addReference(localReferences, targetPath, sourcePath);
-        }
-      }
-    }
+      const grp = getFileTypeGroup(f.extension);
+      if (!allowedGroups.has(grp)) continue;
 
-    return { docContents, localReferences, revision, signal,
-      stable: revision === (this.referenceRevision || 0) };
-  }
-
-  isReferenceSnapshotCurrent(snapshot) {
-    return snapshot.stable && snapshot.revision === (this.referenceRevision || 0);
-  }
-
-  async indexRemoteReferences(items, snapshot) {
-    const patterns = [];
-    for (const item of items) {
-      const id = `${item.year}/${item.month}/${item.filename}`;
-      const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
-      for (const value of new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
-        if (value) patterns.push({ value, id });
-      }
-    }
-    const match = createTextReferenceMatcher(patterns);
-    snapshot.remoteReferences = new Map(items.map((item) => [`${item.year}/${item.month}/${item.filename}`, new Set()]));
-    for (let i = 0; i < snapshot.docContents.length; i++) {
-      if (snapshot.signal?.aborted) throw new Error('SCAN_ABORTED');
-      if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
-      const doc = snapshot.docContents[i];
-      for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
-      if (doc.decodedText !== doc.rawText) {
-        for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+      const refs = plugin.findReferencingNotesForLocalFile(f, snapshot);
+      if (refs.length === 0) {
+        unusedList.push({
+          id: `local:${f.path}`,
+          source: 'local',
+          typeGroup: grp,
+          name: f.name,
+          displayPath: f.path,
+          size: f.stat?.size || 0,
+          rawObj: f,
+          selected: true
+        });
       }
     }
   }
 
-  findReferencingNotesForLocalFile(tfile, snapshot) {
-    return [...(snapshot.localReferences.get(tfile.path) || [])];
-  }
-
-  findReferencingNotesForRemoteItem(remoteItem, snapshot) {
-    return [...(snapshot.remoteReferences.get(`${remoteItem.year}/${remoteItem.month}/${remoteItem.filename}`) || [])];
-  }
-
-  /**
-   * Wizard 1 engine: scans unused assets (supports progress reporting + abortSignal)
-   */
-  async scanUnusedFiles(options, scanCtx = {}) {
-    const { signal, onProgress } = scanCtx || {};
-    const snapshot = await this.buildVaultReferenceSnapshot({ signal, onProgress });
-    const allowedGroups = new Set();
-    if (options.typeNote) allowedGroups.add('note');
-    if (options.typeImage) allowedGroups.add('image');
-    if (options.typeAudio) allowedGroups.add('audio');
-    if (options.typeOther) allowedGroups.add('other');
-
-    const unusedList = [];
-
-    if (options.scanLocal) {
-      const allFiles = this.app.vault.getFiles();
-      for (let i = 0; i < allFiles.length; i++) {
+  if (options.scanRemote) {
+    try {
+      if (signal?.aborted) throw new Error('SCAN_ABORTED');
+      const remoteFiles = await plugin.fetchRemoteFileList();
+      await plugin.indexRemoteReferences(remoteFiles, snapshot);
+      for (let i = 0; i < remoteFiles.length; i++) {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
-        const f = allFiles[i];
+        const r = remoteFiles[i];
         if (onProgress && i % 30 === 0) {
-          onProgress(i + 1, allFiles.length, f.path);
-          await new Promise((r) => setTimeout(r, 0));
+          onProgress(i + 1, remoteFiles.length, r.filename);
+          await new Promise((res) => setTimeout(res, 0));
         }
-        if (isReportFile(f.name) || f.extension === 'canvas') {
+        if (plugin.settings.excludeLockedRemoteFiles && (r.locked || r.inProtectedFolder)) {
           continue;
         }
-        if (this.isLocalPathExcluded(f.path)) continue;
-
-        const grp = getFileTypeGroup(f.extension);
+        const ext = getExt(r.filename);
+        const grp = getFileTypeGroup(ext);
         if (!allowedGroups.has(grp)) continue;
 
-        const refs = this.findReferencingNotesForLocalFile(f, snapshot);
+        const refs = plugin.findReferencingNotesForRemoteItem(r, snapshot);
         if (refs.length === 0) {
           unusedList.push({
-            id: `local:${f.path}`,
-            source: 'local',
+            id: `remote:${r.year}/${r.month}/${r.filename}`,
+            source: 'remote',
             typeGroup: grp,
-            name: f.name,
-            displayPath: f.path,
-            size: f.stat?.size || 0,
-            rawObj: f,
+            name: r.filename,
+            displayPath: `${r.year}/${r.month}/${r.filename}`,
+            size: r.size || 0,
+            rawObj: r,
             selected: true
           });
         }
       }
-    }
-
-    if (options.scanRemote) {
-      try {
-        if (signal?.aborted) throw new Error('SCAN_ABORTED');
-        const remoteFiles = await this.fetchRemoteFileList();
-        await this.indexRemoteReferences(remoteFiles, snapshot);
-        for (let i = 0; i < remoteFiles.length; i++) {
-          if (signal?.aborted) throw new Error('SCAN_ABORTED');
-          const r = remoteFiles[i];
-          if (onProgress && i % 30 === 0) {
-            onProgress(i + 1, remoteFiles.length, r.filename);
-            await new Promise((res) => setTimeout(res, 0));
-          }
-          if (this.settings.excludeLockedRemoteFiles && (r.locked || r.inProtectedFolder)) {
-            continue;
-          }
-          const ext = getExt(r.filename);
-          const grp = getFileTypeGroup(ext);
-          if (!allowedGroups.has(grp)) continue;
-
-          const refs = this.findReferencingNotesForRemoteItem(r, snapshot);
-          if (refs.length === 0) {
-            unusedList.push({
-              id: `remote:${r.year}/${r.month}/${r.filename}`,
-              source: 'remote',
-              typeGroup: grp,
-              name: r.filename,
-              displayPath: `${r.year}/${r.month}/${r.filename}`,
-              size: r.size || 0,
-              rawObj: r,
-              selected: true
-            });
-          }
-        }
-      } catch (err) {
-        if (err.message === 'SCAN_ABORTED') throw err;
-        if (!options.scanLocal) {
-          throw err;
-        }
-        new Notice(this.t('noticeRemoteUnreachable', { err: err.message }));
+    } catch (err) {
+      if (err.message === 'SCAN_ABORTED') throw err;
+      if (!options.scanLocal) {
+        throw err;
       }
-    }
-
-    return unusedList;
-  }
-
-  async exportOrphanReportToRoot(results) {
-    const now = new Date();
-    const dateStr = formatDateYMD(now);
-    const reportPath = `Unused_Files_Report_${dateStr}.md`;
-
-    const localItems = results.filter((r) => r.source === 'local');
-    const remoteItems = results.filter((r) => r.source === 'remote');
-    const totalBytes = results.reduce((s, r) => s + (r.size || 0), 0);
-
-    const lines = [
-      `# 🧹 Unused Files Inspection Report (${dateStr})`,
-      ``,
-      `> Generated: ${now.toLocaleString('en-US')}  |  Total Unused Files: **${results.length}**  |  Total Reclaimable Space: **${formatBytes(totalBytes)}**`,
-      ``
-    ];
-
-    lines.push(`## 💻 1. Local Vault Unused Files (${localItems.length})`);
-    if (localItems.length === 0) {
-      lines.push(`- No unused local files`);
-    } else {
-      for (const item of localItems) {
-        lines.push(`- [[${item.displayPath}]] — \`${formatBytes(item.size)}\``);
-      }
-    }
-
-    lines.push(``);
-    lines.push(`## ☁️ 2. Remote Server Unused Files (${remoteItems.length})`);
-    if (remoteItems.length === 0) {
-      lines.push(`- No unused remote files`);
-    } else {
-      for (const item of remoteItems) {
-        lines.push(`- [${item.displayPath}](${item.rawObj.rawUrl}) — \`${formatBytes(item.size)}\``);
-      }
-    }
-
-    await this.writeOrUpdateRootReport(reportPath, lines.join('\n'));
-    new Notice(this.t('noticeReportGenerated', { path: reportPath }));
-  }
-
-  async writeOrUpdateRootReport(reportPath, content) {
-    const existing = this.app.vault.getAbstractFileByPath(reportPath);
-    let targetFile;
-    if (existing) {
-      await this.app.vault.modify(existing, content);
-      targetFile = existing;
-    } else {
-      targetFile = await this.app.vault.create(reportPath, content);
-    }
-    const leaf = this.app.workspace.getLeaf(false);
-    if (leaf && targetFile) {
-      await leaf.openFile(targetFile);
+      new Notice(plugin.t('noticeRemoteUnreachable', { err: err.message }));
     }
   }
 
-  async cleanSelectedOrphans(selectedItems, onDone) {
-    return runAttachmentOperation(this, () => this.cleanOrphanItems(selectedItems, onDone));
+  return unusedList;
+}
+
+export async function exportOrphanReportToRoot(plugin, results) {
+  const now = new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Unused_Files_Report_${dateStr}.md`;
+
+  const localItems = results.filter((r) => r.source === 'local');
+  const remoteItems = results.filter((r) => r.source === 'remote');
+  const totalBytes = results.reduce((s, r) => s + (r.size || 0), 0);
+
+  const lines = [
+    `# 🧹 Unused Files Inspection Report (${dateStr})`,
+    ``,
+    `> Generated: ${now.toLocaleString('en-US')}  |  Total Unused Files: **${results.length}**  |  Total Reclaimable Space: **${formatBytes(totalBytes)}**`,
+    ``
+  ];
+
+  lines.push(`## 💻 1. Local Vault Unused Files (${localItems.length})`);
+  if (localItems.length === 0) {
+    lines.push(`- No unused local files`);
+  } else {
+    for (const item of localItems) {
+      lines.push(`- [[${item.displayPath}]] — \`${formatBytes(item.size)}\``);
+    }
   }
 
-  async cleanOrphanItems(selectedItems, onDone) {
-    const remoteToClean = selectedItems.filter((i) => i.source === 'remote');
-    const localToClean = selectedItems.filter((i) => i.source === 'local');
-
-    if (remoteToClean.length > 0) {
-      const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
-      const confirmed = await new Promise((resolve) => {
-        new ConfirmActionModal(
-          this.app,
-          this.t('confirmRemoteOrphanTitle'),
-          this.t('confirmRemoteOrphanMsg', { count: remoteToClean.length, size: formatBytes(remoteBytes) }),
-          this.t('confirmRemoteOrphanBtn', { count: remoteToClean.length }),
-          resolve
-        ).open();
-      });
-      if (!confirmed) return;
+  lines.push(``);
+  lines.push(`## ☁️ 2. Remote Server Unused Files (${remoteItems.length})`);
+  if (remoteItems.length === 0) {
+    lines.push(`- No unused remote files`);
+  } else {
+    for (const item of remoteItems) {
+      lines.push(`- [${item.displayPath}](${item.rawObj.rawUrl}) — \`${formatBytes(item.size)}\``);
     }
+  }
 
-    let deletedLocal = 0;
-    let deletedRemote = 0;
-    let skipped = 0;
-    const snapshot = await this.buildVaultReferenceSnapshot({ freshRead: true });
-    await this.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join('\n'));
+  new Notice(plugin.t('noticeReportGenerated', { path: reportPath }));
+}
 
-    for (const item of localToClean) {
-      if (!this.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
-      if (this.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) { skipped++; continue; }
-      try {
-        await this.app.vault.trash(item.rawObj, true);
-        deletedLocal++;
-      } catch (err) {
-        console.error('Failed to delete local file:', err);
-        this.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
-      }
-    }
+export async function writeOrUpdateRootReport(plugin, reportPath, content) {
+  const existing = plugin.app.vault.getAbstractFileByPath(reportPath);
+  let targetFile;
+  if (existing) {
+    await plugin.app.vault.modify(existing, content);
+    targetFile = existing;
+  } else {
+    targetFile = await plugin.app.vault.create(reportPath, content);
+  }
+  const leaf = plugin.app.workspace.getLeaf(false);
+  if (leaf && targetFile) {
+    await leaf.openFile(targetFile);
+  }
+}
 
-    for (const item of remoteToClean) {
-      if (!this.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
-      if (this.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) { skipped++; continue; }
-      try {
-        await this.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
-        deletedRemote++;
-      } catch (err) {
-        new Notice(this.t('noticeRemoteDeleteFailed', { name: item.name, err: err.message }));
-        this.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
-      }
-    }
+export async function cleanSelectedOrphans(plugin, selectedItems, onDone) {
+  return runAttachmentOperation(plugin, () => plugin.cleanOrphanItems(selectedItems, onDone));
+}
 
-    this.logOperation('INFO', 'ORPHAN_CLEANUP', `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
-      files: selectedItems.map((i) => i.displayPath)
+export async function cleanOrphanItems(plugin, selectedItems, onDone) {
+  const remoteToClean = selectedItems.filter((i) => i.source === 'remote');
+  const localToClean = selectedItems.filter((i) => i.source === 'local');
+
+  if (remoteToClean.length > 0) {
+    const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
+    const confirmed = await new Promise((resolve) => {
+      new ConfirmActionModal(
+        plugin.app,
+        plugin.t('confirmRemoteOrphanTitle'),
+        plugin.t('confirmRemoteOrphanMsg', { count: remoteToClean.length, size: formatBytes(remoteBytes) }),
+        plugin.t('confirmRemoteOrphanBtn', { count: remoteToClean.length }),
+        resolve
+      ).open();
     });
-    new Notice(this.t('noticeCleanupComplete', { local: deletedLocal, remote: deletedRemote }));
-    if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
+    if (!confirmed) return;
   }
 
-  /**
-   * Wizard 2 engine: scans duplicate asset groups with SHA-256 (supports progress + abortSignal)
-   */
-  async scanDuplicateGroups(scope, fileTypeOpts = null, scanCtx = {}) {
-    const { signal, onProgress } = scanCtx || {};
-    const snapshot = await this.buildVaultReferenceSnapshot({ signal, onProgress });
-    const hashMap = new Map();
-    const allowedGroups = new Set();
-    if (!fileTypeOpts) {
-      allowedGroups.add('image');
-      allowedGroups.add('audio');
-      allowedGroups.add('other');
-      allowedGroups.add('note');
-    } else {
-      if (fileTypeOpts.typeImage) allowedGroups.add('image');
-      if (fileTypeOpts.typeAudio) allowedGroups.add('audio');
-      if (fileTypeOpts.typeOther) allowedGroups.add('other');
-      if (fileTypeOpts.typeNote) allowedGroups.add('note');
+  let deletedLocal = 0;
+  let deletedRemote = 0;
+  let skipped = 0;
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
+  await plugin.indexRemoteReferences(remoteToClean.map((item) => item.rawObj), snapshot);
+
+  for (const item of localToClean) {
+    if (!plugin.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
+    if (plugin.findReferencingNotesForLocalFile(item.rawObj, snapshot).length) { skipped++; continue; }
+    try {
+      await plugin.app.vault.trash(item.rawObj, true);
+      deletedLocal++;
+    } catch (err) {
+      console.error('Failed to delete local file:', err);
+      plugin.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to move local file to trash: ${item.displayPath}`, { error: err.message });
     }
+  }
 
-    let localScanned = 0;
-    let remoteScanned = 0;
-    let remoteError = null;
+  for (const item of remoteToClean) {
+    if (!plugin.isReferenceSnapshotCurrent(snapshot)) { skipped++; continue; }
+    if (plugin.findReferencingNotesForRemoteItem(item.rawObj, snapshot).length) { skipped++; continue; }
+    try {
+      await plugin.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
+      deletedRemote++;
+    } catch (err) {
+      new Notice(plugin.t('noticeRemoteDeleteFailed', { name: item.name, err: err.message }));
+      plugin.logOperation('ERROR', 'ORPHAN_CLEANUP', `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
+    }
+  }
 
-    const addItem = (sha256, itemObj) => {
-      if (!sha256) return;
-      if (!hashMap.has(sha256)) hashMap.set(sha256, []);
-      hashMap.get(sha256).push(itemObj);
-    };
+  plugin.logOperation('INFO', 'ORPHAN_CLEANUP', `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
+    files: selectedItems.map((i) => i.displayPath)
+  });
+  new Notice(plugin.t('noticeCleanupComplete', { local: deletedLocal, remote: deletedRemote }));
+  if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
+}
 
-    const sizeBuckets = new Map();
-    const getBucket = (sz) => {
-      let b = sizeBuckets.get(sz);
-      if (!b) {
-        b = { local: [], remote: [] };
-        sizeBuckets.set(sz, b);
+export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, scanCtx = {}) {
+  const { signal, onProgress } = scanCtx || {};
+  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const hashMap = new Map();
+  const allowedGroups = new Set();
+  if (!fileTypeOpts) {
+    allowedGroups.add('image');
+    allowedGroups.add('audio');
+    allowedGroups.add('other');
+    allowedGroups.add('note');
+  } else {
+    if (fileTypeOpts.typeImage) allowedGroups.add('image');
+    if (fileTypeOpts.typeAudio) allowedGroups.add('audio');
+    if (fileTypeOpts.typeOther) allowedGroups.add('other');
+    if (fileTypeOpts.typeNote) allowedGroups.add('note');
+  }
+
+  let localScanned = 0;
+  let remoteScanned = 0;
+  let remoteError = null;
+
+  const addItem = (sha256, itemObj) => {
+    if (!sha256) return;
+    if (!hashMap.has(sha256)) hashMap.set(sha256, []);
+    hashMap.get(sha256).push(itemObj);
+  };
+
+  const sizeBuckets = new Map();
+  const getBucket = (sz) => {
+    let b = sizeBuckets.get(sz);
+    if (!b) {
+      b = { local: [], remote: [] };
+      sizeBuckets.set(sz, b);
+    }
+    return b;
+  };
+
+  if (scope === 'local' || scope === 'both') {
+    const allFiles = plugin.app.vault.getFiles();
+    for (const f of allFiles) {
+      if (signal?.aborted) throw new Error('SCAN_ABORTED');
+      if (isReportFile(f.name) || f.extension === 'canvas') {
+        continue;
       }
-      return b;
-    };
+      if (plugin.isLocalPathExcluded(f.path)) continue;
 
-    if (scope === 'local' || scope === 'both') {
-      const allFiles = this.app.vault.getFiles();
-      for (const f of allFiles) {
-        if (signal?.aborted) throw new Error('SCAN_ABORTED');
-        if (isReportFile(f.name) || f.extension === 'canvas') {
-          continue;
-        }
-        if (this.isLocalPathExcluded(f.path)) continue;
+      const grp = getFileTypeGroup(f.extension);
+      if (!allowedGroups.has(grp)) continue;
 
-        const grp = getFileTypeGroup(f.extension);
+      const size = f.stat?.size || 0;
+      if (size <= 0) continue;
+
+      getBucket(size).local.push(f);
+    }
+  }
+
+  if (scope === 'remote' || scope === 'both') {
+    try {
+      if (signal?.aborted) throw new Error('SCAN_ABORTED');
+      const remoteFiles = await plugin.fetchRemoteFileList();
+      await plugin.indexRemoteReferences(remoteFiles, snapshot);
+      for (const r of remoteFiles) {
+        if (!r.sha256) continue;
+        const ext = getExt(r.filename);
+        const grp = getFileTypeGroup(ext);
         if (!allowedGroups.has(grp)) continue;
 
-        const size = f.stat?.size || 0;
-        if (size <= 0) continue;
-
-        getBucket(size).local.push(f);
+        const size = r.size || 0;
+        getBucket(size).remote.push(r);
       }
+    } catch (err) {
+      if (err.message === 'SCAN_ABORTED') throw err;
+      if (scope === 'remote') {
+        throw err;
+      }
+      remoteError = err.message;
     }
+  }
+
+  const bucketEntries = [...sizeBuckets.entries()];
+  for (let bIdx = 0; bIdx < bucketEntries.length; bIdx++) {
+    if (signal?.aborted) throw new Error('SCAN_ABORTED');
+    const [, bucket] = bucketEntries[bIdx];
+    let hasConflict = false;
+    if (scope === 'both') {
+      hasConflict = (bucket.local.length + bucket.remote.length) >= 2;
+    } else if (scope === 'local') {
+      hasConflict = bucket.local.length >= 2;
+    } else if (scope === 'remote') {
+      hasConflict = bucket.remote.length >= 2;
+    }
+
+    if (!hasConflict) continue;
 
     if (scope === 'remote' || scope === 'both') {
-      try {
+      for (const r of bucket.remote) {
         if (signal?.aborted) throw new Error('SCAN_ABORTED');
-        const remoteFiles = await this.fetchRemoteFileList();
-        await this.indexRemoteReferences(remoteFiles, snapshot);
-        for (const r of remoteFiles) {
-          if (!r.sha256) continue;
-          const ext = getExt(r.filename);
-          const grp = getFileTypeGroup(ext);
-          if (!allowedGroups.has(grp)) continue;
-
-          const size = r.size || 0;
-          getBucket(size).remote.push(r);
-        }
-      } catch (err) {
-        if (err.message === 'SCAN_ABORTED') throw err;
-        if (scope === 'remote') {
-          throw err;
-        }
-        remoteError = err.message;
+        remoteScanned++;
+        const ext = getExt(r.filename);
+        const refNotes = plugin.findReferencingNotesForRemoteItem(r, snapshot);
+        addItem(r.sha256, {
+          id: `remote:${r.year}/${r.month}/${r.filename}`,
+          source: 'remote',
+          name: r.filename,
+          ext,
+          displayPath: `${r.year}/${r.month}/${r.filename}`,
+          size: r.size || 0,
+          locked: Boolean(r.locked || r.inProtectedFolder),
+          refNotes,
+          rawObj: r
+        });
       }
     }
 
-    const bucketEntries = [...sizeBuckets.entries()];
-    for (let bIdx = 0; bIdx < bucketEntries.length; bIdx++) {
-      if (signal?.aborted) throw new Error('SCAN_ABORTED');
-      const [, bucket] = bucketEntries[bIdx];
-      let hasConflict = false;
-      if (scope === 'both') {
-        hasConflict = (bucket.local.length + bucket.remote.length) >= 2;
-      } else if (scope === 'local') {
-        hasConflict = bucket.local.length >= 2;
-      } else if (scope === 'remote') {
-        hasConflict = bucket.remote.length >= 2;
-      }
-
-      if (!hasConflict) continue;
-
-      if (scope === 'remote' || scope === 'both') {
-        for (const r of bucket.remote) {
-          if (signal?.aborted) throw new Error('SCAN_ABORTED');
-          remoteScanned++;
-          const ext = getExt(r.filename);
-          const refNotes = this.findReferencingNotesForRemoteItem(r, snapshot);
-          addItem(r.sha256, {
-            id: `remote:${r.year}/${r.month}/${r.filename}`,
-            source: 'remote',
-            name: r.filename,
-            ext,
-            displayPath: `${r.year}/${r.month}/${r.filename}`,
-            size: r.size || 0,
-            locked: Boolean(r.locked || r.inProtectedFolder),
-            refNotes,
-            rawObj: r
-          });
+    if (scope === 'local' || scope === 'both') {
+      for (const f of bucket.local) {
+        if (signal?.aborted) throw new Error('SCAN_ABORTED');
+        if (onProgress) {
+          onProgress(bIdx + 1, bucketEntries.length, f.path);
         }
-      }
+        const buf = await plugin.app.vault.readBinary(f);
+        if (!buf || buf.byteLength === 0) continue;
+        localScanned++;
 
-      if (scope === 'local' || scope === 'both') {
-        for (const f of bucket.local) {
-          if (signal?.aborted) throw new Error('SCAN_ABORTED');
-          if (onProgress) {
-            onProgress(bIdx + 1, bucketEntries.length, f.path);
-          }
-          const buf = await this.app.vault.readBinary(f);
-          if (!buf || buf.byteLength === 0) continue;
-          localScanned++;
+        const sha256 = await computeSha256Hex(buf);
+        const refNotes = plugin.findReferencingNotesForLocalFile(f, snapshot);
 
-          const sha256 = await computeSha256Hex(buf);
-          const refNotes = this.findReferencingNotesForLocalFile(f, snapshot);
-
-          addItem(sha256, {
-            id: `local:${f.path}`,
-            source: 'local',
-            name: f.name,
-            ext: f.extension.toLowerCase(),
-            displayPath: f.path,
-            size: f.stat?.size || buf.byteLength,
-            locked: false,
-            refNotes,
-            rawObj: f
-          });
-        }
+        addItem(sha256, {
+          id: `local:${f.path}`,
+          source: 'local',
+          name: f.name,
+          ext: f.extension.toLowerCase(),
+          displayPath: f.path,
+          size: f.stat?.size || buf.byteLength,
+          locked: false,
+          refNotes,
+          rawObj: f
+        });
       }
     }
-
-    const duplicateGroups = [];
-    for (const [sha256, items] of hashMap.entries()) {
-      if (items.length < 2) continue;
-      duplicateGroups.push({
-        sha256,
-        size: items[0].size || 0,
-        items,
-        keepId: items[0].id
-      });
-    }
-
-    return {
-      groups: duplicateGroups,
-      stats: { localScanned, remoteScanned, remoteError }
-    };
   }
 
-  async exportDuplicateReportToRoot(groups) {
-    const now = new Date();
-    const dateStr = formatDateYMD(now);
-    const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
-
-    const lines = [
-      `# 🔍 Duplicate Files Inspection Report (${dateStr})`,
-      ``,
-      `> Generated: ${now.toLocaleString('en-US')}  |  Duplicate Groups: **${groups.length}**`,
-      ``
-    ];
-
-    if (groups.length === 0) {
-      lines.push(`🎉 No duplicate files found.`);
-    } else {
-      groups.forEach((grp, idx) => {
-        lines.push(`## Duplicate Group #${idx + 1} (\`${grp.sha256.slice(0, 12)}...\`, Size: ${formatBytes(grp.size)})`);
-        for (const item of grp.items) {
-          const isKeep = grp.keepId === item.id ? ' **[Current Keep Selection]**' : '';
-          const lockTag = item.locked ? ' `🔒 Protected`' : '';
-          const linkStr =
-            item.source === 'local'
-              ? `💻 Local: [[${item.displayPath}]]`
-              : `☁️ Remote: [${item.displayPath}](${item.rawObj.rawUrl})`;
-          const refsStr =
-            item.refNotes.length > 0
-              ? `Referencing Notes: ${item.refNotes.map((n) => `[[${n}]]`).join(', ')}`
-              : `No direct note references`;
-          lines.push(`- ${linkStr}${lockTag}${isKeep} — (${refsStr})`);
-        }
-        lines.push(``);
-      });
-    }
-
-    await this.writeOrUpdateRootReport(reportPath, lines.join('\n'));
-    new Notice(this.t('noticeReportGenerated', { path: reportPath }));
+  const duplicateGroups = [];
+  for (const [sha256, items] of hashMap.entries()) {
+    if (items.length < 2) continue;
+    duplicateGroups.push({
+      sha256,
+      size: items[0].size || 0,
+      items,
+      keepId: items[0].id
+    });
   }
 
-  async exportBatchMigrateReportToRoot(summary) {
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const dateStr = formatDateYMD(now);
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
+  return {
+    groups: duplicateGroups,
+    stats: { localScanned, remoteScanned, remoteError }
+  };
+}
 
-    const count = summary?.count || 0;
-    const docs = summary?.docs || 0;
-    const totalBytes = summary?.totalBytes || 0;
-    const trashed = summary?.trashed || 0;
-    const items = summary?.processedItems || [];
-    const failures = summary?.failures || [];
-    const trashFailures = summary?.trashFailures || [];
+export async function exportDuplicateReportToRoot(plugin, groups) {
+  const now = new Date();
+  const dateStr = formatDateYMD(now);
+  const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
 
-    const lines = [
-      `# 🚀 批量云端迁移报告 / Batch Migration Report (${dateStr})`,
-      ``,
-      `> 生成时间 / Generated: ${dateStr} ${timeStr}  |  成功迁移附件 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  更新笔记 / Notes Updated: **${docs}**  |  本地清理 / Trashed: **${trashed}**`,
-      ``,
-      `## 📊 迁移汇总统计 / Summary Statistics`,
-      `- **成功上传文件 (Total Uploaded)**: ${count} 个 (${formatBytes(totalBytes)})`,
-      `- **引用链接已更新笔记 (Notes Updated)**: ${docs} 篇`,
-      `- **本地原文件已移入回收站 (Local Trashed)**: ${trashed} 个`,
-      `- **上传失败项 (Failed Uploads)**: ${failures.length} 个`,
-      ...(trashFailures.length > 0 ? [`- **本地清理失败项 (Failed Local Cleanups)**: ${trashFailures.length} 个`] : []),
-      ``,
-      `## ☁️ 已迁移附件清单 / Migrated Assets (${items.length})`,
-      ``
-    ];
+  const lines = [
+    `# 🔍 Duplicate Files Inspection Report (${dateStr})`,
+    ``,
+    `> Generated: ${now.toLocaleString('en-US')}  |  Duplicate Groups: **${groups.length}**`,
+    ``
+  ];
 
-    if (items.length === 0) {
-      lines.push(`- 无已迁移附件 / No assets were migrated.`);
-    } else {
-      lines.push(`| # | 本地原路径 (Local Path) | 服务器链接 (Remote URL) | 文件大小 (Size) | 引用数 (Refs) |`);
-      lines.push(`|---|---|---|---|---|`);
-      items.forEach((item, idx) => {
-        const localPath = item.displayPath || item.name;
-        const remoteUrl = item.rawUrl || (item.rawObj && item.rawObj.rawUrl) || '';
-        const sizeStr = formatBytes(item.size || 0);
-        const refsCount = item.refNotesCount !== undefined ? `${item.refNotesCount} 篇` : '-';
-        const remoteLink = remoteUrl ? `[${item.name || 'Link'}](${remoteUrl})` : '-';
-        lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
-      });
-    }
-
-    if (failures.length > 0) {
+  if (groups.length === 0) {
+    lines.push(`🎉 No duplicate files found.`);
+  } else {
+    groups.forEach((grp, idx) => {
+      lines.push(`## Duplicate Group #${idx + 1} (\`${grp.sha256.slice(0, 12)}...\`, Size: ${formatBytes(grp.size)})`);
+      for (const item of grp.items) {
+        const isKeep = grp.keepId === item.id ? ' **[Current Keep Selection]**' : '';
+        const lockTag = item.locked ? ' `🔒 Protected`' : '';
+        const linkStr =
+          item.source === 'local'
+            ? `💻 Local: [[${item.displayPath}]]`
+            : `☁️ Remote: [${item.displayPath}](${item.rawObj.rawUrl})`;
+        const refsStr =
+          item.refNotes.length > 0
+            ? `Referencing Notes: ${item.refNotes.map((n) => `[[${n}]]`).join(', ')}`
+            : `No direct note references`;
+        lines.push(`- ${linkStr}${lockTag}${isKeep} — (${refsStr})`);
+      }
       lines.push(``);
-      lines.push(`## ⚠️ 上传失败项 / Failed Uploads (${failures.length})`);
-      lines.push(``);
-      failures.forEach((f, idx) => {
-        lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因 / Reason: ${f.error}`);
-      });
-    }
+    });
+  }
 
-    if (trashFailures.length > 0) {
-      lines.push(``);
-      lines.push(`## ⚠️ 本地清理失败项 / Failed Local Cleanups (${trashFailures.length})`);
-      lines.push(``);
-      trashFailures.forEach((tf, idx) => {
-        lines.push(`- **#${idx + 1}**: \`${tf.path}\` — 错误原因 / Reason: ${tf.error}`);
-      });
-    }
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join('\n'));
+  new Notice(plugin.t('noticeReportGenerated', { path: reportPath }));
+}
 
+export async function exportBatchMigrateReportToRoot(plugin, summary) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const dateStr = formatDateYMD(now);
+  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
+
+  const count = summary?.count || 0;
+  const docs = summary?.docs || 0;
+  const totalBytes = summary?.totalBytes || 0;
+  const trashed = summary?.trashed || 0;
+  const items = summary?.processedItems || [];
+  const failures = summary?.failures || [];
+  const trashFailures = summary?.trashFailures || [];
+
+  const lines = [
+    `# 🚀 批量云端迁移报告 / Batch Migration Report (${dateStr})`,
+    ``,
+    `> 生成时间 / Generated: ${dateStr} ${timeStr}  |  成功迁移附件 / Uploaded: **${count}** (${formatBytes(totalBytes)})  |  更新笔记 / Notes Updated: **${docs}**  |  本地清理 / Trashed: **${trashed}**`,
+    ``,
+    `## 📊 迁移汇总统计 / Summary Statistics`,
+    `- **成功上传文件 (Total Uploaded)**: ${count} 个 (${formatBytes(totalBytes)})`,
+    `- **引用链接已更新笔记 (Notes Updated)**: ${docs} 篇`,
+    `- **本地原文件已移入回收站 (Local Trashed)**: ${trashed} 个`,
+    `- **上传失败项 (Failed Uploads)**: ${failures.length} 个`,
+    ...(trashFailures.length > 0 ? [`- **本地清理失败项 (Failed Local Cleanups)**: ${trashFailures.length} 个`] : []),
+    ``,
+    `## ☁️ 已迁移附件清单 / Migrated Assets (${items.length})`,
+    ``
+  ];
+
+  if (items.length === 0) {
+    lines.push(`- 无已迁移附件 / No assets were migrated.`);
+  } else {
+    lines.push(`| # | 本地原路径 (Local Path) | 服务器链接 (Remote URL) | 文件大小 (Size) | 引用数 (Refs) |`);
+    lines.push(`|---|---|---|---|---|`);
+    items.forEach((item, idx) => {
+      const localPath = item.displayPath || item.name;
+      const remoteUrl = item.rawUrl || (item.rawObj && item.rawObj.rawUrl) || '';
+      const sizeStr = formatBytes(item.size || 0);
+      const refsCount = item.refNotesCount !== undefined ? `${item.refNotesCount} 篇` : '-';
+      const remoteLink = remoteUrl ? `[${item.name || 'Link'}](${remoteUrl})` : '-';
+      lines.push(`| ${idx + 1} | \`${localPath}\` | ${remoteLink} | ${sizeStr} | ${refsCount} |`);
+    });
+  }
+
+  if (failures.length > 0) {
     lines.push(``);
-    lines.push(`---`);
-    lines.push(`*Generated by File Master Obsidian Plugin*`);
-
-    await this.writeOrUpdateRootReport(reportPath, lines.join('\n'));
-    new Notice(this.t('noticeReportGenerated', { path: reportPath }));
-    return reportPath;
+    lines.push(`## ⚠️ 上传失败项 / Failed Uploads (${failures.length})`);
+    lines.push(``);
+    failures.forEach((f, idx) => {
+      lines.push(`- **#${idx + 1}**: \`${f.path || f.name}\` (${formatBytes(f.size || 0)}) — 错误原因 / Reason: ${f.error}`);
+    });
   }
 
-  async openNoteAtLine(filePath, lineNumber) {
-    const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (file && file instanceof TFile) {
-      const leaf = this.app.workspace.getLeaf(false);
-      await leaf.openFile(file);
-      const view = leaf.view;
-      if (view && view.editor && lineNumber) {
-        const lineIdx = Math.max(0, lineNumber - 1);
-        view.editor.setCursor({ line: lineIdx, ch: 0 });
-        view.editor.scrollIntoView(
-          { from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } },
-          true
-        );
-      }
-    } else {
-      new Notice(this.t('noticeCannotOpenFile', { path: filePath }));
+  if (trashFailures.length > 0) {
+    lines.push(``);
+    lines.push(`## ⚠️ 本地清理失败项 / Failed Local Cleanups (${trashFailures.length})`);
+    lines.push(``);
+    trashFailures.forEach((tf, idx) => {
+      lines.push(`- **#${idx + 1}**: \`${tf.path}\` — 错误原因 / Reason: ${tf.error}`);
+    });
+  }
+
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(`*Generated by File Master Obsidian Plugin*`);
+
+  await plugin.writeOrUpdateRootReport(reportPath, lines.join('\n'));
+  new Notice(plugin.t('noticeReportGenerated', { path: reportPath }));
+  return reportPath;
+}
+
+export async function openNoteAtLine(plugin, filePath, lineNumber) {
+  const file = plugin.app.vault.getAbstractFileByPath(filePath);
+  if (file && file instanceof TFile) {
+    const leaf = plugin.app.workspace.getLeaf(false);
+    await leaf.openFile(file);
+    const view = leaf.view;
+    if (view && view.editor && lineNumber) {
+      const lineIdx = Math.max(0, lineNumber - 1);
+      view.editor.setCursor({ line: lineIdx, ch: 0 });
+      view.editor.scrollIntoView(
+        { from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } },
+        true
+      );
     }
+  } else {
+    new Notice(plugin.t('noticeCannotOpenFile', { path: filePath }));
   }
 }

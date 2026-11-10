@@ -165,3 +165,7 @@ See [batch processing, integrity semantics, and scale limits](https://github.com
 Run `npm ci`, then `npm test` (builds first), or `npm run build`. Sources use explicit ESM imports; esbuild is a development dependency and emits the existing CommonJS `main.js` for Obsidian. `obsidian` stays external and browser builds reject Node-only dependencies. `npm run package` creates the same three-file release archive. Release CI rebuilds, tests, and verifies the committed bundle before publishing.
 
 运行 `npm ci` 后使用 `npm test`（先构建再测试）或 `npm run build`。源码使用显式导入导出；构建依赖仅供开发，发布仍为 `main.js`、`manifest.json`、`styles.css`。插件类的公开行为由最终产物加载测试验证，工具函数通过独立测试入口导出。
+
+`FileMasterPlugin` directly extends Obsidian's `Plugin`. The modules under `src/plugin/` expose ordinary functions with an explicit plugin context; the class keeps the public host API and delegates to them. No inheritance chain or runtime method installation is used.
+
+`FileMasterPlugin` 直接继承 Obsidian 插件类；`src/plugin/` 中的普通函数显式接收插件上下文，入口类保留公开接口并进行委派，便于按职责独立维护。
