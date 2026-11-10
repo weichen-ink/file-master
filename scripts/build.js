@@ -9,7 +9,18 @@ const srcOrder = [
   'src/references.js',
   'src/transfers.js',
   'src/gallery.js',
-  'src/modals.js',
+  'src/modals/common.js',
+  'src/modals/dialogs.js',
+  'src/modals/incoming-file.js',
+  'src/modals/active-note.js',
+  'src/modals/orphan-wizard.js',
+  'src/modals/duplicate-wizard.js',
+  'src/modals/batch-migrate-wizard.js',
+  'src/modals/health-check.js',
+  'src/modals/vault-analytics.js',
+  'src/modals/remote-gallery.js',
+  'src/modals/hub.js',
+  'src/modals/operation-log.js',
   'src/plugin.js'
 ];
 

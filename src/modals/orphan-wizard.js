@@ -1,0 +1,254 @@
+/**
+ * Wizard 1: Orphan Finder Wizard
+ * Step 1: Select location scope and file types (with real-time scan progress + cancel button)
+ * Step 2: Display results, export report, and safely clean selected items
+ */
+class OrphanWizardModal extends Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.step = 1;
+    this.activeProgress = null;
+    const isRemote = Boolean(plugin?.isRemoteServerReady?.());
+    this.options = {
+      scanLocal: true,
+      scanRemote: isRemote,
+      typeNote: false,
+      typeImage: true,
+      typeAudio: true,
+      typeOther: true
+    };
+    this.results = [];
+  }
+
+  onOpen() {
+    this.render();
+  }
+
+  render() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass('fm-wizard-modal');
+
+    if (this.step === 1) {
+      this.renderStep1(contentEl);
+    } else {
+      this.renderStep2(contentEl);
+    }
+  }
+
+  renderStep1(contentEl) {
+    const t = (k, p) => this.plugin.t(k, p);
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createSpan({ text: t('stepOf', { current: 1, total: 2 }), cls: 'fm-step-badge' });
+    header.createEl('h3', { text: t('orphanStep1Title'), cls: 'fm-step-title' });
+
+    contentEl.createEl('p', {
+      text: t('orphanStep1Desc'),
+      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
+    });
+
+    if (this.plugin?.isRemoteServerReady?.()) {
+      const locBox = contentEl.createDiv({ cls: 'fm-section-box' });
+      locBox.createDiv({ text: t('orphanLocScope'), cls: 'fm-section-title' });
+      this.createCheckbox(locBox, t('orphanScanLocal'), 'scanLocal');
+      this.createCheckbox(locBox, t('orphanScanRemote'), 'scanRemote');
+    }
+
+    const typeBox = contentEl.createDiv({ cls: 'fm-section-box' });
+    typeBox.createDiv({ text: t('orphanTypeScope'), cls: 'fm-section-title' });
+    this.createCheckbox(typeBox, t('orphanTypeNote'), 'typeNote');
+    this.createCheckbox(typeBox, t('orphanTypeImage'), 'typeImage');
+    this.createCheckbox(typeBox, t('orphanTypeAudio'), 'typeAudio');
+    this.createCheckbox(typeBox, t('orphanTypeOther'), 'typeOther');
+
+    const exclFolders = this.plugin.getExcludedLocalFolderList();
+    const protInfo = contentEl.createDiv({
+      cls: 'fm-section-box',
+      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
+    });
+    const exclHint = exclFolders.length ? t('orphanExclHint', { folders: exclFolders.join(', ') }) : '';
+    protInfo.createDiv({
+      text: t('orphanProtActive', { excl: exclHint })
+    });
+
+    const progressWidget = createScanProgressWidget(contentEl, this.plugin);
+    this.activeProgress = progressWidget;
+
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
+
+    const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
+    nextBtn.onclick = async () => {
+      if (!this.options.scanLocal && !this.options.scanRemote) {
+        new Notice(t('orphanLocRequired'));
+        return;
+      }
+      if (!this.options.typeNote && !this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
+        new Notice(t('orphanTypeRequired'));
+        return;
+      }
+      nextBtn.disabled = true;
+      nextBtn.setText(t('orphanScanning'));
+      progressWidget.show();
+      try {
+        this.results = await this.plugin.scanUnusedFiles(this.options, {
+          signal: progressWidget.signal,
+          onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
+        });
+        this.step = 2;
+        this.render();
+      } catch (err) {
+        progressWidget.hide();
+        new Notice(err.message === 'SCAN_ABORTED' ? this.plugin.t('scanCancelled') : '❌ Scan failed: ' + err.message);
+        nextBtn.disabled = false;
+        nextBtn.setText(t('btnNext'));
+      }
+    };
+  }
+
+  createCheckbox(parent, labelText, optKey) {
+    const label = parent.createEl('label', { cls: 'fm-check-row' });
+    const cb = label.createEl('input', { type: 'checkbox' });
+    cb.checked = Boolean(this.options[optKey]);
+    cb.onchange = () => {
+      this.options[optKey] = cb.checked;
+    };
+    label.createSpan({ text: labelText });
+  }
+
+  renderStep2(contentEl) {
+    const t = (k, p) => this.plugin.t(k, p);
+    const header = contentEl.createDiv({ cls: 'fm-step-header' });
+    header.createSpan({ text: t('stepOf', { current: 2, total: 2 }), cls: 'fm-step-badge' });
+    header.createEl('h3', { text: t('orphanStep2Title', { count: this.results.length }), cls: 'fm-step-title' });
+
+    if (this.lastCleanSummary) {
+      const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
+      banner.createDiv({ cls: 'fm-result-banner-title', text: t('orphanResultTitle') });
+      banner.createDiv({
+        cls: 'fm-result-banner-desc',
+        text: t('orphanResultDesc', {
+          count: this.lastCleanSummary.total || 0,
+          local: this.lastCleanSummary.local || 0,
+          remote: this.lastCleanSummary.remote || 0
+        })
+      });
+    }
+
+    const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
+    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
+    const backBtn = leftTools.createEl('button', { text: t('btnBack') });
+    backBtn.onclick = () => {
+      this.step = 1;
+      this.render();
+    };
+
+    const selectAllBtn = leftTools.createEl('button', { text: t('btnSelectAll') });
+    selectAllBtn.onclick = () => {
+      const allSelected = this.results.every((r) => r.selected);
+      this.results.forEach((r) => { r.selected = !allSelected; });
+      this.render();
+    };
+
+    const exportBtn = toolbar.createEl('button', {
+      text: t('btnExportReport'),
+      cls: 'mod-cta'
+    });
+    exportBtn.onclick = async () => {
+      await this.plugin.exportOrphanReportToRoot(this.results);
+    };
+
+    if (this.results.length === 0) {
+      contentEl.createDiv({
+        cls: 'fm-section-box',
+        text: t('orphanNoneFound'),
+        attr: { style: 'text-align: center; padding: 36px 20px;' }
+      });
+      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
+      cancelBtn.onclick = () => returnToHub(this);
+      return;
+    }
+
+    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
+    for (const item of this.results) {
+      const row = listEl.createDiv({ cls: 'fm-list-item' });
+      const left = row.createDiv({
+        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+      });
+
+      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
+      cb.checked = item.selected;
+      cb.onchange = () => {
+        item.selected = cb.checked;
+      };
+
+      renderItemVisualThumb(left, item, this.plugin);
+
+      const infoCol = left.createDiv({ attr: { style: 'overflow:hidden; flex:1;' } });
+      const topLine = infoCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
+      topLine.createSpan({
+        text: item.source === 'local' ? '💻 Local' : '☁️ Remote',
+        cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
+      });
+      topLine.createSpan({
+        text: item.displayPath,
+        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
+      });
+
+      const rightBox = row.createDiv({
+        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
+      });
+      rightBox.createSpan({
+        text: formatBytes(item.size),
+        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
+      });
+
+      if (item.source === 'remote') {
+        const lockBtn = rightBox.createEl('button', {
+          text: t('lockBtnText'),
+          cls: 'fm-mini-btn',
+          attr: { title: t('lockBtnTitle') }
+        });
+        lockBtn.onclick = async () => {
+          try {
+            await this.plugin.toggleRemoteFileLock(item.rawObj.year, item.rawObj.month, item.rawObj.filename, true);
+            new Notice(this.plugin.t('noticeProtectedRemote', { name: item.name }));
+            this.results = this.results.filter((r) => r.id !== item.id);
+            this.render();
+          } catch (err) {
+            new Notice(this.plugin.t('noticeLockFailed', { err: err.message }));
+          }
+        };
+      }
+    }
+
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: t('btnCancel') });
+    cancelBtn.onclick = () => returnToHub(this);
+    const cleanBtn = btnRow.createEl('button', {
+      text: t('orphanDeleteSelected', { count: this.results.filter((r) => r.selected).length }),
+      cls: 'mod-warning'
+    });
+    cleanBtn.onclick = async () => {
+      const selected = this.results.filter((r) => r.selected);
+      if (selected.length === 0) {
+        new Notice(this.plugin.t('orphanSelectRequired'));
+        return;
+      }
+      await this.plugin.cleanSelectedOrphans(selected, (summary) => {
+        const removedIds = new Set(selected.map((s) => s.id));
+        this.results = this.results.filter((r) => !removedIds.has(r.id));
+        this.lastCleanSummary = summary;
+        this.render();
+      });
+    };
+  }
+
+  onClose() {
+    if (this.activeProgress) this.activeProgress.abort();
+    this.contentEl.empty();
+  }
+}
