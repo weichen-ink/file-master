@@ -125,7 +125,7 @@ test('Closing the browser removes workspace subscriptions and late loads cannot 
 });
 
 test('Mobile Hub keeps connection setup visible and omits the desktop docking action',()=>{
-  const {FileMasterHubModal}=loadPlugin(undefined,{host:{...host,Platform:{isMobile:true}}}),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1',id:'file-master'},isRemoteServerReady:()=>false});
+  const {FileMasterHubModal}=loadPlugin(undefined,{host:{...host,Platform:{isMobile:true}}}),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1.0',id:'file-master'},isRemoteServerReady:()=>false});
   const hub=new FileMasterHubModal(plugin.app,plugin);hub.onOpen();assert.ok(hub.contentEl.all().some(el=>el.text==='hubConnect'));assert.equal(hub.contentEl.all().some(el=>el.text==='hubDockGallery'),false);
   const actions=hub.contentEl.all().filter(el=>el.tag==='button'&&el.disabled);assert.equal(actions.length,5);hub.onClose();
 });
@@ -141,7 +141,7 @@ test('Clicking a gallery filename opens the same preview as its thumbnail',async
 });
 
 test('Hub exposes sidebar, settings and recycle bin as equal action cards',()=>{
-  const {FileMasterHubModal}=setup(),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1',id:'file-master'},isRemoteServerReady:()=>true});
+  const {FileMasterHubModal}=setup(),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1.0',id:'file-master'},isRemoteServerReady:()=>true});
   const hub=new FileMasterHubModal(plugin.app,plugin);hub.onOpen();
   for(const key of ['hubDockGallery','actOpenSettingsTitle','remoteTrashTitle']){
     const title=hub.contentEl.all().find(el=>el.text===key);assert.ok(title);assert.ok(title.parentElement.parentElement.className.includes('fm-hub-card'));
@@ -166,7 +166,7 @@ test('Recycle bin client uses bearer authentication and encodes restoration ids'
 
 
 test('Hub title and close share a row; children cancel back without another navigation button',async()=>{
-  const {FileMasterHubModal,moduleHeading}=setup(),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1',id:'file-master'},isRemoteServerReady:()=>true,fetchRemoteTrash:async()=>[]});
+  const {FileMasterHubModal,moduleHeading}=setup(),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1.0',id:'file-master'},isRemoteServerReady:()=>true,fetchRemoteTrash:async()=>[]});
   const hub=new FileMasterHubModal(plugin.app,plugin);hub.onOpen();
   const chrome=hub.navigator.chrome;
   assert.equal(hub.homeHeading.parentElement,chrome.title);
@@ -203,9 +203,10 @@ test('Duplicate empty result offers another scope without irrelevant merge contr
 
 
 test('Hub cards expose only action names and the hosted recycle bin renders returned files',async()=>{
- const {FileMasterHubModal}=setup(),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1',id:'file-master'},isRemoteServerReady:()=>true,fetchRemoteTrash:async()=>[{id:'sample',filename:'Recovered image.png',size:30,deletedAt:Date.now()}]});
+ const {FileMasterHubModal}=setup(),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1.0',id:'file-master'},isRemoteServerReady:()=>true,fetchRemoteTrash:async()=>[{id:'sample',filename:'Recovered image.png',size:30,deletedAt:Date.now()}]});
  const hub=new FileMasterHubModal(plugin.app,plugin);hub.onOpen();
  assert.equal(hub.contentEl.all().some(el=>el.className.includes('fm-hub-card-desc')),false);
+ assert.ok(hub.modalEl.all().some(el=>el.className==='fm-hub-version'&&el.text==='v1.1'));
  const title=hub.contentEl.all().find(el=>el.text==='remoteTrashTitle'),card=title.parentElement.parentElement;
  await card.onclick({preventDefault(){},stopPropagation(){}});
  assert.ok(hub.contentEl.all().some(el=>el.text==='Recovered image.png'));assert.equal(hub.modalEl.className.includes('fm-hub-dialog'),false);
@@ -233,4 +234,13 @@ test('Gallery action controls have one accessible tooltip source and sizes omit 
   assert.equal(actions.length,2);
   assert.ok(actions.every(el=>el['aria-label']&&!el.title));
   assert.equal(container.all().some(el=>String(el.text).includes('2026/11')),false);
+});
+
+
+test('Display versions shorten only zero-patch releases', () => {
+  const {displayVersion}=setup();
+  assert.equal(displayVersion('1.1.0'),'1.1');
+  assert.equal(displayVersion('1.1'),'1.1');
+  assert.equal(displayVersion('1.1.2'),'1.1.2');
+  assert.equal(displayVersion('1.1.0-beta.1'),'1.1.0-beta.1');
 });

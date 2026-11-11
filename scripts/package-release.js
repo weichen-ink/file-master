@@ -4,7 +4,10 @@ const { execFileSync } = require('node:child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'manifest.json'), 'utf8'));
-const version = manifest.version || '0.1.0';
+const version = manifest.version;
+if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
+  throw new Error('Obsidian release versions must use major.minor.patch, for example 1.1.0');
+}
 
 // 1. Ensure latest build
 require('./build').build();

@@ -43,3 +43,19 @@ test('Plugin directly extends the Obsidian host and preserves stable operation b
     assert.strictEqual(typeof Plugin.prototype[name], 'function');
   }
 });
+
+
+test('Release metadata uses matching Obsidian-compatible semantic versions', () => {
+  const read = name => JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', name), 'utf8'));
+  const manifest = read('manifest.json'), pkg = read('package.json'), lock = read('package-lock.json'), versions = read('versions.json');
+  const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+  assert.match(manifest.version, semver, 'Obsidian rejects two-part release versions');
+  assert.strictEqual(pkg.version, manifest.version);
+  assert.strictEqual(lock.version, manifest.version);
+  assert.strictEqual(lock.packages[''].version, manifest.version);
+  assert.strictEqual(versions[manifest.version], manifest.minAppVersion);
+  for (const [version, minimum] of Object.entries(versions)) {
+    assert.match(version, semver);
+    assert.match(minimum, semver);
+  }
+});

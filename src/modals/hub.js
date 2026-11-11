@@ -1,3 +1,4 @@
+import { displayVersion } from '../constants.js';
 import { initGalleryLeaf } from '../plugin/lifecycle.js';
 import { isDocFile } from '../plugin/vault-utils.js';
 import { copyActiveNoteForAstro } from '../plugin/attachment-ops.js';
@@ -25,7 +26,7 @@ export class FileMasterHubModal extends Modal {
     const header=this.homeHeading=this.navigator.chrome.title.createDiv({cls:'fm-hub-header'});
     setIcon(header.createSpan({cls:'fm-hub-brand-mark',attr:{'aria-hidden':'true'}}),'zap');
     header.createEl('h2',{text:t('hubTitle')});
-    header.createSpan({text:'v'+this.plugin.manifest.version,cls:'fm-hub-version'});
+    header.createSpan({text:'v'+displayVersion(this.plugin.manifest.version),cls:'fm-hub-version'});
     const remote=Boolean(this.plugin.isRemoteServerReady());
     const file=this.app.workspace.getActiveFile();
     const supported=Boolean(file&&isDocFile(this.app,file));

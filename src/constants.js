@@ -21,6 +21,9 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const MIN_SERVER_VERSION = '1.1';
+
+// Keep the product label compact; release metadata retains its required patch component.
+export const displayVersion = version => String(version || '').replace(/^(\d+\.\d+)\.0$/, '$1');
 export const VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery';
 
 // Comprehensive image extensions (Apple HEIC/HEIF, TIFF, BMP, Camera RAW, etc.)

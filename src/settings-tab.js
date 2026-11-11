@@ -1,7 +1,7 @@
 import { openModalSafely, updateSidebarRibbonButton } from './plugin/vault-utils.js';
 import { onLanguageChange, getCompatibilityMessage } from './plugin/lifecycle.js';
 import { checkServerCompatibility } from './plugin/server-client.js';
-import { MIN_SERVER_VERSION } from './constants.js';
+import { MIN_SERVER_VERSION, displayVersion } from './constants.js';
 import { FileMasterHubModal } from './modals/hub.js';
 import { OperationLogModal } from './modals/operation-log.js';
 import { Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
@@ -380,7 +380,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
 
   renderAboutFooter(containerEl) {
     const manifest = this.plugin.manifest || {};
-    const version = manifest.version || '0.1.1';
+    const version = displayVersion(manifest.version || '0.1.1');
     const author = manifest.author || 'weichen-ink';
     const authorUrl = manifest.authorUrl || 'https://github.com/weichen-ink';
     const repoUrl = 'https://github.com/weichen-ink/file-master';

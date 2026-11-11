@@ -1,6 +1,6 @@
 # Changelog (file-master)
 
-## [1.1] - 2026-11-11
+## [1.1.0] - 2026-11-11
 
 ### Hub and navigation
 - Present the Hub as File Master, with compact cards grouped into current-file, vault, remote-server, and other actions.
@@ -27,10 +27,10 @@
 
 ### Documentation and compatibility
 - Simplify settings and provide focused Chinese and English user guides with separate development and release instructions.
-- Set the plugin version and minimum server version to 1.1; accept two-part versions during the compatibility handshake.
+- Use 1.1.0 for Obsidian release metadata and tags, while displaying 1.1 in the plugin UI. Require server 1.1 or later and accept two-part versions during the compatibility handshake.
 - Keep the Obsidian minimum host version separate from the server compatibility requirement.
 - Rebuild main.js and package main.js, manifest.json, and styles.css together.
-- Validate with 98 automated tests and simulated-host responsive checks. Actual iOS/Android acceptance testing is not implied by these checks.
+- Validate with 100 automated tests and simulated-host responsive checks. Actual iOS/Android acceptance testing is not implied by these checks.
 
 ## [1.0.7] - 2026-11-10
 - Expand incoming attachment modal dialog layout to fill window width naturally without blank right margins.

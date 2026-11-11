@@ -40,6 +40,9 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
+          if (process.env.GITHUB_REF_NAME !== require('./manifest.json').version) {
+            throw new Error('Release tag must match manifest.json version');
+          }
           const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
           const marker = `## [${process.env.GITHUB_REF_NAME}]`;
           const start = changelog.indexOf(marker);

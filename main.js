@@ -27,6 +27,7 @@ var DEFAULT_SETTINGS = {
   excludeLockedRemoteFiles: true
 };
 var MIN_SERVER_VERSION = "1.1";
+var displayVersion = (version) => String(version || "").replace(/^(\d+\.\d+)\.0$/, "$1");
 var VIEW_TYPE_REMOTE_GALLERY = "file-master-remote-gallery";
 var IMAGE_EXTS = /* @__PURE__ */ new Set([
   "png",
@@ -7314,7 +7315,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
   }
   renderAboutFooter(containerEl) {
     const manifest = this.plugin.manifest || {};
-    const version = manifest.version || "0.1.1";
+    const version = displayVersion(manifest.version || "0.1.1");
     const author = manifest.author || "weichen-ink";
     const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
     const repoUrl = "https://github.com/weichen-ink/file-master";
@@ -8441,7 +8442,7 @@ var FileMasterHubModal = class extends FileMasterModal {
     const header = this.homeHeading = this.navigator.chrome.title.createDiv({ cls: "fm-hub-header" });
     (0, import_obsidian25.setIcon)(header.createSpan({ cls: "fm-hub-brand-mark", attr: { "aria-hidden": "true" } }), "zap");
     header.createEl("h2", { text: t2("hubTitle") });
-    header.createSpan({ text: "v" + this.plugin.manifest.version, cls: "fm-hub-version" });
+    header.createSpan({ text: "v" + displayVersion(this.plugin.manifest.version), cls: "fm-hub-version" });
     const remote = Boolean(this.plugin.isRemoteServerReady());
     const file = this.app.workspace.getActiveFile();
     const supported = Boolean(file && isDocFile2(this.app, file));
