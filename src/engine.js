@@ -208,6 +208,13 @@ export function formatDateYMD(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+export function formatDateTimestamp(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const t = `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  return `${d}_${t}`;
+}
+
 /**
  * Sanitizes base filename while preserving CJK characters, normalizing spaces/brackets to underscores
  */
@@ -225,7 +232,8 @@ export function sanitizeCleanBaseName(str, fallback = 'file') {
  * Checks if a file is an auto-generated inspection report
  */
 export function isReportFile(filename) {
-  const name = String(filename || '');
+  const raw = String(filename || '');
+  const name = raw.includes('/') ? raw.split('/').pop() : (raw.includes('\\') ? raw.split('\\').pop() : raw);
   return (
     name.startsWith('Unused_Files_Report_') ||
     name.startsWith('Duplicate_Files_Report_') ||
@@ -238,6 +246,18 @@ export function isReportFile(filename) {
 /**
  * Pure analytics engine for Vault Wrapped & Storage Analytics Dashboard
  */
+export const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv', 'wmv', 'm4v']);
+export const DOC_EXTS = new Set(['pdf', 'epub', 'docx', 'xlsx', 'pptx', 'doc', 'xls', 'ppt', 'txt']);
+
+export function getDetailedTypeGroup(ext) {
+  const e = String(ext || '').toLowerCase();
+  if (IMAGE_EXTS.has(e)) return 'image';
+  if (VIDEO_EXTS.has(e)) return 'video';
+  if (AUDIO_EXTS.has(e)) return 'audio';
+  if (DOC_EXTS.has(e)) return 'doc';
+  return 'other';
+}
+
 export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
   let noteCount = 0;
   let canvasCount = 0;
@@ -245,8 +265,12 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
   let totalInternalLinks = 0;
   let localImageCount = 0;
   let localImageBytes = 0;
+  let localVideoCount = 0;
+  let localVideoBytes = 0;
   let localAudioCount = 0;
   let localAudioBytes = 0;
+  let localDocCount = 0;
+  let localDocBytes = 0;
   let localOtherCount = 0;
   let localOtherBytes = 0;
   const attachmentList = [];
@@ -261,13 +285,23 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
     } else if (ext === 'canvas') {
       canvasCount++;
     } else if (isAttachmentExt(ext)) {
-      const grp = getFileTypeGroup(ext);
-      if (grp === 'image') {
+      const detailedGrp = getDetailedTypeGroup(ext);
+      if (detailedGrp === 'image') {
         localImageCount++;
         localImageBytes += size;
-      } else if (grp === 'audio') {
+      } else if (detailedGrp === 'audio') {
         localAudioCount++;
         localAudioBytes += size;
+      } else if (detailedGrp === 'video') {
+        localVideoCount++;
+        localVideoBytes += size;
+        localOtherCount++;
+        localOtherBytes += size;
+      } else if (detailedGrp === 'doc') {
+        localDocCount++;
+        localDocBytes += size;
+        localOtherCount++;
+        localOtherBytes += size;
       } else {
         localOtherCount++;
         localOtherBytes += size;
@@ -276,7 +310,7 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
         name: f.name,
         path: f.path || f.name,
         ext,
-        group: grp,
+        group: detailedGrp,
         size,
         source: 'local'
       });
@@ -299,17 +333,21 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
   let remoteRawBytes = 0;
   let remoteCacheBytes = 0;
   let remoteLockedCount = 0;
+  let remoteCachedCount = 0;
 
   for (const r of remoteImages || []) {
     remoteTotalCount++;
     remoteRawBytes += Number(r.size) || 0;
-    remoteCacheBytes += Number(r.cacheSize) || 0;
+    const cacheSize = Number(r.cacheSize) || 0;
+    remoteCacheBytes += cacheSize;
+    if (cacheSize > 0) remoteCachedCount++;
     if (r.locked || r.inProtectedFolder) remoteLockedCount++;
+    const ext = String(r.ext || '').replace(/^\./, '').toLowerCase();
     attachmentList.push({
       name: r.filename,
       path: `${r.year}/${r.month}/${r.filename}`,
-      ext: String(r.ext || '').replace(/^\./, ''),
-      group: r.category || 'image',
+      ext,
+      group: getDetailedTypeGroup(ext),
       size: Number(r.size) || 0,
       source: 'remote'
     });
@@ -317,7 +355,16 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
 
   const topLargestAttachments = [...attachmentList]
     .sort((a, b) => b.size - a.size)
-    .slice(0, 8);
+    .slice(0, 20);
+
+  const combinedDocText = (docTexts || []).join('\n');
+  for (const item of topLargestAttachments) {
+    const rawName = item.name;
+    const base = String(item.name || '').replace(/\.[^.]+$/, '');
+    item.isReferenced = combinedDocText.includes(rawName) ||
+      combinedDocText.includes(encodeURIComponent(rawName)) ||
+      (base.length >= 3 && combinedDocText.includes(`[[${base}`));
+  }
 
   const localTotalBytes = localImageBytes + localAudioBytes + localOtherBytes;
   const localTotalCount = localImageCount + localAudioCount + localOtherCount;
@@ -332,8 +379,12 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
       totalBytes: localTotalBytes,
       imageCount: localImageCount,
       imageBytes: localImageBytes,
+      videoCount: localVideoCount,
+      videoBytes: localVideoBytes,
       audioCount: localAudioCount,
       audioBytes: localAudioBytes,
+      docCount: localDocCount,
+      docBytes: localDocBytes,
       otherCount: localOtherCount,
       otherBytes: localOtherBytes
     },
@@ -341,7 +392,8 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
       totalCount: remoteTotalCount,
       rawBytes: remoteRawBytes,
       cacheBytes: remoteCacheBytes,
-      lockedCount: remoteLockedCount
+      lockedCount: remoteLockedCount,
+      cachedCount: remoteCachedCount
     },
     topLargestAttachments
   };

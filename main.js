@@ -1,5 +1,5 @@
 // src/plugin.js
-var import_obsidian28 = require("obsidian");
+var import_obsidian29 = require("obsidian");
 
 // src/constants.js
 var DEFAULT_SETTINGS = {
@@ -26,7 +26,7 @@ var DEFAULT_SETTINGS = {
   excludedLocalFolders: "",
   excludeLockedRemoteFiles: true
 };
-var MIN_SERVER_VERSION = "1.1";
+var MIN_SERVER_VERSION = "1.1.0";
 var displayVersion = (version) => String(version || "").replace(/^(\d+\.\d+)\.0$/, "$1");
 var VIEW_TYPE_REMOTE_GALLERY = "file-master-remote-gallery";
 var IMAGE_EXTS = /* @__PURE__ */ new Set([
@@ -438,16 +438,29 @@ function compareSemver(v1, v2) {
 function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function formatDateYMD(date = /* @__PURE__ */ new Date()) {
+function formatDateTimestamp(date = /* @__PURE__ */ new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const d = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const t2 = `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  return `${d}_${t2}`;
 }
 function sanitizeCleanBaseName(str, fallback = "file") {
   return String(str || "").replace(/[\/\\?%*:|"<>#\0]/g, "_").replace(/[\s()[\]]+/g, "_").replace(/_+/g, "_").trim() || fallback;
 }
 function isReportFile(filename) {
-  const name = String(filename || "");
+  const raw = String(filename || "");
+  const name = raw.includes("/") ? raw.split("/").pop() : raw.includes("\\") ? raw.split("\\").pop() : raw;
   return name.startsWith("Unused_Files_Report_") || name.startsWith("Duplicate_Files_Report_") || name.startsWith("Broken_Links_Report_") || name.startsWith("Vault_Analytics_Report_") || name.startsWith("Batch_Migrate_Report_");
+}
+var VIDEO_EXTS = /* @__PURE__ */ new Set(["mp4", "webm", "mov", "mkv", "avi", "flv", "wmv", "m4v"]);
+var DOC_EXTS = /* @__PURE__ */ new Set(["pdf", "epub", "docx", "xlsx", "pptx", "doc", "xls", "ppt", "txt"]);
+function getDetailedTypeGroup(ext) {
+  const e = String(ext || "").toLowerCase();
+  if (IMAGE_EXTS.has(e)) return "image";
+  if (VIDEO_EXTS.has(e)) return "video";
+  if (AUDIO_EXTS.has(e)) return "audio";
+  if (DOC_EXTS.has(e)) return "doc";
+  return "other";
 }
 function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
   var _a, _b, _c;
@@ -457,8 +470,12 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
   let totalInternalLinks = 0;
   let localImageCount = 0;
   let localImageBytes = 0;
+  let localVideoCount = 0;
+  let localVideoBytes = 0;
   let localAudioCount = 0;
   let localAudioBytes = 0;
+  let localDocCount = 0;
+  let localDocBytes = 0;
   let localOtherCount = 0;
   let localOtherBytes = 0;
   const attachmentList = [];
@@ -471,13 +488,23 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
     } else if (ext === "canvas") {
       canvasCount++;
     } else if (isAttachmentExt(ext)) {
-      const grp = getFileTypeGroup(ext);
-      if (grp === "image") {
+      const detailedGrp = getDetailedTypeGroup(ext);
+      if (detailedGrp === "image") {
         localImageCount++;
         localImageBytes += size;
-      } else if (grp === "audio") {
+      } else if (detailedGrp === "audio") {
         localAudioCount++;
         localAudioBytes += size;
+      } else if (detailedGrp === "video") {
+        localVideoCount++;
+        localVideoBytes += size;
+        localOtherCount++;
+        localOtherBytes += size;
+      } else if (detailedGrp === "doc") {
+        localDocCount++;
+        localDocBytes += size;
+        localOtherCount++;
+        localOtherBytes += size;
       } else {
         localOtherCount++;
         localOtherBytes += size;
@@ -486,7 +513,7 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
         name: f.name,
         path: f.path || f.name,
         ext,
-        group: grp,
+        group: detailedGrp,
         size,
         source: "local"
       });
@@ -505,21 +532,31 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
   let remoteRawBytes = 0;
   let remoteCacheBytes = 0;
   let remoteLockedCount = 0;
+  let remoteCachedCount = 0;
   for (const r of remoteImages || []) {
     remoteTotalCount++;
     remoteRawBytes += Number(r.size) || 0;
-    remoteCacheBytes += Number(r.cacheSize) || 0;
+    const cacheSize = Number(r.cacheSize) || 0;
+    remoteCacheBytes += cacheSize;
+    if (cacheSize > 0) remoteCachedCount++;
     if (r.locked || r.inProtectedFolder) remoteLockedCount++;
+    const ext = String(r.ext || "").replace(/^\./, "").toLowerCase();
     attachmentList.push({
       name: r.filename,
       path: `${r.year}/${r.month}/${r.filename}`,
-      ext: String(r.ext || "").replace(/^\./, ""),
-      group: r.category || "image",
+      ext,
+      group: getDetailedTypeGroup(ext),
       size: Number(r.size) || 0,
       source: "remote"
     });
   }
-  const topLargestAttachments = [...attachmentList].sort((a, b) => b.size - a.size).slice(0, 8);
+  const topLargestAttachments = [...attachmentList].sort((a, b) => b.size - a.size).slice(0, 20);
+  const combinedDocText = (docTexts || []).join("\n");
+  for (const item of topLargestAttachments) {
+    const rawName = item.name;
+    const base = String(item.name || "").replace(/\.[^.]+$/, "");
+    item.isReferenced = combinedDocText.includes(rawName) || combinedDocText.includes(encodeURIComponent(rawName)) || base.length >= 3 && combinedDocText.includes(`[[${base}`);
+  }
   const localTotalBytes = localImageBytes + localAudioBytes + localOtherBytes;
   const localTotalCount = localImageCount + localAudioCount + localOtherCount;
   return {
@@ -532,8 +569,12 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
       totalBytes: localTotalBytes,
       imageCount: localImageCount,
       imageBytes: localImageBytes,
+      videoCount: localVideoCount,
+      videoBytes: localVideoBytes,
       audioCount: localAudioCount,
       audioBytes: localAudioBytes,
+      docCount: localDocCount,
+      docBytes: localDocBytes,
       otherCount: localOtherCount,
       otherBytes: localOtherBytes
     },
@@ -541,7 +582,8 @@ function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages = []) {
       totalCount: remoteTotalCount,
       rawBytes: remoteRawBytes,
       cacheBytes: remoteCacheBytes,
-      lockedCount: remoteLockedCount
+      lockedCount: remoteLockedCount,
+      cachedCount: remoteCachedCount
     },
     topLargestAttachments
   };
@@ -1162,14 +1204,36 @@ var UI_STRINGS = {
     analyticsTitle: "\u4ED3\u5E93\u6982\u89C8",
     analyticsBadge: "\u6982\u89C8",
     analyticsLoading: "\u6B63\u5728\u7EDF\u8BA1\u7B14\u8BB0\u3001\u9644\u4EF6\u548C\u670D\u52A1\u5668\u6587\u4EF6...",
-    analyticsStatNotes: "\u7B14\u8BB0\u4E0E\u767D\u677F\u603B\u6570",
-    analyticsStatWords: "\u603B\u5B57\u6570 / \u5B57\u7B26\u6570",
-    analyticsStatLinks: "\u53CC\u94FE\u4E0E\u5D4C\u5165\u603B\u6570",
-    analyticsStatStorage: "\u5B58\u50A8\u603B\u5360\u7528",
-    analyticsStorageComparison: "\u77E5\u8BC6\u5E93\u4E0E\u670D\u52A1\u5668\u5B58\u50A8\u7528\u91CF",
-    analyticsLocalVault: "\u77E5\u8BC6\u5E93\u9644\u4EF6",
-    analyticsRemoteServer: "\u670D\u52A1\u5668\u6587\u4EF6",
+    analyticsStatNotes: "\u7B14\u8BB0\u6570",
+    analyticsStatImages: "\u56FE\u7247\u6570",
+    analyticsStatOtherAttachments: "\u5176\u4ED6\u9644\u4EF6\u6570",
+    analyticsStatTotalFiles: "\u603B\u6570",
+    analyticsStatNotesSub: "{md} \u7B14\u8BB0 \xB7 {cva} \u767D\u677F",
+    analyticsStatImagesSub: "\u672C\u5730 {loc} \xB7 \u8FDC\u7A0B {rem}",
+    analyticsStatOtherSub: "\u89C6\u9891\u3001\u97F3\u9891\u53CA\u6587\u6863",
+    analyticsStatTotalSub: "\u5168\u5E93\u7B14\u8BB0\u4E0E\u8D44\u4EA7\u603B\u548C",
+    analyticsStorageComparison: "\u5B58\u50A8\u7528\u91CF\u5206\u5E03",
+    analyticsLocalVault: "\u77E5\u8BC6\u5E93\u672C\u5730\u9644\u4EF6",
+    analyticsRemoteServer: "\u670D\u52A1\u5668\u8FDC\u7A0B\u8D44\u4EA7",
+    analyticsLocalStats: "\u56FE\u7247\uFF1A{imgBytes} \xB7 \u5176\u4ED6\uFF1A{othBytes}",
+    analyticsRemoteStats: "WebP \u7F13\u5B58\uFF1A{cache} \xB7 \u9632\u5220\u4FDD\u62A4\uFF1A{locked}",
+    analyticsInsightsTitle: "\u8D44\u4EA7\u5065\u5EB7\u4E0E\u4F18\u5316\u5EFA\u8BAE",
+    analyticsInsightStorageLocal: '\u672C\u5730\u5B58\u50A8\u5360\u6BD4\u504F\u9AD8\uFF08<strong style="color: var(--text-accent);">{pct}%</strong>\uFF09\uFF0C\u5B58\u5728\u8D85\u5927\u5355\u6587\u4EF6\uFF0C\u5EFA\u8BAE\u6309\u9700\u8FC1\u79FB\u81F3\u670D\u52A1\u5668\u91CA\u653E\u672C\u5730\u4E0E\u540C\u6B65\u7A7A\u95F4\u3002',
+    analyticsInsightStorageRemote: '\u4E91\u7AEF\u6258\u7BA1\u5360\u6BD4\u4E3B\u5BFC\uFF08<strong style="color: #10b981;">{pct}%</strong>\uFF09\uFF0C\u6709\u6548\u51CF\u8F7B\u672C\u5730\u77E5\u8BC6\u5E93\u53CA\u79FB\u52A8\u7AEF\u591A\u8BBE\u5907\u540C\u6B65\u8D1F\u62C5\u3002',
+    analyticsInsightCacheReady: '\u4E91\u7AEF WebP \u884D\u751F\u7F13\u5B58 <strong style="color: #10b981;">100% \u5C31\u7EEA</strong>\uFF0C\u5DF2\u4E3A\u79FB\u52A8\u7AEF\u4E0E\u5BA2\u6237\u7AEF\u63D0\u4F9B\u8F7B\u91CF\u5316\u52A0\u8F7D\u52A0\u901F\u3002',
+    analyticsInsightLockedSafe: '\u5DF2\u6709 <strong style="color: #10b981;">{count} \u9879</strong> \u4E91\u7AEF\u5173\u952E\u8D44\u4EA7\u5F00\u542F\u9632\u5220\u4FDD\u62A4\u9501\u5B9A\uFF0C\u9632\u6B62\u610F\u5916\u5220\u9664\u3002',
     analyticsTopLargest: "\u4F53\u79EF\u6700\u5927\u7684 10 \u4E2A\u9644\u4EF6",
+    analyticsFilterAll: "\u5168\u90E8",
+    analyticsFilterLocal: "\u{1F4BB} \u672C\u5730",
+    analyticsFilterRemote: "\u2601\uFE0F \u8FDC\u7A0B",
+    analyticsFilterEmpty: "\u5F53\u524D\u7B5B\u9009\u4E0B\u6CA1\u6709\u9644\u4EF6",
+    analyticsRefUsed: "\u5DF2\u5F15\u7528",
+    analyticsRefUnused: "\u672A\u5F15\u7528",
+    analyticsCopiedName: "\u5DF2\u590D\u5236\u6587\u4EF6\u540D\uFF1A{name}",
+    analyticsClickToCopy: "\u70B9\u51FB\u590D\u5236\u6587\u4EF6\u540D\uFF0C\u60AC\u6D6E\u9884\u89C8\u7F29\u7565\u56FE",
+    analyticsBadgeLocal: "\u{1F4BB} \u672C\u5730",
+    analyticsBadgeRemote: "\u2601\uFE0F \u8FDC\u7A0B",
+    analyticsFail: "\u83B7\u53D6\u77E5\u8BC6\u5E93\u7EDF\u8BA1\u62A5\u544A\u5931\u8D25\uFF1A{err}",
     analyticsExportReport: "\u5BFC\u51FA\u77E5\u8BC6\u5E93\u62A5\u544A\uFF08.md\uFF09",
     // 弹窗与通用通知
     confirmRemoteOrphanTitle: "\u79FB\u5165\u56DE\u6536\u7AD9\uFF1F",
@@ -1352,18 +1416,13 @@ var UI_STRINGS = {
     thumbDetailsTooltip: "\u67E5\u770B\u6587\u4EF6\u8BE6\u60C5",
     orphanSelectRequired: "\u8BF7\u81F3\u5C11\u9009\u62E9\u4E00\u4E2A\u5F85\u6E05\u7406\u7684\u6587\u4EF6\u3002",
     dupSelectTypeRequired: "\u8BF7\u81F3\u5C11\u9009\u62E9\u4E00\u79CD\u67E5\u91CD\u6587\u4EF6\u7C7B\u578B\u3002",
-    analyticsLocalStats: "\u{1F5BC}\uFE0F \u56FE\u7247\uFF1A{img} ({imgBytes}) \xB7 \u{1F3B5} \u97F3\u9891\uFF1A{aud} ({audBytes}) \xB7 \u{1F4E6} \u5176\u4ED6\uFF1A{oth} ({othBytes})",
-    analyticsRemoteStats: "\u26A1 WebP \u7F13\u5B58\uFF1A{cache} \xB7 \u{1F512} \u9632\u5220\u9501\u5B9A\uFF1A{locked}",
-    analyticsBadgeLocal: "\u{1F4BB} \u672C\u5730",
-    analyticsBadgeRemote: "\u2601\uFE0F \u8FDC\u7A0B",
-    analyticsFail: "\u274C \u8BA1\u7B97\u77E5\u8BC6\u5E93\u7EDF\u8BA1\u62A5\u544A\u5931\u8D25\uFF1A{err}",
     btnConfirm: "\u786E\u8BA4",
     noticeInstantUpload: "\u670D\u52A1\u5668\u4E0A\u5DF2\u6709\u76F8\u540C\u6587\u4EF6\uFF0C\u5DF2\u590D\u7528\u73B0\u6709\u94FE\u63A5\u3002",
     // 素材处理进度与结果弹窗
     destProcessingTitle: "\u6B63\u5728\u5904\u7406\u9644\u4EF6...",
     destProbeChecking: "\u6B63\u5728\u68C0\u67E5\u670D\u52A1\u5668\u4E0A\u662F\u5426\u5DF2\u6709\u76F8\u540C\u6587\u4EF6...",
     destUploadingRemote: "\u6B63\u5728\u4E0A\u4F20\u5230\u670D\u52A1\u5668...",
-    destSavingLocal: "\u{1F4BB} \u6B63\u5728\u4FDD\u5B58\u81F3\u672C\u5730\u77E5\u8BC6\u5E93...",
+    destSavingLocal: "\u6B63\u5728\u4FDD\u5B58\u81F3\u672C\u5730\u77E5\u8BC6\u5E93...",
     destResultTitle: "\u9644\u4EF6\u5DF2\u5904\u7406",
     destInstantBadge: "\u670D\u52A1\u5668\u4E0A\u5DF2\u6709\u76F8\u540C\u6587\u4EF6",
     destInstantDesc: "\u5DF2\u590D\u7528\u670D\u52A1\u5668\u4E0A\u7684\u6587\u4EF6\uFF0C\u65E0\u9700\u91CD\u65B0\u4E0A\u4F20\u6587\u4EF6\u5185\u5BB9\u3002",
@@ -1455,7 +1514,7 @@ var UI_STRINGS = {
     activeNoteDownloadDoneDesc: "\u5DF2\u4E0B\u8F7D\u5F53\u524D\u7B14\u8BB0\u4E2D\u7684 {count} \u4E2A\u670D\u52A1\u5668\u6587\u4EF6\uFF0C\u5E76\u66F4\u65B0\u4E3A\u672C\u5730\u94FE\u63A5\u3002",
     activeNoteNoLocal: "\u26A0\uFE0F \u5F53\u524D\u7B14\u8BB0\u4E2D\u672A\u627E\u5230\u672C\u5730\u9644\u4EF6\u5F15\u7528",
     activeNoteNoRemote: "\u5F53\u524D\u7B14\u8BB0\u4E2D\u6CA1\u6709\u670D\u52A1\u5668\u6587\u4EF6\u94FE\u63A5",
-    // 远端图床媒体相册 UI
+    // 远端媒体资产库 UI
     galleryTitle: "\u670D\u52A1\u5668\u6587\u4EF6",
     galleryViewTitle: "\u6587\u4EF6\u5E93",
     galleryLoading: "\u6B63\u5728\u52A0\u8F7D\u670D\u52A1\u5668\u6587\u4EF6...",
@@ -1757,14 +1816,36 @@ var UI_STRINGS = {
     analyticsTitle: "Vault overview",
     analyticsBadge: "Overview",
     analyticsLoading: "Counting notes, attachments, and server files...",
-    analyticsStatNotes: "Notes & Canvas Boards",
-    analyticsStatWords: "Total Words / Characters",
-    analyticsStatLinks: "Links & Embeds",
-    analyticsStatStorage: "Total Storage Footprint",
-    analyticsStorageComparison: "Vault and server storage",
-    analyticsLocalVault: "Vault attachments",
-    analyticsRemoteServer: "Server files",
+    analyticsStatNotes: "Notes",
+    analyticsStatImages: "Images",
+    analyticsStatOtherAttachments: "Other Attachments",
+    analyticsStatTotalFiles: "Total",
+    analyticsStatNotesSub: "{md} notes \xB7 {cva} canvases",
+    analyticsStatImagesSub: "Local {loc} \xB7 Remote {rem}",
+    analyticsStatOtherSub: "Video, audio, docs, etc.",
+    analyticsStatTotalSub: "All notes and assets",
+    analyticsStorageComparison: "Storage footprint",
+    analyticsLocalVault: "Local attachments",
+    analyticsRemoteServer: "Server assets",
+    analyticsLocalStats: "Images: {imgBytes} \xB7 Other: {othBytes}",
+    analyticsRemoteStats: "WebP cache: {cache} \xB7 Protected: {locked}",
+    analyticsInsightsTitle: "Health & optimization insights",
+    analyticsInsightStorageLocal: 'Local storage is high (<strong style="color: var(--text-accent);">{pct}%</strong>); consider offloading large files to the server.',
+    analyticsInsightStorageRemote: 'Cloud-primary storage (<strong style="color: #10b981;">{pct}%</strong>), reducing local footprint and mobile sync traffic.',
+    analyticsInsightCacheReady: 'WebP cache <strong style="color: #10b981;">100% ready</strong>, optimizing client loading bandwidth.',
+    analyticsInsightLockedSafe: '<strong style="color: #10b981;">{count}</strong> server assets are locked with delete protection.',
     analyticsTopLargest: "10 largest attachments",
+    analyticsFilterAll: "All",
+    analyticsFilterLocal: "\u{1F4BB} Local",
+    analyticsFilterRemote: "\u2601\uFE0F Remote",
+    analyticsFilterEmpty: "No attachments under current filter",
+    analyticsRefUsed: "Referenced",
+    analyticsRefUnused: "Unreferenced",
+    analyticsCopiedName: "Copied file name: {name}",
+    analyticsClickToCopy: "Click to copy file name, hover for preview",
+    analyticsBadgeLocal: "\u{1F4BB} Local",
+    analyticsBadgeRemote: "\u2601\uFE0F Remote",
+    analyticsFail: "Failed to compute vault analytics: {err}",
     analyticsExportReport: "Export vault report (.md)",
     // Confirm Dialogs and Notices
     confirmRemoteOrphanTitle: "Move to trash?",
@@ -1947,18 +2028,13 @@ var UI_STRINGS = {
     thumbDetailsTooltip: "View file details",
     orphanSelectRequired: "Please select at least one file to clean.",
     dupSelectTypeRequired: "Please select at least one file type to compare.",
-    analyticsLocalStats: "\u{1F5BC}\uFE0F Images: {img} ({imgBytes}) \xB7 \u{1F3B5} Audio: {aud} ({audBytes}) \xB7 \u{1F4E6} Other: {oth} ({othBytes})",
-    analyticsRemoteStats: "\u26A1 WebP Cache: {cache} \xB7 \u{1F512} Protected/Locked: {locked}",
-    analyticsBadgeLocal: "\u{1F4BB} Local",
-    analyticsBadgeRemote: "\u2601\uFE0F Remote",
-    analyticsFail: "\u274C Failed to compute vault analytics: {err}",
     btnConfirm: "Confirm",
     noticeInstantUpload: "An identical file already exists on the server. Reused its link.",
     // Asset Processing Progress & Result Modal
     destProcessingTitle: "Processing attachment...",
     destProbeChecking: "Checking whether this file is already on the server...",
     destUploadingRemote: "Uploading to server...",
-    destSavingLocal: "\u{1F4BB} Saving to local vault...",
+    destSavingLocal: "Saving to local vault...",
     destResultTitle: "Attachment processed",
     destInstantBadge: "File already on server",
     destInstantDesc: "Reused the existing server file without uploading its content again.",
@@ -3811,7 +3887,7 @@ async function scanUnusedFiles(plugin, options, scanCtx = {}) {
 }
 async function exportOrphanReportToRoot(plugin, results) {
   const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
+  const dateStr = formatDateTimestamp(now);
   const reportPath = `Unused_Files_Report_${dateStr}.md`;
   const localItems = results.filter((r) => r.source === "local");
   const remoteItems = results.filter((r) => r.source === "remote");
@@ -4064,7 +4140,7 @@ async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, scanCtx =
 }
 async function exportDuplicateReportToRoot(plugin, groups) {
   const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
+  const dateStr = formatDateTimestamp(now);
   const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
   const lines = [
     `# \u{1F50D} Duplicate Files Inspection Report (${dateStr})`,
@@ -4092,9 +4168,8 @@ async function exportDuplicateReportToRoot(plugin, groups) {
 }
 async function exportBatchMigrateReportToRoot(plugin, summary) {
   const now = /* @__PURE__ */ new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const dateStr = formatDateYMD(now);
-  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const dateStr = formatDateTimestamp(now);
+  const timeStr = now.toLocaleTimeString("zh-CN", { hour12: false });
   const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
   const count = (summary == null ? void 0 : summary.count) || 0;
   const docs = (summary == null ? void 0 : summary.docs) || 0;
@@ -5769,7 +5844,7 @@ async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
 }
 async function exportHealthReportToRoot(plugin, issues, totalDocsScanned) {
   const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
+  const dateStr = formatDateTimestamp(now);
   const reportPath = `Broken_Links_Report_${dateStr}.md`;
   const zh = getEffectiveLanguage2(plugin.settings) === "zh";
   const locale = zh ? "zh-CN" : "en-US";
@@ -5880,84 +5955,197 @@ async function scanVaultAnalytics(plugin) {
 }
 async function exportAnalyticsReportToRoot(plugin, stats) {
   const now = /* @__PURE__ */ new Date();
-  const dateStr = formatDateYMD(now);
+  const dateStr = formatDateTimestamp(now);
   const reportPath = `Vault_Analytics_Report_${dateStr}.md`;
   const zh = getEffectiveLanguage2(plugin.settings) === "zh";
   const locale = zh ? "zh-CN" : "en-US";
+  const noteCount = stats.noteCount + stats.canvasCount;
+  const remoteImgCount = stats.remote.imageCount || stats.remote.totalCount || 0;
+  const totalImages = stats.local.imageCount + remoteImgCount;
+  const totalOther = Math.max(0, stats.local.totalCount + stats.remote.totalCount - totalImages);
+  const totalAssets = noteCount + stats.local.totalCount + stats.remote.totalCount;
+  const totalBytes = Math.max(1, stats.local.totalBytes + stats.remote.rawBytes);
+  const localPct = (stats.local.totalBytes / totalBytes * 100).toFixed(1);
+  const remotePct = (100 - parseFloat(localPct)).toFixed(1);
   const labels = zh ? {
-    title: "\u77E5\u8BC6\u5E93\u62A5\u544A",
-    generated: "\u751F\u6210\u65F6\u95F4",
-    overview: "\u77E5\u8BC6\u5E93\u6982\u89C8",
-    notes: "\u7B14\u8BB0",
-    canvases: "\u767D\u677F",
-    words: "\u5B57\u8BCD\u6570",
-    links: "\u94FE\u63A5\u4E0E\u5D4C\u5165",
-    storage: "\u5B58\u50A8\u7528\u91CF",
-    location: "\u4F4D\u7F6E",
-    count: "\u6587\u4EF6\u6570",
-    size: "\u5927\u5C0F",
-    details: "\u5206\u7C7B",
-    vault: "\u77E5\u8BC6\u5E93",
-    server: "\u670D\u52A1\u5668",
-    images: "\u56FE\u7247",
-    audio: "\u97F3\u9891",
-    other: "\u5176\u4ED6",
-    cache: "WebP \u7F13\u5B58",
-    protected: "\u53D7\u4FDD\u62A4\u6587\u4EF6",
-    largest: "\u4F53\u79EF\u6700\u5927\u7684\u9644\u4EF6",
-    source: "\u6765\u6E90",
-    path: "\u6587\u4EF6\u8DEF\u5F84"
+    title: "\u77E5\u8BC6\u5E93\u62A5\u544A\uFF1A\u8D44\u4EA7\u5168\u666F\u4E0E\u5B58\u50A8\u5BA1\u8BA1",
+    metaGen: "\u751F\u6210\u65F6\u95F4",
+    metaTool: "\u5206\u6790\u5DE5\u5177",
+    toolName: "File Master \u8D44\u4EA7\u7BA1\u7406\u6A21\u5757",
+    secOverview: "\u4E00\u3001\u5168\u5E93\u6838\u5FC3\u8D44\u4EA7\u6982\u89C8",
+    colMetric: "\u6307\u6807\u9879",
+    colValue: "\u7EDF\u8BA1\u6570\u503C",
+    colDesc: "\u8BE6\u7EC6\u8BF4\u660E",
+    mNotes: "\u{1F4DD} \u7B14\u8BB0\u4E0E\u767D\u677F",
+    mNotesDesc: `${stats.noteCount} \u7BC7 Markdown \u7B14\u8BB0 \xB7 ${stats.canvasCount} \u4E2A Canvas \u767D\u677F`,
+    mImages: "\u{1F5BC}\uFE0F \u56FE\u7247\u603B\u6570",
+    mImagesDesc: `\u672C\u5730 ${stats.local.imageCount} \u5F20 \xB7 \u4E91\u7AEF ${remoteImgCount} \u5F20`,
+    mOther: "\u{1F4E6} \u5176\u4ED6\u9644\u4EF6",
+    mOtherDesc: "\u89C6\u9891\u3001\u97F3\u9891\u53CA\u5404\u7C7B\u6587\u6863",
+    mTotal: "\u{1F4DA} \u8D44\u4EA7\u603B\u6570",
+    mTotalDesc: "\u5168\u5E93\u6240\u6709\u7B14\u8BB0\u4E0E\u7D20\u6750\u603B\u548C",
+    mStorage: "\u{1F4BE} \u5B58\u50A8\u603B\u5360\u7528",
+    mStorageDesc: "\u5305\u542B\u672C\u5730\u77E5\u8BC6\u5E93\u9644\u4EF6\u4E0E\u670D\u52A1\u5668\u6258\u7BA1\u8D44\u4EA7\u603B\u548C",
+    secStorage: "\u4E8C\u3001\u5B58\u50A8\u5BB9\u91CF\u4E0E\u5F62\u6001\u5206\u5E03",
+    colStorageType: "\u5B58\u50A8\u5F62\u6001",
+    colAssetCount: "\u6587\u4EF6\u6570\u91CF",
+    colStorageSize: "\u5360\u7528\u4F53\u79EF",
+    colRatio: "\u5360\u6BD4",
+    colBreakdown: "\u6784\u6210\u8BF4\u660E",
+    localVault: "\u{1F4BB} \u672C\u5730",
+    remoteServer: "\u2601\uFE0F \u8FDC\u7A0B",
+    localDetail: `\u56FE\u7247 ${formatBytes(stats.local.imageBytes)} \xB7 \u5176\u4ED6 ${formatBytes(Math.max(0, stats.local.totalBytes - stats.local.imageBytes))}`,
+    remoteDetail: `\u539F\u6587\u4EF6 ${formatBytes(stats.remote.rawBytes)} \xB7 WebP \u7F13\u5B58 ${formatBytes(stats.remote.cacheBytes)} \xB7 \u9632\u5220\u4FDD\u62A4 ${stats.remote.lockedCount} \u9879`,
+    secLargest: "\u4E09\u3001\u9AD8\u5360\u7528\u9644\u4EF6\u6DF1\u5EA6\u5BA1\u8BA1\u6E05\u5355\uFF08TOP 20\uFF09",
+    colRank: "\u5E8F\u53F7",
+    colName: "\u6587\u4EF6\u540D\u79F0",
+    colLocation: "\u5B58\u50A8\u4F4D\u7F6E",
+    colType: "\u7C7B\u578B",
+    colSize: "\u6587\u4EF6\u5927\u5C0F",
+    colPreview: "\u9884\u89C8 / \u5F15\u7528",
+    typeImage: "\u{1F5BC}\uFE0F \u56FE\u7247",
+    typeVideo: "\u{1F3AC} \u89C6\u9891",
+    typeAudio: "\u{1F3B5} \u97F3\u9891",
+    typeDoc: "\u{1F4C4} \u6587\u6863",
+    typeOther: "\u{1F4E6} \u5176\u4ED6",
+    secAdvice: "\u56DB\u3001\u8D44\u4EA7\u5065\u5EB7\u4E0E\u4F18\u5316\u5EFA\u8BAE",
+    advStorageRemote: `\u2601\uFE0F **\u4E91\u7AEF\u6258\u7BA1\u4E3A\u4E3B**\uFF1A\u5F53\u524D **${remotePct}%** \u7684\u9644\u4EF6\u6258\u7BA1\u5728\u670D\u52A1\u5668\uFF0C\u6709\u6548\u51CF\u8F7B\u672C\u5730\u77E5\u8BC6\u5E93\u53CA\u79FB\u52A8\u7AEF\u591A\u8BBE\u5907\u540C\u6B65\u8D1F\u62C5\u3002`,
+    advStorageLocalHeavy: `\u{1F4E6} **\u672C\u5730\u5B58\u50A8\u4F18\u5316**\uFF1A\u68C0\u6D4B\u5230\u672C\u5730\u9644\u4EF6\u5360\u7528\u504F\u9AD8\uFF08**${localPct}%**\uFF09\uFF0C\u5B58\u5728\u8D85\u5927\u5355\u6587\u4EF6\uFF0C\u5EFA\u8BAE\u5C06\u5927\u4F53\u79EF\u7D20\u6750\u8FC1\u79FB\u81F3\u670D\u52A1\u5668\u4EE5\u91CA\u653E\u672C\u5730\u4E0E\u540C\u6B65\u7A7A\u95F4\u3002`,
+    advCacheReady: `\u26A1 **\u8BBF\u95EE\u6027\u80FD\u52A0\u901F**\uFF1A\u4E91\u7AEF WebP \u884D\u751F\u7F13\u5B58\u5DF2\u5C31\u7EEA\uFF0C\u79FB\u52A8\u7AEF\u4E0E\u5BA2\u6237\u7AEF\u6D4F\u89C8\u65F6\u5177\u5907\u8F7B\u91CF\u5316\u52A0\u8F7D\u52A0\u901F\u80FD\u529B\u3002`,
+    advLockedSafe: `\u{1F6E1}\uFE0F **\u4E91\u7AEF\u8D44\u4EA7\u5B89\u5168**\uFF1A\u5DF2\u6709 **${stats.remote.lockedCount} \u9879** \u5173\u952E\u4E91\u7AEF\u8D44\u4EA7\u5F00\u542F\u9632\u5220\u4FDD\u62A4\u9501\u5B9A\uFF0C\u9632\u6B62\u610F\u5916\u5931\u6548\u3002`,
+    openFile: "\u6253\u5F00\u94FE\u63A5"
   } : {
-    title: "Vault report",
-    generated: "Generated",
-    overview: "Vault overview",
-    notes: "Notes",
-    canvases: "Canvases",
-    words: "Words and CJK characters",
-    links: "Links and embeds",
-    storage: "Storage use",
-    location: "Location",
-    count: "Files",
-    size: "Size",
-    details: "Breakdown",
-    vault: "Vault",
-    server: "Server",
-    images: "Images",
-    audio: "Audio",
-    other: "Other",
-    cache: "WebP cache",
-    protected: "Protected files",
-    largest: "Largest attachments",
-    source: "Source",
-    path: "File path"
+    title: "Vault report: Asset and storage audit",
+    metaGen: "Generated",
+    metaTool: "Analyzer",
+    toolName: "File Master Asset Management Module",
+    secOverview: "1. Core Asset Metrics",
+    colMetric: "Metric",
+    colValue: "Value",
+    colDesc: "Breakdown",
+    mNotes: "\u{1F4DD} Notes & Canvases",
+    mNotesDesc: `${stats.noteCount} Markdown notes \xB7 ${stats.canvasCount} Canvases`,
+    mImages: "\u{1F5BC}\uFE0F Total Images",
+    mImagesDesc: `Local ${stats.local.imageCount} \xB7 Remote ${remoteImgCount}`,
+    mOther: "\u{1F4E6} Other Attachments",
+    mOtherDesc: "Video, audio, documents, etc.",
+    mTotal: "\u{1F4DA} Total Assets",
+    mTotalDesc: "All notes and media assets combined",
+    mStorage: "\u{1F4BE} Total Footprint",
+    mStorageDesc: "Combined footprint of local vault attachments and server assets",
+    secStorage: "2. Storage Distribution",
+    colStorageType: "Storage Mode",
+    colAssetCount: "Files",
+    colStorageSize: "Size",
+    colRatio: "Share",
+    colBreakdown: "Composition",
+    localVault: "\u{1F4BB} Local",
+    remoteServer: "\u2601\uFE0F Remote",
+    localDetail: `Images ${formatBytes(stats.local.imageBytes)} \xB7 Other ${formatBytes(Math.max(0, stats.local.totalBytes - stats.local.imageBytes))}`,
+    remoteDetail: `Raw ${formatBytes(stats.remote.rawBytes)} \xB7 WebP Cache ${formatBytes(stats.remote.cacheBytes)} \xB7 Protected ${stats.remote.lockedCount}`,
+    secLargest: "3. High-Footprint Attachments Audit (TOP 20)",
+    colRank: "#",
+    colName: "File Name",
+    colLocation: "Location",
+    colType: "Type",
+    colSize: "Size",
+    colPreview: "Preview / Reference",
+    typeImage: "\u{1F5BC}\uFE0F Image",
+    typeVideo: "\u{1F3AC} Video",
+    typeAudio: "\u{1F3B5} Audio",
+    typeDoc: "\u{1F4C4} Document",
+    typeOther: "\u{1F4E6} Other",
+    secAdvice: "4. Health & Optimization Insights",
+    advStorageRemote: `\u2601\uFE0F **Cloud-Primary Storage**: **${remotePct}%** of attachments are hosted on the server, significantly reducing local footprint and mobile sync traffic.`,
+    advStorageLocalHeavy: `\u{1F4E6} **Local Storage Guidance**: Local attachment footprint is notable (**${localPct}%**); consider hosting heavy media on the server to lighten mobile sync load.`,
+    advCacheReady: `\u26A1 **Loading Acceleration**: Server WebP cache is ready, optimizing multi-device loading bandwidth.`,
+    advLockedSafe: `\u{1F6E1}\uFE0F **Asset Protection**: **${stats.remote.lockedCount}** cloud assets are locked with delete protection.`,
+    openFile: "Open Link"
   };
   const lines = [
-    `# ${labels.title} (${dateStr})`,
+    `# \u{1F4CA} ${labels.title} (${dateStr})`,
     ``,
-    `> ${labels.generated}: ${now.toLocaleString(locale)}`,
+    `> \u23F1\uFE0F ${labels.metaGen}: ${now.toLocaleString(locale)}  |  \u{1F6E0}\uFE0F ${labels.metaTool}: ${labels.toolName}`,
     ``,
-    `## 1. ${labels.overview}`,
-    `- ${labels.notes}: **${stats.noteCount}**`,
-    `- ${labels.canvases}: **${stats.canvasCount}**`,
-    `- ${labels.words}: **${stats.totalWords.toLocaleString(locale)}**`,
-    `- ${labels.links}: **${stats.totalInternalLinks.toLocaleString(locale)}**`,
+    `---`,
     ``,
-    `## 2. ${labels.storage}`,
-    `| ${labels.location} | ${labels.count} | ${labels.size} | ${labels.details} |`,
-    `|---|---|---|---|`,
-    `| ${labels.vault} | ${stats.local.totalCount} | ${formatBytes(stats.local.totalBytes)} | ${labels.images}: ${stats.local.imageCount} (${formatBytes(stats.local.imageBytes)}), ${labels.audio}: ${stats.local.audioCount} (${formatBytes(stats.local.audioBytes)}), ${labels.other}: ${stats.local.otherCount} (${formatBytes(stats.local.otherBytes)}) |`,
-    `| ${labels.server} | ${stats.remote.totalCount} | ${formatBytes(stats.remote.rawBytes)} | ${labels.cache}: ${formatBytes(stats.remote.cacheBytes)}, ${labels.protected}: ${stats.remote.lockedCount} |`,
+    `## \u{1F4C8} ${labels.secOverview}`,
+    ``,
+    `| ${labels.colMetric} | ${labels.colValue} | ${labels.colDesc} |`,
+    `| :--- | :---: | :--- |`,
+    `| ${labels.mNotes} | **${noteCount.toLocaleString(locale)}** | ${labels.mNotesDesc} |`,
+    `| ${labels.mImages} | **${totalImages.toLocaleString(locale)}** | ${labels.mImagesDesc} |`,
+    `| ${labels.mOther} | **${totalOther.toLocaleString(locale)}** | ${labels.mOtherDesc} |`,
+    `| ${labels.mTotal} | **${totalAssets.toLocaleString(locale)}** | ${labels.mTotalDesc} |`,
+    `| ${labels.mStorage} | **${formatBytes(stats.local.totalBytes + stats.remote.rawBytes)}** | ${labels.mStorageDesc} |`,
+    ``,
+    `---`,
+    ``,
+    `## \u{1F4BE} ${labels.secStorage}`,
+    ``,
+    `| ${labels.colStorageType} | ${labels.colAssetCount} | ${labels.colStorageSize} | ${labels.colRatio} | ${labels.colBreakdown} |`,
+    `| :---: | :---: | :---: | :---: | :--- |`,
+    `| ${labels.localVault} | ${stats.local.totalCount} | **${formatBytes(stats.local.totalBytes)}** | ${localPct}% | ${labels.localDetail} |`,
+    `| ${labels.remoteServer} | ${stats.remote.totalCount} | **${formatBytes(stats.remote.rawBytes)}** | ${remotePct}% | ${labels.remoteDetail} |`,
+    ``,
+    `---`,
     ``
   ];
   if (stats.topLargestAttachments && stats.topLargestAttachments.length > 0) {
-    lines.push(`## 3. ${labels.largest}`);
-    lines.push(`| ${labels.source} | ${labels.path} | ${labels.details} | ${labels.size} |`);
-    lines.push(`|---|---|---|---|`);
-    for (const item of stats.topLargestAttachments) {
-      const srcLabel = item.source === "local" ? labels.vault : labels.server;
-      const category = item.group === "image" ? labels.images : item.group === "audio" ? labels.audio : labels.other;
-      lines.push(`| ${srcLabel} | \`${item.path}\` | ${category} | ${formatBytes(item.size)} |`);
-    }
+    lines.push(`## \u{1F4D1} ${labels.secLargest}`);
+    lines.push(``);
+    lines.push(`| ${labels.colRank} | ${labels.colName} | ${labels.colLocation} | ${labels.colType} | ${labels.colSize} | ${labels.colPreview} |`);
+    lines.push(`| :---: | :--- | :---: | :---: | :---: | :---: |`);
+    const topItems = stats.topLargestAttachments.slice(0, 20);
+    topItems.forEach((item, index) => {
+      var _a;
+      const srcLabel = item.source === "local" ? labels.localVault : labels.remoteServer;
+      let typeLabel = labels.typeOther;
+      if (item.group === "image") typeLabel = labels.typeImage;
+      else if (item.group === "video") typeLabel = labels.typeVideo;
+      else if (item.group === "audio") typeLabel = labels.typeAudio;
+      else if (item.group === "doc") typeLabel = labels.typeDoc;
+      const rank = String(index + 1).padStart(2, "0");
+      let previewCol = "";
+      if (item.source === "local") {
+        if (item.group === "image") {
+          previewCol = `![[${item.path}\\|80]]`;
+        } else {
+          previewCol = `[[${item.path}]]`;
+        }
+      } else {
+        const cleanServer = ((_a = plugin.settings) == null ? void 0 : _a.serverUrl) ? plugin.settings.serverUrl.replace(/\/$/, "") : "";
+        const webpPath = String(item.path || "").replace(/\.[^.]+$/, ".webp");
+        const remoteUrl = item.pubUrl || (cleanServer ? `${cleanServer}/pub/${webpPath}` : "") || item.rawUrl || (cleanServer ? `${cleanServer}/raw/${item.path}` : "");
+        if (item.group === "image" && remoteUrl) {
+          previewCol = `<img src="${remoteUrl}" width="80" style="max-height:80px; object-fit:contain; border-radius:4px;" />`;
+        } else if (remoteUrl) {
+          previewCol = `[${labels.openFile}](${remoteUrl})`;
+        } else {
+          previewCol = `\`${item.path}\``;
+        }
+      }
+      lines.push(`| ${rank} | \`${item.name}\` | ${srcLabel} | ${typeLabel} | **${formatBytes(item.size)}** | ${previewCol} |`);
+    });
+    lines.push(``);
+    lines.push(`---`);
+    lines.push(``);
+  }
+  lines.push(`## \u{1F4A1} ${labels.secAdvice}`);
+  lines.push(``);
+  if (parseFloat(localPct) >= 50) {
+    lines.push(`- ${labels.advStorageLocalHeavy}`);
+    lines.push(``);
+  } else {
+    lines.push(`- ${labels.advStorageRemote}`);
+    lines.push(``);
+  }
+  if (stats.remote.cacheBytes > 0) {
+    lines.push(`- ${labels.advCacheReady}`);
+    lines.push(``);
+  }
+  if (stats.remote.lockedCount > 0) {
+    lines.push(`- ${labels.advLockedSafe}`);
     lines.push(``);
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
@@ -6929,11 +7117,13 @@ var RemoteGalleryView = class extends import_obsidian20.ItemView {
 };
 
 // src/modals/vault-analytics.js
+var import_obsidian21 = require("obsidian");
 var VaultAnalyticsModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
     this.stats = null;
+    this.hoverPopover = null;
   }
   async onOpen() {
     const t2 = (k, p) => this.plugin.t(k, p);
@@ -6957,26 +7147,64 @@ var VaultAnalyticsModal = class extends FileMasterModal {
   renderDashboard(contentEl) {
     const t2 = (k, p) => this.plugin.t(k, p);
     const s = this.stats;
+    const noteCount = s.noteCount + s.canvasCount;
+    const remoteImgCount = s.remote.imageCount || s.remote.totalCount || 0;
+    const totalImages = s.local.imageCount + remoteImgCount;
+    const totalOtherAttachments = Math.max(0, s.local.totalCount + s.remote.totalCount - totalImages);
+    const totalAllFiles = noteCount + s.local.totalCount + s.remote.totalCount;
+    const totalCombinedBytes = Math.max(1, s.local.totalBytes + s.remote.rawBytes);
+    const localPct = Math.round(s.local.totalBytes / totalCombinedBytes * 100);
+    const remotePct = 100 - localPct;
+    const cacheCov = s.remote.totalCount > 0 ? Math.round((s.remote.cachedCount || 0) / s.remote.totalCount * 100) : 0;
     const statGrid = contentEl.createDiv({ cls: "fm-health-stat-grid" });
-    const addStat = (num, label, color) => {
-      const card = statGrid.createDiv({ cls: "fm-health-stat-card" });
-      const numEl = card.createDiv({ cls: "fm-health-stat-num", text: String(num) });
+    const addStat = (num, label, sub, color) => {
+      const card = statGrid.createDiv({
+        cls: "fm-health-stat-card",
+        attr: {
+          style: "padding: 10px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80px;"
+        }
+      });
+      const numEl = card.createDiv({
+        cls: "fm-health-stat-num",
+        text: String(num),
+        attr: { style: "font-size: 20px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums;" }
+      });
       if (color) numEl.style.color = color;
-      card.createDiv({ cls: "fm-health-stat-label", text: label });
+      card.createDiv({
+        cls: "fm-health-stat-label",
+        text: label,
+        attr: { style: "font-size: 11px; font-weight: 600; color: var(--text-muted); margin-top: 3px;" }
+      });
+      card.createDiv({
+        text: sub,
+        attr: { style: "font-size: 10px; color: var(--text-faint); margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap;" }
+      });
     };
-    addStat(s.noteCount + s.canvasCount, `${t2("analyticsStatNotes")} (${s.noteCount} md / ${s.canvasCount} canvas)`);
-    addStat(s.totalWords.toLocaleString(), t2("analyticsStatWords"), "#10b981");
-    addStat(s.totalInternalLinks.toLocaleString(), t2("analyticsStatLinks"), "#3b82f6");
     addStat(
-      formatBytes(s.local.totalBytes + s.remote.rawBytes),
-      t2("analyticsStatStorage"),
+      noteCount,
+      t2("analyticsStatNotes"),
+      t2("analyticsStatNotesSub", { md: s.noteCount, cva: s.canvasCount })
+    );
+    addStat(
+      totalImages,
+      t2("analyticsStatImages"),
+      t2("analyticsStatImagesSub", { loc: s.local.imageCount, rem: remoteImgCount }),
+      "#10b981"
+    );
+    addStat(
+      totalOtherAttachments,
+      t2("analyticsStatOtherAttachments"),
+      t2("analyticsStatOtherSub"),
+      "#3b82f6"
+    );
+    addStat(
+      totalAllFiles,
+      t2("analyticsStatTotalFiles"),
+      t2("analyticsStatTotalSub"),
       "#8b5cf6"
     );
     const storageBox = contentEl.createDiv({ cls: "fm-section-box" });
     storageBox.createDiv({ text: t2("analyticsStorageComparison"), cls: "fm-section-title" });
-    const totalCombinedBytes = Math.max(1, s.local.totalBytes + s.remote.rawBytes);
-    const localPct = Math.round(s.local.totalBytes / totalCombinedBytes * 100);
-    const remotePct = 100 - localPct;
     const summaryRow = storageBox.createDiv({
       attr: { style: "display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;" }
     });
@@ -6985,51 +7213,165 @@ var VaultAnalyticsModal = class extends FileMasterModal {
     });
     localCard.createDiv({ text: t2("analyticsLocalVault"), attr: { style: "font-weight: 600; font-size: 13px;" } });
     localCard.createDiv({
-      text: `${s.local.totalCount} \xB7 ${formatBytes(s.local.totalBytes)} (${localPct}%)`,
-      attr: { style: "font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent);" }
+      text: `${formatBytes(s.local.totalBytes)} (${localPct}%)`,
+      attr: { style: "font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-accent); font-variant-numeric: tabular-nums;" }
     });
     localCard.createDiv({
       text: t2("analyticsLocalStats", {
-        img: s.local.imageCount,
         imgBytes: formatBytes(s.local.imageBytes),
-        aud: s.local.audioCount,
-        audBytes: formatBytes(s.local.audioBytes),
-        oth: s.local.otherCount,
-        othBytes: formatBytes(s.local.otherBytes)
+        othBytes: formatBytes(Math.max(0, s.local.totalBytes - s.local.imageBytes))
       }),
-      attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px;" }
+      attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;" }
     });
     const remoteCard = summaryRow.createDiv({
       attr: { style: "padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);" }
     });
     remoteCard.createDiv({ text: t2("analyticsRemoteServer"), attr: { style: "font-weight: 600; font-size: 13px;" } });
     remoteCard.createDiv({
-      text: `${s.remote.totalCount} \xB7 ${formatBytes(s.remote.rawBytes)} (${remotePct}%)`,
-      attr: { style: "font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981;" }
+      text: `${formatBytes(s.remote.rawBytes)} (${remotePct}%)`,
+      attr: { style: "font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981; font-variant-numeric: tabular-nums;" }
     });
     remoteCard.createDiv({
       text: t2("analyticsRemoteStats", {
         cache: formatBytes(s.remote.cacheBytes),
         locked: s.remote.lockedCount
       }),
-      attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px;" }
+      attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;" }
     });
-    if (s.topLargestAttachments.length > 0) {
+    const insightsBox = contentEl.createDiv({ cls: "fm-section-box" });
+    insightsBox.createDiv({ text: t2("analyticsInsightsTitle"), cls: "fm-section-title" });
+    const insightsList = insightsBox.createDiv({
+      attr: { style: "display: flex; flex-direction: column; gap: 6px; margin-top: 8px;" }
+    });
+    const addInsightItem = (icon, html) => {
+      const itemEl = insightsList.createDiv({
+        attr: {
+          style: "display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.5; color: var(--text-muted); padding: 2px 0;"
+        }
+      });
+      itemEl.createSpan({ text: icon, attr: { style: "flex-shrink: 0; font-size: 13px; margin-top: 1px;" } });
+      const textSpan = itemEl.createSpan({ attr: { style: "flex: 1;" } });
+      textSpan.innerHTML = html;
+    };
+    if (localPct >= 70 && s.local.totalBytes > 10 * 1024 * 1024) {
+      addInsightItem("\u{1F4E6}", t2("analyticsInsightStorageLocal", { pct: localPct }));
+    } else if (remotePct >= 50) {
+      addInsightItem("\u2601\uFE0F", t2("analyticsInsightStorageRemote", { pct: remotePct }));
+    }
+    if (cacheCov > 0) {
+      addInsightItem("\u26A1", t2("analyticsInsightCacheReady"));
+    }
+    if (s.remote.lockedCount > 0) {
+      addInsightItem("\u{1F6E1}\uFE0F", t2("analyticsInsightLockedSafe", { count: s.remote.lockedCount }));
+    }
+    const allTop = s.topLargestAttachments || [];
+    if (allTop.length > 0) {
       const topBox = contentEl.createDiv({ cls: "fm-section-box" });
-      topBox.createDiv({ text: t2("analyticsTopLargest"), cls: "fm-section-title" });
-      const listEl = topBox.createDiv({ cls: "fm-scroll-list", attr: { style: "max-height: 210px;" } });
-      for (const item of s.topLargestAttachments) {
-        const row = listEl.createDiv({ cls: "fm-list-item" });
-        const badge = item.source === "local" ? t2("analyticsBadgeLocal") : t2("analyticsBadgeRemote");
-        row.createSpan({
-          text: `${badge} \xB7 ${item.path}`,
-          attr: { style: "font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" }
+      const topHeaderRow = topBox.createDiv({
+        attr: { style: "display: flex; align-items: center; justify-content: space-between;" }
+      });
+      topHeaderRow.createDiv({ text: t2("analyticsTopLargest"), cls: "fm-section-title", attr: { style: "margin: 0;" } });
+      let currentFilter = "all";
+      const filterGroup = topHeaderRow.createDiv({
+        attr: {
+          style: "display: flex; gap: 2px; background: var(--background-secondary); padding: 2px; border-radius: 6px; border: 1px solid var(--background-modifier-border);"
+        }
+      });
+      const listEl = topBox.createDiv({ cls: "fm-scroll-list", attr: { style: "max-height: 195px; margin-top: 8px;" } });
+      const renderList = () => {
+        listEl.empty();
+        const filtered = allTop.filter((item) => {
+          if (currentFilter === "local") return item.source === "local";
+          if (currentFilter === "remote") return item.source === "remote";
+          return true;
+        }).slice(0, 10);
+        if (filtered.length === 0) {
+          listEl.createDiv({
+            text: t2("analyticsFilterEmpty"),
+            attr: { style: "text-align: center; padding: 20px; color: var(--text-faint); font-size: 12px;" }
+          });
+          return;
+        }
+        for (const item of filtered) {
+          const row = listEl.createDiv({
+            cls: "fm-list-item",
+            attr: {
+              style: "cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 4px;"
+            }
+          });
+          row.title = t2("analyticsClickToCopy");
+          row.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(item.name);
+              new import_obsidian21.Notice(t2("analyticsCopiedName", { name: item.name }));
+            } catch (e) {
+              new import_obsidian21.Notice(item.name);
+            }
+          };
+          row.onmouseenter = (e) => {
+            if (item.group !== "image") return;
+            this.showHoverPreview(e, item);
+          };
+          row.onmouseleave = () => {
+            this.hideHoverPreview();
+          };
+          const leftCol = row.createDiv({
+            attr: { style: "display: flex; align-items: center; min-width: 0; flex: 1; margin-right: 12px;" }
+          });
+          const badgeText = item.source === "local" ? t2("analyticsBadgeLocal") : t2("analyticsBadgeRemote");
+          leftCol.createSpan({
+            text: badgeText,
+            attr: { style: "font-size: 11px; font-weight: 500; margin-right: 6px; flex-shrink: 0;" }
+          });
+          leftCol.createSpan({
+            text: item.path,
+            attr: { style: "font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;" }
+          });
+          if (item.isReferenced) {
+            leftCol.createSpan({
+              text: `[${t2("analyticsRefUsed")}]`,
+              attr: { style: "font-size: 10px; color: var(--text-muted); margin-left: 6px; flex-shrink: 0;" }
+            });
+          } else {
+            leftCol.createSpan({
+              text: `[${t2("analyticsRefUnused")}]`,
+              attr: { style: "font-size: 10px; color: var(--text-warning, #f59e0b); margin-left: 6px; flex-shrink: 0;" }
+            });
+          }
+          row.createSpan({
+            text: formatBytes(item.size),
+            attr: { style: "font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--font-monospace); color: var(--text-muted); flex-shrink: 0;" }
+          });
+        }
+      };
+      const addFilterBtn = (filterKey, label) => {
+        const btn = filterGroup.createEl("button", {
+          text: label,
+          attr: {
+            style: `font-size: 10px; line-height: 1; padding: 2px 7px; height: 20px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.15s ease; background: ${currentFilter === filterKey ? "var(--background-primary)" : "transparent"}; color: ${currentFilter === filterKey ? "var(--text-normal)" : "var(--text-muted)"}; font-weight: ${currentFilter === filterKey ? "600" : "normal"}; box-shadow: ${currentFilter === filterKey ? "0 1px 2px rgba(0,0,0,0.1)" : "none"};`
+          }
         });
-        row.createSpan({
-          text: formatBytes(item.size),
-          attr: { style: "font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;" }
-        });
-      }
+        btn.onclick = () => {
+          currentFilter = filterKey;
+          for (const child of filterGroup.children) {
+            child.style.background = "transparent";
+            child.style.color = "var(--text-muted)";
+            child.style.fontWeight = "normal";
+            child.style.boxShadow = "none";
+          }
+          btn.style.background = "var(--background-primary)";
+          btn.style.color = "var(--text-normal)";
+          btn.style.fontWeight = "600";
+          btn.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
+          renderList();
+        };
+      };
+      addFilterBtn("all", `${t2("analyticsFilterAll")} (${allTop.length})`);
+      const localCount = allTop.filter((i) => i.source === "local").length;
+      const remoteCount = allTop.filter((i) => i.source === "remote").length;
+      addFilterBtn("local", `${t2("analyticsFilterLocal")} (${localCount})`);
+      addFilterBtn("remote", `${t2("analyticsFilterRemote")} (${remoteCount})`);
+      renderList();
     }
     const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
     const exportBtn = btnRow.createEl("button", {
@@ -7042,14 +7384,62 @@ var VaultAnalyticsModal = class extends FileMasterModal {
     const closeBtn = btnRow.createEl("button", { text: t2(this.fromHub ? "btnCancel" : "closeBtn") });
     closeBtn.onclick = () => returnToHub(this);
   }
+  showHoverPreview(e, item) {
+    this.hideHoverPreview();
+    let src = "";
+    if (item.source === "local") {
+      const file = this.app.vault.getAbstractFileByPath(item.path);
+      if (file) src = this.app.vault.getResourcePath(file);
+    } else {
+      const cleanServer = this.plugin.settings.serverUrl ? this.plugin.settings.serverUrl.replace(/\/$/, "") : "";
+      const webpPath = String(item.path || "").replace(/\.[^.]+$/, ".webp");
+      src = item.pubUrl || (cleanServer ? `${cleanServer}/pub/${webpPath}` : "") || item.rawUrl || (cleanServer ? `${cleanServer}/raw/${item.path}` : "");
+    }
+    if (!src) return;
+    const popover = document.createElement("div");
+    popover.className = "fm-hover-preview-popover";
+    popover.style.cssText = `
+      position: fixed;
+      left: ${Math.min(window.innerWidth - 180, e.clientX + 16)}px;
+      top: ${Math.min(window.innerHeight - 160, Math.max(10, e.clientY - 60))}px;
+      z-index: 99999;
+      pointer-events: none;
+      background: var(--background-secondary);
+      border: 1px solid var(--background-modifier-border);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      animation: fm-fade-in 0.15s ease-out;
+    `;
+    const img = document.createElement("img");
+    img.src = src;
+    img.style.cssText = "max-width: 150px; max-height: 130px; display: block; border-radius: 5px; object-fit: contain;";
+    img.onerror = () => {
+      if (item.rawUrl && img.src !== item.rawUrl) {
+        img.src = item.rawUrl;
+      } else {
+        this.hideHoverPreview();
+      }
+    };
+    popover.appendChild(img);
+    document.body.appendChild(popover);
+    this.hoverPopover = popover;
+  }
+  hideHoverPreview() {
+    if (this.hoverPopover) {
+      this.hoverPopover.remove();
+      this.hoverPopover = null;
+    }
+  }
   onClose() {
+    this.hideHoverPreview();
     this.contentEl.empty();
   }
 };
 
 // src/settings-tab.js
-var import_obsidian21 = require("obsidian");
-var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
+var import_obsidian22 = require("obsidian");
+var FileMasterSettingTab = class extends import_obsidian22.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -7089,7 +7479,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
       cls: "clickable-icon fm-settings-back",
       attr: { "aria-label": this.plugin.t("settingsBack") }
     });
-    (0, import_obsidian21.setIcon)(back, "arrow-left");
+    (0, import_obsidian22.setIcon)(back, "arrow-left");
     back.onclick = () => {
       this.activePage = "home";
       this.display();
@@ -7112,16 +7502,16 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
       this.createHeading(section, "h3", icon, this.plugin.t(title));
       const list = section.createDiv({ cls: "fm-settings-nav-list" });
       for (const [page, label, icon2] of entries) {
-        const setting = new import_obsidian21.Setting(list).setName(this.plugin.t(label));
+        const setting = new import_obsidian22.Setting(list).setName(this.plugin.t(label));
         const row = setting.settingEl;
         row.addClass("fm-settings-nav-item");
         (_a = setting.descEl) == null ? void 0 : _a.remove();
         row.setAttribute("role", "button");
         row.setAttribute("tabindex", "0");
         const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
-        (0, import_obsidian21.setIcon)(iconEl, icon2);
+        (0, import_obsidian22.setIcon)(iconEl, icon2);
         setting.nameEl.prepend(iconEl);
-        (0, import_obsidian21.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        (0, import_obsidian22.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
         const open = () => {
           if (page === "hub") {
             openModalSafely(new FileMasterHubModal(this.app, this.plugin));
@@ -7161,7 +7551,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     ]);
   }
   renderGeneralSettings(containerEl) {
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
       (drop) => drop.addOption("auto", this.plugin.t("langAuto")).addOption("zh", "\u7B80\u4F53\u4E2D\u6587").addOption("en", "English").setValue(this.plugin.settings.language || "auto").onChange(async (value) => {
         this.plugin.settings.language = value;
         await this.plugin.saveSettings();
@@ -7169,7 +7559,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
         this.display();
       })
     );
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
         this.plugin.settings.enableSidebarButton = value;
         await this.plugin.saveSettings();
@@ -7178,7 +7568,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     );
   }
   renderServerSettings(containerEl) {
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
       (toggle) => toggle.setValue(Boolean(this.plugin.settings.enableRemoteServer)).onChange(async (value) => {
         this.plugin.settings.enableRemoteServer = value;
         if (!value) {
@@ -7194,7 +7584,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
       hint.setText(this.plugin.t("serverDisabledHint"));
       return;
     }
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
       (text) => text.setPlaceholder("https://files.example.com").setValue(this.plugin.settings.serverUrl).onChange(async (value) => {
         this.plugin.settings.serverUrl = value.trim();
         this.plugin.settings.serverVerified = false;
@@ -7210,7 +7600,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
       statusBox.textContent = getCompatibilityMessage(this.plugin, compat);
     };
     let tokenInput;
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
       tokenInput = text.inputEl;
       tokenInput.type = "password";
       text.setPlaceholder("API token").setValue(this.plugin.settings.apiToken).onChange(async (value) => {
@@ -7229,7 +7619,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     const connectionRow = containerEl.createDiv({ cls: "fm-settings-connection-row" });
     statusBox = connectionRow.createDiv({ cls: "fm-server-compat-banner" });
     updateStatusBox(this.plugin.lastServerCompatStatus);
-    new import_obsidian21.Setting(connectionRow).addButton(
+    new import_obsidian22.Setting(connectionRow).addButton(
       (btn) => btn.setButtonText(this.plugin.t("btnTestConn")).onClick(async () => {
         btn.disabled = true;
         btn.setButtonText(this.plugin.t("compatStatusChecking"));
@@ -7239,7 +7629,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
         try {
           compat = await checkServerCompatibility(this.plugin);
           updateStatusBox(compat);
-          new import_obsidian21.Notice(getCompatibilityMessage(this.plugin, compat));
+          new import_obsidian22.Notice(getCompatibilityMessage(this.plugin, compat));
         } finally {
           btn.disabled = false;
           btn.setButtonText(this.plugin.t("btnTestConn"));
@@ -7249,32 +7639,32 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     );
   }
   renderUploadSettings(containerEl) {
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
         this.plugin.settings.enableClipboardMonitor = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
       (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
         this.plugin.settings.saveLocationMode = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
       (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
         this.plugin.settings.defaultSaveLocation = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
         this.plugin.settings.insertOptimizedLinkOnUpload = value;
         await this.plugin.saveSettings();
       })
     );
     let patternSetting = null;
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
       (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).addOption("prompt", this.plugin.t("optNamingPrompt")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
         this.plugin.settings.namingMode = value;
         await this.plugin.saveSettings();
@@ -7283,7 +7673,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
         }
       })
     );
-    patternSetting = new import_obsidian21.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
+    patternSetting = new import_obsidian22.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
       (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
         this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
         await this.plugin.saveSettings();
@@ -7292,7 +7682,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
     }
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
         this.plugin.settings.uploadNonImageAttachments = value;
         await this.plugin.saveSettings();
@@ -7300,13 +7690,13 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     );
   }
   renderExemptionsSettings(containerEl) {
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
       (text) => text.setPlaceholder("").setValue(this.plugin.settings.excludedLocalFolders).onChange(async (value) => {
         this.plugin.settings.excludedLocalFolders = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
         this.plugin.settings.excludeLockedRemoteFiles = value;
         await this.plugin.saveSettings();
@@ -7319,9 +7709,9 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
     const author = manifest.author || "weichen-ink";
     const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
     const repoUrl = "https://github.com/weichen-ink/file-master";
-    const intro = new import_obsidian21.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
+    const intro = new import_obsidian22.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
     intro.controlEl.createSpan({ text: `v${version}` });
-    const addRow = (label) => new import_obsidian21.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
+    const addRow = (label) => new import_obsidian22.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
     addRow("aboutAuthor").createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutRepo").createEl("a", { text: "weichen-ink/file-master", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutServerCompat").createSpan({ text: `v${MIN_SERVER_VERSION}+` });
@@ -7330,7 +7720,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
       cls: `fm-about-status ${(sCompat == null ? void 0 : sCompat.ok) ? "is-connected" : ""}`,
       text: sCompat ? getCompatibilityMessage(this.plugin, sCompat) : this.plugin.t("aboutServerOffline")
     });
-    new import_obsidian21.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
+    new import_obsidian22.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
       (btn) => btn.setButtonText(this.plugin.t("opLogBtnOpen")).onClick(() => {
         openModalSafely(new OperationLogModal(this.app, this.plugin));
       })
@@ -7340,7 +7730,7 @@ var FileMasterSettingTab = class extends import_obsidian21.PluginSettingTab {
 };
 
 // src/plugin/lifecycle.js
-var import_obsidian22 = require("obsidian");
+var import_obsidian23 = require("obsidian");
 async function onload(plugin) {
   await plugin.loadSettings();
   plugin.operationLogs = [];
@@ -7362,25 +7752,25 @@ async function onload(plugin) {
   );
   plugin.registerEvent(
     plugin.app.workspace.on("active-leaf-change", (leaf) => {
-      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView) {
+      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian23.MarkdownView) {
         plugin.lastActiveMarkdownView = leaf.view;
       }
     })
   );
   plugin.registerEvent(
     plugin.app.workspace.on("file-open", () => {
-      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian22.MarkdownView);
+      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian23.MarkdownView);
       if (mdView) {
         plugin.lastActiveMarkdownView = mdView;
       }
     })
   );
   plugin.app.workspace.onLayoutReady(() => {
-    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian22.MarkdownView);
+    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian23.MarkdownView);
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
-    if (!import_obsidian22.Platform.isMobile) initGalleryLeaf(plugin, false).catch((error) => new import_obsidian22.Notice(error.message));
+    if (!import_obsidian23.Platform.isMobile) initGalleryLeaf(plugin, false).catch((error) => new import_obsidian23.Notice(error.message));
   });
   setTimeout(() => {
     checkServerCompatibility(plugin).catch(() => {
@@ -7426,7 +7816,7 @@ function registerPluginCommands(plugin) {
       id: "resume-pending-upload",
       nameKey: "cmdResumeUpload",
       requiresRemote: true,
-      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian22.Notice(err.message))
+      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian23.Notice(err.message))
     },
     {
       id: "open-control-center",
@@ -7586,18 +7976,18 @@ async function initGalleryLeaf(plugin, reveal = false) {
 }
 async function activateGalleryView(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new import_obsidian22.Notice(plugin.t("remoteServerRequiredNotice"));
+    new import_obsidian23.Notice(plugin.t("remoteServerRequiredNotice"));
     return;
   }
-  if (import_obsidian22.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
+  if (import_obsidian23.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
   return initGalleryLeaf(plugin, true);
 }
 function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = void 0) {
   if (target !== void 0 && !isInsertionTargetValid(plugin, target)) {
-    new import_obsidian22.Notice(plugin.t("galleryOpenNoteFirst"));
+    new import_obsidian23.Notice(plugin.t("galleryOpenNoteFirst"));
     return false;
   }
-  let mdView = (target == null ? void 0 : target.view) || plugin.app.workspace.getActiveViewOfType(import_obsidian22.MarkdownView);
+  let mdView = (target == null ? void 0 : target.view) || plugin.app.workspace.getActiveViewOfType(import_obsidian23.MarkdownView);
   if (!mdView && plugin.lastActiveMarkdownView) {
     const leaves = plugin.app.workspace.getLeavesOfType("markdown");
     if (leaves.some((l) => l.view === plugin.lastActiveMarkdownView)) {
@@ -7616,13 +8006,13 @@ function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target =
   }
   const activeFile = (mdView == null ? void 0 : mdView.file) || plugin.app.workspace.getActiveFile();
   if (!activeFile || activeFile.extension !== "md") {
-    new import_obsidian22.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
+    new import_obsidian23.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
     return false;
   }
   if (mdView == null ? void 0 : mdView.editor) {
     const editor = mdView.editor;
     if ((target == null ? void 0 : target.content) !== void 0 && target.content !== editor.getValue()) {
-      new import_obsidian22.Notice(plugin.t("galleryTargetChanged"));
+      new import_obsidian23.Notice(plugin.t("galleryTargetChanged"));
       return false;
     }
     if ((target == null ? void 0 : target.from) && (target == null ? void 0 : target.to)) {
@@ -7635,18 +8025,18 @@ function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target =
       plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
     }
     editor.focus();
-    if (successNotice) new import_obsidian22.Notice(successNotice);
+    if (successNotice) new import_obsidian23.Notice(successNotice);
     return true;
   } else {
     safeModifyFileContent(plugin, activeFile, (content) => content + "\n" + mdSnippet).then(() => {
-      if (successNotice) new import_obsidian22.Notice(successNotice);
+      if (successNotice) new import_obsidian23.Notice(successNotice);
     });
     return true;
   }
 }
 
 // src/modals/remote-trash.js
-var import_obsidian23 = require("obsidian");
+var import_obsidian24 = require("obsidian");
 var RemoteTrashModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -7696,7 +8086,7 @@ var RemoteTrashModal = class extends FileMasterModal {
   }
   renderFile(list, item) {
     const row = list.createDiv({ cls: "fm-trash-row" });
-    (0, import_obsidian23.setIcon)(row.createSpan({ cls: "fm-trash-icon" }), "file");
+    (0, import_obsidian24.setIcon)(row.createSpan({ cls: "fm-trash-icon" }), "file");
     const info = row.createDiv({ cls: "fm-trash-file" });
     info.createDiv({ text: item.filename, cls: "fm-trash-name" });
     info.createDiv({ text: `${formatBytes(item.size)} \xB7 ${new Date(item.deletedAt).toLocaleString()}`, cls: "fm-gallery-meta" });
@@ -7711,7 +8101,7 @@ var RemoteTrashModal = class extends FileMasterModal {
     };
     const failure = (error) => {
       if (!this.closed) {
-        new import_obsidian23.Notice(error.message || this.t("remoteTrashFailed"));
+        new import_obsidian24.Notice(error.message || this.t("remoteTrashFailed"));
         setBusy(false);
       }
     };
@@ -7722,7 +8112,7 @@ var RemoteTrashModal = class extends FileMasterModal {
         await this.plugin.restoreRemoteTrash(item.id);
         galleryStore(this.plugin).load(true);
         if (!this.closed) {
-          new import_obsidian23.Notice(this.t("remoteTrashRestored"));
+          new import_obsidian24.Notice(this.t("remoteTrashRestored"));
           await this.load();
         }
       } catch (error) {
@@ -7745,7 +8135,7 @@ var RemoteTrashModal = class extends FileMasterModal {
           try {
             await this.plugin.permanentlyDeleteRemoteTrash(item.id);
             if (!this.closed) {
-              new import_obsidian23.Notice(this.t("remoteTrashDeleted"));
+              new import_obsidian24.Notice(this.t("remoteTrashDeleted"));
               await this.load();
             }
           } catch (error) {
@@ -7769,7 +8159,7 @@ var RemoteTrashModal = class extends FileMasterModal {
 };
 
 // src/modals/active-note.js
-var import_obsidian24 = require("obsidian");
+var import_obsidian25 = require("obsidian");
 var ActiveNoteActionModal = class extends FileMasterModal {
   constructor(app, plugin, targetFile, actionType = "migrate", options = {}) {
     var _a;
@@ -7998,7 +8388,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
       runBtn.onclick = async () => {
         const selected = this.items.filter((i) => i.selected);
         if (selected.length === 0) {
-          new import_obsidian24.Notice(this.t("activeNoteSelectRequired"));
+          new import_obsidian25.Notice(this.t("activeNoteSelectRequired"));
           return;
         }
         this.step = "running";
@@ -8138,7 +8528,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
       runBtn.onclick = async () => {
         const selected = this.items.filter((i) => i.selected);
         if (selected.length === 0) {
-          new import_obsidian24.Notice(this.t("activeNoteSelectRequired"));
+          new import_obsidian25.Notice(this.t("activeNoteSelectRequired"));
           return;
         }
         this.step = "running";
@@ -8331,7 +8721,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
               };
             }
           } catch (err) {
-            new import_obsidian24.Notice("\u274C " + err.message);
+            new import_obsidian25.Notice("\u274C " + err.message);
             exportBtn.disabled = false;
           }
         };
@@ -8426,7 +8816,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
 };
 
 // src/modals/hub.js
-var import_obsidian25 = require("obsidian");
+var import_obsidian26 = require("obsidian");
 var FileMasterHubModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -8440,7 +8830,7 @@ var FileMasterHubModal = class extends FileMasterModal {
     const t2 = (key, params) => this.plugin.t(key, params);
     this.navigator.chrome.title.empty();
     const header = this.homeHeading = this.navigator.chrome.title.createDiv({ cls: "fm-hub-header" });
-    (0, import_obsidian25.setIcon)(header.createSpan({ cls: "fm-hub-brand-mark", attr: { "aria-hidden": "true" } }), "zap");
+    (0, import_obsidian26.setIcon)(header.createSpan({ cls: "fm-hub-brand-mark", attr: { "aria-hidden": "true" } }), "zap");
     header.createEl("h2", { text: t2("hubTitle") });
     header.createSpan({ text: "v" + displayVersion(this.plugin.manifest.version), cls: "fm-hub-version" });
     const remote = Boolean(this.plugin.isRemoteServerReady());
@@ -8471,7 +8861,7 @@ var FileMasterHubModal = class extends FileMasterModal {
       ] },
       { title: "catFiles", actions: remote ? [
         { icon: "images", title: "actRemoteGalleryTitle", run: () => show(new RemoteGalleryModal(this.app, this.plugin)) },
-        { icon: "panel-right", title: "hubDockGallery", hidden: import_obsidian25.Platform.isMobile, run: () => this.navigator.leave((leaf) => this.app.workspace.revealLeaf(leaf), () => initGalleryLeaf(this.plugin, false)) }
+        { icon: "panel-right", title: "hubDockGallery", hidden: import_obsidian26.Platform.isMobile, run: () => this.navigator.leave((leaf) => this.app.workspace.revealLeaf(leaf), () => initGalleryLeaf(this.plugin, false)) }
       ] : [{ icon: "plug", title: "hubConnect", run: settings }] },
       { title: "catPreferences", actions: [
         { icon: "trash-2", title: "remoteTrashTitle", disabled: !remote, run: () => show(new RemoteTrashModal(this.app, this.plugin)) },
@@ -8489,7 +8879,7 @@ var FileMasterHubModal = class extends FileMasterModal {
         try {
           await action.run();
         } catch (error) {
-          new import_obsidian25.Notice(error.message || String(error));
+          new import_obsidian26.Notice(error.message || String(error));
         } finally {
           if (button.isConnected) button.disabled = false;
         }
@@ -8502,10 +8892,10 @@ var FileMasterHubModal = class extends FileMasterModal {
       const list = group.createDiv({ cls: "fm-hub-list" });
       for (const action of section.actions.filter((action2) => !action2.hidden)) {
         const row = list.createEl("button", { cls: "fm-hub-card", attr: { type: "button" } });
-        (0, import_obsidian25.setIcon)(row.createSpan({ cls: "fm-hub-card-icon" }), action.icon);
+        (0, import_obsidian26.setIcon)(row.createSpan({ cls: "fm-hub-card-icon" }), action.icon);
         const text = row.createSpan({ cls: "fm-hub-card-text" });
         text.createSpan({ text: t2(action.title), cls: "fm-hub-card-title" });
-        (0, import_obsidian25.setIcon)(row.createSpan({ cls: "fm-hub-chevron" }), "chevron-right");
+        (0, import_obsidian26.setIcon)(row.createSpan({ cls: "fm-hub-chevron" }), "chevron-right");
         row.disabled = Boolean(action.disabled);
         if (action.disabled) row.setAttribute("aria-label", `${t2(action.title)} \xB7 ${t2(!remote ? "noticeRemoteNotReady" : "hubOpenNote")}`);
         bind(row, action);
@@ -8520,7 +8910,7 @@ var FileMasterHubModal = class extends FileMasterModal {
 };
 
 // src/plugin/vault-utils.js
-var import_obsidian26 = require("obsidian");
+var import_obsidian27 = require("obsidian");
 function isDocFile2(app, file) {
   return isDocFile(file, app);
 }
@@ -8575,7 +8965,7 @@ async function safeModifyFileContent(plugin, tfile, transformFn) {
 }
 function openModalSafely(modal) {
   return openModal(modal).catch((error) => {
-    new import_obsidian26.Notice(error.message || String(error));
+    new import_obsidian27.Notice(error.message || String(error));
   });
 }
 function updateSidebarRibbonButton(plugin) {
@@ -8609,10 +8999,10 @@ async function toggleLocalFolderExclusion(plugin, folderPath) {
   const idx = list.indexOf(clean);
   if (idx > -1) {
     list.splice(idx, 1);
-    new import_obsidian26.Notice(plugin.t("noticeExclRemoved", { path: clean }));
+    new import_obsidian27.Notice(plugin.t("noticeExclRemoved", { path: clean }));
   } else {
     list.push(clean);
-    new import_obsidian26.Notice(plugin.t("noticeExclAdded", { path: clean }));
+    new import_obsidian27.Notice(plugin.t("noticeExclAdded", { path: clean }));
   }
   plugin.settings.excludedLocalFolders = list.join(", ");
   await plugin.saveSettings();
@@ -8651,7 +9041,7 @@ async function getItemPreviewUrl(plugin, item) {
 }
 
 // src/plugin/attachment-ops.js
-var import_obsidian27 = require("obsidian");
+var import_obsidian28 = require("obsidian");
 async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
   return runAttachmentOperation(plugin, () => mergeDuplicateGroups(plugin, groups, onComplete));
 }
@@ -8671,7 +9061,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     tasks.push({ keepItem, removeItems });
   }
   if (tasks.length === 0) {
-    new import_obsidian27.Notice(plugin.t("noDupToProcess"));
+    new import_obsidian28.Notice(plugin.t("noDupToProcess"));
     return;
   }
   if (remoteItemsToDelete.length > 0) {
@@ -8758,7 +9148,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
           await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
           deletedRemoteCount++;
         } catch (err) {
-          new import_obsidian27.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
+          new import_obsidian28.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
           plugin.logOperation("ERROR", "DEDUP_MERGE", `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
         }
       }
@@ -8771,7 +9161,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     skippedBySafetyGate
   });
   if (skippedBySafetyGate > 0) {
-    new import_obsidian27.Notice(
+    new import_obsidian28.Notice(
       plugin.t("noticeDedupSafetyWarning", {
         modified: modifiedDocsCount,
         local: deletedLocalCount,
@@ -8780,7 +9170,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
       })
     );
   } else {
-    new import_obsidian27.Notice(
+    new import_obsidian28.Notice(
       plugin.t("noticeDedupSuccess", {
         modified: modifiedDocsCount,
         local: deletedLocalCount,
@@ -8801,18 +9191,18 @@ async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLocal = tru
   var _a;
   const result = await plugin.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
   if (!result.count) throw new Error(((_a = result.failures[0]) == null ? void 0 : _a.error) || plugin.t("transferIntegrityFailed"));
-  new import_obsidian27.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
+  new import_obsidian28.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
   return result.processedItems[0].rawObj;
 }
 async function resumePendingMigration(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new import_obsidian27.Notice(plugin.t("noticeRemoteNotReady"));
+    new import_obsidian28.Notice(plugin.t("noticeRemoteNotReady"));
     return;
   }
   const adapter = plugin.app.vault.adapter;
   const path = migrationCheckpointPath(plugin);
   if (!await adapter.exists(path)) {
-    new import_obsidian27.Notice(plugin.t("transferNothingPending"));
+    new import_obsidian28.Notice(plugin.t("transferNothingPending"));
     return;
   }
   const checkpoint = JSON.parse(await adapter.read(path));
@@ -8833,7 +9223,7 @@ async function resumePendingMigration(plugin) {
     };
   }).filter(Boolean);
   if (!items.length) {
-    new import_obsidian27.Notice(plugin.t("transferNothingPending"));
+    new import_obsidian28.Notice(plugin.t("transferNothingPending"));
     return;
   }
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
@@ -8852,7 +9242,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
   try {
     const { year, month, filename } = remoteMatch;
     if (!silent) {
-      new import_obsidian27.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
+      new import_obsidian28.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
     }
     let remoteObj = remoteMatch.rawObj || null;
     if (!remoteObj) {
@@ -8892,7 +9282,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
       action = "reused";
     } else {
       const downloadUrl = (remoteObj == null ? void 0 : remoteObj.rawUrl) ? `${remoteObj.rawUrl}?download=1` : `${remoteMatch.matchedUrl}?download=1`;
-      const response = await requestWithBackoff(() => (0, import_obsidian27.requestUrl)({
+      const response = await requestWithBackoff(() => (0, import_obsidian28.requestUrl)({
         url: downloadUrl,
         method: "GET",
         headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
@@ -8944,7 +9334,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
     const modifiedCount = (rewritten == null ? void 0 : rewritten.modified.size) || 0;
     const syncedOtherNotePaths = [...(rewritten == null ? void 0 : rewritten.modified) || []].filter((path) => path !== (activeFile == null ? void 0 : activeFile.path));
     if (!silent) {
-      new import_obsidian27.Notice(
+      new import_obsidian28.Notice(
         plugin.t("noticeDownloadedToVault", {
           name: filename,
           path: targetLocalFile.path,
@@ -8970,7 +9360,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
     return targetLocalFile;
   } catch (err) {
     if (!silent) {
-      new import_obsidian27.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
+      new import_obsidian28.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
     }
     throw err;
   }
@@ -9183,7 +9573,7 @@ async function executeDownloadNoteDirect(plugin, activeFile, onProgress = null, 
 async function downloadActiveNoteRemoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
   if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
-    new import_obsidian27.Notice(plugin.t("noticeOpenMdFirst"));
+    new import_obsidian28.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "download", options);
@@ -9307,7 +9697,7 @@ async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, o
 async function migrateActiveNoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
   if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
-    new import_obsidian27.Notice(plugin.t("noticeOpenMdFirst"));
+    new import_obsidian28.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "migrate", options);
@@ -9320,7 +9710,7 @@ async function migrateActiveNoteAttachments(plugin, targetFile = null, options =
 async function copyActiveNoteForAstro(plugin, targetFile = null) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
   if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
-    new import_obsidian27.Notice(plugin.t("noticeOpenMdFirst"));
+    new import_obsidian28.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const content = await plugin.app.vault.read(activeFile);
@@ -9329,7 +9719,7 @@ async function copyActiveNoteForAstro(plugin, targetFile = null) {
     "/pub/$1.webp"
   );
   await navigator.clipboard.writeText(converted);
-  new import_obsidian27.Notice(plugin.t("noticeAstroCopied"));
+  new import_obsidian28.Notice(plugin.t("noticeAstroCopied"));
 }
 
 // src/plugin/link-rewrite.js
@@ -9477,7 +9867,7 @@ function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrCon
 }
 
 // src/plugin.js
-var FileMasterPlugin = class extends import_obsidian28.Plugin {
+var FileMasterPlugin = class extends import_obsidian29.Plugin {
   downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
     return downloadSingleRemoteItemToLocal(this, remoteMatch, options);
   }

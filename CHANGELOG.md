@@ -1,5 +1,19 @@
 # Changelog (file-master)
 
+## [1.1.1] - 2026-11-11
+
+### Vault overview & analytics dashboard
+- Restructure top summary into 4 evenly aligned count cards: Notes, Images, Other Attachments, and Total Assets.
+- Streamline storage footprint module with clear local vs remote metrics and remove redundant dual-track progress bar.
+- Redesign health recommendations with clean transparent background and bold/colored highlights on key metrics.
+- Compact attachment filter buttons to 20px pills, remove redundant format badges, enable click-to-copy pure filename, and add WebP hover preview.
+
+### Markdown report generation & audit
+- Enhance exported Markdown report readability with section dividers (`---`) and structured whitespace hierarchy.
+- Refine Top 20 High-Footprint Attachments table with compact location badges (`💻 本地` / `☁️ 远程`) and non-breaking image embeds (`<img width="80" />` for remote images, escaped `![[path\|80]]` for local images).
+- Upgrade all report generators to create unique timestamped snapshots (`*_YYYY-MM-DD_HHmmss.md`) without overwriting previous exports.
+- Reinforce exclusion verification to ensure auto-generated reports are excluded from note counts, orphan scans, and duplicate checks.
+
 ## [1.1.0] - 2026-11-11
 
 ### Hub and navigation

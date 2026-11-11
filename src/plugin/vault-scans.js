@@ -1,5 +1,5 @@
 import { isScannableDocFile, isExcalidrawFile, isLocalPathExcluded } from './vault-utils.js';
-import { computeSha256Hex, formatBytes, formatDateYMD, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
+import { computeSha256Hex, formatBytes, formatDateYMD, formatDateTimestamp, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
 import { ConfirmActionModal } from '../modals/dialogs.js';
 import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, stripRemoteReferenceText } from '../references.js';
 import { runAttachmentOperation } from '../transfers.js';
@@ -182,7 +182,7 @@ export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
 
 export async function exportOrphanReportToRoot(plugin, results) {
   const now = new Date();
-  const dateStr = formatDateYMD(now);
+  const dateStr = formatDateTimestamp(now);
   const reportPath = `Unused_Files_Report_${dateStr}.md`;
 
   const localItems = results.filter((r) => r.source === 'local');
@@ -454,7 +454,7 @@ export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, sc
 
 export async function exportDuplicateReportToRoot(plugin, groups) {
   const now = new Date();
-  const dateStr = formatDateYMD(now);
+  const dateStr = formatDateTimestamp(now);
   const reportPath = `Duplicate_Files_Report_${dateStr}.md`;
 
   const lines = [
@@ -492,9 +492,8 @@ export async function exportDuplicateReportToRoot(plugin, groups) {
 
 export async function exportBatchMigrateReportToRoot(plugin, summary) {
   const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const dateStr = formatDateYMD(now);
-  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const dateStr = formatDateTimestamp(now);
+  const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
   const reportPath = `Batch_Migrate_Report_${dateStr}.md`;
 
   const count = summary?.count || 0;
