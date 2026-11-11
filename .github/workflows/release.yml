@@ -32,6 +32,23 @@ jobs:
       - name: Verify committed bundle
         run: git diff --exit-code -- main.js
 
+      - name: Package plugin
+        run: npm run package
+
+      - name: Prepare release notes
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const marker = `## [${process.env.GITHUB_REF_NAME}]`;
+          const start = changelog.indexOf(marker);
+          if (start < 0) throw new Error(`Missing changelog entry: ${marker}`);
+          const end = changelog.indexOf('\n## [', start + marker.length);
+          const notes = changelog.slice(start, end < 0 ? undefined : end).trim();
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'file-master-release-notes.md'), notes + '\n');
+          NODE
+
       - name: Generate Artifact Attestations
         uses: actions/attest-build-provenance@v2
         with:
@@ -46,8 +63,10 @@ jobs:
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/file-master-release-notes.md
+          make_latest: true
           files: |
             main.js
             manifest.json
             styles.css
+            release/file-master-*.zip
