@@ -1,5 +1,13 @@
 # Changelog (file-master)
 
+## [1.1.2] - 2026-11-11
+
+### Obsidian review compliance & styling fixes
+- Remove `display: contents` in gallery list view to maintain full compatibility across Obsidian versions.
+- Eliminate all `!important` declarations by increasing selector specificity across modal and input components.
+- Remove broad universal selector `*` on modal root to prevent broad selector performance warnings.
+- Exclude standalone release zip package from GitHub Release assets to adhere strictly to Obsidian release standards (`main.js`, `manifest.json`, `styles.css`).
+
 ## [1.1.1] - 2026-11-11
 
 ### Vault overview & analytics dashboard
