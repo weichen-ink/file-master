@@ -14,6 +14,8 @@ export function modalChrome(modal) {
     if (nativeClose) { nativeClose.hidden = true; nativeClose.style.display = 'none'; }
     const nativeHeader = root.querySelector('.modal-header');
     if (nativeHeader && !nativeHeader.textContent?.trim()) nativeHeader.style.display = 'none';
+    const nativeTitle = root.querySelector('.modal-title');
+    if (nativeTitle && !nativeTitle.textContent?.trim()) nativeTitle.style.display = 'none';
     const bar = root.createDiv({cls:'fm-modal-nav'});
     const close = bar.createEl('button', {attr:{type:'button'}});
     close.addClass('fm-modal-close');

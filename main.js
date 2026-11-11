@@ -2318,7 +2318,7 @@ function formatLogsForExport(plugin) {
 var import_obsidian4 = require("obsidian");
 var modalHeaders = /* @__PURE__ */ new WeakMap();
 function modalChrome(modal) {
-  var _a, _b;
+  var _a, _b, _c;
   const root = modal.modalEl;
   if (!root) return null;
   let chrome = modalHeaders.get(root);
@@ -2331,10 +2331,12 @@ function modalChrome(modal) {
     }
     const nativeHeader = root.querySelector(".modal-header");
     if (nativeHeader && !((_a = nativeHeader.textContent) == null ? void 0 : _a.trim())) nativeHeader.style.display = "none";
+    const nativeTitle = root.querySelector(".modal-title");
+    if (nativeTitle && !((_b = nativeTitle.textContent) == null ? void 0 : _b.trim())) nativeTitle.style.display = "none";
     const bar = root.createDiv({ cls: "fm-modal-nav" });
     const close = bar.createEl("button", { attr: { type: "button" } });
     close.addClass("fm-modal-close");
-    const closeLabel = ((_b = modal.plugin) == null ? void 0 : _b.t("closeBtn")) || "Close";
+    const closeLabel = ((_c = modal.plugin) == null ? void 0 : _c.t("closeBtn")) || "Close";
     close.setAttribute("aria-label", closeLabel);
     close.onclick = (event) => {
       event.preventDefault();

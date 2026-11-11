@@ -815,7 +815,7 @@
 .modal-container .modal.fm-ui.fm-has-chrome :is(.modal-header-button,.modal-close-button,.modal-close):not(.fm-modal-close),
 .modal.fm-ui.fm-has-chrome :is(.modal-header-button,.modal-close-button,.modal-close):not(.fm-modal-close),
 .fm-ui.fm-has-chrome :is(.modal-header-button,.modal-close-button,.modal-close):not(.fm-modal-close) { display: none; }
-.fm-ui.fm-has-chrome > .modal-title:empty, .fm-ui.fm-has-chrome > .modal-header:has(> .modal-title:empty) { display: none; }
+.fm-ui.fm-has-chrome > .modal-title:empty, .fm-ui.fm-has-chrome > .modal-header:empty { display: none; }
 .fm-hub-page, .fm-module-body { width: 100%; min-width: 0; }
 .fm-hub-content, .fm-hub-page { container-type: inline-size; }
 .fm-hub-child .fm-module-body > h3:first-child { margin-top: 0; }

@@ -1,5 +1,11 @@
 # Changelog (file-master)
 
+## [1.1.3] - 2026-11-11
+
+### CSS performance optimizations
+- Remove `:has` selector from modal chrome rules to eliminate selector invalidation warnings and improve rendering performance.
+- Handle empty modal header and title hiding directly via element state and DOM checks.
+
 ## [1.1.2] - 2026-11-11
 
 ### Obsidian review compliance & styling fixes
