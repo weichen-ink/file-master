@@ -2,6 +2,9 @@ import { insertMarkdownToActiveEditor } from './plugin/lifecycle.js';
 import { IMAGE_EXTS } from './constants.js';
 import { formatBytes, getExt, getFileTypeGroup } from './engine.js';
 import { ImageLightboxModal } from './modals/dialogs.js';
+import { assetUrl, assetMarkdown, hasOptimizedVariant, copyText } from './ui/links.js';
+import { openModal } from './ui/navigation.js';
+import { isInsertionTargetValid } from './plugin/editor-target.js';
 import { Notice, setIcon } from 'obsidian';
 
 export const REMOTE_GALLERY_PAGE_SIZE = 60;
@@ -85,13 +88,13 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
         cls: 'fm-gallery-thumb',
         attr: {
           loading: 'lazy',
-          src: item.thumbnailUrl || item.pubUrl || item.rawUrl,
+          src: item.thumbnailUrl || item.rawUrl,
           alt: item.name || item.filename
         }
       });
       img.onerror = () => {
         img.style.display = 'none';
-        thumbWrap.createSpan({ text: '🖼️', attr: { style: 'font-size:24px;' } });
+        setIcon(thumbWrap.createSpan(), 'image-off');
       };
     } else {
       thumbWrap.createDiv({
@@ -100,27 +103,17 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
       });
     }
 
-    // Lock badge (click to unlock if locked and not protected)
+    // Protection is changed in the preview, never accidentally on a thumbnail.
     if (item.locked) {
       const lockBadge = thumbWrap.createSpan({
         cls: 'fm-gallery-lock-badge',
-        text: '🔒',
-        attr: { title: view.t('galleryBtnUnlock') }
+        attr: { 'aria-label':view.t('previewProtected') }
       });
-      lockBadge.onclick = async (e) => {
-        e.stopPropagation();
-        try {
-          await view.plugin.toggleRemoteFileLock(item.year, item.month, item.filename, false);
-          item.locked = false;
-          view.renderGrid(containerEl, countLabel);
-        } catch (err) {
-          new Notice(view.t('previewLockFailed', { err: err.message }));
-        }
-      };
+      setIcon(lockBadge,'lock');
     }
 
-    thumbWrap.onclick = () => {
-      new ImageLightboxModal(view.app, view.plugin, {
+    const openPreview = () => {
+      openModal(new ImageLightboxModal(view.app, view.plugin, {
         source: 'remote',
         name: item.name || item.filename,
         displayPath: `${item.year}/${item.month}/${item.filename}`,
@@ -130,9 +123,10 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
         if (action === 'deleted') {
           view.items = view.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
         }
-        view.renderGrid(containerEl, countLabel);
-      }).open();
+        view.store?.emit();
+      }, {insertMode:view.insertMode, insertionTarget:view.insertionTarget})).catch(error=>new Notice(error.message));
     };
+    thumbWrap.onclick = openPreview;
     thumbWrap.setAttribute('role', 'button');
     thumbWrap.setAttribute('tabindex', '0');
     thumbWrap.setAttribute('aria-label', view.t('galleryBtnPreview'));
@@ -144,49 +138,51 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
     };
 
     const info = card.createDiv({ cls: 'fm-gallery-info' });
-    info.createDiv({
+    const nameButton=info.createEl('button',{
       cls: 'fm-gallery-name',
       text: item.name || item.filename,
-      attr: { title: item.name || item.filename }
+      attr: { type:'button', 'aria-label': item.name || item.filename }
     });
+    nameButton.onclick=openPreview;
 
     const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-    const hitsText = (item.hits !== undefined && item.hits !== null) ? ` · 👁️ ${item.hits}` : '';
-    meta.createSpan({ text: `${item.year}/${item.month} · ${formatBytes(item.size)}${hitsText}` });
+    meta.createSpan({ text: formatBytes(item.size) });
 
-    const actions = card.createDiv({ cls: 'fm-gallery-actions' });
+    const actions = info.createDiv({ cls: 'fm-gallery-actions' });
 
     // Clean single action: 📝 插入笔记
-    const isWebpMode = view.insertMode === 'webp' && item.pubUrl;
-    const insertTargetUrl = isWebpMode ? item.pubUrl : (item.rawUrl || item.pubUrl);
+    const isWebpMode = view.insertMode === 'webp' && hasOptimizedVariant(item);
+    const insertTargetUrl = assetUrl(item,view.insertMode);
     const fn = item.name || item.filename;
 
     const insertBtn = actions.createEl('button', {
-      cls: 'fm-gallery-insert-btn mod-cta',
-      attr: { title: isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw') }
+      cls: 'fm-icon-button fm-gallery-insert-btn',
+      attr: { type:'button', 'data-insert-action':'true' }
     });
     setIcon(insertBtn.createSpan(), 'file-input');
-    insertBtn.createSpan({ cls: 'fm-gallery-insert-label', text: view.t('galleryBtnInsert') });
-    insertBtn.setAttribute('aria-label', view.t('galleryBtnInsert'));
+    insertBtn.setAttribute('aria-label', view.t(isWebpMode?'galleryInsertWebp':'galleryInsertRaw'));
+    insertBtn.disabled=!isInsertionTargetValid(view.plugin,view.insertionTarget);
     insertBtn.onmousedown = (e) => {
       // Prevent clicking button from blurring or moving cursor in Markdown editor
       e.preventDefault();
     };
     insertBtn.onclick = () => {
-      const mdSnippet = isImg ? `![${fn}](${insertTargetUrl})\n` : `[${fn}](${insertTargetUrl})\n`;
+      const mdSnippet = assetMarkdown(fn,insertTargetUrl)+"\n";
       const noticeMsg = isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw');
-      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg);
+      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, view.insertionTarget);
     };
+    const copyBtn=actions.createEl('button',{cls:'fm-icon-button',attr:{type:'button','aria-label':view.t('previewCopyUrl')}});
+    setIcon(copyBtn,'copy');copyBtn.onclick=()=>copyText(view.plugin,insertTargetUrl);
   }
 
   if (page.totalPages > 1) {
     const pager = containerEl.createDiv({ cls: 'fm-gallery-pagination' });
     const previous = pager.createEl('button', { text: view.t('pagePrevious') });
     previous.disabled = page.current === 0;
-    previous.onclick = () => { view.galleryPage--; view.renderGrid(containerEl, countLabel); };
+    previous.onclick = () => { view.galleryPage--; view.store ? view.store.emit() : view.renderGrid(containerEl, countLabel); };
     pager.createSpan({ text: view.t('pageCount', { current: page.current + 1, total: page.totalPages }) });
     const next = pager.createEl('button', { text: view.t('pageNext') });
     next.disabled = page.current + 1 === page.totalPages;
-    next.onclick = () => { view.galleryPage++; view.renderGrid(containerEl, countLabel); };
+    next.onclick = () => { view.galleryPage++; view.store ? view.store.emit() : view.renderGrid(containerEl, countLabel); };
   }
 }

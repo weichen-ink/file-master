@@ -1,4 +1,4 @@
-import { openModalSafely } from '../plugin/vault-utils.js';
+import { openModalSafely, getExcludedLocalFolderList } from '../plugin/vault-utils.js';
 import { FileMasterHubModal } from './hub.js';
 
 /**
@@ -6,6 +6,7 @@ import { FileMasterHubModal } from './hub.js';
  * when the modal was opened from the Hub; otherwise simply closes the modal.
  */
 export function returnToHub(modal) {
+  if (modal.returnToHub) return modal.returnToHub();
   modal.close();
   if (!modal.fromHub) return;
   if (modal.app && modal.plugin) {
@@ -85,4 +86,11 @@ export function createScanProgressWidget(contentEl, plugin) {
       statusText.setText(msg);
     }
   };
+}
+
+/** Only configured exclusions merit a reminder; both scan wizards use this row. */
+export function renderExcludedFoldersHint(contentEl, plugin) {
+  const folders=getExcludedLocalFolderList(plugin.settings);
+  if(!folders.length)return;
+  return contentEl.createDiv({cls:'fm-exclusion-hint',text:plugin.t('scanExcludedFolders',{folders:folders.join(', ')})});
 }

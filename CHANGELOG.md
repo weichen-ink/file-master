@@ -1,6 +1,36 @@
 # Changelog (file-master)
 
-See root `CHANGELOG.md` for full ecosystem release notes.
+## [1.1] - 2026-11-11
+
+### Hub and navigation
+- Present the Hub as File Master, with compact cards grouped into current-file, vault, remote-server, and other actions.
+- Remove descriptive card text, clarify action names, and retain the full “Copy current note text with WebP links” action.
+- Use one modal framework with the module title and close button on the same row, compact step badges, and footer cancellation or confirmation actions.
+- Keep Hub child modules inside the same modal instead of closing and immediately opening another overlay.
+- Replace timed close suppression with a shared navigation lifecycle and coalesce sidebar initialization to avoid competing first-open requests.
+- Open the server gallery as a modal on mobile while retaining the docked sidebar on desktop.
+
+### Gallery and image preview
+- Share gallery state, filtering, sorting, pagination, link generation, and toolbar components between the sidebar and modal.
+- Align folder and type filters, view controls, and insertion-format options; simplify file rows by removing dates.
+- Make filenames and thumbnails open previews, and keep insertion and copying actions compact and consistently styled.
+- Use subdued neutral image-action buttons and a single Obsidian tooltip source instead of overlapping native and host tooltips.
+- Adapt image previews to the plugin host with responsive layouts, left-aligned properties, and compact original/WebP link actions.
+- Add wheel and pinch zoom, image dragging, fit-to-window controls, and preview lifecycle cleanup.
+- Capture the intended note and selection before browsing; reject insertion if the target closes or its content changes unexpectedly.
+
+### Recycle bin and scanning
+- Add a server recycle-bin entry to the Hub with file previews, restoration, and confirmed permanent deletion.
+- Leave excluded folders empty by default and show exclusion reminders only when folders are configured.
+- Hide step indicators for empty attachment and scan-result pages.
+- Preserve file-protection and reference checks during cleanup operations.
+
+### Documentation and compatibility
+- Simplify settings and provide focused Chinese and English user guides with separate development and release instructions.
+- Set the plugin version and minimum server version to 1.1; accept two-part versions during the compatibility handshake.
+- Keep the Obsidian minimum host version separate from the server compatibility requirement.
+- Rebuild main.js and package main.js, manifest.json, and styles.css together.
+- Validate with 98 automated tests and simulated-host responsive checks. Actual iOS/Android acceptance testing is not implied by these checks.
 
 ## [1.0.7] - 2026-11-10
 - Expand incoming attachment modal dialog layout to fill window width naturally without blank right margins.

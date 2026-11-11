@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { loadPlugin } = require('./helpers/load-plugin');
 const { Element, Setting } = require('./helpers/ui');
 
-test('Settings tools open the hub and log modals with the correct host and plugin', () => {
+test('Settings tools open the hub and log modals with the correct host and plugin', async () => {
   const opened = [];
   const loaded = loadPlugin(undefined, { host: { Setting, setIcon() {} },
     setTimeout: (fn) => fn(), onModalOpen: (modal) => opened.push(modal) });
@@ -19,6 +19,7 @@ test('Settings tools open the hub and log modals with the correct host and plugi
     assert.ok(row, key);
     row.onclick();
   }
+  await new Promise(setImmediate);
   assert.equal(opened.length, 2);
   assert.ok(opened[0] instanceof loaded.FileMasterHubModal);
   assert.ok(opened[1] instanceof loaded.OperationLogModal);
@@ -38,6 +39,12 @@ test('Wizard setup uses vault folders and exclusion settings without forwarding 
       assert.ok(nodes.some((node) => node.tag === 'option' && node.value === 'assets'));
     } else {
       assert.ok(nodes.some((node) => String(node.text).includes('private') && String(node.text).includes('templates')));
+      for (const empty of ['', '  , ; \n']) {
+        plugin.settings.excludedLocalFolders=empty;
+        const cleanTree=new Element();modal.renderStep1(cleanTree);
+        assert.equal(cleanTree.all().some(node=>node.className==='fm-exclusion-hint'),false);
+      }
+      plugin.settings.excludedLocalFolders='private, templates';
     }
   }
 });

@@ -25,3 +25,14 @@ export * as analytics from '../../src/plugin/health-analytics.js';
 export * as attachmentOps from '../../src/plugin/attachment-ops.js';
 export * as serverClient from '../../src/plugin/server-client.js';
 export * as logging from '../../src/plugin/logging.js';
+
+export * from '../../src/ui/navigation.js';
+export * from '../../src/ui/gallery-store.js';
+export * from '../../src/ui/image-viewport.js';
+export * from '../../src/ui/links.js';
+export * from '../../src/plugin/editor-target.js';
+export { initGalleryLeaf, insertMarkdownToActiveEditor } from '../../src/plugin/lifecycle.js';
+export { ImageLightboxModal } from '../../src/modals/dialogs.js';
+
+export { RemoteTrashModal } from '../../src/modals/remote-trash.js';
+export { ConfirmActionModal } from '../../src/modals/dialogs.js';

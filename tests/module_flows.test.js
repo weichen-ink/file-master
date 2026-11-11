@@ -102,18 +102,19 @@ test('Statistics and reports work offline in Chinese and English without treatin
 });
 
 for (const scenario of [
-  { name: 'compatible', version: '1.0.1', code: 200, token: 'test', expected: true },
-  { name: 'server_outdated', version: '0.1.0', code: 200, token: 'test', expected: false },
-  { name: 'plugin_outdated', version: '1.0.1', minPluginVersion: '9.0.0', code: 200, token: 'test', expected: false },
-  { name: 'token_missing', version: '1.0.1', code: 200, token: '', expected: false },
-  { name: 'auth_failed', version: '1.0.1', code: 401, token: 'bad', expected: false },
-  { name: 'server_error', version: '1.0.1', code: 503, token: 'test', expected: false }
+  { name: 'compatible', version: '1.1', code: 200, token: 'test', expected: true },
+  { name: 'compatible', version: '1.1.0', code: 200, token: 'test', expected: true },
+  { name: 'server_outdated', version: '1.0.8', code: 200, token: 'test', expected: false },
+  { name: 'plugin_outdated', version: '1.1', pluginVersion: '1.0.8', code: 200, token: 'test', expected: false },
+  { name: 'token_missing', version: '1.1', code: 200, token: '', expected: false },
+  { name: 'auth_failed', version: '1.1', code: 401, token: 'bad', expected: false },
+  { name: 'server_error', version: '1.1', code: 503, token: 'test', expected: false }
 ]) {
   test(`Server handshake persists the correct readiness for ${scenario.name}`, async () => {
     const loaded = loadPlugin(async ({ url }) => url.endsWith('/version')
-      ? { status: 200, json: { version: scenario.version, minPluginVersion: scenario.minPluginVersion || '1.0.0' } }
+      ? { status: 200, json: { version: scenario.version, minPluginVersion: scenario.minPluginVersion || '1.1' } }
       : { status: scenario.code, json: { images: [] } });
-    const plugin = new loaded.Plugin({}); plugin.manifest = { version: '1.0.7' };
+    const plugin = new loaded.Plugin({}); plugin.manifest = { version: scenario.pluginVersion || '1.1' };
     plugin.settings = { enableRemoteServer: true, serverUrl: 'https://example.com', apiToken: scenario.token };
     let saved; plugin.saveData = async (settings) => { saved = { ...settings }; };
     const result = await loaded.serverClient.checkServerCompatibility(plugin);

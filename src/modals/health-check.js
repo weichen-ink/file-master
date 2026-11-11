@@ -1,7 +1,9 @@
+import { moduleHeading } from "../ui/navigation.js";
 import { scanVaultLinkHealth, exportHealthReportToRoot } from '../plugin/health-analytics.js';
 import { openNoteAtLine } from '../plugin/vault-scans.js';
 import { createScanProgressWidget, returnToHub } from './common.js';
-import { Modal, Notice } from 'obsidian';
+import { Notice } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Vault Link Health Check Modal (404 & Dangling WikiLink Finder)
@@ -41,14 +43,8 @@ export class HealthCheckModal extends Modal {
 
   renderStep1(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 1, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', { text: t('healthStep1Title'), cls: 'fm-step-title' });
-
-    contentEl.createEl('p', {
-      text: t('healthStep1Desc'),
-      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
-    });
+    moduleHeading(this,contentEl,{title:'actHealthTitle',symbol:'link',step:1,total:2});
+    contentEl.createEl('p',{text:t('healthStep1Desc'),cls:'fm-module-summary'});
 
     const box = contentEl.createDiv({ cls: 'fm-section-box' });
     box.createDiv({ text: t('healthScopeTitle'), cls: 'fm-section-title' });
@@ -106,12 +102,8 @@ export class HealthCheckModal extends Modal {
     const localIssues = this.issues.filter((i) => i.category === 'local');
     const remoteIssues = this.issues.filter((i) => i.category === 'remote');
 
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 2, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', {
-      text: t('healthStep2Title', { docs: this.totalDocsScanned, issues: this.issues.length }),
-      cls: 'fm-step-title'
-    });
+    moduleHeading(this,contentEl,{title:'actHealthTitle',symbol:'link',step:this.issues.length ? 2 : null,total:2});
+    contentEl.createEl('p',{text:t('healthStep2Title', { docs: this.totalDocsScanned, issues: this.issues.length }),cls:'fm-module-summary'});
 
     const statGrid = contentEl.createDiv({ cls: 'fm-health-stat-grid' });
     const addStat = (num, label, color) => {
@@ -148,7 +140,7 @@ export class HealthCheckModal extends Modal {
         attr: { style: 'text-align: center; padding: 36px 20px; font-weight: 500;' }
       });
       const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-      const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });
+      const closeBtn = btnRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
       closeBtn.onclick = () => returnToHub(this);
       return;
     }
@@ -188,7 +180,7 @@ export class HealthCheckModal extends Modal {
     this.renderIssueList(listEl);
 
     const bottomRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-    const closeBtn = bottomRow.createEl('button', { text: t('closeBtn') });
+    const closeBtn = bottomRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
     closeBtn.onclick = () => returnToHub(this);
   }
 

@@ -2,6 +2,7 @@ import { IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS } from '../constants.js';
 import { convertBufferToPreviewUrl, getExt, isDocFile as helperIsDocFile, isExcalidrawFile as helperIsExcalidrawFile, isReportFile } from '../engine.js';
 import { FileMasterHubModal } from '../modals/hub.js';
 import { Notice } from 'obsidian';
+import { openModal } from '../ui/navigation.js';
 
 // The plugin owns host state; these operations receive it explicitly.
 export function isDocFile(app, file) {
@@ -63,38 +64,7 @@ export async function safeModifyFileContent(plugin, tfile, transformFn) {
 }
 
 export function openModalSafely(modal) {
-  if (!modal) return;
-
-  const origClose = modal.close ? modal.close.bind(modal) : null;
-  let dismissLocked = true;
-  const unlockTimer = setTimeout(() => {
-    dismissLocked = false;
-  }, 350);
-
-  if (origClose) {
-    modal.close = function(...args) {
-      if (dismissLocked) {
-        return;
-      }
-      clearTimeout(unlockTimer);
-      return origClose(...args);
-    };
-  }
-
-  setTimeout(() => {
-    modal.open();
-    if (modal.containerEl) {
-      modal.containerEl.style.pointerEvents = 'none';
-    }
-    if (modal.modalEl) {
-      modal.modalEl.style.pointerEvents = 'auto';
-    }
-    setTimeout(() => {
-      if (modal.containerEl) {
-        modal.containerEl.style.pointerEvents = '';
-      }
-    }, 300);
-  }, 50);
+  return openModal(modal).catch(error => { new Notice(error.message || String(error)); });
 }
 
 export function updateSidebarRibbonButton(plugin) {

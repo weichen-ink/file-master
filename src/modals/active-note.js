@@ -1,10 +1,12 @@
+import { moduleHeading } from "../ui/navigation.js";
 import { scanActiveNoteLocalAttachments, scanActiveNoteRemoteAttachments } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
 import { formatFriendlyError, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
 import { renderItemVisualThumb } from './incoming-file.js';
-import { Modal, Notice } from 'obsidian';
+import { Notice } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Modal to execute active note operations with 2-step preview/options (for migrate & download conflict check),
@@ -46,6 +48,7 @@ export class ActiveNoteActionModal extends Modal {
     if (this.actionType === 'migrate') {
       try {
         this.items = await scanActiveNoteLocalAttachments(this.plugin, this.targetFile);
+        if (this.transferClosed) return;
         this.step = 'preview';
       } catch (err) {
         this.result = { success: false, message: err.message || String(err) };
@@ -55,6 +58,7 @@ export class ActiveNoteActionModal extends Modal {
     } else {
       try {
         this.items = await scanActiveNoteRemoteAttachments(this.plugin, this.targetFile);
+        if (this.transferClosed) return;
         if (this.items.length === 0) {
           this.result = { success: true, count: 0, processedItems: [], failures: [] };
           this.step = 'result';
@@ -85,15 +89,10 @@ export class ActiveNoteActionModal extends Modal {
     contentEl.empty();
     contentEl.addClass('fm-wizard-modal');
 
-    const titleKey = this.actionType === 'migrate' ? 'activeNoteMigrateTitle' : 'activeNoteDownloadTitle';
-    if (this.actionType === 'migrate' || this.hadConflictStep || this.step === 'conflict') {
-      const stepNum = (this.step === 'loading' || this.step === 'preview' || this.step === 'conflict') ? 1 : 2;
-      const header = contentEl.createDiv({ cls: 'fm-step-header' });
-      header.createSpan({ text: this.t('stepOf', { current: stepNum, total: 2 }), cls: 'fm-step-badge' });
-      header.createEl('h3', { text: this.t(titleKey), cls: 'fm-step-title' });
-    } else {
-      contentEl.createEl('h3', { text: this.t(titleKey) });
-    }
+    const upload = this.actionType === 'migrate';
+    const withSteps = this.items.length > 0 && !['loading','result'].includes(this.step) && (upload || this.hadConflictStep || this.step === 'conflict');
+    const step = ['loading','preview','conflict'].includes(this.step) ? 1 : 2;
+    moduleHeading(this,contentEl,{title:upload?'actNoteUpTitle':'actNoteDownTitle',symbol:upload?'upload':'download',step:withSteps?step:null,total:2});
 
     contentEl.createDiv({
       text: `📄 ${this.targetFile.path}`,
@@ -184,7 +183,7 @@ export class ActiveNoteActionModal extends Modal {
           const refBadge = rightBox.createSpan({
             text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
             cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-            attr: { title: this.t('activeNoteInspectOtherRefs') }
+            attr: { 'aria-label': this.t('activeNoteInspectOtherRefs') }
           });
           refBadge.onclick = (e) => {
             e.stopPropagation();
@@ -282,7 +281,7 @@ export class ActiveNoteActionModal extends Modal {
           attr: { style: 'font-size: 14px; color: var(--text-muted);' }
         });
         const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-        const closeBtn = btnRow.createEl('button', { text: this.t('closeBtn') });
+        const closeBtn = btnRow.createEl('button', { text: this.t(this.fromHub ? 'btnCancel' : 'closeBtn') });
         closeBtn.onclick = () => returnToHub(this);
         return;
       }
@@ -338,7 +337,7 @@ export class ActiveNoteActionModal extends Modal {
           const refBadge = rightBox.createSpan({
             text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
             cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-            attr: { title: this.t('activeNoteInspectOtherRefs') }
+            attr: { 'aria-label': this.t('activeNoteInspectOtherRefs') }
           });
           refBadge.onclick = (e) => {
             e.stopPropagation();
@@ -520,7 +519,7 @@ export class ActiveNoteActionModal extends Modal {
                 const syncedBadge = rightBox.createSpan({
                   text: this.t('activeNoteBadgeSyncedNotes', { count: pItem.syncedOtherNotes }),
                   cls: syncedPaths.length > 0 ? 'fm-tag fm-tag-ref fm-clickable-badge' : 'fm-tag fm-tag-ref',
-                  attr: syncedPaths.length > 0 ? { title: this.t('activeNoteInspectOtherRefs') } : {}
+                  attr: syncedPaths.length > 0 ? { 'aria-label': this.t('activeNoteInspectOtherRefs') } : {}
                 });
                 if (syncedPaths.length > 0) {
                   syncedBadge.onclick = (e) => {
@@ -535,14 +534,14 @@ export class ActiveNoteActionModal extends Modal {
                 rightBox.createSpan({
                   text: this.t('activeNoteBadgeTrashFailed'),
                   cls: 'fm-tag fm-tag-danger',
-                  attr: { title: String(pItem.trashError) }
+                  attr: { 'aria-label': String(pItem.trashError) }
                 });
               } else if (pItem.keptForOtherRefs > 0) {
                 const keptPaths = Array.isArray(pItem.keptForOtherRefPaths) ? pItem.keptForOtherRefPaths : [];
                 const keptBadge = rightBox.createSpan({
                   text: this.t('activeNoteBadgeKeptForOtherRefs', { count: pItem.keptForOtherRefs }),
                   cls: keptPaths.length > 0 ? 'fm-tag fm-tag-warning fm-clickable-badge' : 'fm-tag fm-tag-warning',
-                  attr: keptPaths.length > 0 ? { title: this.t('activeNoteInspectOtherRefs') } : {}
+                  attr: keptPaths.length > 0 ? { 'aria-label': this.t('activeNoteInspectOtherRefs') } : {}
                 });
                 if (keptPaths.length > 0) {
                   keptBadge.onclick = (e) => {

@@ -1,3 +1,4 @@
+import { isInsertionTargetValid, refreshInsertionTarget } from './editor-target.js';
 import { loadOperationLogs } from './logging.js';
 import { isScannableDocFile, updateSidebarRibbonButton, openModalSafely, safeModifyFileContent } from './vault-utils.js';
 import { checkServerCompatibility, filterAllowedFiles, handleIncomingBrowserFile } from './server-client.js';
@@ -13,7 +14,7 @@ import { OrphanWizardModal } from '../modals/orphan-wizard.js';
 import { RemoteGalleryModal, RemoteGalleryView } from '../modals/remote-gallery.js';
 import { VaultAnalyticsModal } from '../modals/vault-analytics.js';
 import { FileMasterSettingTab } from '../settings-tab.js';
-import { MarkdownView, Notice } from 'obsidian';
+import { MarkdownView, Notice, Platform } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function onload(plugin) {
@@ -63,7 +64,7 @@ export async function onload(plugin) {
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
-    initGalleryLeaf(plugin, false);
+    if (!Platform.isMobile) initGalleryLeaf(plugin, false).catch(error => new Notice(error.message));
   });
 
   // Background non-blocking handshake to verify version contract and connectivity
@@ -224,7 +225,8 @@ export function onLanguageChange(plugin) {
   updateSidebarRibbonButton(plugin);
   updateCommandNames(plugin);
   for (const leaf of plugin.app?.workspace?.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || []) {
-    leaf.view?.render?.();
+    if (leaf.view?.rebuild) leaf.view.rebuild();
+    else leaf.view?.render?.();
   }
 }
 
@@ -243,6 +245,7 @@ export function getCompatibilityMessage(plugin, compat) {
 
 export function onunload(plugin) {
   plugin.activeTransferController?.abort();
+  plugin.galleryStore?.clear();
   // Note: Do NOT detach VIEW_TYPE_REMOTE_GALLERY here, allowing Obsidian workspace layout
   // to persist the docked leaf in the right sidebar across reloads/restarts like Calendar.
   if (plugin.sidebarRibbonEl) {
@@ -257,35 +260,37 @@ export function onunload(plugin) {
 
 export async function initGalleryLeaf(plugin, reveal = false) {
   if (!plugin.isRemoteServerReady()) return null;
-  const { workspace } = plugin.app;
-  let leaves = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY);
-  let leaf = leaves[0];
-  if (!leaf) {
-    const rightLeaf = workspace.getRightLeaf(false);
-    if (rightLeaf) {
-      await rightLeaf.setViewState({
-        type: VIEW_TYPE_REMOTE_GALLERY,
-        active: false
-      });
-      leaf = rightLeaf;
-    }
+  const {workspace} = plugin.app;
+  if (!plugin.galleryLeafPromise) {
+    const pending = (async () => {
+      let leaf = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY)[0];
+      if (!leaf) {
+        leaf = workspace.getRightLeaf(false);
+        if (!leaf) throw new Error(plugin.t('galleryPanelUnavailable'));
+        await leaf.setViewState({type:VIEW_TYPE_REMOTE_GALLERY, active:false});
+      }
+      return leaf;
+    })();
+    plugin.galleryLeafPromise = pending;
+    pending.finally(() => { if(plugin.galleryLeafPromise === pending) plugin.galleryLeafPromise = null; }).catch(() => {});
   }
-  if (leaf && reveal) {
-    workspace.revealLeaf(leaf);
-  }
+  const leaf = await plugin.galleryLeafPromise;
+  if (reveal && leaf) await workspace.revealLeaf(leaf);
   return leaf;
 }
 
 export async function activateGalleryView(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new Notice(plugin.t('remoteServerRequiredNotice') || 'Remote server not ready');
+    new Notice(plugin.t('remoteServerRequiredNotice'));
     return;
   }
-  await initGalleryLeaf(plugin, true);
+  if (Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
+  return initGalleryLeaf(plugin, true);
 }
 
-export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
-  let mdView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = undefined) {
+  if (target !== undefined && !isInsertionTargetValid(plugin,target)) {new Notice(plugin.t("galleryOpenNoteFirst"));return false;}
+  let mdView = target?.view || plugin.app.workspace.getActiveViewOfType(MarkdownView);
   if (!mdView && plugin.lastActiveMarkdownView) {
     const leaves = plugin.app.workspace.getLeavesOfType('markdown');
     if (leaves.some(l => l.view === plugin.lastActiveMarkdownView)) {
@@ -308,7 +313,14 @@ export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice) {
 
   if (mdView?.editor) {
     const editor = mdView.editor;
-    editor.replaceSelection(mdSnippet);
+    if(target?.content !== undefined && target.content !== editor.getValue()) {new Notice(plugin.t('galleryTargetChanged'));return false;}
+    if(target?.from && target?.to) {
+      editor.replaceRange(mdSnippet,target.from,target.to);
+      const lines=mdSnippet.split('\n');
+      editor.setCursor({line:target.from.line+lines.length-1,ch:lines.length===1?target.from.ch+lines[0].length:lines.at(-1).length});
+    }
+    else editor.replaceSelection(mdSnippet);
+    if(target) refreshInsertionTarget(target);
     if (mdView.leaf) {
       plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
     }

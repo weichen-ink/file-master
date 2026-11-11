@@ -1,3 +1,4 @@
+import { moduleHeading } from "../ui/navigation.js";
 import { getAllVaultFolderPaths } from '../plugin/vault-utils.js';
 import { scanLocalAttachmentsForBatchMigrate } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
@@ -5,7 +6,8 @@ import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
 import { renderItemVisualThumb } from './incoming-file.js';
-import { Modal, Notice, setIcon } from 'obsidian';
+import { Notice, setIcon } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Wizard 3: Batch Cloud Migration Wizard
@@ -48,14 +50,8 @@ export class BatchMigrateWizardModal extends Modal {
 
   renderStep1(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 1, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', { text: t('migrateStep1Title'), cls: 'fm-step-title' });
-
-    contentEl.createEl('p', {
-      text: t('migrateStep1Desc'),
-      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
-    });
+    moduleHeading(this,contentEl,{title:'actMigrateTitle',symbol:'cloud-upload',step:1,total:2});
+    contentEl.createEl('p',{text:t('migrateStep1Desc'),cls:'fm-module-summary'});
 
     const folderBox = contentEl.createDiv({ cls: 'fm-section-box' });
     folderBox.createDiv({ text: t('migrateFolderScope'), cls: 'fm-section-title' });
@@ -138,12 +134,8 @@ export class BatchMigrateWizardModal extends Modal {
 
   renderStep2(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 2, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', {
-      text: t('migrateStep2Title', { count: this.items.length }),
-      cls: 'fm-step-title'
-    });
+    moduleHeading(this,contentEl,{title:'actMigrateTitle',symbol:'cloud-upload',step:this.items.length ? 2 : null,total:2});
+    contentEl.createEl('p',{text:t('migrateStep2Title', { count: this.items.length }),cls:'fm-module-summary'});
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
     const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
@@ -214,7 +206,7 @@ export class BatchMigrateWizardModal extends Modal {
       const refBadge = rightBox.createSpan({
         text: t('migrateNoteRefs', { count: item.refNotes.length }),
         cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-        attr: { title: t('migrateInspectRefs') }
+        attr: { 'aria-label': t('migrateInspectRefs') }
       });
       refBadge.onclick = (e) => {
         e.stopPropagation();
@@ -291,7 +283,7 @@ export class BatchMigrateWizardModal extends Modal {
       ? 'batchResultErrorTitle'
       : (isPartial ? 'batchResultWarningTitle' : 'batchResultTitle');
 
-    contentEl.createEl('h3', { text: t(titleKey) });
+    moduleHeading(this,contentEl,{title:'actMigrateTitle',symbol:'cloud-upload'});
 
     const bannerCls = isError
       ? 'fm-result-banner fm-result-banner-error'

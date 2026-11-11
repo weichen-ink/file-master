@@ -1,7 +1,8 @@
+import { moduleHeading } from "../ui/navigation.js";
 import { scanVaultAnalytics, exportAnalyticsReportToRoot } from '../plugin/health-analytics.js';
 import { formatBytes } from '../engine.js';
 import { returnToHub } from './common.js';
-import { Modal } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Vault Wrapped & Storage Analytics Dashboard Modal
@@ -19,9 +20,7 @@ export class VaultAnalyticsModal extends Modal {
     contentEl.empty();
     contentEl.addClass('fm-wizard-modal');
 
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('analyticsBadge'), cls: 'fm-step-badge' });
-    header.createEl('h3', { text: t('analyticsTitle'), cls: 'fm-step-title' });
+    moduleHeading(this,contentEl,{title:'actAnalyticsTitle',symbol:'chart-no-axes-combined'});
 
     const loadingEl = contentEl.createDiv({
       cls: 'fm-section-box',
@@ -133,7 +132,7 @@ export class VaultAnalyticsModal extends Modal {
       await exportAnalyticsReportToRoot(this.plugin, s);
     };
 
-    const closeBtn = btnRow.createEl('button', { text: t('closeBtn') });
+    const closeBtn = btnRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
     closeBtn.onclick = () => returnToHub(this);
   }
 

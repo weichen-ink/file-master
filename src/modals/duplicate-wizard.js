@@ -1,11 +1,12 @@
-import { getExcludedLocalFolderList } from '../plugin/vault-utils.js';
+import { moduleHeading } from "../ui/navigation.js";
 import { scanDuplicateGroups, exportDuplicateReportToRoot } from '../plugin/vault-scans.js';
 import { executeDuplicateMergeSafely } from '../plugin/attachment-ops.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, returnToHub } from './common.js';
+import { createScanProgressWidget, returnToHub, renderExcludedFoldersHint } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
 import { renderItemVisualThumb } from './incoming-file.js';
-import { Modal, Notice } from 'obsidian';
+import { Notice } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Wizard 2: Duplicate Finder Wizard
@@ -51,14 +52,8 @@ export class DuplicateWizardModal extends Modal {
 
   renderStep1(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 1, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', { text: t('dupStep1Title'), cls: 'fm-step-title' });
-
-    contentEl.createEl('p', {
-      text: t('dupStep1Desc'),
-      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
-    });
+    moduleHeading(this,contentEl,{title:'actDupTitle',symbol:'files',step:1,total:2});
+    contentEl.createEl('p',{text:t('dupStep1Desc'),cls:'fm-module-summary'});
 
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
     if (isRemote) {
@@ -89,14 +84,7 @@ export class DuplicateWizardModal extends Modal {
     this.createTypeCheckbox(typeBox, t('dupTypeOther'), 'typeOther');
     this.createTypeCheckbox(typeBox, t('dupTypeNote'), 'typeNote');
 
-    const exclFolders = getExcludedLocalFolderList(this.plugin.settings);
-    const protBox = contentEl.createDiv({
-      cls: 'fm-section-box',
-      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
-    });
-    protBox.createDiv({
-      text: t('dupProtRuleHint', { folders: exclFolders.join(', ') || '-' })
-    });
+    renderExcludedFoldersHint(contentEl, this.plugin);
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
@@ -177,12 +165,16 @@ export class DuplicateWizardModal extends Modal {
   renderStep2(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
     const totalDupes = this.groups.reduce((acc, g) => acc + Math.max(0, g.items.length - 1), 0);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 2, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', {
-      text: t('dupStep2Title', { groups: this.groups.length, redundant: totalDupes }),
-      cls: 'fm-step-title'
-    });
+    moduleHeading(this,contentEl,{title:'actDupTitle',symbol:'files',step:2,total:2});
+    contentEl.createEl('p',{text:this.groups.length ? t('dupStep2Title', { groups: this.groups.length, redundant: totalDupes }) : t('dupEmptyTitle'),cls:'fm-module-summary'});
+
+    if (!this.groups.length) {
+      contentEl.createDiv({cls:'fm-empty-state', text:t('dupNoneFound')});
+      const actions = contentEl.createDiv({cls:'fm-btn-row'});
+      const choose = actions.createEl('button', {text:t('dupChooseScopeAgain')});
+      choose.onclick = () => { this.step = 1; this.render(); };
+      return;
+    }
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
     const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' } });
@@ -194,7 +186,7 @@ export class DuplicateWizardModal extends Modal {
     };
 
     leftTools.createSpan({ text: t('dupStrategyLabel'), attr: { style: 'font-size:13px; font-weight:600; margin-left:4px;' } });
-    const modeSelect = leftTools.createEl('select', { attr: { style: 'padding: 5px 8px; border-radius: 6px;' } });
+    const modeSelect = leftTools.createEl('select', {cls:'fm-strategy-select'});
     const modeOptions = [
       { value: 'auto', label: t('dupStrategyAuto') },
       { value: 'prefer-remote', label: t('dupStrategyPreferRemote') },
@@ -222,18 +214,6 @@ export class DuplicateWizardModal extends Modal {
         text: t('noticeRemoteUnreachable', { err: this.scanStats.remoteError }),
         attr: { style: 'font-size: 12px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4); padding: 10px 14px;' }
       });
-    }
-
-    if (this.groups.length === 0) {
-      contentEl.createDiv({
-        cls: 'fm-section-box',
-        text: t('dupNoneFound'),
-        attr: { style: 'text-align: center; padding: 36px 20px;' }
-      });
-      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-      const closeBtn = emptyBtnRow.createEl('button', { text: t('closeBtn'), cls: 'mod-cta' });
-      closeBtn.onclick = () => returnToHub(this);
-      return;
     }
 
     const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
@@ -283,7 +263,7 @@ export class DuplicateWizardModal extends Modal {
 
         left.createSpan({
           text: item.displayPath,
-          attr: { title: t('dupDesignateKeepTitle'), attr: { style: 'word-break:break-all; cursor:pointer;' } }
+          attr: { 'aria-label': t('dupDesignateKeepTitle'), style: 'word-break:break-all; cursor:pointer;' }
         }).onclick = () => {
           grp.keepId = item.id;
           this.render();
@@ -296,7 +276,7 @@ export class DuplicateWizardModal extends Modal {
         const refBadge = rightBox.createSpan({
           text: t('migrateNoteRefs', { count: item.refNotes.length }),
           cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-          attr: { title: t('migrateInspectRefs') }
+          attr: { 'aria-label': t('migrateInspectRefs') }
         });
         refBadge.onclick = (e) => {
           e.stopPropagation();
@@ -323,7 +303,7 @@ export class DuplicateWizardModal extends Modal {
 
   renderStep3(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    contentEl.createEl('h3', { text: t('dupResultTitle') });
+    moduleHeading(this,contentEl,{title:'actDupTitle',symbol:'files'});
 
     const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
     banner.createDiv({ cls: 'fm-result-banner-title', text: t('dupResultTitle') });

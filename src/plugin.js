@@ -70,6 +70,12 @@ export class FileMasterPlugin extends Plugin {
     return serverClient.toggleRemoteFileLock(this, year, month, filename, locked);
   }
 
+  fetchRemoteTrash() { return serverClient.fetchRemoteTrash(this); }
+
+  permanentlyDeleteRemoteTrash(id) { return serverClient.permanentlyDeleteRemoteTrash(this,id); }
+
+  restoreRemoteTrash(id) { return serverClient.restoreRemoteTrash(this,id); }
+
   fetchRemoteFileList() {
     return serverClient.fetchRemoteFileList(this);
   }
@@ -92,6 +98,9 @@ export class FileMasterPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    if (!['raw', 'webp'].includes(this.settings.galleryInsertFormat)) {
+      this.settings.galleryInsertFormat = this.settings.insertOptimizedLinkOnUpload ? 'webp' : 'raw';
+    }
   }
 
   async saveSettings() {

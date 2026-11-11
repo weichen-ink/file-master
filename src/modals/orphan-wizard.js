@@ -1,9 +1,10 @@
-import { getExcludedLocalFolderList } from '../plugin/vault-utils.js';
+import { moduleHeading } from "../ui/navigation.js";
 import { scanUnusedFiles, exportOrphanReportToRoot, cleanSelectedOrphans } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, returnToHub } from './common.js';
+import { createScanProgressWidget, returnToHub, renderExcludedFoldersHint } from './common.js';
 import { renderItemVisualThumb } from './incoming-file.js';
-import { Modal, Notice } from 'obsidian';
+import { Notice } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Wizard 1: Orphan Finder Wizard
@@ -46,14 +47,8 @@ export class OrphanWizardModal extends Modal {
 
   renderStep1(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 1, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', { text: t('orphanStep1Title'), cls: 'fm-step-title' });
-
-    contentEl.createEl('p', {
-      text: t('orphanStep1Desc'),
-      attr: { style: 'font-size: 13px; color: var(--text-muted); margin-bottom: 14px;' }
-    });
+    moduleHeading(this,contentEl,{title:'actOrphanTitle',symbol:'search',step:1,total:2});
+    contentEl.createEl('p',{text:t('orphanStep1Desc'),cls:'fm-module-summary'});
 
     if (this.plugin?.isRemoteServerReady?.()) {
       const locBox = contentEl.createDiv({ cls: 'fm-section-box' });
@@ -69,15 +64,7 @@ export class OrphanWizardModal extends Modal {
     this.createCheckbox(typeBox, t('orphanTypeAudio'), 'typeAudio');
     this.createCheckbox(typeBox, t('orphanTypeOther'), 'typeOther');
 
-    const exclFolders = getExcludedLocalFolderList(this.plugin.settings);
-    const protInfo = contentEl.createDiv({
-      cls: 'fm-section-box',
-      attr: { style: 'font-size: 12px; color: var(--text-muted); padding: 10px 14px;' }
-    });
-    const exclHint = exclFolders.length ? t('orphanExclHint', { folders: exclFolders.join(', ') }) : '';
-    protInfo.createDiv({
-      text: t('orphanProtActive', { excl: exclHint })
-    });
+    renderExcludedFoldersHint(contentEl, this.plugin);
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
@@ -127,21 +114,14 @@ export class OrphanWizardModal extends Modal {
 
   renderStep2(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createSpan({ text: t('stepOf', { current: 2, total: 2 }), cls: 'fm-step-badge' });
-    header.createEl('h3', { text: t('orphanStep2Title', { count: this.results.length }), cls: 'fm-step-title' });
-
+    moduleHeading(this,contentEl,{title:'actOrphanTitle',symbol:'search',step:this.results.length ? 2 : null,total:2});
+    contentEl.createEl('p',{text:t('orphanStep2Title', { count: this.results.length }),cls:'fm-module-summary'});
     if (this.lastCleanSummary) {
       const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
       banner.createDiv({ cls: 'fm-result-banner-title', text: t('orphanResultTitle') });
-      banner.createDiv({
-        cls: 'fm-result-banner-desc',
-        text: t('orphanResultDesc', {
-          count: this.lastCleanSummary.total || 0,
-          local: this.lastCleanSummary.local || 0,
-          remote: this.lastCleanSummary.remote || 0
-        })
-      });
+      banner.createDiv({cls:'fm-result-banner-desc',text:t('orphanResultDesc',{
+        count:this.lastCleanSummary.total || 0,local:this.lastCleanSummary.local || 0,remote:this.lastCleanSummary.remote || 0
+      })});
     }
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
@@ -217,7 +197,7 @@ export class OrphanWizardModal extends Modal {
         const lockBtn = rightBox.createEl('button', {
           text: t('lockBtnText'),
           cls: 'fm-mini-btn',
-          attr: { title: t('lockBtnTitle') }
+          attr: { 'aria-label': t('lockBtnTitle') }
         });
         lockBtn.onclick = async () => {
           try {

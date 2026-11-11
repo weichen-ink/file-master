@@ -1,5 +1,7 @@
+import { modalTitle } from '../ui/navigation.js';
 import { loadOperationLogs, getLogFilePath, formatLogsForExport, clearOperationLogs } from '../plugin/logging.js';
-import { Modal, Notice } from 'obsidian';
+import { Notice } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Operation & Debug Log Viewer/Exporter Modal
@@ -28,8 +30,7 @@ export class OperationLogModal extends Modal {
     contentEl.empty();
     contentEl.addClass('fm-wizard-modal');
 
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createEl('h3', { text: this.t('opLogTitle'), cls: 'fm-step-title' });
+    modalTitle(this, this.t('opLogTitle'));
 
     contentEl.createDiv({
       text: this.t('opLogPathHint', { path: (this.plugin == null ? undefined : getLogFilePath(this.plugin)) || '.obsidian/plugins/file-master/operation.log' }),

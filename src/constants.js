@@ -14,12 +14,13 @@ export const DEFAULT_SETTINGS = {
   namingPattern: '{note}_{date}_{rand:4}',
   uploadNonImageAttachments: true,
   insertOptimizedLinkOnUpload: false,
+  galleryInsertFormat: null, // migrate once from upload preference, then remain independent
   deleteLocalAfterMigrate: true,
-  excludedLocalFolders: 'templates, assets/protected',
+  excludedLocalFolders: '',
   excludeLockedRemoteFiles: true
 };
 
-export const MIN_SERVER_VERSION = '1.0.1';
+export const MIN_SERVER_VERSION = '1.1';
 export const VIEW_TYPE_REMOTE_GALLERY = 'file-master-remote-gallery';
 
 // Comprehensive image extensions (Apple HEIC/HEIF, TIFF, BMP, Camera RAW, etc.)

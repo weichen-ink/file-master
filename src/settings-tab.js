@@ -49,7 +49,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
     const header = containerEl.createDiv({ cls: 'fm-settings-page-header' });
     const back = header.createEl('button', {
       cls: 'clickable-icon fm-settings-back',
-      attr: { 'aria-label': this.plugin.t('settingsBack'), title: this.plugin.t('settingsBack') }
+      attr: { 'aria-label': this.plugin.t('settingsBack') }
     });
     setIcon(back, 'arrow-left');
     back.onclick = () => {
@@ -183,7 +183,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
       .setDesc(this.plugin.t('serverUrlDesc'))
       .addText((text) =>
         text
-          .setPlaceholder('http://localhost:3000')
+          .setPlaceholder('https://files.example.com')
           .setValue(this.plugin.settings.serverUrl)
           .onChange(async (value) => {
             this.plugin.settings.serverUrl = value.trim();
@@ -358,7 +358,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
       .setDesc(this.plugin.t('excludedFoldersDesc'))
       .addText((text) =>
         text
-          .setPlaceholder('templates, assets/protected')
+          .setPlaceholder('')
           .setValue(this.plugin.settings.excludedLocalFolders)
           .onChange(async (value) => {
             this.plugin.settings.excludedLocalFolders = value;

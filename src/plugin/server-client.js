@@ -347,7 +347,7 @@ export async function fetchRemoteFileList(plugin) {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(response.json?.error || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
-  return response.json.images || [];
+  return (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
 }
 
 export async function deleteRemoteFile(plugin, year, month, filename) {
@@ -362,4 +362,26 @@ export async function deleteRemoteFile(plugin, year, month, filename) {
     throw new Error(response.json?.error || `Failed to delete remote file (HTTP ${response.status})`);
   }
   return true;
+}
+
+export async function fetchRemoteTrash(plugin) {
+  const response=await requestUrl({url:`${plugin.getCleanServerUrl()}/api/modules/image-host/trash`,method:'GET',headers:{Authorization:`Bearer ${plugin.settings.apiToken}`},throw:false});
+  if(response.status<200||response.status>=300)throw new Error(response.json?.error || `HTTP ${response.status}`);
+  return response.json.items || [];
+}
+export async function restoreRemoteTrash(plugin,id) {
+  const response=await requestUrl({url:`${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`,method:'POST',headers:{Authorization:`Bearer ${plugin.settings.apiToken}`},throw:false});
+  if(response.status<200||response.status>=300)throw new Error(response.json?.error || `HTTP ${response.status}`);
+  return response.json;
+}
+
+export async function permanentlyDeleteRemoteTrash(plugin, id) {
+  const response = await requestUrl({
+    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}`,
+    method: 'DELETE',
+    headers: {Authorization: `Bearer ${plugin.settings.apiToken}`},
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
+  return response.json;
 }

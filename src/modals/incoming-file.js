@@ -1,10 +1,12 @@
+import { modalTitle } from '../ui/navigation.js';
 import { getItemPreviewUrl } from '../plugin/vault-utils.js';
 import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
 import { computeSha256Hex, convertBufferToPreviewUrl, formatBytes, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { translateUi } from '../i18n.js';
 import { formatFriendlyError } from './common.js';
 import { ImageLightboxModal } from './dialogs.js';
-import { Modal, Notice, setIcon } from 'obsidian';
+import { Notice, setIcon } from 'obsidian';
+import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
  * Renders a 44x44 thumbnail or icon in wizard lists (click to inspect)
@@ -15,7 +17,7 @@ export function renderItemVisualThumb(parentEl, item, plugin) {
   if (IMAGE_EXTS.has(ext)) {
     const img = parentEl.createEl('img', {
       cls: 'fm-item-thumb',
-      attr: { title: t('thumbEnlargeTooltip') }
+      attr: { 'aria-label': t('thumbEnlargeTooltip') }
     });
     img.onclick = (e) => {
       e.preventDefault();
@@ -28,7 +30,7 @@ export function renderItemVisualThumb(parentEl, item, plugin) {
   } else {
     const box = parentEl.createDiv({
       cls: 'fm-item-icon-box',
-      attr: { title: t('thumbDetailsTooltip') }
+      attr: { 'aria-label': t('thumbDetailsTooltip') }
     });
     const icon =
       ext === 'md'
@@ -100,8 +102,7 @@ export class IncomingFileModal extends Modal {
     const { contentEl } = this;
 
     // 1. Clean Title Header
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createEl('h3', { text: this.t('destTitle'), cls: 'fm-step-title' });
+    modalTitle(this, this.t('destTitle'));
 
     // 2. Asset Card (Thumbnail + Integrated Input + Size)
     const card = contentEl.createDiv({ cls: 'fm-incoming-card' });
@@ -272,8 +273,7 @@ export class IncomingFileModal extends Modal {
 
   renderExecutingStep() {
     const { contentEl } = this;
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createEl('h3', { text: this.t('destProcessingTitle'), cls: 'fm-step-title' });
+    modalTitle(this, this.t('destProcessingTitle'));
 
     const infoBox = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'margin-bottom: 14px;' } });
     infoBox.createDiv({
@@ -433,8 +433,7 @@ export class IncomingFileModal extends Modal {
 
   renderResultStep() {
     const { contentEl } = this;
-    const header = contentEl.createDiv({ cls: 'fm-step-header' });
-    header.createEl('h3', { text: this.t('destResultTitle'), cls: 'fm-step-title' });
+    modalTitle(this, this.t('destResultTitle'));
 
     if (!this.result.success) {
       const errBanner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-error' });
