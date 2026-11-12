@@ -18,6 +18,7 @@ import { MarkdownView, Notice, Platform } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function onload(plugin) {
+  plugin.isUnloading = false;
   await plugin.loadSettings();
   // Page preview source registration was added in Obsidian 1.1.
   plugin.registerHoverLinkSource?.('file-master', { display:'File Master', defaultMod:false });
@@ -42,6 +43,7 @@ export async function onload(plugin) {
     VIEW_TYPE_REMOTE_GALLERY,
     (leaf) => new RemoteGalleryView(leaf, plugin)
   );
+  plugin.registerEvent(plugin.app.workspace.on('layout-change', () => reconcileGalleryLeaves(plugin)));
 
   // Track active markdown editor leaf changes for reliable cursor insertion
   plugin.registerEvent(
@@ -60,13 +62,15 @@ export async function onload(plugin) {
     })
   );
 
-  // Auto-init/dock gallery leaf in right sidebar when workspace is ready, persistent like Calendar
+  // Obsidian restores registered views itself, including during plugin upgrades.
+  // Creating a leaf here races its asynchronous view restoration and duplicates tabs.
   plugin.app.workspace.onLayoutReady(() => {
+    if (plugin.isUnloading) return;
     const activeMd = plugin.app.workspace.getActiveViewOfType(MarkdownView);
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
-    if (!Platform.isMobile) initGalleryLeaf(plugin, false).catch(error => new Notice(error.message));
+    reconcileGalleryLeaves(plugin);
   });
 
   // Background non-blocking handshake to verify version contract and connectivity
@@ -246,6 +250,7 @@ export function getCompatibilityMessage(plugin, compat) {
 }
 
 export function onunload(plugin) {
+  plugin.isUnloading = true;
   plugin.activeTransferController?.abort();
   plugin.galleryStore?.clear();
   // Note: Do NOT detach VIEW_TYPE_REMOTE_GALLERY here, allowing Obsidian workspace layout
@@ -260,12 +265,26 @@ export function onunload(plugin) {
   }
 }
 
+function reconcileGalleryLeaves(plugin) {
+  if (plugin.isUnloading || plugin.reconcilingGalleryLeaves) return null;
+  const workspace = plugin.app.workspace;
+  const leaves = workspace.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || [];
+  const keep = leaves.includes(workspace.activeLeaf) ? workspace.activeLeaf : leaves[0];
+  plugin.reconcilingGalleryLeaves = true;
+  try {
+    for (const leaf of leaves) if (leaf !== keep) leaf.detach();
+  } finally {
+    plugin.reconcilingGalleryLeaves = false;
+  }
+  return keep || null;
+}
+
 export async function initGalleryLeaf(plugin, reveal = false) {
-  if (!plugin.isRemoteServerReady()) return null;
+  if (plugin.isUnloading || !plugin.isRemoteServerReady()) return null;
   const {workspace} = plugin.app;
   if (!plugin.galleryLeafPromise) {
     const pending = (async () => {
-      let leaf = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY)[0];
+      let leaf = reconcileGalleryLeaves(plugin);
       if (!leaf) {
         leaf = workspace.getRightLeaf(false);
         if (!leaf) throw new Error(plugin.t('galleryPanelUnavailable'));
@@ -277,7 +296,7 @@ export async function initGalleryLeaf(plugin, reveal = false) {
     pending.finally(() => { if(plugin.galleryLeafPromise === pending) plugin.galleryLeafPromise = null; }).catch(() => {});
   }
   const leaf = await plugin.galleryLeafPromise;
-  if (reveal && leaf) await workspace.revealLeaf(leaf);
+  if (!plugin.isUnloading && reveal && leaf) await workspace.revealLeaf(leaf);
   return leaf;
 }
 

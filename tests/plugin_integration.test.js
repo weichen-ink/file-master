@@ -86,3 +86,47 @@ test('Release onload registers clipboard, commands and menus through explicit mo
   assert.equal(opened.length, 1, 'non-image attachments should reach the incoming-file modal');
   plugin.onunload();
 });
+
+test('Upgrade restoration reuses the existing gallery and removes duplicate tabs without creating new leaves', async () => {
+  const handlers = new Map();
+  const emit = event => handlers.get(event)?.forEach(callback => callback());
+  let ready, created = 0;
+  let leaves = [];
+  const loaded = loadPlugin(undefined, { setTimeout() {}, document: { querySelectorAll: () => [] } });
+  const workspace = {
+    on(event, callback) {
+      if (!handlers.has(event)) handlers.set(event, []);
+      handlers.get(event).push(callback);
+      return {};
+    },
+    onLayoutReady(callback) { ready ||= callback; },
+    getActiveViewOfType: () => null,
+    getLeavesOfType: () => leaves,
+    getRightLeaf() { created++; throw new Error('Restoration must not create a leaf'); }
+  };
+  const plugin = new loaded.Plugin({ vault: { on: () => ({}) }, workspace });
+  plugin.loadData = async () => ({ enableSidebarButton: false, enableRemoteServer: true, serverVerified: true });
+  plugin.addSettingTab = plugin.addCommand = plugin.registerEvent = plugin.registerView = () => {};
+  await plugin.onload();
+  // During Obsidian's asynchronous view replacement the old leaf is temporarily absent.
+  ready();
+  assert.equal(created, 0);
+  const makeLeaf = () => ({ detach() {
+    leaves = leaves.filter(leaf => leaf !== this);
+    emit('layout-change');
+  } });
+  const original = makeLeaf(), duplicate = makeLeaf();
+  leaves = [original, duplicate];
+  workspace.activeLeaf = duplicate;
+  emit('layout-change');
+  assert.deepEqual(leaves, [duplicate], 'retain the active gallery and its dock position');
+  assert.equal(created, 0);
+  assert.equal(await loaded.initGalleryLeaf(plugin), duplicate);
+  // Late callbacks from an unloaded instance cannot remove the new instance's tabs.
+  plugin.onunload();
+  leaves = [original, duplicate];
+  ready();
+  emit('layout-change');
+  assert.equal(leaves.length, 2);
+  assert.equal(await loaded.initGalleryLeaf(plugin), null);
+});

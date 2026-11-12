@@ -8021,6 +8021,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
 var import_obsidian27 = require("obsidian");
 async function onload(plugin) {
   var _a;
+  plugin.isUnloading = false;
   await plugin.loadSettings();
   (_a = plugin.registerHoverLinkSource) == null ? void 0 : _a.call(plugin, "file-master", { display: "File Master", defaultMod: false });
   plugin.operationLogs = [];
@@ -8040,6 +8041,7 @@ async function onload(plugin) {
     VIEW_TYPE_REMOTE_GALLERY,
     (leaf) => new RemoteGalleryView(leaf, plugin)
   );
+  plugin.registerEvent(plugin.app.workspace.on("layout-change", () => reconcileGalleryLeaves(plugin)));
   plugin.registerEvent(
     plugin.app.workspace.on("active-leaf-change", (leaf) => {
       if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian27.MarkdownView) {
@@ -8056,11 +8058,12 @@ async function onload(plugin) {
     })
   );
   plugin.app.workspace.onLayoutReady(() => {
+    if (plugin.isUnloading) return;
     const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian27.MarkdownView);
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
-    if (!import_obsidian27.Platform.isMobile) initGalleryLeaf(plugin, false).catch((error) => new import_obsidian27.Notice(error.message));
+    reconcileGalleryLeaves(plugin);
   });
   setTimeout(() => {
     checkServerCompatibility(plugin).catch(() => {
@@ -8230,6 +8233,7 @@ function getCompatibilityMessage(plugin, compat) {
 }
 function onunload(plugin) {
   var _a, _b;
+  plugin.isUnloading = true;
   (_a = plugin.activeTransferController) == null ? void 0 : _a.abort();
   (_b = plugin.galleryStore) == null ? void 0 : _b.clear();
   if (plugin.sidebarRibbonEl) {
@@ -8241,12 +8245,26 @@ function onunload(plugin) {
     plugin.heicObserver = null;
   }
 }
+function reconcileGalleryLeaves(plugin) {
+  var _a;
+  if (plugin.isUnloading || plugin.reconcilingGalleryLeaves) return null;
+  const workspace = plugin.app.workspace;
+  const leaves = ((_a = workspace.getLeavesOfType) == null ? void 0 : _a.call(workspace, VIEW_TYPE_REMOTE_GALLERY)) || [];
+  const keep = leaves.includes(workspace.activeLeaf) ? workspace.activeLeaf : leaves[0];
+  plugin.reconcilingGalleryLeaves = true;
+  try {
+    for (const leaf of leaves) if (leaf !== keep) leaf.detach();
+  } finally {
+    plugin.reconcilingGalleryLeaves = false;
+  }
+  return keep || null;
+}
 async function initGalleryLeaf(plugin, reveal = false) {
-  if (!plugin.isRemoteServerReady()) return null;
+  if (plugin.isUnloading || !plugin.isRemoteServerReady()) return null;
   const { workspace } = plugin.app;
   if (!plugin.galleryLeafPromise) {
     const pending = (async () => {
-      let leaf2 = workspace.getLeavesOfType(VIEW_TYPE_REMOTE_GALLERY)[0];
+      let leaf2 = reconcileGalleryLeaves(plugin);
       if (!leaf2) {
         leaf2 = workspace.getRightLeaf(false);
         if (!leaf2) throw new Error(plugin.t("galleryPanelUnavailable"));
@@ -8261,7 +8279,7 @@ async function initGalleryLeaf(plugin, reveal = false) {
     });
   }
   const leaf = await plugin.galleryLeafPromise;
-  if (reveal && leaf) await workspace.revealLeaf(leaf);
+  if (!plugin.isUnloading && reveal && leaf) await workspace.revealLeaf(leaf);
   return leaf;
 }
 async function activateGalleryView(plugin) {
