@@ -307,6 +307,7 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
         localOtherBytes += size;
       }
       attachmentList.push({
+        rawObj: f,
         name: f.name,
         path: f.path || f.name,
         ext,
@@ -342,8 +343,9 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
     remoteCacheBytes += cacheSize;
     if (cacheSize > 0) remoteCachedCount++;
     if (r.locked || r.inProtectedFolder) remoteLockedCount++;
-    const ext = String(r.ext || '').replace(/^\./, '').toLowerCase();
+    const ext = String(r.ext || getExt(r.filename)).replace(/^\./, '').toLowerCase();
     attachmentList.push({
+      rawObj: r,
       name: r.filename,
       path: `${r.year}/${r.month}/${r.filename}`,
       ext,
@@ -356,15 +358,6 @@ export function computeVaultStatsFromEntries(vaultFiles, docTexts, remoteImages 
   const topLargestAttachments = [...attachmentList]
     .sort((a, b) => b.size - a.size)
     .slice(0, 20);
-
-  const combinedDocText = (docTexts || []).join('\n');
-  for (const item of topLargestAttachments) {
-    const rawName = item.name;
-    const base = String(item.name || '').replace(/\.[^.]+$/, '');
-    item.isReferenced = combinedDocText.includes(rawName) ||
-      combinedDocText.includes(encodeURIComponent(rawName)) ||
-      (base.length >= 3 && combinedDocText.includes(`[[${base}`));
-  }
 
   const localTotalBytes = localImageBytes + localAudioBytes + localOtherBytes;
   const localTotalCount = localImageCount + localAudioCount + localOtherCount;

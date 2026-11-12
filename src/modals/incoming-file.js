@@ -459,10 +459,7 @@ export class IncomingFileModal extends Modal {
         cls: 'fm-result-banner-title',
         text: isInstant ? this.t('destInstantBadge') : this.t('destSuccessBadge')
       });
-      banner.createDiv({
-        cls: 'fm-result-banner-desc',
-        text: isInstant ? this.t('destInstantDesc') : this.t('destSuccessDesc')
-      });
+      if(isInstant)banner.createDiv({cls:'fm-result-banner-desc',text:this.t('destInstantDesc')});
 
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
@@ -501,7 +498,6 @@ export class IncomingFileModal extends Modal {
       // Local result
       const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-local' });
       banner.createDiv({ cls: 'fm-result-banner-title', text: this.t('destLocalBadge') });
-      banner.createDiv({ cls: 'fm-result-banner-desc', text: this.t('destLocalDesc') });
 
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({

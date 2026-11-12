@@ -1,5 +1,23 @@
 # Changelog (file-master)
 
+## [1.1.4] - 2026-11-12
+
+### Remote asset rename & link synchronization
+- Add a two-step server rename workflow with editable filename stems, locked extensions, conflict checks, thumbnails, and affected-note previews.
+- Rename remote assets and atomically update Markdown, Canvas, and Excalidraw vault links against latest contents.
+- Persist pending rename operations in a recovery journal so interrupted or partially completed link updates can resume cleanly.
+
+### Unified references & native hover preview
+- Unify attachment and document rows across upload, duplicate, orphan, health, analytics, and rename workflows.
+- Count actual reference occurrences, include legacy server aliases, and display consistent reference badges and note actions.
+- Add native note hover previews above modal dialogs, with source-line positioning for broken-link results and a clear preview hint in reference dialogs.
+
+### Hub & gallery refinement
+- Rename quick panel and its entry points to File Master Hub.
+- Refine gallery list and card layouts, left-align names and sizes, and use compact, borderless insert/copy controls.
+- Improve preview inspector alignment, link-copy columns, timestamps, property typography, and deletion-protection controls.
+- Add bilingual retention notices for old URLs and reminders to update external blog references.
+
 ## [1.1.3] - 2026-11-11
 
 ### CSS performance optimizations

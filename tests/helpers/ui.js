@@ -22,7 +22,7 @@ class Element {
   querySelectorAll(selector){return this.all().filter(el=>selector==='[data-insert-action]'&&el['data-insert-action']);}
   empty() { this.children.forEach(child=>{child.parentElement=null;child.isConnected=false;});this.children = []; }
   setText(text) { this.text = text; }
-  setAttribute(name, value) { this[name] = value; }
+  setAttribute(name, value) { if(name==='style')this.style.cssText=value;else this[name] = value; }
   appendChild(child) { child.remove();child.parentElement=this;child.isConnected=true;this.children.push(child);return child; }
   prepend(child) { child.remove();child.parentElement=this;child.isConnected=true;this.children.unshift(child); }
   querySelector(selector) { return this.all().find(el=>selector.split(',').some(part=>el.className.split(' ').includes(part.trim().slice(1)))); }

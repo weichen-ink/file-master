@@ -30,7 +30,7 @@ export function galleryToolbar(view,parent) {
   const viewModes=controls.createDiv({cls:'fm-view-controls',attr:{role:'group','aria-label':t('galleryLayoutLabel')}});
   const grid=iconButton(viewModes,plugin,'galleryLayoutGrid','layout-grid',()=>store.patch({layoutMode:'grid'}));
   const list=iconButton(viewModes,plugin,'galleryLayoutList','list',()=>store.patch({layoutMode:'list'}));
-  const format=toolbar.createDiv({cls:'fm-browser-format'});format.createSpan({text:t('galleryInsertFormatLabel')});
+  const format=controls.createDiv({cls:'fm-browser-format'});format.createSpan({text:t('galleryInsertFormatLabel')});
   const modeGroup=format.createDiv({cls:'fm-gallery-mode-group',attr:{role:'group','aria-label':t('galleryLinkFormat')}});
   const modes=['raw','webp'].map(mode=>{const button=modeGroup.createEl('button',{text:t(mode==='raw'?'galleryModeRaw':'galleryModeWebp'),attr:{type:'button'}});button.onclick=async()=>{try{await store.setInsertMode(mode);}catch(error){new Notice(error.message);}};return button;});
   const footer=toolbar.createDiv({cls:'fm-browser-summary'}),count=footer.createDiv({cls:'fm-gallery-stats'});

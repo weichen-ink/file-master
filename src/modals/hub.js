@@ -7,6 +7,7 @@ import { DuplicateWizardModal } from './duplicate-wizard.js';
 import { HealthCheckModal } from './health-check.js';
 import { OrphanWizardModal } from './orphan-wizard.js';
 import { RemoteGalleryModal } from './remote-gallery.js';
+import { RemoteRenameModal } from './remote-rename.js';
 import { RemoteTrashModal } from './remote-trash.js';
 import { ActiveNoteActionModal } from './active-note.js';
 import { VaultAnalyticsModal } from './vault-analytics.js';
@@ -55,6 +56,7 @@ export class FileMasterHubModal extends Modal {
       ]},
       {title:'catFiles',actions:remote?[
         {icon:'images',title:'actRemoteGalleryTitle',run:()=>show(new RemoteGalleryModal(this.app,this.plugin))},
+        {icon:'file-pen-line',title:'remoteRenameTitle',run:()=>show(new RemoteRenameModal(this.app,this.plugin))},
         {icon:'panel-right',title:'hubDockGallery',hidden:Platform.isMobile,run:()=>this.navigator.leave(leaf=>this.app.workspace.revealLeaf(leaf),()=>initGalleryLeaf(this.plugin,false))}
       ]:[{icon:'plug',title:'hubConnect',run:settings}]},
       {title:'catPreferences',actions:[

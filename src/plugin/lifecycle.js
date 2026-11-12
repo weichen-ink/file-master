@@ -19,6 +19,8 @@ import { MarkdownView, Notice, Platform } from 'obsidian';
 // The plugin owns host state; these operations receive it explicitly.
 export async function onload(plugin) {
   await plugin.loadSettings();
+  // Page preview source registration was added in Obsidian 1.1.
+  plugin.registerHoverLinkSource?.('file-master', { display:'File Master', defaultMod:false });
   plugin.operationLogs = [];
   await loadOperationLogs(plugin);
   plugin.heicPreviewCache = new Map();

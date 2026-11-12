@@ -2,9 +2,8 @@ import { moduleHeading } from "../ui/navigation.js";
 import { scanDuplicateGroups, exportDuplicateReportToRoot } from '../plugin/vault-scans.js';
 import { executeDuplicateMergeSafely } from '../plugin/attachment-ops.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, returnToHub, renderExcludedFoldersHint } from './common.js';
-import { NoteRefsModal } from './dialogs.js';
-import { renderItemVisualThumb } from './incoming-file.js';
+import { createScanProgressWidget, renderScanEmpty, returnToHub, renderExcludedFoldersHint } from './common.js';
+import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -165,16 +164,12 @@ export class DuplicateWizardModal extends Modal {
   renderStep2(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
     const totalDupes = this.groups.reduce((acc, g) => acc + Math.max(0, g.items.length - 1), 0);
-    moduleHeading(this,contentEl,{title:'actDupTitle',symbol:'files',step:2,total:2});
-    contentEl.createEl('p',{text:this.groups.length ? t('dupStep2Title', { groups: this.groups.length, redundant: totalDupes }) : t('dupEmptyTitle'),cls:'fm-module-summary'});
-
+    moduleHeading(this,contentEl,{title:'actDupTitle',symbol:'files',step:this.groups.length?2:null,total:2});
     if (!this.groups.length) {
-      contentEl.createDiv({cls:'fm-empty-state', text:t('dupNoneFound')});
-      const actions = contentEl.createDiv({cls:'fm-btn-row'});
-      const choose = actions.createEl('button', {text:t('dupChooseScopeAgain')});
-      choose.onclick = () => { this.step = 1; this.render(); };
+      renderScanEmpty(this,contentEl,'dupNoneFound');
       return;
     }
+    contentEl.createEl('p',{text:t('dupStep2Title',{groups:this.groups.length,redundant:totalDupes}),cls:'fm-module-summary'});
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
     const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' } });
@@ -216,7 +211,7 @@ export class DuplicateWizardModal extends Modal {
       });
     }
 
-    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
+    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list fm-file-action-list' });
     this.groups.forEach((grp, idx) => {
       const grpBox = listEl.createDiv({ cls: 'fm-dup-group' });
       const grpHead = grpBox.createDiv({ cls: 'fm-dup-group-header' });
@@ -226,63 +221,24 @@ export class DuplicateWizardModal extends Modal {
       grpHead.createSpan({ text: t('dupGroupSubhint') });
 
       for (const item of grp.items) {
-        const isKeep = grp.keepId === item.id;
-        const row = grpBox.createDiv({ cls: 'fm-list-item' });
-        const left = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:8px; flex:1; overflow:hidden;' }
+        const isKeep=grp.keepId===item.id;
+        const {actions,name}=fileActionRow(grpBox,item,this.plugin,{
+          selection:parent=>{
+            const radio=parent.createEl('input',{type:'radio',attr:{name:`dup_grp_${idx}`,'aria-label':t('dupDesignateKeepTitle')}});
+            radio.checked=isKeep;
+            radio.onchange=()=>{grp.keepId=item.id;this.render();};
+          },
+          metadata:parent=>{
+            parent.createSpan({text:isKeep?t('dupTagKeep'):item.locked?t('dupTagProtected'):t('dupTagRemove'),cls:isKeep?'fm-file-keep':''});
+            parent.createSpan({text:item.source==='local'?t('analyticsBadgeLocal'):t('analyticsBadgeRemote')});
+            fileMetadata(parent,item,{path:item.displayPath});
+          }
         });
-
-        const radio = left.createEl('input', {
-          type: 'radio',
-          attr: { name: `dup_grp_${idx}`, style: 'cursor:pointer;' }
-        });
-        radio.checked = isKeep;
-        radio.onchange = () => {
-          grp.keepId = item.id;
-          this.render();
-        };
-
-        renderItemVisualThumb(left, item, this.plugin);
-
-        left.createSpan({
-          text: isKeep ? t('dupTagKeep') : item.locked ? t('dupTagProtected') : t('dupTagRemove'),
-          attr: { style: `font-size:12px; font-weight:700; color:${isKeep ? '#10b981' : item.locked ? '#f59e0b' : '#ef4444'}; width:68px; flex-shrink:0;` }
-        });
-
-        left.createSpan({
-          text: item.source === 'local' ? t('analyticsBadgeLocal') : t('analyticsBadgeRemote'),
-          cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
-        });
-
-        if (item.locked) {
-          left.createSpan({
-            text: '🔒 ' + (this.t ? this.t('tagLocked') : 'Locked'),
-            cls: 'fm-tag fm-tag-lock'
-          });
-        }
-
-        left.createSpan({
-          text: item.displayPath,
-          attr: { 'aria-label': t('dupDesignateKeepTitle'), style: 'word-break:break-all; cursor:pointer;' }
-        }).onclick = () => {
-          grp.keepId = item.id;
-          this.render();
-        };
-
-        const rightBox = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
-        });
-
-        const refBadge = rightBox.createSpan({
-          text: t('migrateNoteRefs', { count: item.refNotes.length }),
-          cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-          attr: { 'aria-label': t('migrateInspectRefs') }
-        });
-        refBadge.onclick = (e) => {
-          e.stopPropagation();
-          new NoteRefsModal(this.app, item.name, item.refNotes, () => this.close(), this.plugin).open();
-        };
+        name.addClass('fm-file-select-target');
+        name.onclick=()=>{grp.keepId=item.id;this.render();};
+        fileReferenceButton(actions,item,this.plugin,item.refNotes,()=>this.close());
       }
+
     });
 
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });

@@ -3,7 +3,8 @@ import { scanVaultAnalytics, exportAnalyticsReportToRoot } from '../plugin/healt
 import { formatBytes } from '../engine.js';
 import { returnToHub } from './common.js';
 import { FileMasterModal as Modal } from '../ui/modal.js';
-import { Notice } from 'obsidian';
+import { Notice, setIcon } from 'obsidian';
+import { fileActionRow, fileReferenceButton } from '../ui/file-action-list.js';
 
 /**
  * Vault Storage & Asset Analytics Dashboard Modal
@@ -13,7 +14,6 @@ export class VaultAnalyticsModal extends Modal {
     super(app);
     this.plugin = plugin;
     this.stats = null;
-    this.hoverPopover = null;
   }
 
   async onOpen() {
@@ -206,7 +206,7 @@ export class VaultAnalyticsModal extends Modal {
         }
       });
 
-      const listEl = topBox.createDiv({ cls: 'fm-scroll-list', attr: { style: 'max-height: 195px; margin-top: 8px;' } });
+      const listEl = topBox.createDiv({ cls: 'fm-scroll-list fm-file-action-list fm-analytics-files' });
 
       const renderList = () => {
         listEl.empty();
@@ -225,68 +225,17 @@ export class VaultAnalyticsModal extends Modal {
         }
 
         for (const item of filtered) {
-          const row = listEl.createDiv({
-            cls: 'fm-list-item',
-            attr: {
-              style: 'cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 4px;'
-            }
+          const {actions} = fileActionRow(listEl,item,this.plugin,{
+            metadata:parent=>parent.createSpan({text:t(item.source==='local'?'analyticsBadgeLocal':'analyticsBadgeRemote')})
           });
-          row.title = t('analyticsClickToCopy');
-
-          // 点击仅复制纯文件名（方便直接在全局搜索）
-          row.onclick = async () => {
-            try {
-              await navigator.clipboard.writeText(item.name);
-              new Notice(t('analyticsCopiedName', { name: item.name }));
-            } catch {
-              new Notice(item.name);
-            }
+          const references=fileReferenceButton(actions,item,this.plugin,item.referenceDocuments,()=>this.close());
+          if(!item.referenceDocuments)references.update(null,true);
+          const copy=actions.createEl('button',{cls:'fm-icon-button',attr:{type:'button','aria-label':t('analyticsClickToCopy')}});
+          setIcon(copy,'copy');
+          copy.onclick=async()=>{
+            try { await navigator.clipboard.writeText(item.name); new Notice(t('analyticsCopiedName',{name:item.name})); }
+            catch { new Notice(item.name); }
           };
-
-          // 悬浮小窗口图片预览（轻量微型 Popover）
-          row.onmouseenter = (e) => {
-            if (item.group !== 'image') return;
-            this.showHoverPreview(e, item);
-          };
-          row.onmouseleave = () => {
-            this.hideHoverPreview();
-          };
-
-          const leftCol = row.createDiv({
-            attr: { style: 'display: flex; align-items: center; min-width: 0; flex: 1; margin-right: 12px;' }
-          });
-
-          // 来源标识：💻 本地 或 ☁️ 远程
-          const badgeText = item.source === 'local' ? t('analyticsBadgeLocal') : t('analyticsBadgeRemote');
-          leftCol.createSpan({
-            text: badgeText,
-            attr: { style: 'font-size: 11px; font-weight: 500; margin-right: 6px; flex-shrink: 0;' }
-          });
-
-          // 文件路径/名称（无多余格式灰标）
-          leftCol.createSpan({
-            text: item.path,
-            attr: { style: 'font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;' }
-          });
-
-          // 引用状态
-          if (item.isReferenced) {
-            leftCol.createSpan({
-              text: `[${t('analyticsRefUsed')}]`,
-              attr: { style: 'font-size: 10px; color: var(--text-muted); margin-left: 6px; flex-shrink: 0;' }
-            });
-          } else {
-            leftCol.createSpan({
-              text: `[${t('analyticsRefUnused')}]`,
-              attr: { style: 'font-size: 10px; color: var(--text-warning, #f59e0b); margin-left: 6px; flex-shrink: 0;' }
-            });
-          }
-
-          // 大小
-          row.createSpan({
-            text: formatBytes(item.size),
-            attr: { style: 'font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--font-monospace); color: var(--text-muted); flex-shrink: 0;' }
-          });
         }
       };
 
@@ -336,64 +285,7 @@ export class VaultAnalyticsModal extends Modal {
     closeBtn.onclick = () => returnToHub(this);
   }
 
-  showHoverPreview(e, item) {
-    this.hideHoverPreview();
-    let src = '';
-    if (item.source === 'local') {
-      // 本地图片直接通过 Obsidian 本地协议快速加载
-      const file = this.app.vault.getAbstractFileByPath(item.path);
-      if (file) src = this.app.vault.getResourcePath(file);
-    } else {
-      // 远程图片优先使用 WebP 压缩格式，极大提高加载速度与带宽利用率
-      const cleanServer = this.plugin.settings.serverUrl ? this.plugin.settings.serverUrl.replace(/\/$/, '') : '';
-      const webpPath = String(item.path || '').replace(/\.[^.]+$/, '.webp');
-      src = item.pubUrl || (cleanServer ? `${cleanServer}/pub/${webpPath}` : '') || item.rawUrl || (cleanServer ? `${cleanServer}/raw/${item.path}` : '');
-    }
-
-    if (!src) return;
-
-    const popover = document.createElement('div');
-    popover.className = 'fm-hover-preview-popover';
-    popover.style.cssText = `
-      position: fixed;
-      left: ${Math.min(window.innerWidth - 180, e.clientX + 16)}px;
-      top: ${Math.min(window.innerHeight - 160, Math.max(10, e.clientY - 60))}px;
-      z-index: 99999;
-      pointer-events: none;
-      background: var(--background-secondary);
-      border: 1px solid var(--background-modifier-border);
-      border-radius: 8px;
-      padding: 4px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-      animation: fm-fade-in 0.15s ease-out;
-    `;
-
-    const img = document.createElement('img');
-    img.src = src;
-    img.style.cssText = 'max-width: 150px; max-height: 130px; display: block; border-radius: 5px; object-fit: contain;';
-    // 若 WebP 派生尚未就绪，自动回退到原图以防裂图
-    img.onerror = () => {
-      if (item.rawUrl && img.src !== item.rawUrl) {
-        img.src = item.rawUrl;
-      } else {
-        this.hideHoverPreview();
-      }
-    };
-
-    popover.appendChild(img);
-    document.body.appendChild(popover);
-    this.hoverPopover = popover;
-  }
-
-  hideHoverPreview() {
-    if (this.hoverPopover) {
-      this.hoverPopover.remove();
-      this.hoverPopover = null;
-    }
-  }
-
   onClose() {
-    this.hideHoverPreview();
     this.contentEl.empty();
   }
 }

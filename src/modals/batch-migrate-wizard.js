@@ -3,9 +3,8 @@ import { getAllVaultFolderPaths } from '../plugin/vault-utils.js';
 import { scanLocalAttachmentsForBatchMigrate } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, returnToHub } from './common.js';
-import { NoteRefsModal } from './dialogs.js';
-import { renderItemVisualThumb } from './incoming-file.js';
+import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
+import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -135,6 +134,10 @@ export class BatchMigrateWizardModal extends Modal {
   renderStep2(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
     moduleHeading(this,contentEl,{title:'actMigrateTitle',symbol:'cloud-upload',step:this.items.length ? 2 : null,total:2});
+    if (!this.items.length) {
+      renderScanEmpty(this,contentEl,'migrateNoneFound');
+      return;
+    }
     contentEl.createEl('p',{text:t('migrateStep2Title', { count: this.items.length }),cls:'fm-module-summary'});
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
@@ -158,60 +161,17 @@ export class BatchMigrateWizardModal extends Modal {
       this.render();
     };
 
-    if (this.items.length === 0) {
-      contentEl.createDiv({
-        cls: 'fm-section-box',
-        text: t('migrateNoneFound'),
-        attr: { style: 'text-align: center; padding: 36px 20px;' }
-      });
-      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
-      cancelBtn.onclick = () => {
-      if (this.transferController) {
-        this.transferController.abort();
-        cancelBtn.disabled = true;
-        cancelBtn.setText(t('transferStopping'));
-      } else returnToHub(this);
-    };
-      return;
-    }
-
-    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
+    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list fm-file-action-list' });
     for (const item of this.items) {
-      const row = listEl.createDiv({ cls: 'fm-list-item' });
-      const left = row.createDiv({
-        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+      const {actions} = fileActionRow(listEl,item,this.plugin,{
+        selection:parent=>{
+          const checkbox=parent.createEl('input',{type:'checkbox',attr:{'aria-label':item.name}});
+          checkbox.checked=item.selected;
+          checkbox.onchange=()=>{item.selected=checkbox.checked;};
+        },
+        metadata:parent=>fileMetadata(parent,item,{path:item.displayPath})
       });
-      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
-      cb.checked = item.selected;
-      cb.onchange = () => {
-        item.selected = cb.checked;
-      };
-
-      renderItemVisualThumb(left, item, this.plugin);
-
-      left.createSpan({
-        text: item.displayPath,
-        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
-      });
-
-      const rightBox = row.createDiv({
-        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
-      });
-      rightBox.createSpan({
-        text: formatBytes(item.size),
-        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
-      });
-
-      const refBadge = rightBox.createSpan({
-        text: t('migrateNoteRefs', { count: item.refNotes.length }),
-        cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-        attr: { 'aria-label': t('migrateInspectRefs') }
-      });
-      refBadge.onclick = (e) => {
-        e.stopPropagation();
-        new NoteRefsModal(this.app, item.name, item.refNotes, () => this.close(), this.plugin).open();
-      };
+      fileReferenceButton(actions,item,this.plugin,item.refNotes,()=>this.close());
     }
 
     const progressBox = contentEl.createDiv({ attr: { style: 'display:none; margin-bottom:12px;' } });
@@ -279,9 +239,8 @@ export class BatchMigrateWizardModal extends Modal {
 
     const isPartial = failures.length > 0 && count > 0;
     const isError = count === 0 && failures.length > 0;
-    const titleKey = this.summary?.cancelled ? 'transferCancelled' : isError
-      ? 'batchResultErrorTitle'
-      : (isPartial ? 'batchResultWarningTitle' : 'batchResultTitle');
+    const title=this.summary?.cancelled ? t('transferCancelled') : isError
+      ? t('batchResultErrorTitle') : t('transferUploaded',{count});
 
     moduleHeading(this,contentEl,{title:'actMigrateTitle',symbol:'cloud-upload'});
 
@@ -289,27 +248,8 @@ export class BatchMigrateWizardModal extends Modal {
       ? 'fm-result-banner fm-result-banner-error'
       : (isPartial ? 'fm-result-banner fm-result-banner-warning' : 'fm-result-banner fm-result-banner-success');
     const banner = contentEl.createDiv({ cls: bannerCls });
-    banner.createDiv({ cls: 'fm-result-banner-title', text: t(titleKey) });
-
-    const trashedText = this.summary?.trashed
-      ? t('noticeBatchMigrateTrashedPart', { trashed: this.summary.trashed })
-      : '';
-    const failText = failures.length > 0
-      ? t('batchResultFailuresPart', { count: failures.length })
-      : '';
-    const trashFailures = this.summary?.trashFailures || [];
-    const trashFailText = trashFailures.length > 0
-      ? t('batchResultTrashFailuresPart', { count: trashFailures.length })
-      : '';
-
-    banner.createDiv({
-      cls: 'fm-result-banner-desc',
-      text: t('batchResultDesc', {
-        count,
-        docs: this.summary?.docs || 0,
-        trashed: trashedText
-      }) + failText + trashFailText
-    });
+    banner.createDiv({cls:'fm-result-banner-title',text:title});
+    if(this.summary?.cancelled && count>0)banner.createDiv({cls:'fm-result-banner-desc',text:t('transferUploaded',{count})});
 
     if (processedItems.length > 0) {
       const listBox = contentEl.createDiv({
@@ -321,33 +261,14 @@ export class BatchMigrateWizardModal extends Modal {
         cls: 'fm-section-title'
       });
       const listEl = listBox.createDiv({
-        cls: 'fm-scroll-list',
+        cls: 'fm-scroll-list fm-file-action-list',
         attr: { style: 'max-height: 220px; margin-bottom: 0;' }
       });
       for (const pItem of processedItems) {
-        const row = listEl.createDiv({ cls: 'fm-list-item' });
-        const left = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
-        });
-        renderItemVisualThumb(left, pItem, this.plugin);
-        const nameCol = left.createDiv({
-          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
-        });
-        nameCol.createSpan({
-          text: pItem.name,
-          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
-        });
-        nameCol.createSpan({
-          text: `${pItem.displayPath} · ${formatBytes(pItem.size || 0)}`,
-          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
-        });
-
-        const rightBox = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
-        });
+        const {actions:rightBox}=fileActionRow(listEl,pItem,this.plugin,{metadata:parent=>fileMetadata(parent,pItem,{path:pItem.displayPath})});
         if (pItem.rawUrl) {
           const copyBtn = rightBox.createEl('button', {
-            cls: 'clickable-icon',
+            cls: 'fm-icon-button',
             attr: { 'aria-label': t('copyRawUrl') || 'Copy URL' }
           });
           setIcon(copyBtn, 'copy');
@@ -379,6 +300,13 @@ export class BatchMigrateWizardModal extends Modal {
       }
     }
 
+    const trashFailures=this.summary?.trashFailures || [];
+    if(trashFailures.length) {
+      const warning=contentEl.createDiv({cls:'fm-section-box'});
+      warning.createDiv({cls:'fm-section-title',text:t('activeNoteTrashFailedNotice',{count:trashFailures.length})});
+      for(const failure of trashFailures)warning.createDiv({cls:'fm-result-banner-desc',text:`${failure.path}: ${failure.error}`});
+    }
+
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     let createdReportPath = null;
 
@@ -406,7 +334,6 @@ export class BatchMigrateWizardModal extends Modal {
       }
     };
 
-    if (this.summary?.cancelled) btnRow.createSpan({ text: t('transferCancelled') });
     if (this.summary?.retryItems?.length) {
       const retry = btnRow.createEl('button', { text: t('transferRetry') });
       retry.onclick = () => {

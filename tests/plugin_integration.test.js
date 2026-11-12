@@ -74,6 +74,7 @@ test('Release onload registers clipboard, commands and menus through explicit mo
   plugin.addCommand = (command) => commands.push(command);
   plugin.registerEvent = () => {};
   plugin.registerView = () => {};
+  plugin.registerHoverLinkSource=(id,options)=>{assert.equal(id,'file-master');assert.equal(options.defaultMod,false);};
   await plugin.onload();
   assert.ok(commands.some((command) => command.id === 'resume-pending-upload'));
   assert.equal(settingsTabs.length, 1);

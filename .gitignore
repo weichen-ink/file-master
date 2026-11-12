@@ -4,3 +4,4 @@ migration-pending.json
 .DS_Store
 *.log
 release/
+rename-pending.json

@@ -6,6 +6,7 @@ import { assetUrl, assetMarkdown, hasOptimizedVariant, copyText } from './ui/lin
 import { openModal } from './ui/navigation.js';
 import { isInsertionTargetValid } from './plugin/editor-target.js';
 import { Notice, setIcon } from 'obsidian';
+import { fileActionRow, fileSizeBadge } from './ui/file-action-list.js';
 
 export const REMOTE_GALLERY_PAGE_SIZE = 60;
 
@@ -77,8 +78,19 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
 
   const page = getRemoteGalleryPage(view, filtered);
   for (const item of page.items) {
-    const card = containerEl.createDiv({ cls: 'fm-gallery-card' + (view.layoutMode === 'list' ? ' is-list' : '') });
-    const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap' });
+    let card,thumbWrap,nameButton,actions;
+    const filename=item.name || item.filename;
+    const createName=parent=>parent.createEl('button',{cls:'fm-gallery-name',text:filename,attr:{type:'button','aria-label':filename}});
+    if(view.layoutMode==='list') {
+      const slots=fileActionRow(containerEl,{name:filename,size:item.size},view.plugin,{
+        renderPreview:parent=>{thumbWrap=parent.createDiv({cls:'fm-gallery-thumb-wrap'});},
+        renderName:parent=>{parent.addClass('fm-gallery-details');nameButton=createName(parent);fileSizeBadge(parent,item.size);}
+      });
+      card=slots.row;card.addClass('fm-gallery-list-row');actions=slots.actions;
+    } else {
+      card=containerEl.createDiv({cls:'fm-gallery-card'});
+      thumbWrap=card.createDiv({cls:'fm-gallery-thumb-wrap'});
+    }
 
     const ext = getExt(item.name || item.filename);
     const isImg = IMAGE_EXTS.has(ext);
@@ -137,18 +149,15 @@ export function renderRemoteGallery(view, containerEl, countLabel) {
       }
     };
 
-    const info = card.createDiv({ cls: 'fm-gallery-info' });
-    const nameButton=info.createEl('button',{
-      cls: 'fm-gallery-name',
-      text: item.name || item.filename,
-      attr: { type:'button', 'aria-label': item.name || item.filename }
-    });
+    if(view.layoutMode!=='list') {
+      const info=card.createDiv({cls:'fm-gallery-info'});
+      const details=info.createDiv({cls:'fm-gallery-details'});
+      nameButton=createName(details);
+      fileSizeBadge(details,item.size);
+      actions=info.createDiv();
+    }
     nameButton.onclick=openPreview;
-
-    const meta = info.createDiv({ cls: 'fm-gallery-meta' });
-    meta.createSpan({ text: formatBytes(item.size) });
-
-    const actions = info.createDiv({ cls: 'fm-gallery-actions' });
+    actions.addClass('fm-gallery-actions');
 
     // Clean single action: 📝 插入笔记
     const isWebpMode = view.insertMode === 'webp' && hasOptimizedVariant(item);

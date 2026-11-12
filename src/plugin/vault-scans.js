@@ -576,7 +576,9 @@ export async function openNoteAtLine(plugin, filePath, lineNumber) {
         true
       );
     }
+    return true;
   } else {
     new Notice(plugin.t('noticeCannotOpenFile', { path: filePath }));
+    return false;
   }
 }

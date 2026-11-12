@@ -2,6 +2,7 @@ import { isScannableDocFile, isLocalPathExcluded } from './vault-utils.js';
 import { getEffectiveLanguage } from './logging.js';
 import { computeVaultStatsFromEntries, formatBytes, formatDateYMD, formatDateTimestamp, scanNoteContentForBrokenLinks } from '../engine.js';
 import { Notice, requestUrl } from 'obsidian';
+import { fileReferenceDocuments } from './file-references.js';
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
@@ -206,11 +207,14 @@ export async function scanVaultAnalytics(plugin) {
   const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
 
   const docTexts = [];
+  const documents = [];
+  let referencesUnavailable = false;
   for (const doc of docFiles) {
     try {
       const text = await plugin.app.vault.cachedRead(doc);
       docTexts.push(text);
-    } catch { }
+      documents.push({file:doc,path:doc.path,rawText:text});
+    } catch { referencesUnavailable = true; }
   }
 
   let remoteImages = [];
@@ -218,7 +222,11 @@ export async function scanVaultAnalytics(plugin) {
     remoteImages = await plugin.fetchRemoteFileList();
   } catch { }
 
-  return computeVaultStatsFromEntries(allFiles, docTexts, remoteImages);
+  const stats = computeVaultStatsFromEntries(allFiles, docTexts, remoteImages);
+  for (const item of stats.topLargestAttachments) {
+    item.referenceDocuments = referencesUnavailable ? null : await fileReferenceDocuments(plugin,item,null,documents);
+  }
+  return stats;
 }
 
 export async function exportAnalyticsReportToRoot(plugin, stats) {

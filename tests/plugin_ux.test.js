@@ -197,8 +197,8 @@ test('Permanent deletion requires confirmation; cancel and repeated confirm cann
 
 test('Duplicate empty result offers another scope without irrelevant merge controls',()=>{
   const {DuplicateWizardModal}=setup(),{plugin}=editorFixture();plugin.settings={};const modal=new DuplicateWizardModal(plugin.app,plugin);modal.step=2;modal.onOpen();
-  assert.ok(modal.contentEl.all().some(el=>el.text==='dupEmptyTitle'));assert.equal(modal.contentEl.all().some(el=>el.text==='dupStrategyLabel'),false);
-  const choose=modal.contentEl.all().find(el=>el.text==='dupChooseScopeAgain');assert.ok(choose);choose.onclick();assert.equal(modal.step,1);
+  assert.ok(modal.contentEl.all().some(el=>el.text==='dupNoneFound'));assert.equal(modal.contentEl.all().some(el=>el.text==='dupStrategyLabel'),false);
+  const choose=modal.contentEl.all().find(el=>el.text==='scanChooseScopeAgain');assert.ok(choose);choose.onclick();assert.equal(modal.step,1);
 });
 
 

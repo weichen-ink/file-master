@@ -1,8 +1,8 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanUnusedFiles, exportOrphanReportToRoot, cleanSelectedOrphans } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, returnToHub, renderExcludedFoldersHint } from './common.js';
-import { renderItemVisualThumb } from './incoming-file.js';
+import { createScanProgressWidget, renderScanEmpty, returnToHub, renderExcludedFoldersHint } from './common.js';
+import { fileActionRow, fileMetadata } from '../ui/file-action-list.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -115,13 +115,18 @@ export class OrphanWizardModal extends Modal {
   renderStep2(contentEl) {
     const t = (k, p) => this.plugin.t(k, p);
     moduleHeading(this,contentEl,{title:'actOrphanTitle',symbol:'search',step:this.results.length ? 2 : null,total:2});
-    contentEl.createEl('p',{text:t('orphanStep2Title', { count: this.results.length }),cls:'fm-module-summary'});
+    if(this.results.length)contentEl.createEl('p',{text:t('orphanStep2Title', { count: this.results.length }),cls:'fm-module-summary'});
     if (this.lastCleanSummary) {
       const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
       banner.createDiv({ cls: 'fm-result-banner-title', text: t('orphanResultTitle') });
       banner.createDiv({cls:'fm-result-banner-desc',text:t('orphanResultDesc',{
         count:this.lastCleanSummary.total || 0,local:this.lastCleanSummary.local || 0,remote:this.lastCleanSummary.remote || 0
       })});
+    }
+
+    if (!this.results.length) {
+      renderScanEmpty(this,contentEl,'orphanNoneFound',{showMessage:!this.lastCleanSummary});
+      return;
     }
 
     const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
@@ -140,74 +145,33 @@ export class OrphanWizardModal extends Modal {
     };
 
     const exportBtn = toolbar.createEl('button', {
-      text: t('btnExportReport'),
-      cls: 'mod-cta'
+      text: t('btnExportReport')
     });
     exportBtn.onclick = async () => {
       await exportOrphanReportToRoot(this.plugin, this.results);
     };
 
-    if (this.results.length === 0) {
-      contentEl.createDiv({
-        cls: 'fm-section-box',
-        text: t('orphanNoneFound'),
-        attr: { style: 'text-align: center; padding: 36px 20px;' }
-      });
-      const emptyBtnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-      const cancelBtn = emptyBtnRow.createEl('button', { text: t('btnCancel') });
-      cancelBtn.onclick = () => returnToHub(this);
-      return;
-    }
-
-    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
+    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list fm-file-action-list' });
     for (const item of this.results) {
-      const row = listEl.createDiv({ cls: 'fm-list-item' });
-      const left = row.createDiv({
-        attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
+      const {actions}=fileActionRow(listEl,item,this.plugin,{
+        selection:parent=>{
+          const checkbox=parent.createEl('input',{type:'checkbox',attr:{'aria-label':item.name}});
+          checkbox.checked=item.selected;
+          checkbox.onchange=()=>{item.selected=checkbox.checked;};
+        },
+        metadata:parent=>{
+          parent.createSpan({text:item.source==='local'?t('analyticsBadgeLocal'):t('analyticsBadgeRemote')});
+          fileMetadata(parent,item,{path:item.displayPath});
+        }
       });
-
-      const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
-      cb.checked = item.selected;
-      cb.onchange = () => {
-        item.selected = cb.checked;
-      };
-
-      renderItemVisualThumb(left, item, this.plugin);
-
-      const infoCol = left.createDiv({ attr: { style: 'overflow:hidden; flex:1;' } });
-      const topLine = infoCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
-      topLine.createSpan({
-        text: item.source === 'local' ? '💻 Local' : '☁️ Remote',
-        cls: `fm-tag ${item.source === 'local' ? 'fm-tag-local' : 'fm-tag-remote'}`
-      });
-      topLine.createSpan({
-        text: item.displayPath,
-        attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
-      });
-
-      const rightBox = row.createDiv({
-        attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
-      });
-      rightBox.createSpan({
-        text: formatBytes(item.size),
-        attr: { style: 'color: var(--text-muted); font-size: 12px;' }
-      });
-
-      if (item.source === 'remote') {
-        const lockBtn = rightBox.createEl('button', {
-          text: t('lockBtnText'),
-          cls: 'fm-mini-btn',
-          attr: { 'aria-label': t('lockBtnTitle') }
-        });
-        lockBtn.onclick = async () => {
+      if (item.source==='remote') {
+        const lockBtn=actions.createEl('button',{text:t('lockBtnText'),cls:'fm-mini-btn',attr:{'aria-label':t('lockBtnTitle')}});
+        lockBtn.onclick=async()=>{
           try {
-            await this.plugin.toggleRemoteFileLock(item.rawObj.year, item.rawObj.month, item.rawObj.filename, true);
-            new Notice(this.plugin.t('noticeProtectedRemote', { name: item.name }));
-            this.results = this.results.filter((r) => r.id !== item.id);
-            this.render();
-          } catch (err) {
-            new Notice(this.plugin.t('noticeLockFailed', { err: err.message }));
-          }
+            await this.plugin.toggleRemoteFileLock(item.rawObj.year,item.rawObj.month,item.rawObj.filename,true);
+            new Notice(this.plugin.t('noticeProtectedRemote',{name:item.name}));
+            this.results=this.results.filter(result=>result.id!==item.id);this.render();
+          } catch (error) { new Notice(this.plugin.t('noticeLockFailed',{err:error.message})); }
         };
       }
     }

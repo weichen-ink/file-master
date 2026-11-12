@@ -1,7 +1,7 @@
 import { getBaseName } from './engine.js';
 
 /** Match all reference candidates in one pass through each document. */
-export function createTextReferenceMatcher(patterns) {
+export function createTextReferenceMatcher(patterns, onMatch = null) {
   const nodes = [{ next: new Map(), fail: 0, outputs: [] }];
   for (const pattern of patterns) {
     const value = String(pattern.value || '').toLowerCase();
@@ -37,6 +37,7 @@ export function createTextReferenceMatcher(patterns) {
       const char = text[i];
       while (state && !nodes[state].next.has(char)) state = nodes[state].fail;
       state = nodes[state].next.get(char) || 0;
+      const matchedHere = onMatch && nodes[state].outputs.length ? new Set() : null;
       for (const pattern of nodes[state].outputs) {
         const start = i + 1 - pattern.length;
         if (pattern.wiki) {
@@ -46,6 +47,8 @@ export function createTextReferenceMatcher(patterns) {
           if (i + 1 < text.length && !/[\]\)>"'|#?\s]/.test(text[i + 1])) continue;
         }
         found.add(pattern.id);
+        // A full path and its basename can end at the same reference.
+        if (matchedHere && !matchedHere.has(pattern.id)) { onMatch(pattern.id); matchedHere.add(pattern.id); }
       }
     }
     return found;
@@ -58,7 +61,7 @@ export function stripRemoteReferenceText(input) {
     .replace(/https?:\/\/[^\s)"'\]>]+/gi, '');
 }
 
-export function createLocalReferenceMatcher(files, isDrawing) {
+export function createLocalReferenceMatcher(files, isDrawing, onMatch = null) {
   const patterns = [];
   for (const file of files) {
     for (const value of new Set([file.path, file.name])) {
@@ -68,7 +71,7 @@ export function createLocalReferenceMatcher(files, isDrawing) {
       patterns.push({ value: `[[${file.basename || getBaseName(file.name)}`, id: file.path, wiki: true });
     }
   }
-  return createTextReferenceMatcher(patterns);
+  return createTextReferenceMatcher(patterns, onMatch);
 }
 
 export function addReference(index, target, source) {

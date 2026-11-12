@@ -10,6 +10,7 @@ import { formatBytes, getExt } from '../engine.js';
 import { translateUi } from '../i18n.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
+import { documentRow } from '../ui/document-list.js';
 
 /**
  * Confirmation modal for critical actions like remote file deletion
@@ -119,7 +120,7 @@ export class ImageLightboxModal extends Modal {
       insert.hidden=insert.disabled;
       if(insert.disabled)actions.createDiv({text:t('galleryOpenNoteFirst'),cls:'fm-asset-hint'});
       insert.onclick=()=>{if(insertMarkdownToActiveEditor(this.plugin,assetMarkdown(this.item.name,assetUrl(remote,mode))+'\n',t('galleryInserted'),this.insertionTarget))this.close();};
-      const links=inspector.createDiv({cls:'fm-asset-section fm-asset-links'});links.createEl('h4',{text:t('previewLinksTitle')});
+      const links=inspector.createDiv({cls:'fm-asset-section fm-asset-panel fm-asset-links'});links.createEl('h4',{text:t('previewLinksTitle')});
       for(const variant of hasOptimizedVariant(remote)?['raw','webp']:['raw']) {
         const url=assetUrl(remote,variant);
         if(!url)continue;
@@ -139,20 +140,40 @@ export class ImageLightboxModal extends Modal {
       const open=actions.createEl('button',{text:t('btnOpenInObsidian'),cls:'mod-cta'});
       open.onclick=async()=>{if(open.disabled)return;open.disabled=true;try{const leaf=this.app.workspace.getLeaf(false);if(leaf){await leaf.openFile(this.item.rawObj);this.close();}}catch(error){new Notice(error.message);}finally{open.disabled=false;}};
     }
-    const properties=inspector.createDiv({cls:'fm-asset-section'});properties.createEl('h4',{text:t('previewProperties')});
+    const properties=inspector.createDiv({cls:'fm-asset-section fm-asset-panel'});properties.createEl('h4',{text:t('previewProperties')});
     const list=properties.createEl('dl',{cls:'fm-asset-properties'});
     const property=(key,value)=>{list.createEl('dt',{text:t(key)});return list.createEl('dd',{text:String(value)});};
-    property('previewSizeLabel',formatBytes(this.item.size));
+    property(remote?'previewOriginalSize':'previewSizeLabel',formatBytes(this.item.size));
     if(image)this.dimensions=property('previewDimensions','—');
-    if(remote?.createdAt)property('previewCreated',new Date(remote.createdAt).toLocaleString());
+    if(remote?.createdAt) {
+      const created=new Date(remote.createdAt);
+      if(Number.isFinite(created.getTime())) {
+        const locale=this.plugin.settings.language==='zh'?'zh-CN':this.plugin.settings.language==='en'?'en-GB':undefined;
+        const value=property('previewCreated','');
+        const timestamp=value.createEl('time',{cls:'fm-asset-timestamp',attr:{datetime:created.toISOString()}});
+        timestamp.createSpan({text:created.toLocaleDateString(locale,{year:'numeric',month:'2-digit',day:'2-digit'})});
+        timestamp.createSpan({text:created.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'}),cls:'fm-asset-time'});
+      }
+    }
     property('previewSource',t(remote?'previewSourceRemote':'previewSourceLocal'));
     if(remote) {
-      const management=inspector.createDiv({cls:'fm-asset-section'});management.createEl('h4',{text:t('previewProtection')});
-      const lock=management.createEl('button',{attr:{type:'button'}});
-      const danger=inspector.createDiv({cls:'fm-asset-section fm-asset-danger'});danger.createEl('h4',{text:t('previewDanger')});
-      const del=danger.createEl('button',{text:t('galleryBtnDelete'),attr:{type:'button'}});
+      const management=inspector.createDiv({cls:'fm-asset-management'});
+      const protection=management.createDiv({cls:'fm-asset-section fm-asset-protection'});
+      const protectionRow=protection.createDiv({cls:'fm-asset-section-heading'});
+      protectionRow.createEl('h4',{text:t('previewProtection')});
+      const lock=protectionRow.createEl('button',{cls:'fm-asset-lock-switch',attr:{type:'button',role:'switch'}});
+      const protectionHelp=protection.createDiv({cls:'fm-asset-hint'});
+      const danger=management.createDiv({cls:'fm-asset-section fm-asset-danger'});
+      const dangerRow=danger.createDiv({cls:'fm-asset-section-heading'});
+      dangerRow.createEl('h4',{text:t('previewDanger')});
+      const del=dangerRow.createEl('button',{cls:'fm-asset-trash-action',text:t('galleryBtnDelete'),attr:{type:'button'}});
       danger.createDiv({text:t('previewTrashHelp'),cls:'fm-asset-hint'});
-      const update=()=>{lock.setText(t(remote.locked?'galleryBtnUnlock':'galleryBtnLock'));del.disabled=Boolean(remote.locked)||this.deleting;};update();
+      const update=()=>{
+        lock.setAttribute('aria-label',t(remote.locked?'galleryBtnUnlock':'galleryBtnLock'));
+        lock.setAttribute('aria-checked',String(Boolean(remote.locked)));
+        protectionHelp.setText(t(remote.locked?'previewProtectionLocked':'previewProtectionHelp'));
+        del.disabled=Boolean(remote.locked || this.deleting);
+      };update();
       lock.onclick=async()=>{
         if(lock.disabled)return;lock.disabled=true;del.disabled=true;
         try{const locked=!remote.locked;await this.plugin.toggleRemoteFileLock(remote.year,remote.month,remote.filename,locked);remote.locked=locked;if(!this.closed){update();new Notice(t(locked?'previewProtected':'previewUnprotected'));}this.onActionChanged?.('lock',remote);}
@@ -224,6 +245,7 @@ export class NoteRefsModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    this.modalEl.addClass('fm-reference-dialog');
     contentEl.addClass('fm-wizard-modal');
     const t = (k, p) => (this.plugin ? this.plugin.t(k, p) : translateUi('auto', k, p));
 
@@ -236,25 +258,10 @@ export class NoteRefsModal extends Modal {
         attr: { style: 'text-align: center; padding: 24px;' }
       });
     } else {
-      const listEl = contentEl.createDiv({ cls: 'fm-scroll-list' });
+      contentEl.createEl('p',{text:t('notePreviewHint'),cls:'fm-inline-hint'});
+      const listEl = contentEl.createDiv({ cls: 'fm-scroll-list fm-document-list' });
       for (const notePath of this.refNotePaths) {
-        const row = listEl.createDiv({ cls: 'fm-list-item' });
-        row.createSpan({ text: `📝 ${notePath}`, attr: { style: 'word-break: break-all; font-weight: 500;' } });
-        const jumpBtn = row.createEl('button', {
-          text: t('btnOpenNote'),
-          cls: 'fm-mini-btn mod-cta'
-        });
-        jumpBtn.onclick = async () => {
-          const tf = this.app.vault.getAbstractFileByPath(notePath);
-          if (tf) {
-            const leaf = this.app.workspace.getLeaf(false);
-            if (leaf) await leaf.openFile(tf);
-            this.close();
-            if (this.onJump) this.onJump();
-          } else {
-            new Notice(t('noteRefsNotFound', { path: notePath }));
-          }
-        };
+        documentRow(listEl,this.plugin || {app:this.app,t},typeof notePath==='string'?{path:notePath}:notePath,{hoverParent:this,onOpened:()=>{this.close();this.onJump?.();}});
       }
     }
 

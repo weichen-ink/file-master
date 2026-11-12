@@ -32,7 +32,15 @@ export * from '../../src/ui/image-viewport.js';
 export * from '../../src/ui/links.js';
 export * from '../../src/plugin/editor-target.js';
 export { initGalleryLeaf, insertMarkdownToActiveEditor } from '../../src/plugin/lifecycle.js';
-export { ImageLightboxModal } from '../../src/modals/dialogs.js';
+export { NoteRefsModal, ImageLightboxModal } from '../../src/modals/dialogs.js';
 
 export { RemoteTrashModal } from '../../src/modals/remote-trash.js';
 export { ConfirmActionModal } from '../../src/modals/dialogs.js';
+export * from '../../src/plugin/remote-rename.js';
+export { RemoteRenameModal } from '../../src/modals/remote-rename.js';
+export { HealthCheckModal } from '../../src/modals/health-check.js';
+
+export { VaultAnalyticsModal } from '../../src/modals/vault-analytics.js';
+export { fileReferenceDocuments } from '../../src/plugin/file-references.js';
+export { documentRow } from '../../src/ui/document-list.js';
+export { fileReferenceButton } from '../../src/ui/file-action-list.js';

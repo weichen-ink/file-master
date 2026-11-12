@@ -1,7 +1,7 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanVaultLinkHealth, exportHealthReportToRoot } from '../plugin/health-analytics.js';
-import { openNoteAtLine } from '../plugin/vault-scans.js';
-import { createScanProgressWidget, returnToHub } from './common.js';
+import { documentRow } from '../ui/document-list.js';
+import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -97,91 +97,31 @@ export class HealthCheckModal extends Modal {
   }
 
   renderStep2(contentEl) {
-    const t = (k, p) => this.plugin.t(k, p);
-    const wikiIssues = this.issues.filter((i) => i.category === 'wikilink');
-    const localIssues = this.issues.filter((i) => i.category === 'local');
-    const remoteIssues = this.issues.filter((i) => i.category === 'remote');
-
-    moduleHeading(this,contentEl,{title:'actHealthTitle',symbol:'link',step:this.issues.length ? 2 : null,total:2});
-    contentEl.createEl('p',{text:t('healthStep2Title', { docs: this.totalDocsScanned, issues: this.issues.length }),cls:'fm-module-summary'});
-
-    const statGrid = contentEl.createDiv({ cls: 'fm-health-stat-grid' });
-    const addStat = (num, label, color) => {
-      const card = statGrid.createDiv({ cls: 'fm-health-stat-card' });
-      const numEl = card.createDiv({ cls: 'fm-health-stat-num', text: String(num) });
-      if (color) numEl.style.color = color;
-      card.createDiv({ cls: 'fm-health-stat-label', text: label });
-    };
-    addStat(this.totalDocsScanned, t('healthStatNotes'));
-    addStat(wikiIssues.length, t('healthStatWiki'), wikiIssues.length > 0 ? '#ef4444' : undefined);
-    addStat(localIssues.length, t('healthStatLocal'), localIssues.length > 0 ? '#f59e0b' : undefined);
-    addStat(remoteIssues.length, t('healthStatRemote'), remoteIssues.length > 0 ? '#3b82f6' : undefined);
-
-    const toolbar = contentEl.createDiv({ cls: 'fm-toolbar-row' });
-    const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
-    const backBtn = leftTools.createEl('button', { text: t('healthRescan') });
-    backBtn.onclick = () => {
-      this.step = 1;
-      this.render();
-    };
-
-    const exportBtn = toolbar.createEl('button', {
-      text: t('btnExportReport'),
-      cls: 'mod-cta'
-    });
-    exportBtn.onclick = async () => {
-      await exportHealthReportToRoot(this.plugin, this.issues, this.totalDocsScanned);
-    };
-
-    if (this.issues.length === 0) {
-      contentEl.createDiv({
-        cls: 'fm-section-box',
-        text: t('healthNoneFound'),
-        attr: { style: 'text-align: center; padding: 36px 20px; font-weight: 500;' }
-      });
-      const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-      const closeBtn = btnRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
-      closeBtn.onclick = () => returnToHub(this);
+    const t=(key,params)=>this.plugin.t(key,params);
+    contentEl.empty();
+    moduleHeading(this,contentEl,{title:'actHealthTitle',symbol:'link',step:this.issues.length?2:null,total:2});
+    if (!this.issues.length) {
+      renderScanEmpty(this,contentEl,'healthNoneFound',{retryLabel:'healthRescan'});
       return;
     }
-
-    const filterRow = contentEl.createDiv({
-      attr: { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;' }
-    });
-    const chipBox = filterRow.createDiv({ attr: { style: 'display:flex; gap:6px;' } });
-    const createChip = (id, label, count) => {
-      const chip = chipBox.createEl('button', {
-        text: `${label} (${count})`,
-        cls: this.activeFilter === id ? 'mod-cta' : ''
-      });
-      chip.onclick = () => {
-        this.activeFilter = id;
-        this.renderStep2(contentEl);
-      };
-    };
-
-    createChip('all', t('healthFilterAll'), this.issues.length);
-    createChip('wikilink', t('healthStatWiki'), wikiIssues.length);
-    createChip('local', t('healthStatLocal'), localIssues.length);
-    createChip('remote', t('healthStatRemote'), remoteIssues.length);
-
-    const searchInput = filterRow.createEl('input', {
-      type: 'search',
-      placeholder: t('healthSearchPlaceholder'),
-      value: this.searchQuery,
-      attr: { style: 'padding: 4px 10px; border-radius: 6px; border: 1px solid var(--background-modifier-border); min-width: 180px;' }
-    });
-    searchInput.oninput = (e) => {
-      this.searchQuery = e.target.value.toLowerCase();
-      this.renderIssueList(listEl);
-    };
-
-    const listEl = contentEl.createDiv({ cls: 'fm-scroll-list', attr: { style: 'max-height: 380px;' } });
-    this.renderIssueList(listEl);
-
-    const bottomRow = contentEl.createDiv({ cls: 'fm-btn-row' });
-    const closeBtn = bottomRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
-    closeBtn.onclick = () => returnToHub(this);
+    contentEl.createEl('p',{text:t('healthStep2Title',{docs:this.totalDocsScanned,issues:this.issues.length}),cls:'fm-module-summary'});
+    const toolbar=contentEl.createDiv({cls:'fm-toolbar-row fm-health-toolbar'});
+    const search=toolbar.createEl('input',{type:'search',value:this.searchQuery,cls:'fm-gallery-search',attr:{placeholder:t('healthSearchPlaceholder'),'aria-label':t('healthSearchPlaceholder')}});
+    const filter=toolbar.createEl('select',{cls:'fm-control-select',attr:{'aria-label':t('healthFilterLabel')}});
+    for(const [value,key] of [['all','healthFilterAll'],['wikilink','healthStatWiki'],['local','healthStatLocal'],['remote','healthStatRemote']]) {
+      const count=value==='all'?this.issues.length:this.issues.filter(item=>item.category===value).length;
+      filter.createEl('option',{value,text:`${t(key)} (${count})`});
+    }
+    filter.value=this.activeFilter;
+    const tools=toolbar.createDiv({cls:'fm-toolbar-actions'});
+    tools.createEl('button',{text:t('healthRescan')}).onclick=()=>{this.step=1;this.render();};
+    tools.createEl('button',{text:t('btnExportReport')}).onclick=()=>exportHealthReportToRoot(this.plugin,this.issues,this.totalDocsScanned);
+    const list=contentEl.createDiv({cls:'fm-scroll-list fm-document-list'});
+    search.oninput=()=>{this.searchQuery=search.value.toLowerCase();this.renderIssueList(list);};
+    filter.onchange=()=>{this.activeFilter=filter.value;this.renderIssueList(list);};
+    this.renderIssueList(list);
+    const footer=contentEl.createDiv({cls:'fm-btn-row'});
+    footer.createEl('button',{text:t(this.fromHub?'btnCancel':'closeBtn')}).onclick=()=>returnToHub(this);
   }
 
   renderIssueList(listEl) {
@@ -211,51 +151,20 @@ export class HealthCheckModal extends Modal {
     }
 
     for (const item of filtered) {
-      const row = listEl.createDiv({ cls: 'fm-list-item' });
-      const leftCol = row.createDiv({
-        attr: { style: 'display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;' }
+      const tag=item.category==='wikilink'?(item.type==='wikilink-embed'?'healthTagWikiEmbed':'healthTagDanglingNote'):item.category==='local'?(item.type==='local-embed'?'healthTagMissingImage':'healthTagMissingFile'):'healthTagRemote404';
+      documentRow(listEl,this.plugin,{path:item.sourcePath,line:item.line},{
+        hoverParent:this,
+        location:item.line?t('healthLine',{line:item.line}):null,
+        openLabel:t('healthOpenSource'),
+        onOpened:()=>this.close(),
+        renderDetails:parent=>{
+          const issue=parent.createDiv({cls:'fm-health-issue'});
+          issue.createSpan({text:t(tag),cls:'fm-health-issue-label'});
+          issue.createEl('code',{text:item.target,cls:'fm-health-target'});
+          const status=item.reason?.match(/HTTP (\d{3})/);
+          if(status)issue.createSpan({text:`HTTP ${status[1]}`,cls:'fm-document-location'});
+        }
       });
-
-      const topMeta = leftCol.createDiv({ attr: { style: 'display:flex; align-items:center; gap:6px;' } });
-      let tagCls = 'fm-tag-error';
-      let tagLabel = '🔴 Broken Link';
-      if (item.category === 'wikilink') {
-        tagCls = 'fm-tag-error';
-        tagLabel = item.type === 'wikilink-embed' ? t('healthTagWikiEmbed') : t('healthTagDanglingNote');
-      } else if (item.category === 'local') {
-        tagCls = 'fm-tag-warning';
-        tagLabel = item.type === 'local-embed' ? t('healthTagMissingImage') : t('healthTagMissingFile');
-      } else if (item.category === 'remote') {
-        tagCls = 'fm-tag-info';
-        tagLabel = t('healthTagRemote404');
-      }
-
-      topMeta.createSpan({ text: tagLabel, cls: `fm-tag ${tagCls}` });
-      topMeta.createEl('code', { text: item.target, attr: { style: 'font-size: 12px; font-weight: 600;' } });
-      topMeta.createSpan({
-        text: t('healthLine', { line: item.line }),
-        attr: { style: 'font-size: 11px; color: var(--text-muted); margin-left: auto;' }
-      });
-
-      const noteRef = leftCol.createDiv({
-        attr: { style: 'font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:4px;' }
-      });
-      noteRef.createSpan({ text: t('healthInNote', { path: item.sourcePath }) });
-
-      if (item.lineText) {
-        leftCol.createDiv({
-          text: item.lineText,
-          cls: 'fm-health-context-quote'
-        });
-      }
-
-      const openBtn = row.createEl('button', {
-        text: t('healthJumpToLine'),
-        attr: { style: 'flex-shrink:0; align-self:center;' }
-      });
-      openBtn.onclick = async () => {
-        await openNoteAtLine(this.plugin, item.sourcePath, item.line);
-      };
     }
   }
 

@@ -4,8 +4,8 @@ import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
 import { formatFriendlyError, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
-import { renderItemVisualThumb } from './incoming-file.js';
-import { Notice } from 'obsidian';
+import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
+import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
 /**
@@ -84,6 +84,30 @@ export class ActiveNoteActionModal extends Modal {
     }
   }
 
+  renderFileChoices(list,updateAction,withProtection=false) {
+    for(const item of this.items) {
+      const {actions}=fileActionRow(list,item,this.plugin,{
+        selection:parent=>{
+          const checkbox=parent.createEl('input',{type:'checkbox',attr:{'aria-label':item.name}});
+          checkbox.checked=item.selected;
+          checkbox.onchange=()=>{item.selected=checkbox.checked;updateAction();};
+        },
+        metadata:parent=>fileMetadata(parent,item,{path:item.hasConflict?item.existingFile?.path:item.displayPath || item.idealPath})
+      });
+      const notes=item.otherRefNotes || [];
+      if(notes.length)fileReferenceButton(actions,item,this.plugin,notes,()=>this.close(),{otherNotes:true});
+      if(withProtection) {
+        const lock=actions.createEl('button',{cls:'fm-file-protect',attr:{type:'button'}});
+        const render=()=>{
+          lock.empty();setIcon(lock.createSpan({cls:'fm-indicator-icon'}),item.locked?'lock':'lock-open');
+          lock.createSpan({text:this.t(item.locked?'activeNoteBtnLockOn':'activeNoteBtnLockOff')});
+          lock.setAttribute('aria-pressed',String(!!item.locked));
+        };
+        lock.onclick=()=>{item.locked=!item.locked;render();};render();
+      }
+    }
+  }
+
   render() {
     const { contentEl } = this;
     contentEl.empty();
@@ -135,7 +159,7 @@ export class ActiveNoteActionModal extends Modal {
       }
 
       const listEl = contentEl.createDiv({
-        cls: 'fm-scroll-list',
+        cls: 'fm-scroll-list fm-file-action-list',
         attr: { style: 'max-height: 220px;' }
       });
 
@@ -146,51 +170,7 @@ export class ActiveNoteActionModal extends Modal {
         runBtn.setText(this.t('activeNoteStartDownload', { count: selectedCount }));
       };
 
-      for (const item of this.items) {
-        const row = listEl.createDiv({ cls: 'fm-list-item' });
-        const left = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
-        });
-        const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
-        cb.checked = item.selected;
-        cb.onchange = () => {
-          item.selected = cb.checked;
-          updateRunBtnLabel();
-        };
-
-        renderItemVisualThumb(left, item, this.plugin);
-
-        const nameCol = left.createDiv({
-          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
-        });
-        nameCol.createSpan({
-          text: item.name,
-          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
-        });
-        const displayPath = (item.hasConflict && item.existingFile)
-          ? item.existingFile.path
-          : item.idealPath;
-        nameCol.createSpan({
-          text: `${displayPath}${item.size ? ' · ' + formatBytes(item.size) : ''}`,
-          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
-        });
-
-        const otherRefs = item.otherRefNotes || [];
-        if (otherRefs.length > 0) {
-          const rightBox = row.createDiv({
-            attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0;' }
-          });
-          const refBadge = rightBox.createSpan({
-            text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
-            cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-            attr: { 'aria-label': this.t('activeNoteInspectOtherRefs') }
-          });
-          refBadge.onclick = (e) => {
-            e.stopPropagation();
-            new NoteRefsModal(this.app, item.name, otherRefs, () => this.close(), this.plugin).open();
-          };
-        }
-      }
+      this.renderFileChoices(listEl,updateRunBtnLabel);
 
       if (otherRefNotesAll.length > 0 || conflictItems.length > 0) {
         const optionsBox = contentEl.createDiv({
@@ -288,11 +268,11 @@ export class ActiveNoteActionModal extends Modal {
 
       contentEl.createEl('p', {
         text: this.t('activeNoteStep1Desc', { count: this.items.length }),
-        cls: 'fm-step-desc'
+        cls: 'fm-module-summary'
       });
 
       const listEl = contentEl.createDiv({
-        cls: 'fm-scroll-list',
+        cls: 'fm-scroll-list fm-file-action-list',
         attr: { style: 'max-height: 240px;' }
       });
 
@@ -303,73 +283,8 @@ export class ActiveNoteActionModal extends Modal {
         runBtn.setText(this.t('activeNoteStartUpload', { count: selectedCount }));
       };
 
-      for (const item of this.items) {
-        const row = listEl.createDiv({ cls: 'fm-list-item' });
-        const left = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
-        });
-        const cb = left.createEl('input', { type: 'checkbox', attr: { style: 'cursor:pointer;' } });
-        cb.checked = item.selected;
-        cb.onchange = () => {
-          item.selected = cb.checked;
-          updateRunBtnLabel();
-        };
-
-        renderItemVisualThumb(left, item, this.plugin);
-
-        const nameCol = left.createDiv({
-          attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
-        });
-        nameCol.createSpan({
-          text: item.name,
-          attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
-        });
-        nameCol.createSpan({
-          text: `${item.displayPath} · ${formatBytes(item.size)}`,
-          attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
-        });
-
-        const rightBox = row.createDiv({
-          attr: { style: 'display:flex; align-items:center; gap:8px; flex-shrink:0;' }
-        });
-        const otherRefs = item.otherRefNotes || [];
-        if (otherRefs.length > 0) {
-          const refBadge = rightBox.createSpan({
-            text: this.t('activeNoteOtherRefsBadge', { count: otherRefs.length }),
-            cls: 'fm-tag fm-tag-ref fm-clickable-badge',
-            attr: { 'aria-label': this.t('activeNoteInspectOtherRefs') }
-          });
-          refBadge.onclick = (e) => {
-            e.stopPropagation();
-            new NoteRefsModal(this.app, item.name, otherRefs, () => this.close(), this.plugin).open();
-          };
-        }
-
-        const lockBtn = rightBox.createEl('button', {
-          type: 'button',
-          cls: 'fm-mini-btn',
-          text: item.locked ? this.t('activeNoteBtnLockOn') : this.t('activeNoteBtnLockOff'),
-          attr: {
-            style: item.locked
-              ? 'border-color: var(--interactive-accent); color: var(--text-accent); font-weight: 600;'
-              : 'color: var(--text-muted);'
-          }
-        });
-        lockBtn.onclick = (e) => {
-          e.stopPropagation();
-          item.locked = !item.locked;
-          lockBtn.setText(item.locked ? this.t('activeNoteBtnLockOn') : this.t('activeNoteBtnLockOff'));
-          lockBtn.style.cssText = item.locked
-            ? 'border-color: var(--interactive-accent); color: var(--text-accent); font-weight: 600;'
-            : 'color: var(--text-muted);';
-        };
-      }
-
-      contentEl.createDiv({
-        cls: 'fm-section-box',
-        text: this.t('activeNoteLockExplain'),
-        attr: { style: 'font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 10px;' }
-      });
+      this.renderFileChoices(listEl,updateRunBtnLabel,true);
+      contentEl.createDiv({text:this.t('activeNoteLockExplain'),cls:'fm-inline-hint'});
 
       const otherRefNotesAll = this.getUniqueOtherRefNotes(false);
       const optBox = contentEl.createDiv({
@@ -458,16 +373,9 @@ export class ActiveNoteActionModal extends Modal {
       } else {
         if (this.result.count > 0) {
           const banner = contentEl.createDiv({ cls: 'fm-result-banner fm-result-banner-success' });
-          banner.createDiv({
-            cls: 'fm-result-banner-title',
-            text: this.result.cancelled ? this.t('transferCancelled') : this.actionType === 'migrate' ? this.t('activeNoteMigrateComplete') : this.t('activeNoteDownloadComplete')
-          });
-          banner.createDiv({
-            cls: 'fm-result-banner-desc',
-            text: this.actionType === 'migrate'
-              ? this.t('activeNoteMigrateDoneDesc', { count: this.result.count })
-              : this.t('activeNoteDownloadDoneDesc', { count: this.result.count })
-          });
+          const completed=this.t(this.actionType==='migrate'?'transferUploaded':'transferDownloaded',{count:this.result.count});
+          banner.createDiv({cls:'fm-result-banner-title',text:this.result.cancelled?this.t('transferCancelled'):completed});
+          if(this.result.cancelled)banner.createDiv({cls:'fm-result-banner-desc',text:completed});
 
           const trashFailedList = processedItems.filter((p) => p.trashError);
           if (trashFailedList.length > 0) {
@@ -490,30 +398,11 @@ export class ActiveNoteActionModal extends Modal {
               cls: 'fm-section-title'
             });
             const listEl = listBox.createDiv({
-              cls: 'fm-scroll-list',
+              cls: 'fm-scroll-list fm-file-action-list',
               attr: { style: 'max-height: 220px; margin-bottom: 0;' }
             });
             for (const pItem of processedItems) {
-              const row = listEl.createDiv({ cls: 'fm-list-item' });
-              const left = row.createDiv({
-                attr: { style: 'display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;' }
-              });
-              renderItemVisualThumb(left, pItem, this.plugin);
-              const nameCol = left.createDiv({
-                attr: { style: 'display:flex; flex-direction:column; overflow:hidden; flex:1;' }
-              });
-              nameCol.createSpan({
-                text: pItem.name,
-                attr: { style: 'overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;' }
-              });
-              nameCol.createSpan({
-                text: `${pItem.displayPath}${pItem.size ? ' · ' + formatBytes(pItem.size) : ''}`,
-                attr: { style: 'font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;' }
-              });
-
-              const rightBox = row.createDiv({
-                attr: { style: 'display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;' }
-              });
+              const {actions:rightBox}=fileActionRow(listEl,pItem,this.plugin,{metadata:parent=>fileMetadata(parent,pItem,{path:pItem.displayPath})});
               if (pItem.syncedOtherNotes > 0) {
                 const syncedPaths = Array.isArray(pItem.syncedOtherNotePaths) ? pItem.syncedOtherNotePaths : [];
                 const syncedBadge = rightBox.createSpan({
@@ -563,7 +452,9 @@ export class ActiveNoteActionModal extends Modal {
               });
             }
           }
-        } else if (failures.length === 0 && !this.result.cancelled) {
+        } else if(this.result.cancelled) {
+          contentEl.createDiv({cls:'fm-result-banner fm-result-banner-warning'}).createDiv({cls:'fm-result-banner-title',text:this.t('transferCancelled')});
+        } else if (failures.length === 0) {
           const emptyBanner = contentEl.createDiv({ cls: 'fm-section-box', attr: { style: 'text-align: center; padding: 24px 16px;' } });
           emptyBanner.createDiv({
             text: this.actionType === 'migrate' ? this.t('activeNoteNoLocal') : this.t('activeNoteNoRemote'),
@@ -626,7 +517,6 @@ export class ActiveNoteActionModal extends Modal {
           }
         };
       }
-      if (this.result?.cancelled) btnRow.createSpan({ text: this.t('transferCancelled') });
       if (this.result?.retryItems?.length) {
         const retry = btnRow.createEl('button', { text: this.t('transferRetry') });
         retry.onclick = async () => {
