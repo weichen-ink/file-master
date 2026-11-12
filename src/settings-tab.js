@@ -4,6 +4,7 @@ import { checkServerCompatibility } from './plugin/server-client.js';
 import { MIN_SERVER_VERSION, displayVersion } from './constants.js';
 import { FileMasterHubModal } from './modals/hub.js';
 import { OperationLogModal } from './modals/operation-log.js';
+import { galleryStore } from './ui/gallery-store.js';
 import { Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
 
 export class FileMasterSettingTab extends PluginSettingTab {
@@ -306,6 +307,20 @@ export class FileMasterSettingTab extends PluginSettingTab {
         })
       );
 
+    new Setting(containerEl)
+      .setName(this.plugin.t('galleryDefaultLinkName'))
+      .setDesc(this.plugin.t('galleryDefaultLinkDesc'))
+      .addDropdown((drop) => {
+        const store = galleryStore(this.plugin);
+        drop.addOption('raw', this.plugin.t('galleryModeRaw'))
+          .addOption('webp', this.plugin.t('galleryModeWebp'))
+          .setValue(store.state.insertMode)
+          .onChange(async (value) => {
+            try { await store.setInsertMode(value); }
+            catch (error) { drop.setValue(store.state.insertMode); new Notice(error.message); }
+          });
+      });
+
     let patternSetting = null;
     new Setting(containerEl)
       .setName(this.plugin.t('namingStrategyName'))
@@ -314,7 +329,6 @@ export class FileMasterSettingTab extends PluginSettingTab {
         drop
           .addOption('keep', this.plugin.t('optNamingKeep'))
           .addOption('rule', this.plugin.t('optNamingRule'))
-          .addOption('prompt', this.plugin.t('optNamingPrompt'))
           .setValue(this.plugin.settings.namingMode || 'keep')
           .onChange(async (value) => {
             this.plugin.settings.namingMode = value;

@@ -165,7 +165,7 @@ test('Reference index handles encoded/CJK/emoji paths, boundaries and duplicate 
 
 test('Gallery pagination bounds rendering and resets when filters change', () => {
   const { getRemoteGalleryPage } = loadPlugin();
-  const view = { selectedBucket: 'all', selectedType: 'all', searchQuery: '' };
+  const view = { selectedBuckets: [], selectedTypes: [], searchQuery: '' };
   const items = Array.from({ length: 1000 }, (_, id) => ({ id }));
   assert.equal(getRemoteGalleryPage(view, items).items.length, 60);
   view.galleryPage = 16;

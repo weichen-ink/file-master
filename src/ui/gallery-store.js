@@ -1,7 +1,7 @@
 export class GalleryStore {
   constructor(plugin) {
     this.plugin=plugin;
-    this.state={items:[],loading:false,error:null,loaded:false,searchQuery:'',selectedBucket:'all',selectedType:'all',selectedSort:'time_desc',layoutMode:'list',galleryPage:0,galleryFilterKey:'',insertMode:plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload?'webp':'raw')};
+    this.state={items:[],loading:false,error:null,loaded:false,searchQuery:'',selectedBuckets:[],selectedTypes:[],selectedSort:'time_desc',layoutMode:'list',galleryPage:0,galleryFilterKey:'',insertMode:plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload?'webp':'raw')};
     this.listeners=new Set();this.revision=0;this.formatRevision=0;this.pending=null;
   }
   subscribe(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);}

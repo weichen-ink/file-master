@@ -123,3 +123,18 @@ test('Incoming attachment: unavailable remote destination falls back to local in
   assert.equal(modal.targetLocation, 'local');
   assert.equal(modal.finalFilename, 'a.png');
 });
+
+test('Naming defaults: retired prompt mode migrates without changing the naming template', async () => {
+  const { Plugin } = loadPlugin();
+  const plugin = new Plugin({});
+  for (const mode of ['prompt', 'keep', 'rule']) {
+    plugin.loadData = async () => ({ namingMode: mode, namingPattern: '{origin}_{date}' });
+    await plugin.loadSettings();
+    assert.equal(plugin.settings.namingMode, mode === 'rule' ? 'rule' : 'keep');
+    assert.equal(plugin.settings.namingPattern, '{origin}_{date}');
+    let saved;
+    plugin.saveData = async (settings) => { saved = { ...settings }; };
+    await plugin.saveSettings();
+    assert.equal(saved.namingMode, plugin.settings.namingMode);
+  }
+});

@@ -1,5 +1,5 @@
 // src/plugin.js
-var import_obsidian33 = require("obsidian");
+var import_obsidian34 = require("obsidian");
 
 // src/constants.js
 var DEFAULT_SERVER_URL = "http://localhost:3210";
@@ -17,7 +17,7 @@ var DEFAULT_SETTINGS = {
   defaultSaveLocation: "remote",
   // 'remote' | 'local' (default preselected destination when asking)
   namingMode: "keep",
-  // 'keep' (keep original) | 'rule' (auto-rename pattern) | 'prompt' (manual rename modal)
+  // 'keep' (keep original) | 'rule' (auto-rename pattern)
   namingPattern: "{note}_{date}_{rand:4}",
   uploadNonImageAttachments: true,
   insertOptimizedLinkOnUpload: false,
@@ -1347,13 +1347,12 @@ var UI_STRINGS = {
     optSaveAsk: "\u6BCF\u6B21\u8BE2\u95EE",
     optSaveRemote: "\u4E0A\u4F20\u5230\u670D\u52A1\u5668",
     optSaveLocal: "\u4FDD\u5B58\u5230\u77E5\u8BC6\u5E93",
-    insertOptimizedName: "\u63D2\u5165 WebP \u94FE\u63A5",
+    insertOptimizedName: "\u4E0A\u4F20\u540E\u63D2\u5165 WebP \u94FE\u63A5",
     insertOptimizedDesc: "\u5F00\u542F\u540E\u63D2\u5165 WebP \u94FE\u63A5\uFF1B\u5173\u95ED\u540E\u63D2\u5165\u539F\u6587\u4EF6\u94FE\u63A5",
     namingStrategyName: "\u9644\u4EF6\u547D\u540D\u89C4\u5219",
-    namingStrategyDesc: "\u8BBE\u7F6E\u65B0\u9644\u4EF6\u7684\u6587\u4EF6\u540D",
+    namingStrategyDesc: "\u8BBE\u7F6E\u9644\u4EF6\u7684\u9ED8\u8BA4\u6587\u4EF6\u540D\uFF0C\u4FDD\u5B58\u524D\u4ECD\u53EF\u4FEE\u6539\u3002",
     optNamingKeep: "\u4FDD\u7559\u539F\u540D",
     optNamingRule: "\u6309\u89C4\u5219\u547D\u540D",
-    optNamingPrompt: "\u6BCF\u6B21\u8BE2\u95EE",
     namingPatternName: "\u547D\u540D\u6A21\u677F",
     namingPatternDesc: "\u652F\u6301\u53D8\u91CF\uFF1A{note} \u7B14\u8BB0\u6807\u9898, {origin} \u539F\u540D, {date} \u5E74\u6708\u65E5, {time} \u65F6\u5206\u79D2, {timestamp} \u65F6\u95F4\u6233, {rand:4} \u968F\u673A\u5B57\u7B26, {hash:8} \u54C8\u5E0C",
     uploadNonImageName: "\u5904\u7406\u975E\u56FE\u7247\u9644\u4EF6",
@@ -1551,14 +1550,23 @@ var UI_STRINGS = {
     galleryLoading: "\u6B63\u5728\u52A0\u8F7D\u670D\u52A1\u5668\u6587\u4EF6...",
     galleryLoadFail: "\u65E0\u6CD5\u52A0\u8F7D\u670D\u52A1\u5668\u6587\u4EF6\uFF1A{err}",
     gallerySearchPlaceholder: "\u641C\u7D22\u6587\u4EF6\u540D...",
-    galleryFilterAllTime: "\u5168\u90E8\u76EE\u5F55",
     galleryFolderLabel: "\u76EE\u5F55",
-    galleryFilterAllTypes: "\u5168\u90E8\u7C7B\u578B",
+    galleryAllFolders: "\u5168\u90E8\u76EE\u5F55",
+    galleryAllTypes: "\u5168\u90E8\u7C7B\u578B",
+    gallerySelectedFolders: "{count} \u4E2A\u76EE\u5F55",
+    gallerySelectedTypes: "{count} \u79CD\u7C7B\u578B",
+    galleryClearFilters: "\u6E05\u9664",
     galleryTypeLabel: "\u7C7B\u578B",
     galleryFilterImage: "\u56FE\u7247",
     galleryFilterAudio: "\u97F3\u9891",
     galleryFilterOther: "\u5176\u4ED6",
     gallerySortLabel: "\u6392\u5E8F",
+    gallerySortLargest: "\u6700\u5927\u4F18\u5148",
+    gallerySortSmallest: "\u6700\u5C0F\u4F18\u5148",
+    gallerySortNameForward: "\u540D\u79F0 A\u2013Z",
+    gallerySortNameReverse: "\u540D\u79F0 Z\u2013A",
+    gallerySortMostViewed: "\u8BBF\u95EE\u6700\u591A",
+    gallerySortLeastViewed: "\u8BBF\u95EE\u6700\u5C11",
     gallerySortTimeDesc: "\u6700\u65B0\u4E0A\u4F20",
     gallerySortTimeAsc: "\u6700\u65E9\u4E0A\u4F20",
     gallerySortSizeDesc: "\u5927\u5C0F\u4ECE\u5927\u5230\u5C0F",
@@ -1566,9 +1574,8 @@ var UI_STRINGS = {
     gallerySortNameAsc: "\u6587\u4EF6\u540D A-Z",
     gallerySortNameDesc: "\u6587\u4EF6\u540D Z-A",
     gallerySortHitsDesc: "\u8BBF\u95EE\u70ED\u5EA6\u4ECE\u9AD8\u5230\u4F4E",
+    gallerySortHitsAsc: "\u8BBF\u95EE\u70ED\u5EA6\u4ECE\u4F4E\u5230\u9AD8",
     galleryStats: "{count} \u4E2A\u6587\u4EF6 \xB7 \u5171 {size}",
-    galleryFileCount: "{count} \u4E2A\u6587\u4EF6",
-    galleryTotalSize: "\u5171 {size}",
     galleryEmpty: "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u6587\u4EF6",
     galleryBtnRefresh: "\u5237\u65B0",
     galleryBtnPreview: "\u5927\u56FE\u9884\u89C8",
@@ -1579,11 +1586,10 @@ var UI_STRINGS = {
     galleryBtnUrl: "\u7F51\u5740",
     galleryTrackRaw: "\u539F\u6587\u4EF6",
     galleryTrackWebp: "WebP",
-    galleryInsertModeTooltip: "\u5207\u6362\u9ED8\u8BA4\u63D2\u5165\u6A21\u5F0F\uFF08\u5F53\u524D\uFF1A{mode}\uFF0C\u70B9\u51FB\u5207\u6362\uFF09",
     galleryModeRaw: "\u539F\u6587\u4EF6",
     galleryModeWebp: "WebP",
-    galleryLinkFormat: "\u63D2\u5165\u94FE\u63A5\u683C\u5F0F",
-    galleryInsertFormatLabel: "\u63D2\u5165\u683C\u5F0F",
+    galleryDefaultLinkName: "\u6587\u4EF6\u6D4F\u89C8\u9ED8\u8BA4\u94FE\u63A5",
+    galleryDefaultLinkDesc: "\u5728\u4FA7\u680F\u6216 Hub \u63D2\u5165\u3001\u590D\u5236\u6587\u4EF6\u65F6\u4F7F\u7528\u3002\u6CA1\u6709 WebP \u7248\u672C\u65F6\u4F7F\u7528\u539F\u6587\u4EF6\u3002",
     galleryLayoutGrid: "\u7F51\u683C\u89C6\u56FE",
     galleryLayoutList: "\u5217\u8868\u89C6\u56FE",
     galleryCopied: "\u5DF2\u590D\u5236\uFF01",
@@ -1993,13 +1999,12 @@ var UI_STRINGS = {
     optSaveAsk: "Ask every time",
     optSaveRemote: "Upload to server",
     optSaveLocal: "Save to vault",
-    insertOptimizedName: "Insert WebP links",
+    insertOptimizedName: "Insert WebP links after upload",
     insertOptimizedDesc: "Use WebP links when on, original file links when off",
     namingStrategyName: "Attachment Naming Strategy",
-    namingStrategyDesc: "Choose how new attachments are named",
+    namingStrategyDesc: "Set the default filename. You can still edit it before saving.",
     optNamingKeep: "Keep filename",
     optNamingRule: "Use naming pattern",
-    optNamingPrompt: "Ask each time",
     namingPatternName: "Naming template",
     namingPatternDesc: "Variables: {note} Note title, {origin} Original name, {date} YYYYMMDD, {time} HHMMSS, {timestamp} Epoch, {rand:4} Hex, {hash:8} SHA-256",
     uploadNonImageName: "Process non-image attachments",
@@ -2197,14 +2202,23 @@ var UI_STRINGS = {
     galleryLoading: "Loading server files...",
     galleryLoadFail: "Could not load server files: {err}",
     gallerySearchPlaceholder: "Search filenames...",
-    galleryFilterAllTime: "All folders",
     galleryFolderLabel: "Folder",
-    galleryFilterAllTypes: "All types",
+    galleryAllFolders: "All folders",
+    galleryAllTypes: "All types",
+    gallerySelectedFolders: "{count} folders",
+    gallerySelectedTypes: "{count} types",
+    galleryClearFilters: "Clear",
     galleryTypeLabel: "Type",
     galleryFilterImage: "Images",
     galleryFilterAudio: "Audio",
     galleryFilterOther: "Others",
     gallerySortLabel: "Sort",
+    gallerySortLargest: "Largest first",
+    gallerySortSmallest: "Smallest first",
+    gallerySortNameForward: "Name A\u2013Z",
+    gallerySortNameReverse: "Name Z\u2013A",
+    gallerySortMostViewed: "Most viewed",
+    gallerySortLeastViewed: "Least viewed",
     gallerySortTimeDesc: "Newest first",
     gallerySortTimeAsc: "Oldest first",
     gallerySortSizeDesc: "Size: Largest first",
@@ -2212,9 +2226,8 @@ var UI_STRINGS = {
     gallerySortNameAsc: "Filename: A to Z",
     gallerySortNameDesc: "Filename: Z to A",
     gallerySortHitsDesc: "Hits: Most viewed",
+    gallerySortHitsAsc: "Hits: Least viewed",
     galleryStats: "{count} files \xB7 {size} total",
-    galleryFileCount: "{count} files",
-    galleryTotalSize: "{size} total",
     galleryEmpty: "No matching files",
     galleryBtnRefresh: "Refresh",
     galleryBtnPreview: "Preview",
@@ -2225,11 +2238,10 @@ var UI_STRINGS = {
     galleryBtnUrl: "URL",
     galleryTrackRaw: "Original",
     galleryTrackWebp: "WebP",
-    galleryInsertModeTooltip: "Toggle default insert mode (Current: {mode})",
     galleryModeRaw: "Original",
     galleryModeWebp: "WebP",
-    galleryLinkFormat: "Link format for insertion",
-    galleryInsertFormatLabel: "Insert as",
+    galleryDefaultLinkName: "Default link when browsing files",
+    galleryDefaultLinkDesc: "Used when inserting or copying files from the sidebar or Hub. Falls back to the original when WebP is unavailable.",
     galleryLayoutGrid: "Grid View",
     galleryLayoutList: "List View",
     galleryCopied: "Copied!",
@@ -2646,10 +2658,92 @@ async function copyText(plugin, value) {
 }
 
 // src/ui/gallery-toolbar.js
+var import_obsidian7 = require("obsidian");
+
+// src/ui/gallery-filter.js
 var import_obsidian6 = require("obsidian");
+function toggleGalleryValues(selected, values, checked) {
+  const next = new Set(selected);
+  for (const value of values) checked ? next.add(value) : next.delete(value);
+  return [...next].sort();
+}
+function galleryPopover(parent, { t: t2, labelKey }) {
+  const root = parent.createEl("details", { cls: "fm-gallery-filter" });
+  const trigger = root.createEl("summary", { cls: "fm-filter-trigger", attr: { "aria-label": t2(labelKey) } });
+  const text = trigger.createSpan();
+  (0, import_obsidian6.setIcon)(trigger.createSpan({ cls: "fm-filter-chevron" }), "chevron-down");
+  const panel = root.createDiv({ cls: "fm-filter-panel", attr: { role: "group", "aria-label": t2(labelKey) } });
+  const header = panel.createDiv({ cls: "fm-filter-heading" });
+  header.createSpan({ text: t2(labelKey) });
+  const body = panel.createDiv({ cls: "fm-filter-options" });
+  return { root, trigger, text, header, body };
+}
+function galleryFilter(parent, { t: t2, labelKey, allKey, summaryKey, selected, change, tree = false }) {
+  const { root, trigger, text, header, body } = galleryPopover(parent, { t: t2, labelKey });
+  const clear = header.createEl("button", { text: t2("galleryClearFilters"), attr: { type: "button" } });
+  clear.onclick = () => change([]);
+  let signature = "", inputs = [], options = [];
+  const checkbox = (parent2, title, values) => {
+    const label = parent2.createEl("label", { cls: "fm-filter-option" });
+    const input = label.createEl("input", { type: "checkbox", cls: "fm-filter-checkbox", attr: { "aria-label": title } });
+    const mark = label.createSpan({ cls: "fm-filter-check-mark", attr: { "aria-hidden": "true" } });
+    (0, import_obsidian6.setIcon)(mark.createSpan({ cls: "fm-filter-check-tick" }), "check");
+    (0, import_obsidian6.setIcon)(mark.createSpan({ cls: "fm-filter-check-mixed" }), "minus");
+    label.createSpan({ text: title });
+    input.onchange = () => change(toggleGalleryValues(selected(), values, input.checked));
+    inputs.push({ input, values });
+  };
+  return { root, sync(nextOptions) {
+    var _a;
+    const nextSignature = JSON.stringify(nextOptions);
+    if (signature !== nextSignature) {
+      signature = nextSignature;
+      options = nextOptions;
+      inputs = [];
+      body.empty();
+      if (tree) {
+        const years = /* @__PURE__ */ new Map();
+        for (const option of options) {
+          const year = option.value.split("/")[0];
+          if (!years.has(year)) years.set(year, []);
+          years.get(year).push(option);
+        }
+        let first = true;
+        for (const [year, months] of years) {
+          const group = body.createDiv({ cls: "fm-filter-tree-group" });
+          const row = group.createDiv({ cls: "fm-filter-tree-year" });
+          const toggle = row.createEl("button", { cls: "fm-filter-tree-toggle", attr: { type: "button", "aria-label": year, "aria-expanded": String(first) } });
+          (0, import_obsidian6.setIcon)(toggle, "chevron-right");
+          checkbox(row, year, months.map((option) => option.value));
+          const children = group.createDiv({ cls: "fm-filter-tree-months" });
+          children.hidden = !first;
+          first = false;
+          toggle.onclick = () => {
+            children.hidden = !children.hidden;
+            toggle.setAttribute("aria-expanded", String(!children.hidden));
+          };
+          for (const month of months) checkbox(children, month.label, [month.value]);
+        }
+      } else for (const option of options) checkbox(body, option.label, [option.value]);
+      if (!options.length) body.createDiv({ text: t2("galleryEmpty"), cls: "fm-filter-empty" });
+    }
+    const values = selected();
+    const active = values.length > 0;
+    text.setText(!active ? t2(allKey) : values.length === 1 ? ((_a = options.find((option) => option.value === values[0])) == null ? void 0 : _a.summary) || values[0] : t2(summaryKey, { count: values.length }));
+    trigger.toggleClass("is-filtered", active);
+    clear.disabled = !active;
+    for (const { input, values: group } of inputs) {
+      const matches = group.filter((value) => values.includes(value)).length;
+      input.checked = matches === group.length;
+      input.indeterminate = matches > 0 && matches < group.length;
+    }
+  } };
+}
+
+// src/ui/gallery-toolbar.js
 function iconButton(parent, plugin, key, symbol, run) {
   const button = parent.createEl("button", { cls: "fm-icon-button", attr: { type: "button", "aria-label": plugin.t(key) } });
-  (0, import_obsidian6.setIcon)(button, symbol);
+  (0, import_obsidian7.setIcon)(button, symbol);
   button.onclick = async (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -2658,15 +2752,17 @@ function iconButton(parent, plugin, key, symbol, run) {
     try {
       await run(event);
     } catch (error) {
-      new import_obsidian6.Notice(error.message || String(error));
+      new import_obsidian7.Notice(error.message || String(error));
     } finally {
       if (button.isConnected) button.disabled = false;
     }
   };
   return button;
 }
-var sorts = ["time_desc", "time_asc", "size_desc", "size_asc", "name_asc", "name_desc", "hits_desc"];
-var sortKeys = ["gallerySortTimeDesc", "gallerySortTimeAsc", "gallerySortSizeDesc", "gallerySortSizeAsc", "gallerySortNameAsc", "gallerySortNameDesc", "gallerySortHitsDesc"];
+var sorts = ["time_desc", "time_asc", "size_desc", "size_asc", "name_asc", "name_desc", "hits_desc", "hits_asc"];
+var sortKeys = ["gallerySortTimeDesc", "gallerySortTimeAsc", "gallerySortSizeDesc", "gallerySortSizeAsc", "gallerySortNameAsc", "gallerySortNameDesc", "gallerySortHitsDesc", "gallerySortHitsAsc"];
+var sortSummaryKeys = ["gallerySortTimeDesc", "gallerySortTimeAsc", "gallerySortLargest", "gallerySortSmallest", "gallerySortNameForward", "gallerySortNameReverse", "gallerySortMostViewed", "gallerySortLeastViewed"];
+var sortSequence = 0;
 function galleryToolbar(view, parent) {
   const t2 = (key, params) => view.t(key, params), store = view.store, plugin = view.plugin;
   const toolbar = parent.createDiv({ cls: "fm-browser-toolbar" });
@@ -2674,85 +2770,64 @@ function galleryToolbar(view, parent) {
   const search = searchRow.createEl("input", { type: "search", cls: "fm-gallery-search", attr: { placeholder: t2("gallerySearchPlaceholder"), "aria-label": t2("gallerySearchPlaceholder") } });
   search.oninput = () => store.patch({ searchQuery: search.value.toLowerCase(), galleryPage: 0 });
   iconButton(searchRow, plugin, "galleryBtnRefresh", "refresh-cw", () => store.load(true));
-  const filters = toolbar.createDiv({ cls: "fm-browser-filters" });
-  const folder = filters.createEl("select", { attr: { "aria-label": t2("galleryFolderLabel") } });
-  const type = filters.createEl("select", { attr: { "aria-label": t2("galleryTypeLabel") } });
-  for (const [value, key] of [["all", "galleryFilterAllTypes"], ["image", "galleryFilterImage"], ["audio", "galleryFilterAudio"], ["other", "galleryFilterOther"]]) type.createEl("option", { value, text: t2(key) });
-  folder.onchange = () => store.patch({ selectedBucket: folder.value, galleryPage: 0 });
-  type.onchange = () => store.patch({ selectedType: type.value, galleryPage: 0 });
-  const controls = toolbar.createDiv({ cls: "fm-browser-control-row" });
-  const sortingHost = controls.createDiv({ cls: "fm-sort-control" });
-  const sorting = sortingHost.createEl("details", { cls: "fm-sort-menu" });
-  const summary = sorting.createEl("summary", { cls: "fm-icon-button", attr: { "aria-label": t2("gallerySortLabel") } });
-  (0, import_obsidian6.setIcon)(summary, "arrow-down-wide-narrow");
-  const menu = sorting.createDiv({ cls: "fm-sort-options" }), sortButtons = [];
-  sorts.forEach((value, index) => {
-    const button = menu.createEl("button", { text: t2(sortKeys[index]), attr: { type: "button" } });
-    button.onclick = () => {
-      store.patch({ selectedSort: value, galleryPage: 0 });
-      sorting.open = false;
-      summary.focus();
-    };
-    sortButtons.push(button);
-  });
-  sorting.onkeydown = (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      sorting.open = false;
-      summary.focus();
-    }
-  };
-  const viewModes = controls.createDiv({ cls: "fm-view-controls", attr: { role: "group", "aria-label": t2("galleryLayoutLabel") } });
+  const viewModes = searchRow.createDiv({ cls: "fm-view-controls", attr: { role: "group", "aria-label": t2("galleryLayoutLabel") } });
   const grid = iconButton(viewModes, plugin, "galleryLayoutGrid", "layout-grid", () => store.patch({ layoutMode: "grid" }));
   const list = iconButton(viewModes, plugin, "galleryLayoutList", "list", () => store.patch({ layoutMode: "list" }));
-  const format = controls.createDiv({ cls: "fm-browser-format" });
-  format.createSpan({ text: t2("galleryInsertFormatLabel") });
-  const modeGroup = format.createDiv({ cls: "fm-gallery-mode-group", attr: { role: "group", "aria-label": t2("galleryLinkFormat") } });
-  const modes = ["raw", "webp"].map((mode) => {
-    const button = modeGroup.createEl("button", { text: t2(mode === "raw" ? "galleryModeRaw" : "galleryModeWebp"), attr: { type: "button" } });
-    button.onclick = async () => {
-      try {
-        await store.setInsertMode(mode);
-      } catch (error) {
-        new import_obsidian6.Notice(error.message);
-      }
+  const filters = toolbar.createDiv({ cls: "fm-browser-filters" });
+  const folder = galleryFilter(filters, { t: t2, labelKey: "galleryFolderLabel", allKey: "galleryAllFolders", summaryKey: "gallerySelectedFolders", tree: true, selected: () => store.state.selectedBuckets, change: (values) => store.patch({ selectedBuckets: values, galleryPage: 0 }) });
+  const type = galleryFilter(filters, { t: t2, labelKey: "galleryTypeLabel", allKey: "galleryAllTypes", summaryKey: "gallerySelectedTypes", selected: () => store.state.selectedTypes, change: (values) => store.patch({ selectedTypes: values, galleryPage: 0 }) });
+  const sort = galleryPopover(filters, { t: t2, labelKey: "gallerySortLabel" });
+  sort.body.setAttribute("role", "radiogroup");
+  sort.body.setAttribute("aria-label", t2("gallerySortLabel"));
+  const radioName = `fm-gallery-sort-${++sortSequence}`;
+  const sortInputs = sorts.map((value, index) => {
+    const label = sort.body.createEl("label", { cls: "fm-filter-option" });
+    const input = label.createEl("input", { type: "radio", cls: "fm-filter-radio", attr: { name: radioName, "aria-label": t2(sortKeys[index]) } });
+    label.createSpan({ cls: "fm-filter-radio-mark", attr: { "aria-hidden": "true" } });
+    label.createSpan({ text: t2(sortKeys[index]) });
+    input.onchange = () => {
+      if (!input.checked) return;
+      store.patch({ selectedSort: value, galleryPage: 0 });
+      sort.root.open = false;
+      sort.trigger.focus();
     };
-    return button;
+    return input;
   });
-  const footer = toolbar.createDiv({ cls: "fm-browser-summary" }), count = footer.createDiv({ cls: "fm-gallery-stats" });
+  const popups = [folder.root, type.root, sort.root];
   const outside = (event) => {
-    if (!sorting.contains(event.target)) sorting.open = false;
+    for (const popup of popups) if (!popup.contains(event.target)) popup.open = false;
+  };
+  const escape2 = (event) => {
+    if (event.key === "Escape") {
+      for (const popup of popups) if (popup.open && popup.contains(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        popup.open = false;
+        popup.querySelector("summary").focus();
+      }
+    }
   };
   const ownerDocument = parent.ownerDocument;
   ownerDocument == null ? void 0 : ownerDocument.addEventListener("click", outside);
-  let folderKey = "";
-  return { count, dispose() {
+  const controller = new AbortController();
+  toolbar.addEventListener("keydown", escape2, { signal: controller.signal });
+  return { dispose() {
     ownerDocument == null ? void 0 : ownerDocument.removeEventListener("click", outside);
+    controller.abort();
   }, sync() {
     const state = store.state;
     if (search.value !== state.searchQuery) search.value = state.searchQuery;
     const buckets = [...new Set(state.items.map((item) => `${item.year}/${item.month}`))].sort().reverse();
-    const nextKey = buckets.join(",");
-    if (nextKey !== folderKey || !folder.children.length) {
-      folder.empty();
-      folder.createEl("option", { value: "all", text: t2("galleryFilterAllTime") });
-      buckets.forEach((value) => folder.createEl("option", { value, text: value }));
-      folderKey = nextKey;
-    }
-    folder.value = state.selectedBucket;
-    type.value = state.selectedType;
+    folder.sync(buckets.map((value) => ({ value, label: value.split("/")[1], summary: value.replace("/", " / ") })));
+    type.sync([["image", "galleryFilterImage"], ["audio", "galleryFilterAudio"], ["other", "galleryFilterOther"]].map(([value, key]) => ({ value, label: t2(key), summary: t2(key) })));
     for (const [button, mode] of [[grid, "grid"], [list, "list"]]) {
       button.toggleClass("is-active", state.layoutMode === mode);
       button.setAttribute("aria-pressed", String(state.layoutMode === mode));
     }
-    modes.forEach((button, index) => {
-      const selected = state.insertMode === ["raw", "webp"][index];
-      button.toggleClass("is-active", selected);
-      button.setAttribute("aria-pressed", String(selected));
-    });
-    sortButtons.forEach((button, index) => {
-      button.setAttribute("aria-pressed", String(state.selectedSort === sorts[index]));
+    const sortIndex = Math.max(0, sorts.indexOf(state.selectedSort));
+    sort.text.setText(t2(sortSummaryKeys[sortIndex]));
+    sortInputs.forEach((input, index) => {
+      input.checked = index === sortIndex;
     });
   } };
 }
@@ -2909,11 +2984,11 @@ function mountImageViewport(stage, image, onScale) {
 }
 
 // src/modals/dialogs.js
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/ui/modal.js
-var import_obsidian7 = require("obsidian");
-var FileMasterModal = class extends import_obsidian7.Modal {
+var import_obsidian8 = require("obsidian");
+var FileMasterModal = class extends import_obsidian8.Modal {
   open() {
     modalChrome(this);
     return super.open();
@@ -2921,7 +2996,7 @@ var FileMasterModal = class extends import_obsidian7.Modal {
 };
 
 // src/ui/document-list.js
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/references.js
 function createTextReferenceMatcher(patterns, onMatch = null) {
@@ -3276,7 +3351,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
 }
 
 // src/plugin/vault-scans.js
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
   const { signal, onProgress, freshRead = false } = scanCtx || {};
   const revision = plugin.referenceRevision || 0;
@@ -3436,7 +3511,7 @@ async function scanUnusedFiles(plugin, options, scanCtx = {}) {
       if (!options.scanLocal) {
         throw err;
       }
-      new import_obsidian8.Notice(plugin.t("noticeRemoteUnreachable", { err: err.message }));
+      new import_obsidian9.Notice(plugin.t("noticeRemoteUnreachable", { err: err.message }));
     }
   }
   return unusedList;
@@ -3472,7 +3547,7 @@ async function exportOrphanReportToRoot(plugin, results) {
     }
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian8.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian9.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
 }
 async function writeOrUpdateRootReport(plugin, reportPath, content) {
   const existing = plugin.app.vault.getAbstractFileByPath(reportPath);
@@ -3542,14 +3617,14 @@ async function cleanOrphanItems(plugin, selectedItems, onDone) {
       await plugin.deleteRemoteFile(item.rawObj.year, item.rawObj.month, item.rawObj.filename);
       deletedRemote++;
     } catch (err) {
-      new import_obsidian8.Notice(plugin.t("noticeRemoteDeleteFailed", { name: item.name, err: err.message }));
+      new import_obsidian9.Notice(plugin.t("noticeRemoteDeleteFailed", { name: item.name, err: err.message }));
       plugin.logOperation("ERROR", "ORPHAN_CLEANUP", `Failed to delete remote file: ${item.displayPath}`, { error: err.message });
     }
   }
   plugin.logOperation("INFO", "ORPHAN_CLEANUP", `Cleaned unreferenced files: ${deletedLocal} local, ${deletedRemote} remote`, {
     files: selectedItems.map((i) => i.displayPath)
   });
-  new import_obsidian8.Notice(plugin.t("noticeCleanupComplete", { local: deletedLocal, remote: deletedRemote }));
+  new import_obsidian9.Notice(plugin.t("noticeCleanupComplete", { local: deletedLocal, remote: deletedRemote }));
   if (onDone) onDone({ local: deletedLocal, remote: deletedRemote, skipped, total: deletedLocal + deletedRemote });
 }
 async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, scanCtx = {}) {
@@ -3720,7 +3795,7 @@ async function exportDuplicateReportToRoot(plugin, groups) {
     });
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian8.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian9.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
 }
 async function exportBatchMigrateReportToRoot(plugin, summary) {
   const now = /* @__PURE__ */ new Date();
@@ -3783,12 +3858,12 @@ async function exportBatchMigrateReportToRoot(plugin, summary) {
   lines.push(`---`);
   lines.push(`*Generated by File Master Obsidian Plugin*`);
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian8.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian9.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
   return reportPath;
 }
 async function openNoteAtLine(plugin, filePath, lineNumber) {
   const file = plugin.app.vault.getAbstractFileByPath(filePath);
-  if (file && file instanceof import_obsidian8.TFile) {
+  if (file && file instanceof import_obsidian9.TFile) {
     const leaf = plugin.app.workspace.getLeaf(false);
     await leaf.openFile(file);
     const view = leaf.view;
@@ -3802,16 +3877,16 @@ async function openNoteAtLine(plugin, filePath, lineNumber) {
     }
     return true;
   } else {
-    new import_obsidian8.Notice(plugin.t("noticeCannotOpenFile", { path: filePath }));
+    new import_obsidian9.Notice(plugin.t("noticeCannotOpenFile", { path: filePath }));
     return false;
   }
 }
 
 // src/ui/reference-indicator.js
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 function referenceIndicator(element, plugin, count, { state = "referenceCount", icon = count > 0 ? "link" : null } = {}) {
   element.empty();
-  if (icon) (0, import_obsidian9.setIcon)(element.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), icon);
+  if (icon) (0, import_obsidian10.setIcon)(element.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), icon);
   element.createSpan({ text: plugin.t(state, { count }) });
   return element;
 }
@@ -3850,7 +3925,7 @@ function noteHoverPreview(plugin, element, path, hoverParent, line = null) {
 }
 function documentRow(parent, plugin, document2, { onOpened = null, renderDetails = null, referenceState = "referenceCount", hoverParent = { hoverPopover: null }, location = null, openLabel = null } = {}) {
   const row = parent.createDiv({ cls: "fm-list-item fm-document-row" });
-  (0, import_obsidian10.setIcon)(row.createSpan({ cls: "fm-document-icon", attr: { "aria-hidden": "true" } }), "file-text");
+  (0, import_obsidian11.setIcon)(row.createSpan({ cls: "fm-document-icon", attr: { "aria-hidden": "true" } }), "file-text");
   const content = row.createDiv({ cls: "fm-document-content" });
   const heading = location ? content.createDiv({ cls: "fm-document-heading" }) : content;
   const name = heading.createDiv({ text: document2.path, cls: "fm-document-name internal-link", attr: { "data-href": document2.path } });
@@ -3863,7 +3938,7 @@ function documentRow(parent, plugin, document2, { onOpened = null, renderDetails
   }
   const label = openLabel || plugin.t("btnOpenNote");
   const open = actions.createEl("button", { cls: "fm-document-open", attr: { type: "button", "aria-label": label } });
-  (0, import_obsidian10.setIcon)(open.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), "arrow-up-right");
+  (0, import_obsidian11.setIcon)(open.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), "arrow-up-right");
   open.createSpan({ text: label });
   noteHoverPreview(plugin, open, document2.path, hoverParent, document2.line);
   open.onclick = async () => {
@@ -3872,7 +3947,7 @@ function documentRow(parent, plugin, document2, { onOpened = null, renderDetails
     try {
       if (await openNoteAtLine(plugin, document2.path, document2.line)) onOpened == null ? void 0 : onOpened();
     } catch (error) {
-      new import_obsidian10.Notice(error.message || String(error));
+      new import_obsidian11.Notice(error.message || String(error));
     } finally {
       open.disabled = false;
     }
@@ -3881,6 +3956,7 @@ function documentRow(parent, plugin, document2, { onOpened = null, renderDetails
 }
 
 // src/modals/dialogs.js
+var imageCanvasSequence = 0;
 var ConfirmActionModal = class extends FileMasterModal {
   constructor(app, title, message, confirmText = "Confirm", onConfirm, plugin = null) {
     super(app);
@@ -3948,7 +4024,7 @@ var ImageLightboxModal = class extends FileMasterModal {
     modalTitle(this, this.item.name);
     const location = (_a = this.item.displayPath) == null ? void 0 : _a.split("/").slice(0, -1).join(" / ");
     if (location) {
-      (0, import_obsidian11.setIcon)(header.createSpan({ cls: "fm-asset-path-icon" }), "folder");
+      (0, import_obsidian12.setIcon)(header.createSpan({ cls: "fm-asset-path-icon" }), "folder");
       header.createSpan({ text: location, cls: "fm-asset-location" });
     }
     const layout = this.contentEl.createDiv({ cls: "fm-asset-layout" });
@@ -3989,7 +4065,9 @@ var ImageLightboxModal = class extends FileMasterModal {
       }));
     }
     this.zoomButtons = zoomButtons;
-    this.stage = canvas.createDiv({ cls: "fm-image-stage", attr: { tabindex: "0", role: "region", "aria-label": t2("previewGestures") } });
+    const canvasLabel = `fm-image-canvas-${++imageCanvasSequence}`;
+    canvas.createSpan({ text: t2("previewGestures"), attr: { id: canvasLabel, hidden: "" } });
+    this.stage = canvas.createDiv({ cls: "fm-image-stage", attr: { tabindex: "0", role: "region", "aria-labelledby": canvasLabel } });
     this.status = canvas.createDiv({ cls: "fm-preview-status", attr: { "aria-live": "polite" } });
     const inspector = layout.createDiv({ cls: "fm-asset-inspector" });
     const actions = inspector.createDiv({ cls: "fm-asset-primary" });
@@ -4014,7 +4092,7 @@ var ImageLightboxModal = class extends FileMasterModal {
           const label = t2(variant === "raw" ? "galleryTrackRaw" : "galleryTrackWebp") + (markdown ? " \xB7 Markdown" : " \xB7 URL");
           const value = markdown ? assetMarkdown(this.item.name, url) : url;
           const copy = copyActions.createEl("button", { cls: "fm-asset-copy-action", attr: { type: "button", "aria-label": label } });
-          (0, import_obsidian11.setIcon)(copy.createSpan({ cls: "fm-copy-icon" }), "copy");
+          (0, import_obsidian12.setIcon)(copy.createSpan({ cls: "fm-copy-icon" }), "copy");
           copy.createSpan({ text: markdown ? "Markdown" : "URL" });
           copy.onclick = () => copyText(this.plugin, value);
         }
@@ -4031,7 +4109,7 @@ var ImageLightboxModal = class extends FileMasterModal {
             this.close();
           }
         } catch (error) {
-          new import_obsidian11.Notice(error.message);
+          new import_obsidian12.Notice(error.message);
         } finally {
           open.disabled = false;
         }
@@ -4087,11 +4165,11 @@ var ImageLightboxModal = class extends FileMasterModal {
           remote.locked = locked;
           if (!this.closed) {
             update();
-            new import_obsidian11.Notice(t2(locked ? "previewProtected" : "previewUnprotected"));
+            new import_obsidian12.Notice(t2(locked ? "previewProtected" : "previewUnprotected"));
           }
           (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "lock", remote);
         } catch (error) {
-          new import_obsidian11.Notice(t2("previewLockFailed", { err: error.message }));
+          new import_obsidian12.Notice(t2("previewLockFailed", { err: error.message }));
         } finally {
           lock.disabled = false;
           if (!this.closed) update();
@@ -4115,10 +4193,10 @@ var ImageLightboxModal = class extends FileMasterModal {
           try {
             await this.plugin.deleteRemoteFile(remote.year, remote.month, remote.filename);
             (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "deleted", remote);
-            new import_obsidian11.Notice(t2("galleryDeleteSuccess", { name: this.item.name }));
+            new import_obsidian12.Notice(t2("galleryDeleteSuccess", { name: this.item.name }));
             this.close();
           } catch (error) {
-            new import_obsidian11.Notice(t2("previewDeleteFailed", { err: error.message }));
+            new import_obsidian12.Notice(t2("previewDeleteFailed", { err: error.message }));
           } finally {
             this.deleting = false;
             lock.disabled = false;
@@ -4129,7 +4207,7 @@ var ImageLightboxModal = class extends FileMasterModal {
           await openModal(confirm);
         } catch (error) {
           update();
-          new import_obsidian11.Notice(error.message);
+          new import_obsidian12.Notice(error.message);
         }
       };
     }
@@ -4235,7 +4313,7 @@ var NoteRefsModal = class extends FileMasterModal {
 };
 
 // src/modals/incoming-file.js
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 function renderItemVisualThumb(parentEl, item, plugin) {
   const t2 = (k, p) => plugin ? plugin.t(k, p) : translateUi("auto", k, p);
   const ext = getExt(item.name);
@@ -4343,12 +4421,6 @@ var IncomingFileModal = class extends FileMasterModal {
       cls: "fm-incoming-sub-meta",
       text: formatBytes(this.fileInfo.size)
     });
-    if (this.options.promptRename) {
-      setTimeout(() => {
-        nameInput.focus();
-        nameInput.select();
-      }, 40);
-    }
     const isRemoteReady = Boolean(
       ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.enableRemoteServer) && ((_d = (_c = this.plugin) == null ? void 0 : _c.isRemoteServerReady) == null ? void 0 : _d.call(_c))
     );
@@ -4379,7 +4451,7 @@ var IncomingFileModal = class extends FileMasterModal {
     const localTitle = localCard.createDiv({ cls: "fm-incoming-dest-card-title" });
     localTitle.createSpan({ text: this.t("destSaveLocal") });
     const localCheck = localCard.createSpan({ cls: "fm-incoming-dest-card-check" });
-    (0, import_obsidian12.setIcon)(localCheck, "check");
+    (0, import_obsidian13.setIcon)(localCheck, "check");
     let remoteCard = null;
     let remoteCheck = null;
     if (isRemoteReady) {
@@ -4389,7 +4461,7 @@ var IncomingFileModal = class extends FileMasterModal {
       const remoteTitle = remoteCard.createDiv({ cls: "fm-incoming-dest-card-title" });
       remoteTitle.createSpan({ text: this.t("destSaveRemote") });
       remoteCheck = remoteCard.createSpan({ cls: "fm-incoming-dest-card-check" });
-      (0, import_obsidian12.setIcon)(remoteCheck, "check");
+      (0, import_obsidian13.setIcon)(remoteCheck, "check");
     }
     const updateSelection = (loc) => {
       this.targetLocation = loc;
@@ -4566,17 +4638,17 @@ var IncomingFileModal = class extends FileMasterModal {
     }
     if (((_g = this.result) == null ? void 0 : _g.success) && ((_h = this.result) == null ? void 0 : _h.inserted)) {
       const noticeMsg = this.result.target === "remote" ? this.plugin ? this.plugin.t("noticeUploadedRemote", { name: this.finalFilename }) : `\u5DF2\u4E0A\u4F20\u5230\u670D\u52A1\u5668\u5E76\u63D2\u5165\u94FE\u63A5\uFF1A${this.finalFilename}` : this.t("destInsertSuccess");
-      new import_obsidian12.Notice(noticeMsg);
+      new import_obsidian13.Notice(noticeMsg);
       this.isDone = true;
       this.close();
       return;
     } else if ((_i = this.result) == null ? void 0 : _i.success) {
-      new import_obsidian12.Notice(this.t("destInsertSuccess"));
+      new import_obsidian13.Notice(this.t("destInsertSuccess"));
       this.isDone = true;
       this.close();
       return;
     } else {
-      new import_obsidian12.Notice(`\u274C ${((_j = this.result) == null ? void 0 : _j.error) || "Insert failed"}`);
+      new import_obsidian13.Notice(`\u274C ${((_j = this.result) == null ? void 0 : _j.error) || "Insert failed"}`);
       this.isDone = true;
       this.close();
       return;
@@ -4687,7 +4759,7 @@ var IncomingFileModal = class extends FileMasterModal {
 };
 
 // src/plugin/server-client.js
-var import_obsidian13 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 function filterAllowedFiles(settings, fileList) {
   const out = [];
   for (let i = 0; i < fileList.length; i++) {
@@ -4722,7 +4794,6 @@ async function handleIncomingBrowserFile(plugin, file, editor) {
     defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
   }
   const askLocation = plugin.settings.saveLocationMode === "ask";
-  const promptRename = plugin.settings.namingMode === "prompt";
   const fileInfo = {
     arrayBuffer,
     defaultBaseName,
@@ -4734,7 +4805,6 @@ async function handleIncomingBrowserFile(plugin, file, editor) {
   const modalOptions = {
     askLocation,
     fixedLocation: plugin.settings.saveLocationMode,
-    promptRename,
     plugin,
     editor,
     activeFile
@@ -4746,7 +4816,7 @@ async function probeRemoteSha256(plugin, sha256) {
   try {
     const serverUrl = plugin.getCleanServerUrl();
     if (!serverUrl || !plugin.settings.apiToken || !sha256) return null;
-    const response = await (0, import_obsidian13.requestUrl)({
+    const response = await (0, import_obsidian14.requestUrl)({
       url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
       method: "GET",
       headers: {
@@ -4783,7 +4853,7 @@ async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "a
     "X-File-Name": encodeURIComponent(filename),
     "Content-Type": `multipart/form-data; boundary=${boundary}`
   };
-  const response = await requestWithBackoff(() => (0, import_obsidian13.requestUrl)({
+  const response = await requestWithBackoff(() => (0, import_obsidian14.requestUrl)({
     url,
     method: "POST",
     headers,
@@ -4801,7 +4871,7 @@ async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "a
 async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
   var _a;
   const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/lock`;
-  const response = await (0, import_obsidian13.requestUrl)({
+  const response = await (0, import_obsidian14.requestUrl)({
     url,
     method: "POST",
     headers: {
@@ -4841,7 +4911,7 @@ async function checkServerCompatibility(plugin) {
   }
   try {
     const verUrl = `${serverUrl}/api/platform/version`;
-    const verRes = await (0, import_obsidian13.requestUrl)({
+    const verRes = await (0, import_obsidian14.requestUrl)({
       url: verUrl,
       method: "GET",
       throw: false
@@ -4902,7 +4972,7 @@ async function checkServerCompatibility(plugin) {
     }
     let listRes;
     try {
-      listRes = await (0, import_obsidian13.requestUrl)({
+      listRes = await (0, import_obsidian14.requestUrl)({
         url: `${serverUrl}/api/modules/image-host/list`,
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
@@ -4973,7 +5043,7 @@ async function checkServerCompatibility(plugin) {
 async function fetchRemoteFileList(plugin) {
   var _a;
   const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list`;
-  const response = await (0, import_obsidian13.requestUrl)({
+  const response = await (0, import_obsidian14.requestUrl)({
     url,
     method: "GET",
     headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
@@ -4987,7 +5057,7 @@ async function fetchRemoteFileList(plugin) {
 async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
   var _a;
   const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
-  const response = await (0, import_obsidian13.requestUrl)({
+  const response = await (0, import_obsidian14.requestUrl)({
     url,
     method: "DELETE",
     headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...expectedSha256 ? { "If-Match": `"${expectedSha256}"` } : {} },
@@ -5000,19 +5070,19 @@ async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
 }
 async function fetchRemoteTrash(plugin) {
   var _a;
-  const response = await (0, import_obsidian13.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash`, method: "GET", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
+  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash`, method: "GET", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
   if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
   return response.json.items || [];
 }
 async function restoreRemoteTrash(plugin, id) {
   var _a;
-  const response = await (0, import_obsidian13.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
+  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
   if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
   return response.json;
 }
 async function permanentlyDeleteRemoteTrash(plugin, id) {
   var _a;
-  const response = await (0, import_obsidian13.requestUrl)({
+  const response = await (0, import_obsidian14.requestUrl)({
     url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}`,
     method: "DELETE",
     headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
@@ -5023,13 +5093,13 @@ async function permanentlyDeleteRemoteTrash(plugin, id) {
 }
 
 // src/plugin/remote-rename.js
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // src/ui/gallery-store.js
 var GalleryStore = class {
   constructor(plugin) {
     this.plugin = plugin;
-    this.state = { items: [], loading: false, error: null, loaded: false, searchQuery: "", selectedBucket: "all", selectedType: "all", selectedSort: "time_desc", layoutMode: "list", galleryPage: 0, galleryFilterKey: "", insertMode: plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload ? "webp" : "raw") };
+    this.state = { items: [], loading: false, error: null, loaded: false, searchQuery: "", selectedBuckets: [], selectedTypes: [], selectedSort: "time_desc", layoutMode: "list", galleryPage: 0, galleryFilterKey: "", insertMode: plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload ? "webp" : "raw") };
     this.listeners = /* @__PURE__ */ new Set();
     this.revision = 0;
     this.formatRevision = 0;
@@ -5149,7 +5219,7 @@ function createUrlRewriter(mappings, serverUrl = "", onMatch = null) {
 var renameCheckpointPath = (plugin) => getLogFilePath(plugin).replace(/operation\.log$/, "rename-pending.json");
 async function requestRemoteRename(plugin, payload, preview = false) {
   var _a, _b, _c, _d;
-  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/rename${preview ? "/preview" : ""}`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), throw: false });
+  const response = await (0, import_obsidian15.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/rename${preview ? "/preview" : ""}`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), throw: false });
   if (response.status < 200 || response.status >= 300) {
     const error = new Error(response.status === 404 && !((_a = response.json) == null ? void 0 : _a.error) ? plugin.t("renameServerUpgrade") : ((_b = response.json) == null ? void 0 : _b.error) || `HTTP ${response.status}`);
     error.status = response.status;
@@ -5377,7 +5447,7 @@ function fileReferenceButton(parent, item, plugin, paths = null, onJump = null, 
 }
 
 // src/modals/batch-migrate-wizard.js
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 var BatchMigrateWizardModal = class extends FileMasterModal {
   constructor(app, plugin, initialFolder = "") {
     super(app);
@@ -5453,7 +5523,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
     const nextBtn = btnRow.createEl("button", { text: t2("migrateNextPreview"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian15.Notice(t2("migrateSelectTypeNotice"));
+        new import_obsidian16.Notice(t2("migrateSelectTypeNotice"));
         return;
       }
       nextBtn.disabled = true;
@@ -5468,7 +5538,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian15.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian16.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("migrateNextPreview"));
       }
@@ -5549,7 +5619,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
     runBtn.onclick = async () => {
       const selected = this.items.filter((i) => i.selected);
       if (selected.length === 0) {
-        new import_obsidian15.Notice(t2("migrateSelectNotice"));
+        new import_obsidian16.Notice(t2("migrateSelectNotice"));
         return;
       }
       runBtn.disabled = true;
@@ -5576,7 +5646,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
           }
         );
       } catch (err) {
-        new import_obsidian15.Notice(err.message);
+        new import_obsidian16.Notice(err.message);
         runBtn.disabled = false;
         backBtn.disabled = false;
       } finally {
@@ -5618,11 +5688,11 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
             cls: "fm-icon-button",
             attr: { "aria-label": t2("copyRawUrl") || "Copy URL" }
           });
-          (0, import_obsidian15.setIcon)(copyBtn, "copy");
+          (0, import_obsidian16.setIcon)(copyBtn, "copy");
           copyBtn.onclick = async (e) => {
             e.stopPropagation();
             await navigator.clipboard.writeText(pItem.rawUrl);
-            new import_obsidian15.Notice(t2("noticeCopied"));
+            new import_obsidian16.Notice(t2("noticeCopied"));
           };
         }
       }
@@ -5672,7 +5742,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
           };
         }
       } catch (err) {
-        new import_obsidian15.Notice("\u274C " + err.message);
+        new import_obsidian16.Notice("\u274C " + err.message);
         exportBtn.disabled = false;
       }
     };
@@ -5697,7 +5767,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
 };
 
 // src/plugin/context-menus.js
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 function registerContextMenus(plugin) {
   plugin.registerEvent(
     plugin.app.workspace.on("file-menu", (menu, abstractFile) => {
@@ -5763,7 +5833,7 @@ function registerContextMenus(plugin) {
         menu.addItem((item) => {
           item.setTitle(plugin.t("menuCopyRaw", { name: remoteMatch.filename })).setIcon("copy").onClick(async () => {
             await navigator.clipboard.writeText(remoteMatch.matchedUrl);
-            new import_obsidian16.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
+            new import_obsidian17.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
           });
         });
         menu.addItem((item) => {
@@ -5771,7 +5841,7 @@ function registerContextMenus(plugin) {
             const base = getBaseName(remoteMatch.filename);
             const optUrl = `${plugin.getCleanServerUrl()}/pub/${remoteMatch.year}/${remoteMatch.month}/${encodeURIComponent(base)}.webp`;
             await navigator.clipboard.writeText(optUrl);
-            new import_obsidian16.Notice(plugin.t("noticeCopiedWebp", { name: base + ".webp" }));
+            new import_obsidian17.Notice(plugin.t("noticeCopiedWebp", { name: base + ".webp" }));
           });
         });
         menu.addItem((item) => {
@@ -5788,9 +5858,9 @@ function registerContextMenus(plugin) {
                 remoteMatch.filename,
                 true
               );
-              new import_obsidian16.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
+              new import_obsidian17.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
             } catch (err) {
-              new import_obsidian16.Notice(plugin.t("noticeLockFailed", { err: err.message }));
+              new import_obsidian17.Notice(plugin.t("noticeLockFailed", { err: err.message }));
             }
           });
         });
@@ -5908,7 +5978,7 @@ async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
 }
 
 // src/modals/duplicate-wizard.js
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var DuplicateWizardModal = class extends FileMasterModal {
   constructor(app, plugin) {
     var _a;
@@ -5982,7 +6052,7 @@ var DuplicateWizardModal = class extends FileMasterModal {
     const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.fileTypes.typeImage && !this.fileTypes.typeAudio && !this.fileTypes.typeOther && !this.fileTypes.typeNote) {
-        new import_obsidian17.Notice(this.plugin.t("dupSelectTypeRequired"));
+        new import_obsidian18.Notice(this.plugin.t("dupSelectTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
@@ -6000,7 +6070,7 @@ var DuplicateWizardModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian17.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
+        new import_obsidian18.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("btnNext"));
       }
@@ -6158,7 +6228,7 @@ var DuplicateWizardModal = class extends FileMasterModal {
 };
 
 // src/plugin/health-analytics.js
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
   const { signal, onProgress } = scanCtx || {};
   const allFiles = plugin.app.vault.getFiles();
@@ -6246,7 +6316,7 @@ async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
       await Promise.all(
         batch.map(async (url) => {
           try {
-            const res = await (0, import_obsidian18.requestUrl)({ url, method: "HEAD", throw: false });
+            const res = await (0, import_obsidian19.requestUrl)({ url, method: "HEAD", throw: false });
             if (res.status >= 400) {
               failedUrlMap.set(url, `HTTP ${res.status}`);
             }
@@ -6360,7 +6430,7 @@ async function exportHealthReportToRoot(plugin, issues, totalDocsScanned) {
     lines.push(labels.none);
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian18.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian19.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
 }
 async function scanVaultAnalytics(plugin) {
   const allFiles = plugin.app.vault.getFiles();
@@ -6584,11 +6654,11 @@ async function exportAnalyticsReportToRoot(plugin, stats) {
     lines.push(``);
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian18.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian19.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
 }
 
 // src/modals/health-check.js
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 var HealthCheckModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -6651,7 +6721,7 @@ var HealthCheckModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian19.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
+        new import_obsidian20.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
         startBtn.disabled = false;
         startBtn.setText(t2("healthStartScan"));
       }
@@ -6747,7 +6817,7 @@ var HealthCheckModal = class extends FileMasterModal {
 };
 
 // src/modals/operation-log.js
-var import_obsidian20 = require("obsidian");
+var import_obsidian21 = require("obsidian");
 var OperationLogModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -6817,7 +6887,7 @@ var OperationLogModal = class extends FileMasterModal {
     copyBtn.onclick = async () => {
       const text = (this.plugin == null ? void 0 : formatLogsForExport(this.plugin)) || "";
       await navigator.clipboard.writeText(text);
-      new import_obsidian20.Notice(this.t("opLogCopiedNotice"));
+      new import_obsidian21.Notice(this.t("opLogCopiedNotice"));
     };
     const exportBtn = leftBtns.createEl("button", { text: this.t("opLogExportFile") });
     exportBtn.onclick = () => {
@@ -6839,7 +6909,7 @@ var OperationLogModal = class extends FileMasterModal {
       if (this.plugin) {
         await clearOperationLogs(this.plugin);
       }
-      new import_obsidian20.Notice(this.t("opLogClearedNotice"));
+      new import_obsidian21.Notice(this.t("opLogClearedNotice"));
       this.render();
     };
     const closeBtn = btnRow.createEl("button", { text: this.t("closeBtn") });
@@ -6903,7 +6973,7 @@ var OperationLogModal = class extends FileMasterModal {
 };
 
 // src/modals/orphan-wizard.js
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 var OrphanWizardModal = class extends FileMasterModal {
   constructor(app, plugin) {
     var _a;
@@ -6961,11 +7031,11 @@ var OrphanWizardModal = class extends FileMasterModal {
     const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.scanLocal && !this.options.scanRemote) {
-        new import_obsidian21.Notice(t2("orphanLocRequired"));
+        new import_obsidian22.Notice(t2("orphanLocRequired"));
         return;
       }
       if (!this.options.typeNote && !this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian21.Notice(t2("orphanTypeRequired"));
+        new import_obsidian22.Notice(t2("orphanTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
@@ -6980,7 +7050,7 @@ var OrphanWizardModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian21.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian22.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("btnNext"));
       }
@@ -7053,11 +7123,11 @@ var OrphanWizardModal = class extends FileMasterModal {
         lockBtn.onclick = async () => {
           try {
             await this.plugin.toggleRemoteFileLock(item.rawObj.year, item.rawObj.month, item.rawObj.filename, true);
-            new import_obsidian21.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
+            new import_obsidian22.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
             this.results = this.results.filter((result) => result.id !== item.id);
             this.render();
           } catch (error) {
-            new import_obsidian21.Notice(this.plugin.t("noticeLockFailed", { err: error.message }));
+            new import_obsidian22.Notice(this.plugin.t("noticeLockFailed", { err: error.message }));
           }
         };
       }
@@ -7072,7 +7142,7 @@ var OrphanWizardModal = class extends FileMasterModal {
     cleanBtn.onclick = async () => {
       const selected = this.results.filter((r) => r.selected);
       if (selected.length === 0) {
-        new import_obsidian21.Notice(this.plugin.t("orphanSelectRequired"));
+        new import_obsidian22.Notice(this.plugin.t("orphanSelectRequired"));
         return;
       }
       await cleanSelectedOrphans(this.plugin, selected, (summary) => {
@@ -7090,12 +7160,13 @@ var OrphanWizardModal = class extends FileMasterModal {
 };
 
 // src/gallery.js
-var import_obsidian22 = require("obsidian");
+var import_obsidian23 = require("obsidian");
 var REMOTE_GALLERY_PAGE_SIZE = 60;
 function filterRemoteGallery(view) {
   const filtered = view.items.filter((item) => {
-    if (view.selectedBucket !== "all" && `${item.year}/${item.month}` !== view.selectedBucket) return false;
-    if (view.selectedType !== "all" && getFileTypeGroup(getExt(item.name || item.filename)) !== view.selectedType) return false;
+    var _a, _b;
+    if (((_a = view.selectedBuckets) == null ? void 0 : _a.length) && !view.selectedBuckets.includes(`${item.year}/${item.month}`)) return false;
+    if (((_b = view.selectedTypes) == null ? void 0 : _b.length) && !view.selectedTypes.includes(getFileTypeGroup(getExt(item.name || item.filename)))) return false;
     return !view.searchQuery || (item.name || item.filename || "").toLowerCase().includes(view.searchQuery);
   });
   const sort = view.selectedSort || "time_desc";
@@ -7112,8 +7183,9 @@ function filterRemoteGallery(view) {
       const nb = b.name || b.filename || "";
       return nb.localeCompare(na, void 0, { numeric: true, sensitivity: "base" });
     }
-    if (sort === "hits_desc") {
-      return (b.hits || 0) - (a.hits || 0) || (b.createdAt || 0) - (a.createdAt || 0);
+    if (sort === "hits_desc" || sort === "hits_asc") {
+      const difference = (a.hits || 0) - (b.hits || 0);
+      return (sort === "hits_asc" ? difference : -difference) || (b.createdAt || 0) - (a.createdAt || 0);
     }
     if (sort === "time_asc") return (a.createdAt || 0) - (b.createdAt || 0);
     return (b.createdAt || 0) - (a.createdAt || 0);
@@ -7121,7 +7193,7 @@ function filterRemoteGallery(view) {
   return filtered;
 }
 function getRemoteGalleryPage(view, filtered) {
-  const key = `${view.selectedBucket}:${view.selectedType}:${view.selectedSort || "time_desc"}:${view.searchQuery}`;
+  const key = JSON.stringify([view.selectedBuckets || [], view.selectedTypes || [], view.selectedSort || "time_desc", view.searchQuery]);
   if (key !== view.galleryFilterKey) {
     view.galleryPage = 0;
     view.galleryFilterKey = key;
@@ -7134,7 +7206,7 @@ function getRemoteGalleryPage(view, filtered) {
     items: filtered.slice(view.galleryPage * REMOTE_GALLERY_PAGE_SIZE, (view.galleryPage + 1) * REMOTE_GALLERY_PAGE_SIZE)
   };
 }
-function renderRemoteGallery(view, containerEl, countLabel) {
+function renderRemoteGallery(view, containerEl) {
   containerEl.empty();
   if (view.layoutMode === "list") {
     containerEl.addClass("is-list");
@@ -7142,12 +7214,6 @@ function renderRemoteGallery(view, containerEl, countLabel) {
     containerEl.removeClass("is-list");
   }
   const filtered = view.filterItems();
-  const totalBytes = filtered.reduce((s, i) => s + (i.size || 0), 0);
-  if (countLabel) {
-    countLabel.empty();
-    countLabel.createSpan({ cls: "fm-gallery-stats-count", text: view.t("galleryFileCount", { count: filtered.length }) });
-    countLabel.createSpan({ cls: "fm-gallery-stats-size", text: view.t("galleryTotalSize", { size: formatBytes(totalBytes) }) });
-  }
   if (filtered.length === 0) {
     containerEl.createDiv({
       cls: "fm-section-box",
@@ -7192,20 +7258,19 @@ function renderRemoteGallery(view, containerEl, countLabel) {
       });
       img.onerror = () => {
         img.style.display = "none";
-        (0, import_obsidian22.setIcon)(thumbWrap.createSpan(), "image-off");
+        thumbWrap.addClass("fm-gallery-placeholder");
+        (0, import_obsidian23.setIcon)(thumbWrap.createSpan(), "image-off");
       };
     } else {
-      thumbWrap.createDiv({
-        text: ext.toUpperCase(),
-        attr: { style: "font-size: 14px; font-weight: 700; color: var(--text-muted);" }
-      });
+      thumbWrap.addClass("fm-gallery-placeholder");
+      thumbWrap.createSpan({ text: ext.toUpperCase() });
     }
     if (item.locked) {
       const lockBadge = thumbWrap.createSpan({
         cls: "fm-gallery-lock-badge",
         attr: { "aria-label": view.t("previewProtected") }
       });
-      (0, import_obsidian22.setIcon)(lockBadge, "lock");
+      (0, import_obsidian23.setIcon)(lockBadge, "lock");
     }
     const openPreview = () => {
       openModal(new ImageLightboxModal(view.app, view.plugin, {
@@ -7220,7 +7285,7 @@ function renderRemoteGallery(view, containerEl, countLabel) {
           view.items = view.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
         }
         (_a = view.store) == null ? void 0 : _a.emit();
-      }, { insertMode: view.insertMode, insertionTarget: view.insertionTarget })).catch((error) => new import_obsidian22.Notice(error.message));
+      }, { insertMode: view.insertMode, insertionTarget: view.insertionTarget })).catch((error) => new import_obsidian23.Notice(error.message));
     };
     thumbWrap.onclick = openPreview;
     thumbWrap.setAttribute("role", "button");
@@ -7248,7 +7313,7 @@ function renderRemoteGallery(view, containerEl, countLabel) {
       cls: "fm-icon-button fm-gallery-insert-btn",
       attr: { type: "button", "data-insert-action": "true" }
     });
-    (0, import_obsidian22.setIcon)(insertBtn.createSpan(), "file-input");
+    (0, import_obsidian23.setIcon)(insertBtn.createSpan(), "file-input");
     insertBtn.setAttribute("aria-label", view.t(isWebpMode ? "galleryInsertWebp" : "galleryInsertRaw"));
     insertBtn.disabled = !isInsertionTargetValid(view.plugin, view.insertionTarget);
     insertBtn.onmousedown = (e) => {
@@ -7260,7 +7325,7 @@ function renderRemoteGallery(view, containerEl, countLabel) {
       if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, view.insertionTarget);
     };
     const copyBtn = actions.createEl("button", { cls: "fm-icon-button", attr: { type: "button", "aria-label": view.t("previewCopyUrl") } });
-    (0, import_obsidian22.setIcon)(copyBtn, "copy");
+    (0, import_obsidian23.setIcon)(copyBtn, "copy");
     copyBtn.onclick = () => copyText(view.plugin, insertTargetUrl);
   }
   if (page.totalPages > 1) {
@@ -7269,20 +7334,20 @@ function renderRemoteGallery(view, containerEl, countLabel) {
     previous.disabled = page.current === 0;
     previous.onclick = () => {
       view.galleryPage--;
-      view.store ? view.store.emit() : view.renderGrid(containerEl, countLabel);
+      view.store ? view.store.emit() : view.renderGrid(containerEl);
     };
     pager.createSpan({ text: view.t("pageCount", { current: page.current + 1, total: page.totalPages }) });
     const next = pager.createEl("button", { text: view.t("pageNext") });
     next.disabled = page.current + 1 === page.totalPages;
     next.onclick = () => {
       view.galleryPage++;
-      view.store ? view.store.emit() : view.renderGrid(containerEl, countLabel);
+      view.store ? view.store.emit() : view.renderGrid(containerEl);
     };
   }
 }
 
 // src/modals/remote-gallery.js
-var import_obsidian23 = require("obsidian");
+var import_obsidian24 = require("obsidian");
 function openBrowser(host) {
   host.contentEl.empty();
   host.contentEl.addClass("fm-ui", "fm-browser");
@@ -7299,7 +7364,8 @@ function openBrowser(host) {
   host.contentEl.addEventListener("pointerdown", updateTarget, { capture: true, signal: host.browserEvents.signal });
   host.workspaceEvents = ["active-leaf-change", "file-open"].map((event) => host.app.workspace.on(event, updateTarget));
   if (host instanceof FileMasterModal) moduleHeading(host, host.contentEl, { title: "actRemoteGalleryTitle", symbol: "images" });
-  const toolbar = host.toolbar = galleryToolbar(host, host.contentEl), status = host.contentEl.createDiv({ cls: "fm-browser-status", attr: { "aria-live": "polite" } }), grid = host.contentEl.createDiv({ cls: "fm-gallery-grid" });
+  const toolbar = host.toolbar = galleryToolbar(host, host.contentEl), status = host.contentEl.createDiv({ cls: "fm-browser-status", attr: { "aria-live": "polite" } });
+  const results = host.contentEl.createDiv({ cls: "fm-browser-results" }), grid = results.createDiv({ cls: "fm-gallery-grid" });
   host.render = () => {
     const state = host.store.state;
     toolbar.sync();
@@ -7312,8 +7378,7 @@ function openBrowser(host) {
     }
     if (!state.loaded && !state.items.length) {
       grid.empty();
-      toolbar.count.empty();
-    } else host.renderGrid(grid, toolbar.count);
+    } else host.renderGrid(grid);
   };
   if (host.fromHub) {
     const footer = host.contentEl.createDiv({ cls: "fm-btn-row" });
@@ -7334,7 +7399,7 @@ function closeBrowser(host) {
   host.contentEl.empty();
 }
 function bindState(host) {
-  for (const key of ["items", "searchQuery", "selectedBucket", "selectedType", "selectedSort", "layoutMode", "insertMode", "galleryPage", "galleryFilterKey"]) Object.defineProperty(host, key, { get: () => host.store.state[key], set: (value) => {
+  for (const key of ["items", "searchQuery", "selectedBuckets", "selectedTypes", "selectedSort", "layoutMode", "insertMode", "galleryPage", "galleryFilterKey"]) Object.defineProperty(host, key, { get: () => host.store.state[key], set: (value) => {
     host.store.state[key] = value;
   }, configurable: true });
 }
@@ -7363,14 +7428,14 @@ var RemoteGalleryModal = class extends FileMasterModal {
   filterItems() {
     return filterRemoteGallery(this);
   }
-  renderGrid(container, count) {
-    renderRemoteGallery(this, container, count);
+  renderGrid(container) {
+    renderRemoteGallery(this, container);
   }
   onClose() {
     closeBrowser(this);
   }
 };
-var RemoteGalleryView = class extends import_obsidian23.ItemView {
+var RemoteGalleryView = class extends import_obsidian24.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -7403,8 +7468,8 @@ var RemoteGalleryView = class extends import_obsidian23.ItemView {
   filterItems() {
     return filterRemoteGallery(this);
   }
-  renderGrid(container, count) {
-    renderRemoteGallery(this, container, count);
+  renderGrid(container) {
+    renderRemoteGallery(this, container);
   }
   onClose() {
     closeBrowser(this);
@@ -7412,7 +7477,7 @@ var RemoteGalleryView = class extends import_obsidian23.ItemView {
 };
 
 // src/modals/vault-analytics.js
-var import_obsidian24 = require("obsidian");
+var import_obsidian25 = require("obsidian");
 var VaultAnalyticsModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -7593,13 +7658,13 @@ var VaultAnalyticsModal = class extends FileMasterModal {
           const references = fileReferenceButton(actions, item, this.plugin, item.referenceDocuments, () => this.close());
           if (!item.referenceDocuments) references.update(null, true);
           const copy = actions.createEl("button", { cls: "fm-icon-button", attr: { type: "button", "aria-label": t2("analyticsClickToCopy") } });
-          (0, import_obsidian24.setIcon)(copy, "copy");
+          (0, import_obsidian25.setIcon)(copy, "copy");
           copy.onclick = async () => {
             try {
               await navigator.clipboard.writeText(item.name);
-              new import_obsidian24.Notice(t2("analyticsCopiedName", { name: item.name }));
+              new import_obsidian25.Notice(t2("analyticsCopiedName", { name: item.name }));
             } catch (e) {
-              new import_obsidian24.Notice(item.name);
+              new import_obsidian25.Notice(item.name);
             }
           };
         }
@@ -7650,8 +7715,8 @@ var VaultAnalyticsModal = class extends FileMasterModal {
 };
 
 // src/settings-tab.js
-var import_obsidian25 = require("obsidian");
-var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
+var import_obsidian26 = require("obsidian");
+var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -7691,7 +7756,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
       cls: "clickable-icon fm-settings-back",
       attr: { "aria-label": this.plugin.t("settingsBack") }
     });
-    (0, import_obsidian25.setIcon)(back, "arrow-left");
+    (0, import_obsidian26.setIcon)(back, "arrow-left");
     back.onclick = () => {
       this.activePage = "home";
       this.display();
@@ -7714,16 +7779,16 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
       this.createHeading(section, "h3", icon, this.plugin.t(title));
       const list = section.createDiv({ cls: "fm-settings-nav-list" });
       for (const [page, label, icon2] of entries) {
-        const setting = new import_obsidian25.Setting(list).setName(this.plugin.t(label));
+        const setting = new import_obsidian26.Setting(list).setName(this.plugin.t(label));
         const row = setting.settingEl;
         row.addClass("fm-settings-nav-item");
         (_a = setting.descEl) == null ? void 0 : _a.remove();
         row.setAttribute("role", "button");
         row.setAttribute("tabindex", "0");
         const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
-        (0, import_obsidian25.setIcon)(iconEl, icon2);
+        (0, import_obsidian26.setIcon)(iconEl, icon2);
         setting.nameEl.prepend(iconEl);
-        (0, import_obsidian25.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        (0, import_obsidian26.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
         const open = () => {
           if (page === "hub") {
             openModalSafely(new FileMasterHubModal(this.app, this.plugin));
@@ -7763,7 +7828,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     ]);
   }
   renderGeneralSettings(containerEl) {
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
       (drop) => drop.addOption("auto", this.plugin.t("langAuto")).addOption("zh", "\u7B80\u4F53\u4E2D\u6587").addOption("en", "English").setValue(this.plugin.settings.language || "auto").onChange(async (value) => {
         this.plugin.settings.language = value;
         await this.plugin.saveSettings();
@@ -7771,7 +7836,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
         this.display();
       })
     );
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
         this.plugin.settings.enableSidebarButton = value;
         await this.plugin.saveSettings();
@@ -7780,7 +7845,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     );
   }
   renderServerSettings(containerEl) {
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
       (toggle) => toggle.setValue(Boolean(this.plugin.settings.enableRemoteServer)).onChange(async (value) => {
         this.plugin.settings.enableRemoteServer = value;
         if (!value) {
@@ -7796,7 +7861,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
       hint.setText(this.plugin.t("serverDisabledHint"));
       return;
     }
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
       (text) => text.setPlaceholder("https://files.example.com").setValue(this.plugin.settings.serverUrl).onChange(async (value) => {
         this.plugin.settings.serverUrl = value.trim();
         this.plugin.settings.serverVerified = false;
@@ -7812,7 +7877,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
       statusBox.textContent = getCompatibilityMessage(this.plugin, compat);
     };
     let tokenInput;
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
       tokenInput = text.inputEl;
       tokenInput.type = "password";
       text.setPlaceholder("API token").setValue(this.plugin.settings.apiToken).onChange(async (value) => {
@@ -7831,7 +7896,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     const connectionRow = containerEl.createDiv({ cls: "fm-settings-connection-row" });
     statusBox = connectionRow.createDiv({ cls: "fm-server-compat-banner" });
     updateStatusBox(this.plugin.lastServerCompatStatus);
-    new import_obsidian25.Setting(connectionRow).addButton(
+    new import_obsidian26.Setting(connectionRow).addButton(
       (btn) => btn.setButtonText(this.plugin.t("btnTestConn")).onClick(async () => {
         btn.disabled = true;
         btn.setButtonText(this.plugin.t("compatStatusChecking"));
@@ -7841,7 +7906,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
         try {
           compat = await checkServerCompatibility(this.plugin);
           updateStatusBox(compat);
-          new import_obsidian25.Notice(getCompatibilityMessage(this.plugin, compat));
+          new import_obsidian26.Notice(getCompatibilityMessage(this.plugin, compat));
         } finally {
           btn.disabled = false;
           btn.setButtonText(this.plugin.t("btnTestConn"));
@@ -7851,33 +7916,44 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     );
   }
   renderUploadSettings(containerEl) {
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
         this.plugin.settings.enableClipboardMonitor = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
       (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
         this.plugin.settings.saveLocationMode = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
       (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
         this.plugin.settings.defaultSaveLocation = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
         this.plugin.settings.insertOptimizedLinkOnUpload = value;
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("galleryDefaultLinkName")).setDesc(this.plugin.t("galleryDefaultLinkDesc")).addDropdown((drop) => {
+      const store = galleryStore(this.plugin);
+      drop.addOption("raw", this.plugin.t("galleryModeRaw")).addOption("webp", this.plugin.t("galleryModeWebp")).setValue(store.state.insertMode).onChange(async (value) => {
+        try {
+          await store.setInsertMode(value);
+        } catch (error) {
+          drop.setValue(store.state.insertMode);
+          new import_obsidian26.Notice(error.message);
+        }
+      });
+    });
     let patternSetting = null;
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
-      (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).addOption("prompt", this.plugin.t("optNamingPrompt")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
+      (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
         this.plugin.settings.namingMode = value;
         await this.plugin.saveSettings();
         if (patternSetting && patternSetting.settingEl) {
@@ -7885,7 +7961,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
         }
       })
     );
-    patternSetting = new import_obsidian25.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
+    patternSetting = new import_obsidian26.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
       (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
         this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
         await this.plugin.saveSettings();
@@ -7894,7 +7970,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
     }
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
         this.plugin.settings.uploadNonImageAttachments = value;
         await this.plugin.saveSettings();
@@ -7902,13 +7978,13 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     );
   }
   renderExemptionsSettings(containerEl) {
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
       (text) => text.setPlaceholder("").setValue(this.plugin.settings.excludedLocalFolders).onChange(async (value) => {
         this.plugin.settings.excludedLocalFolders = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
         this.plugin.settings.excludeLockedRemoteFiles = value;
         await this.plugin.saveSettings();
@@ -7921,9 +7997,9 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
     const author = manifest.author || "weichen-ink";
     const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
     const repoUrl = "https://github.com/weichen-ink/file-master";
-    const intro = new import_obsidian25.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
+    const intro = new import_obsidian26.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
     intro.controlEl.createSpan({ text: `v${version}` });
-    const addRow = (label) => new import_obsidian25.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
+    const addRow = (label) => new import_obsidian26.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
     addRow("aboutAuthor").createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutRepo").createEl("a", { text: "weichen-ink/file-master", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutServerCompat").createSpan({ text: `v${MIN_SERVER_VERSION}+` });
@@ -7932,7 +8008,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
       cls: `fm-about-status ${(sCompat == null ? void 0 : sCompat.ok) ? "is-connected" : ""}`,
       text: sCompat ? getCompatibilityMessage(this.plugin, sCompat) : this.plugin.t("aboutServerOffline")
     });
-    new import_obsidian25.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
+    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
       (btn) => btn.setButtonText(this.plugin.t("opLogBtnOpen")).onClick(() => {
         openModalSafely(new OperationLogModal(this.app, this.plugin));
       })
@@ -7942,7 +8018,7 @@ var FileMasterSettingTab = class extends import_obsidian25.PluginSettingTab {
 };
 
 // src/plugin/lifecycle.js
-var import_obsidian26 = require("obsidian");
+var import_obsidian27 = require("obsidian");
 async function onload(plugin) {
   var _a;
   await plugin.loadSettings();
@@ -7966,25 +8042,25 @@ async function onload(plugin) {
   );
   plugin.registerEvent(
     plugin.app.workspace.on("active-leaf-change", (leaf) => {
-      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian26.MarkdownView) {
+      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian27.MarkdownView) {
         plugin.lastActiveMarkdownView = leaf.view;
       }
     })
   );
   plugin.registerEvent(
     plugin.app.workspace.on("file-open", () => {
-      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian26.MarkdownView);
+      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian27.MarkdownView);
       if (mdView) {
         plugin.lastActiveMarkdownView = mdView;
       }
     })
   );
   plugin.app.workspace.onLayoutReady(() => {
-    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian26.MarkdownView);
+    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian27.MarkdownView);
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
-    if (!import_obsidian26.Platform.isMobile) initGalleryLeaf(plugin, false).catch((error) => new import_obsidian26.Notice(error.message));
+    if (!import_obsidian27.Platform.isMobile) initGalleryLeaf(plugin, false).catch((error) => new import_obsidian27.Notice(error.message));
   });
   setTimeout(() => {
     checkServerCompatibility(plugin).catch(() => {
@@ -8030,7 +8106,7 @@ function registerPluginCommands(plugin) {
       id: "resume-pending-upload",
       nameKey: "cmdResumeUpload",
       requiresRemote: true,
-      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian26.Notice(err.message))
+      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian27.Notice(err.message))
     },
     {
       id: "open-control-center",
@@ -8190,18 +8266,18 @@ async function initGalleryLeaf(plugin, reveal = false) {
 }
 async function activateGalleryView(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new import_obsidian26.Notice(plugin.t("remoteServerRequiredNotice"));
+    new import_obsidian27.Notice(plugin.t("remoteServerRequiredNotice"));
     return;
   }
-  if (import_obsidian26.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
+  if (import_obsidian27.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
   return initGalleryLeaf(plugin, true);
 }
 function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = void 0) {
   if (target !== void 0 && !isInsertionTargetValid(plugin, target)) {
-    new import_obsidian26.Notice(plugin.t("galleryOpenNoteFirst"));
+    new import_obsidian27.Notice(plugin.t("galleryOpenNoteFirst"));
     return false;
   }
-  let mdView = (target == null ? void 0 : target.view) || plugin.app.workspace.getActiveViewOfType(import_obsidian26.MarkdownView);
+  let mdView = (target == null ? void 0 : target.view) || plugin.app.workspace.getActiveViewOfType(import_obsidian27.MarkdownView);
   if (!mdView && plugin.lastActiveMarkdownView) {
     const leaves = plugin.app.workspace.getLeavesOfType("markdown");
     if (leaves.some((l) => l.view === plugin.lastActiveMarkdownView)) {
@@ -8220,13 +8296,13 @@ function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target =
   }
   const activeFile = (mdView == null ? void 0 : mdView.file) || plugin.app.workspace.getActiveFile();
   if (!activeFile || activeFile.extension !== "md") {
-    new import_obsidian26.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
+    new import_obsidian27.Notice(plugin.t("galleryOpenNoteFirst") || "Please open a Markdown note first");
     return false;
   }
   if (mdView == null ? void 0 : mdView.editor) {
     const editor = mdView.editor;
     if ((target == null ? void 0 : target.content) !== void 0 && target.content !== editor.getValue()) {
-      new import_obsidian26.Notice(plugin.t("galleryTargetChanged"));
+      new import_obsidian27.Notice(plugin.t("galleryTargetChanged"));
       return false;
     }
     if ((target == null ? void 0 : target.from) && (target == null ? void 0 : target.to)) {
@@ -8239,18 +8315,18 @@ function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target =
       plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
     }
     editor.focus();
-    if (successNotice) new import_obsidian26.Notice(successNotice);
+    if (successNotice) new import_obsidian27.Notice(successNotice);
     return true;
   } else {
     safeModifyFileContent(plugin, activeFile, (content) => content + "\n" + mdSnippet).then(() => {
-      if (successNotice) new import_obsidian26.Notice(successNotice);
+      if (successNotice) new import_obsidian27.Notice(successNotice);
     });
     return true;
   }
 }
 
 // src/modals/remote-rename.js
-var import_obsidian27 = require("obsidian");
+var import_obsidian28 = require("obsidian");
 var RemoteRenameModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -8491,7 +8567,7 @@ var RemoteRenameModal = class extends FileMasterModal {
   }
   aliasNotice(data) {
     const notice = this.body.createDiv({ cls: "fm-rename-expiry" });
-    (0, import_obsidian27.setIcon)(notice.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), "info");
+    (0, import_obsidian28.setIcon)(notice.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), "info");
     const expiresAt = Number(data == null ? void 0 : data.aliasExpiresAt);
     const days = Math.max(0, Math.ceil((expiresAt - Date.now()) / 864e5));
     notice.createSpan({ text: this.t(!expiresAt ? "renameAliasFallback" : days ? "renameAliasExpiry" : "renameAliasExpired", {
@@ -8523,14 +8599,14 @@ var RemoteRenameModal = class extends FileMasterModal {
         if (!this.closed) status.setText(this.t("renameProgress", { current: progress.completed, total: progress.total }));
       }, pending);
       if (this.closed) {
-        new import_obsidian27.Notice(this.t(report.complete ? "renameComplete" : "renameIncomplete"));
+        new import_obsidian28.Notice(this.t(report.complete ? "renameComplete" : "renameIncomplete"));
         return;
       }
       this.result(report);
     } catch (error) {
       this.pending = await loadPendingRename(this.plugin).catch(() => pending);
       if (this.closed) {
-        new import_obsidian27.Notice(error.message);
+        new import_obsidian28.Notice(error.message);
         return;
       }
       if (this.pending) this.recovery(error);
@@ -8546,7 +8622,7 @@ var RemoteRenameModal = class extends FileMasterModal {
     this.cancel.setText(this.t("destBtnDone"));
     this.cancel.addClass("mod-cta");
     const status = this.body.createDiv({ cls: `fm-rename-status${report.complete ? "" : " is-incomplete"}`, attr: { role: "status" } });
-    (0, import_obsidian27.setIcon)(status.createSpan({ cls: "fm-rename-status-icon", attr: { "aria-hidden": "true" } }), report.complete ? "check" : "circle-alert");
+    (0, import_obsidian28.setIcon)(status.createSpan({ cls: "fm-rename-status-icon", attr: { "aria-hidden": "true" } }), report.complete ? "check" : "circle-alert");
     const summary = status.createDiv();
     summary.createDiv({ text: this.t(report.complete ? "renameComplete" : "renameIncomplete"), cls: "fm-rename-status-title" });
     summary.createDiv({ text: report.updatedDocuments ? this.t("renameUpdated", { documents: report.updatedDocuments, references: report.updatedReferences }) : this.t(report.complete ? "renameNoReferences" : "renameNotesPending"), cls: "fm-rename-status-desc" });
@@ -8572,7 +8648,7 @@ var RemoteRenameModal = class extends FileMasterModal {
 };
 
 // src/modals/remote-trash.js
-var import_obsidian28 = require("obsidian");
+var import_obsidian29 = require("obsidian");
 var RemoteTrashModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -8622,7 +8698,7 @@ var RemoteTrashModal = class extends FileMasterModal {
   }
   renderFile(list, item) {
     const row = list.createDiv({ cls: "fm-trash-row" });
-    (0, import_obsidian28.setIcon)(row.createSpan({ cls: "fm-trash-icon" }), "file");
+    (0, import_obsidian29.setIcon)(row.createSpan({ cls: "fm-trash-icon" }), "file");
     const info = row.createDiv({ cls: "fm-trash-file" });
     info.createDiv({ text: item.filename, cls: "fm-trash-name" });
     info.createDiv({ text: `${formatBytes(item.size)} \xB7 ${new Date(item.deletedAt).toLocaleString()}`, cls: "fm-gallery-meta" });
@@ -8637,7 +8713,7 @@ var RemoteTrashModal = class extends FileMasterModal {
     };
     const failure = (error) => {
       if (!this.closed) {
-        new import_obsidian28.Notice(error.message || this.t("remoteTrashFailed"));
+        new import_obsidian29.Notice(error.message || this.t("remoteTrashFailed"));
         setBusy(false);
       }
     };
@@ -8648,7 +8724,7 @@ var RemoteTrashModal = class extends FileMasterModal {
         await this.plugin.restoreRemoteTrash(item.id);
         galleryStore(this.plugin).load(true);
         if (!this.closed) {
-          new import_obsidian28.Notice(this.t("remoteTrashRestored"));
+          new import_obsidian29.Notice(this.t("remoteTrashRestored"));
           await this.load();
         }
       } catch (error) {
@@ -8671,7 +8747,7 @@ var RemoteTrashModal = class extends FileMasterModal {
           try {
             await this.plugin.permanentlyDeleteRemoteTrash(item.id);
             if (!this.closed) {
-              new import_obsidian28.Notice(this.t("remoteTrashDeleted"));
+              new import_obsidian29.Notice(this.t("remoteTrashDeleted"));
               await this.load();
             }
           } catch (error) {
@@ -8695,7 +8771,7 @@ var RemoteTrashModal = class extends FileMasterModal {
 };
 
 // src/modals/active-note.js
-var import_obsidian29 = require("obsidian");
+var import_obsidian30 = require("obsidian");
 var ActiveNoteActionModal = class extends FileMasterModal {
   constructor(app, plugin, targetFile, actionType = "migrate", options = {}) {
     var _a;
@@ -8790,7 +8866,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
         const lock = actions.createEl("button", { cls: "fm-file-protect", attr: { type: "button" } });
         const render = () => {
           lock.empty();
-          (0, import_obsidian29.setIcon)(lock.createSpan({ cls: "fm-indicator-icon" }), item.locked ? "lock" : "lock-open");
+          (0, import_obsidian30.setIcon)(lock.createSpan({ cls: "fm-indicator-icon" }), item.locked ? "lock" : "lock-open");
           lock.createSpan({ text: this.t(item.locked ? "activeNoteBtnLockOn" : "activeNoteBtnLockOff") });
           lock.setAttribute("aria-pressed", String(!!item.locked));
         };
@@ -8919,7 +8995,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
       runBtn.onclick = async () => {
         const selected = this.items.filter((i) => i.selected);
         if (selected.length === 0) {
-          new import_obsidian29.Notice(this.t("activeNoteSelectRequired"));
+          new import_obsidian30.Notice(this.t("activeNoteSelectRequired"));
           return;
         }
         this.step = "running";
@@ -9003,7 +9079,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
       runBtn.onclick = async () => {
         const selected = this.items.filter((i) => i.selected);
         if (selected.length === 0) {
-          new import_obsidian29.Notice(this.t("activeNoteSelectRequired"));
+          new import_obsidian30.Notice(this.t("activeNoteSelectRequired"));
           return;
         }
         this.step = "running";
@@ -9175,7 +9251,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
               };
             }
           } catch (err) {
-            new import_obsidian29.Notice("\u274C " + err.message);
+            new import_obsidian30.Notice("\u274C " + err.message);
             exportBtn.disabled = false;
           }
         };
@@ -9269,7 +9345,7 @@ var ActiveNoteActionModal = class extends FileMasterModal {
 };
 
 // src/modals/hub.js
-var import_obsidian30 = require("obsidian");
+var import_obsidian31 = require("obsidian");
 var FileMasterHubModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -9283,7 +9359,7 @@ var FileMasterHubModal = class extends FileMasterModal {
     const t2 = (key, params) => this.plugin.t(key, params);
     this.navigator.chrome.title.empty();
     const header = this.homeHeading = this.navigator.chrome.title.createDiv({ cls: "fm-hub-header" });
-    (0, import_obsidian30.setIcon)(header.createSpan({ cls: "fm-hub-brand-mark", attr: { "aria-hidden": "true" } }), "zap");
+    (0, import_obsidian31.setIcon)(header.createSpan({ cls: "fm-hub-brand-mark", attr: { "aria-hidden": "true" } }), "zap");
     header.createEl("h2", { text: t2("hubTitle") });
     header.createSpan({ text: "v" + displayVersion(this.plugin.manifest.version), cls: "fm-hub-version" });
     const remote = Boolean(this.plugin.isRemoteServerReady());
@@ -9315,7 +9391,7 @@ var FileMasterHubModal = class extends FileMasterModal {
       { title: "catFiles", actions: remote ? [
         { icon: "images", title: "actRemoteGalleryTitle", run: () => show(new RemoteGalleryModal(this.app, this.plugin)) },
         { icon: "file-pen-line", title: "remoteRenameTitle", run: () => show(new RemoteRenameModal(this.app, this.plugin)) },
-        { icon: "panel-right", title: "hubDockGallery", hidden: import_obsidian30.Platform.isMobile, run: () => this.navigator.leave((leaf) => this.app.workspace.revealLeaf(leaf), () => initGalleryLeaf(this.plugin, false)) }
+        { icon: "panel-right", title: "hubDockGallery", hidden: import_obsidian31.Platform.isMobile, run: () => this.navigator.leave((leaf) => this.app.workspace.revealLeaf(leaf), () => initGalleryLeaf(this.plugin, false)) }
       ] : [{ icon: "plug", title: "hubConnect", run: settings }] },
       { title: "catPreferences", actions: [
         { icon: "trash-2", title: "remoteTrashTitle", disabled: !remote, run: () => show(new RemoteTrashModal(this.app, this.plugin)) },
@@ -9333,7 +9409,7 @@ var FileMasterHubModal = class extends FileMasterModal {
         try {
           await action.run();
         } catch (error) {
-          new import_obsidian30.Notice(error.message || String(error));
+          new import_obsidian31.Notice(error.message || String(error));
         } finally {
           if (button.isConnected) button.disabled = false;
         }
@@ -9346,10 +9422,10 @@ var FileMasterHubModal = class extends FileMasterModal {
       const list = group.createDiv({ cls: "fm-hub-list" });
       for (const action of section.actions.filter((action2) => !action2.hidden)) {
         const row = list.createEl("button", { cls: "fm-hub-card", attr: { type: "button" } });
-        (0, import_obsidian30.setIcon)(row.createSpan({ cls: "fm-hub-card-icon" }), action.icon);
+        (0, import_obsidian31.setIcon)(row.createSpan({ cls: "fm-hub-card-icon" }), action.icon);
         const text = row.createSpan({ cls: "fm-hub-card-text" });
         text.createSpan({ text: t2(action.title), cls: "fm-hub-card-title" });
-        (0, import_obsidian30.setIcon)(row.createSpan({ cls: "fm-hub-chevron" }), "chevron-right");
+        (0, import_obsidian31.setIcon)(row.createSpan({ cls: "fm-hub-chevron" }), "chevron-right");
         row.disabled = Boolean(action.disabled);
         if (action.disabled) row.setAttribute("aria-label", `${t2(action.title)} \xB7 ${t2(!remote ? "noticeRemoteNotReady" : "hubOpenNote")}`);
         bind(row, action);
@@ -9364,7 +9440,7 @@ var FileMasterHubModal = class extends FileMasterModal {
 };
 
 // src/plugin/vault-utils.js
-var import_obsidian31 = require("obsidian");
+var import_obsidian32 = require("obsidian");
 function isDocFile2(app, file) {
   return isDocFile(file, app);
 }
@@ -9419,7 +9495,7 @@ async function safeModifyFileContent(plugin, tfile, transformFn) {
 }
 function openModalSafely(modal) {
   return openModal(modal).catch((error) => {
-    new import_obsidian31.Notice(error.message || String(error));
+    new import_obsidian32.Notice(error.message || String(error));
   });
 }
 function updateSidebarRibbonButton(plugin) {
@@ -9453,10 +9529,10 @@ async function toggleLocalFolderExclusion(plugin, folderPath) {
   const idx = list.indexOf(clean);
   if (idx > -1) {
     list.splice(idx, 1);
-    new import_obsidian31.Notice(plugin.t("noticeExclRemoved", { path: clean }));
+    new import_obsidian32.Notice(plugin.t("noticeExclRemoved", { path: clean }));
   } else {
     list.push(clean);
-    new import_obsidian31.Notice(plugin.t("noticeExclAdded", { path: clean }));
+    new import_obsidian32.Notice(plugin.t("noticeExclAdded", { path: clean }));
   }
   plugin.settings.excludedLocalFolders = list.join(", ");
   await plugin.saveSettings();
@@ -9495,7 +9571,7 @@ async function getItemPreviewUrl(plugin, item) {
 }
 
 // src/plugin/attachment-ops.js
-var import_obsidian32 = require("obsidian");
+var import_obsidian33 = require("obsidian");
 async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
   return runAttachmentOperation(plugin, () => mergeDuplicateGroups(plugin, groups, onComplete));
 }
@@ -9508,7 +9584,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     const url = new URL(item.rawObj.rawUrl);
     url.searchParams.set("download", "1");
     url.searchParams.set("raw", "1");
-    const response = await (0, import_obsidian32.requestUrl)({ url: url.href, method: "GET", throw: false });
+    const response = await (0, import_obsidian33.requestUrl)({ url: url.href, method: "GET", throw: false });
     if (response.status !== 200 || !response.arrayBuffer) throw new Error("Unable to verify attachment content");
     return computeSha256Hex(response.arrayBuffer);
   };
@@ -9525,7 +9601,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     tasks.push({ keepItem, removeItems, sha256: grp.sha256 });
   }
   if (tasks.length === 0) {
-    new import_obsidian32.Notice(plugin.t("noDupToProcess"));
+    new import_obsidian33.Notice(plugin.t("noDupToProcess"));
     onComplete == null ? void 0 : onComplete({ modified: 0, local: 0, remote: 0, skipped: skippedBySafetyGate });
     return;
   }
@@ -9619,7 +9695,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
           await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename, sha256);
           deletedRemoteCount++;
         } catch (err) {
-          new import_obsidian32.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
+          new import_obsidian33.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
           plugin.logOperation("ERROR", "DEDUP_MERGE", `Failed to delete remote duplicate ${rem.displayPath}`, { error: err.message });
         }
       }
@@ -9632,7 +9708,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     skippedBySafetyGate
   });
   if (skippedBySafetyGate > 0) {
-    new import_obsidian32.Notice(
+    new import_obsidian33.Notice(
       plugin.t("noticeDedupSafetyWarning", {
         modified: modifiedDocsCount,
         local: deletedLocalCount,
@@ -9641,7 +9717,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
       })
     );
   } else {
-    new import_obsidian32.Notice(
+    new import_obsidian33.Notice(
       plugin.t("noticeDedupSuccess", {
         modified: modifiedDocsCount,
         local: deletedLocalCount,
@@ -9662,18 +9738,18 @@ async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLocal = tru
   var _a;
   const result = await plugin.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
   if (!result.count) throw new Error(((_a = result.failures[0]) == null ? void 0 : _a.error) || plugin.t("transferIntegrityFailed"));
-  new import_obsidian32.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
+  new import_obsidian33.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
   return result.processedItems[0].rawObj;
 }
 async function resumePendingMigration(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new import_obsidian32.Notice(plugin.t("noticeRemoteNotReady"));
+    new import_obsidian33.Notice(plugin.t("noticeRemoteNotReady"));
     return;
   }
   const adapter = plugin.app.vault.adapter;
   const path = migrationCheckpointPath(plugin);
   if (!await adapter.exists(path)) {
-    new import_obsidian32.Notice(plugin.t("transferNothingPending"));
+    new import_obsidian33.Notice(plugin.t("transferNothingPending"));
     return;
   }
   const checkpoint = JSON.parse(await adapter.read(path));
@@ -9694,7 +9770,7 @@ async function resumePendingMigration(plugin) {
     };
   }).filter(Boolean);
   if (!items.length) {
-    new import_obsidian32.Notice(plugin.t("transferNothingPending"));
+    new import_obsidian33.Notice(plugin.t("transferNothingPending"));
     return;
   }
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
@@ -9713,7 +9789,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
   try {
     const { year, month, filename } = remoteMatch;
     if (!silent) {
-      new import_obsidian32.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
+      new import_obsidian33.Notice(plugin.t("noticeDownloadingFile", { name: filename }));
     }
     let remoteObj = remoteMatch.rawObj || null;
     if (!remoteObj) {
@@ -9753,7 +9829,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
       action = "reused";
     } else {
       const downloadUrl = (remoteObj == null ? void 0 : remoteObj.rawUrl) ? `${remoteObj.rawUrl}?download=1` : `${remoteMatch.matchedUrl}?download=1`;
-      const response = await requestWithBackoff(() => (0, import_obsidian32.requestUrl)({
+      const response = await requestWithBackoff(() => (0, import_obsidian33.requestUrl)({
         url: downloadUrl,
         method: "GET",
         headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
@@ -9805,7 +9881,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
     const modifiedCount = (rewritten == null ? void 0 : rewritten.modified.size) || 0;
     const syncedOtherNotePaths = [...(rewritten == null ? void 0 : rewritten.modified) || []].filter((path) => path !== (activeFile == null ? void 0 : activeFile.path));
     if (!silent) {
-      new import_obsidian32.Notice(
+      new import_obsidian33.Notice(
         plugin.t("noticeDownloadedToVault", {
           name: filename,
           path: targetLocalFile.path,
@@ -9831,7 +9907,7 @@ async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
     return targetLocalFile;
   } catch (err) {
     if (!silent) {
-      new import_obsidian32.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
+      new import_obsidian33.Notice(plugin.t("noticeDownloadFailed", { err: err.message }));
     }
     throw err;
   }
@@ -10044,7 +10120,7 @@ async function executeDownloadNoteDirect(plugin, activeFile, onProgress = null, 
 async function downloadActiveNoteRemoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
   if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
-    new import_obsidian32.Notice(plugin.t("noticeOpenMdFirst"));
+    new import_obsidian33.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "download", options);
@@ -10168,7 +10244,7 @@ async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, o
 async function migrateActiveNoteAttachments(plugin, targetFile = null, options = {}) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
   if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
-    new import_obsidian32.Notice(plugin.t("noticeOpenMdFirst"));
+    new import_obsidian33.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, "migrate", options);
@@ -10181,7 +10257,7 @@ async function migrateActiveNoteAttachments(plugin, targetFile = null, options =
 async function copyActiveNoteForAstro(plugin, targetFile = null) {
   const activeFile = targetFile || plugin.app.workspace.getActiveFile();
   if (!activeFile || !isDocFile2(plugin.app, activeFile)) {
-    new import_obsidian32.Notice(plugin.t("noticeOpenMdFirst"));
+    new import_obsidian33.Notice(plugin.t("noticeOpenMdFirst"));
     return;
   }
   const content = await plugin.app.vault.read(activeFile);
@@ -10190,7 +10266,7 @@ async function copyActiveNoteForAstro(plugin, targetFile = null) {
     "/pub/$1.webp"
   );
   await navigator.clipboard.writeText(converted);
-  new import_obsidian32.Notice(plugin.t("noticeAstroCopied"));
+  new import_obsidian33.Notice(plugin.t("noticeAstroCopied"));
 }
 
 // src/plugin/link-rewrite.js
@@ -10327,7 +10403,7 @@ function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrCon
 }
 
 // src/plugin.js
-var FileMasterPlugin = class extends import_obsidian33.Plugin {
+var FileMasterPlugin = class extends import_obsidian34.Plugin {
   downloadSingleRemoteItemToLocal(remoteMatch, options = {}) {
     return downloadSingleRemoteItemToLocal(this, remoteMatch, options);
   }
@@ -10396,6 +10472,9 @@ var FileMasterPlugin = class extends import_obsidian33.Plugin {
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    if (!["keep", "rule"].includes(this.settings.namingMode)) {
+      this.settings.namingMode = "keep";
+    }
     if (!["raw", "webp"].includes(this.settings.galleryInsertFormat)) {
       this.settings.galleryInsertFormat = this.settings.insertOptimizedLinkOnUpload ? "webp" : "raw";
     }

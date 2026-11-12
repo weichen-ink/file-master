@@ -98,6 +98,9 @@ export class FileMasterPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    if (!['keep', 'rule'].includes(this.settings.namingMode)) {
+      this.settings.namingMode = 'keep';
+    }
     if (!['raw', 'webp'].includes(this.settings.galleryInsertFormat)) {
       this.settings.galleryInsertFormat = this.settings.insertOptimizedLinkOnUpload ? 'webp' : 'raw';
     }

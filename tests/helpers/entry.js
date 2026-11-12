@@ -28,6 +28,8 @@ export * as logging from '../../src/plugin/logging.js';
 
 export * from '../../src/ui/navigation.js';
 export * from '../../src/ui/gallery-store.js';
+export * from '../../src/ui/gallery-filter.js';
+export * from '../../src/ui/gallery-toolbar.js';
 export * from '../../src/ui/image-viewport.js';
 export * from '../../src/ui/links.js';
 export * from '../../src/plugin/editor-target.js';

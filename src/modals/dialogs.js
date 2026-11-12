@@ -11,6 +11,7 @@ import { translateUi } from '../i18n.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 import { documentRow } from '../ui/document-list.js';
+let imageCanvasSequence = 0;
 
 /**
  * Confirmation modal for critical actions like remote file deletion
@@ -109,7 +110,9 @@ export class ImageLightboxModal extends Modal {
       zoomButtons.push(iconButton(zoom,this.plugin,'previewFit','maximize',()=>this.viewport?.fit()));
     }
     this.zoomButtons=zoomButtons;
-    this.stage=canvas.createDiv({cls:'fm-image-stage',attr:{tabindex:'0',role:'region','aria-label':t('previewGestures')}});
+    const canvasLabel=`fm-image-canvas-${++imageCanvasSequence}`;
+    canvas.createSpan({text:t('previewGestures'),attr:{id:canvasLabel,hidden:''}});
+    this.stage=canvas.createDiv({cls:'fm-image-stage',attr:{tabindex:'0',role:'region','aria-labelledby':canvasLabel}});
     this.status=canvas.createDiv({cls:'fm-preview-status',attr:{'aria-live':'polite'}});
     const inspector=layout.createDiv({cls:'fm-asset-inspector'});
     const actions=inspector.createDiv({cls:'fm-asset-primary'});

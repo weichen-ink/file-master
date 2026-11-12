@@ -56,7 +56,7 @@ export class IncomingFileModal extends Modal {
   constructor(app, fileInfo, options, callback = null) {
     super(app);
     this.fileInfo = fileInfo; // { arrayBuffer, defaultBaseName, ext, size, mimeType, sha256 }
-    this.options = options || {};   // { askLocation, fixedLocation, promptRename, plugin, editor, activeFile }
+    this.options = options || {};   // { askLocation, fixedLocation, plugin, editor, activeFile }
     this.callback = callback;
     this.plugin = this.options.plugin;
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
@@ -137,13 +137,6 @@ export class IncomingFileModal extends Modal {
       cls: 'fm-incoming-sub-meta',
       text: formatBytes(this.fileInfo.size)
     });
-
-    if (this.options.promptRename) {
-      setTimeout(() => {
-        nameInput.focus();
-        nameInput.select();
-      }, 40);
-    }
 
     // 3. Location Selection
     const isRemoteReady = Boolean(

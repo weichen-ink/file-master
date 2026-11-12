@@ -1,5 +1,20 @@
 # Changelog (file-master)
 
+## [1.1.6] - 2026-11-13
+
+### A consistent file browser
+- Share the same two-row toolbar, filters, sorting, and link preferences between the Hub and sidebar.
+- Add multi-select directory trees and file-type filters, with sorting by upload time, size, name, or views in either direction.
+- Keep the Hub window height steady while filtering and scroll results within the window.
+- Keep card heights consistent in multi-column layouts and let single-column previews follow image proportions.
+- Refine list spacing, borders, button colors, dropdown alignment, and narrow-screen controls across light and dark themes.
+
+### Simpler attachment defaults
+- Move the default browsing link choice (original or WebP) into settings, removing duplicate browser controls and statistics.
+- Remove the redundant "Ask each time" naming option: filenames remain editable before saving in either naming mode.
+- Migrate the retired naming option to "Keep filename" and clarify the setting in English and Chinese.
+- Remove the image canvas hover tooltip while retaining accessible interaction instructions.
+
 ## [1.1.5] - 2026-11-12
 
 ### Safer duplicate cleanup

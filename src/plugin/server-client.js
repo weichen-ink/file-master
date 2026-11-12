@@ -43,7 +43,6 @@ export async function handleIncomingBrowserFile(plugin, file, editor) {
   }
 
   const askLocation = plugin.settings.saveLocationMode === 'ask';
-  const promptRename = plugin.settings.namingMode === 'prompt';
 
   const fileInfo = {
     arrayBuffer,
@@ -57,7 +56,6 @@ export async function handleIncomingBrowserFile(plugin, file, editor) {
   const modalOptions = {
     askLocation,
     fixedLocation: plugin.settings.saveLocationMode,
-    promptRename,
     plugin: plugin,
     editor,
     activeFile

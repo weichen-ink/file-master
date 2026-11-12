@@ -11,22 +11,24 @@ test('filterRemoteGallery: sorts items by size, filename, and hits accurately', 
   ];
 
   // 1. Size Descending
-  let sorted = filterRemoteGallery({ items, selectedBucket: 'all', selectedType: 'all', searchQuery: '', selectedSort: 'size_desc' });
+  let sorted = filterRemoteGallery({ items, selectedBuckets: [], selectedTypes: [], searchQuery: '', selectedSort: 'size_desc' });
   assert.deepEqual(sorted.map(i => i.filename), ['Apple.png', 'banana.png', 'cherry.png']);
+  sorted = filterRemoteGallery({ items, selectedBuckets: [], selectedTypes: [], searchQuery: '', selectedSort: 'hits_asc' });
+  assert.deepEqual(sorted.map(i => i.filename), ['cherry.png', 'banana.png', 'Apple.png']);
 
   // 2. Size Ascending
-  sorted = filterRemoteGallery({ items, selectedBucket: 'all', selectedType: 'all', searchQuery: '', selectedSort: 'size_asc' });
+  sorted = filterRemoteGallery({ items, selectedBuckets: [], selectedTypes: [], searchQuery: '', selectedSort: 'size_asc' });
   assert.deepEqual(sorted.map(i => i.filename), ['cherry.png', 'banana.png', 'Apple.png']);
 
   // 3. Name Ascending (natural order)
-  sorted = filterRemoteGallery({ items, selectedBucket: 'all', selectedType: 'all', searchQuery: '', selectedSort: 'name_asc' });
+  sorted = filterRemoteGallery({ items, selectedBuckets: [], selectedTypes: [], searchQuery: '', selectedSort: 'name_asc' });
   assert.deepEqual(sorted.map(i => i.filename), ['Apple.png', 'banana.png', 'cherry.png']);
 
   // 4. Name Descending
-  sorted = filterRemoteGallery({ items, selectedBucket: 'all', selectedType: 'all', searchQuery: '', selectedSort: 'name_desc' });
+  sorted = filterRemoteGallery({ items, selectedBuckets: [], selectedTypes: [], searchQuery: '', selectedSort: 'name_desc' });
   assert.deepEqual(sorted.map(i => i.filename), ['cherry.png', 'banana.png', 'Apple.png']);
 
   // 5. Hits Descending (most viewed)
-  sorted = filterRemoteGallery({ items, selectedBucket: 'all', selectedType: 'all', searchQuery: '', selectedSort: 'hits_desc' });
+  sorted = filterRemoteGallery({ items, selectedBuckets: [], selectedTypes: [], searchQuery: '', selectedSort: 'hits_desc' });
   assert.deepEqual(sorted.map(i => i.filename), ['Apple.png', 'banana.png', 'cherry.png']);
 });

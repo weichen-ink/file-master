@@ -11,7 +11,7 @@ export const DEFAULT_SETTINGS = {
   enableClipboardMonitor: true,
   saveLocationMode: 'ask', // 'remote' | 'local' | 'ask'
   defaultSaveLocation: 'remote', // 'remote' | 'local' (default preselected destination when asking)
-  namingMode: 'keep',      // 'keep' (keep original) | 'rule' (auto-rename pattern) | 'prompt' (manual rename modal)
+  namingMode: 'keep',      // 'keep' (keep original) | 'rule' (auto-rename pattern)
   namingPattern: '{note}_{date}_{rand:4}',
   uploadNonImageAttachments: true,
   insertOptimizedLinkOnUpload: false,
