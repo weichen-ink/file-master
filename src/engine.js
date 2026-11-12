@@ -1,4 +1,4 @@
-import { AUDIO_EXTS, IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from './constants.js';
+import { OBSIDIAN_NOTE_EXTS, AUDIO_EXTS, IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from './constants.js';
 import { requestUrl } from 'obsidian';
 
 /**
@@ -52,7 +52,7 @@ export function getBaseName(filename) {
 
 export function getFileTypeGroup(ext) {
   const e = String(ext || '').toLowerCase();
-  if (e === 'md' || e === 'excalidraw') return 'note';
+  if (OBSIDIAN_NOTE_EXTS.has(e)) return 'note';
   if (IMAGE_EXTS.has(e)) return 'image';
   if (AUDIO_EXTS.has(e)) return 'audio';
   return 'other';

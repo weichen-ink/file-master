@@ -1,4 +1,4 @@
-import { IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt } from '../constants.js';
+import { DEFAULT_SERVER_URL, IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt } from '../constants.js';
 import { applyNamingPattern, buildMultipartBuffer, compareSemver, computeSha256Hex, getBaseName, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { IncomingFileModal } from '../modals/incoming-file.js';
 import { requestWithBackoff, throwIfTransferCancelled } from '../transfers.js';
@@ -20,7 +20,7 @@ export function filterAllowedFiles(settings, fileList) {
 }
 
 export function getCleanServerUrl(settings) {
-  return String(settings.serverUrl || 'http://localhost:3000').replace(/\/+$/, '');
+  return String(settings.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '');
 }
 
 export async function handleIncomingBrowserFile(plugin, file, editor) {
@@ -350,12 +350,12 @@ export async function fetchRemoteFileList(plugin) {
   return (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
 }
 
-export async function deleteRemoteFile(plugin, year, month, filename) {
+export async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
   const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
   const response = await requestUrl({
     url,
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...(expectedSha256 ? {'If-Match': `"${expectedSha256}"`} : {}) },
     throw: false
   });
   if (response.status < 200 || response.status >= 300) {

@@ -1,10 +1,11 @@
+export const DEFAULT_SERVER_URL = 'http://localhost:3210';
 
 
 export const DEFAULT_SETTINGS = {
   language: 'auto', // 'auto' | 'zh' | 'en'
   enableRemoteServer: false,
   serverVerified: false,
-  serverUrl: 'http://localhost:3000',
+  serverUrl: DEFAULT_SERVER_URL,
   apiToken: '',
   enableSidebarButton: true,
   enableClipboardMonitor: true,

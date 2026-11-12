@@ -2,12 +2,13 @@
 var import_obsidian33 = require("obsidian");
 
 // src/constants.js
+var DEFAULT_SERVER_URL = "http://localhost:3210";
 var DEFAULT_SETTINGS = {
   language: "auto",
   // 'auto' | 'zh' | 'en'
   enableRemoteServer: false,
   serverVerified: false,
-  serverUrl: "http://localhost:3000",
+  serverUrl: DEFAULT_SERVER_URL,
   apiToken: "",
   enableSidebarButton: true,
   enableClipboardMonitor: true,
@@ -231,7 +232,7 @@ function getBaseName(filename) {
 }
 function getFileTypeGroup(ext) {
   const e = String(ext || "").toLowerCase();
-  if (e === "md" || e === "excalidraw") return "note";
+  if (OBSIDIAN_NOTE_EXTS.has(e)) return "note";
   if (IMAGE_EXTS.has(e)) return "image";
   if (AUDIO_EXTS.has(e)) return "audio";
   return "other";
@@ -4701,7 +4702,7 @@ function filterAllowedFiles(settings, fileList) {
   return out;
 }
 function getCleanServerUrl(settings) {
-  return String(settings.serverUrl || "http://localhost:3000").replace(/\/+$/, "");
+  return String(settings.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, "");
 }
 async function handleIncomingBrowserFile(plugin, file, editor) {
   const arrayBuffer = await file.arrayBuffer();
@@ -4983,13 +4984,13 @@ async function fetchRemoteFileList(plugin) {
   }
   return (response.json.images || []).map((item) => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
 }
-async function deleteRemoteFile(plugin, year, month, filename) {
+async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
   var _a;
   const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
   const response = await (0, import_obsidian13.requestUrl)({
     url,
     method: "DELETE",
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...expectedSha256 ? { "If-Match": `"${expectedSha256}"` } : {} },
     throw: false
   });
   if (response.status < 200 || response.status >= 300) {
@@ -5090,7 +5091,7 @@ function galleryStore(plugin) {
   return plugin.galleryStore || (plugin.galleryStore = new GalleryStore(plugin));
 }
 
-// src/plugin/remote-rename.js
+// src/url-rewrite.js
 var escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 var decode = (value) => {
   try {
@@ -5099,20 +5100,7 @@ var decode = (value) => {
     return value;
   }
 };
-var renameCheckpointPath = (plugin) => getLogFilePath(plugin).replace(/operation\.log$/, "rename-pending.json");
-async function requestRemoteRename(plugin, payload, preview = false) {
-  var _a, _b, _c, _d;
-  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/rename${preview ? "/preview" : ""}`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), throw: false });
-  if (response.status < 200 || response.status >= 300) {
-    const error = new Error(response.status === 404 && !((_a = response.json) == null ? void 0 : _a.error) ? plugin.t("renameServerUpgrade") : ((_b = response.json) == null ? void 0 : _b.error) || `HTTP ${response.status}`);
-    error.status = response.status;
-    error.code = (_c = response.json) == null ? void 0 : _c.code;
-    throw error;
-  }
-  if (!((_d = response.json) == null ? void 0 : _d.success) || !response.json.item || !Array.isArray(response.json.linkMappings)) throw new Error(plugin.t("renameInvalidResponse"));
-  return response.json;
-}
-function createRenameRewriter(mappings, serverUrl = "", onMatch = null) {
+function createUrlRewriter(mappings, serverUrl = "", onMatch = null) {
   const replacements = /* @__PURE__ */ new Map();
   const add = (from, to, reference = to) => {
     if (!from || !to || from === to) return;
@@ -5156,6 +5144,21 @@ function createRenameRewriter(mappings, serverUrl = "", onMatch = null) {
     return { text, count };
   };
 }
+
+// src/plugin/remote-rename.js
+var renameCheckpointPath = (plugin) => getLogFilePath(plugin).replace(/operation\.log$/, "rename-pending.json");
+async function requestRemoteRename(plugin, payload, preview = false) {
+  var _a, _b, _c, _d;
+  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/rename${preview ? "/preview" : ""}`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), throw: false });
+  if (response.status < 200 || response.status >= 300) {
+    const error = new Error(response.status === 404 && !((_a = response.json) == null ? void 0 : _a.error) ? plugin.t("renameServerUpgrade") : ((_b = response.json) == null ? void 0 : _b.error) || `HTTP ${response.status}`);
+    error.status = response.status;
+    error.code = (_c = response.json) == null ? void 0 : _c.code;
+    throw error;
+  }
+  if (!((_d = response.json) == null ? void 0 : _d.success) || !response.json.item || !Array.isArray(response.json.linkMappings)) throw new Error(plugin.t("renameInvalidResponse"));
+  return response.json;
+}
 var remoteFileKey = (item) => `${item.year}/${item.month}/${item.filename}`;
 async function indexRenameReferences(plugin, items) {
   const markers = /* @__PURE__ */ new Map(), mappings = [], documents = new Map(items.map((item) => [remoteFileKey(item), []]));
@@ -5166,7 +5169,7 @@ async function indexRenameReferences(plugin, items) {
     for (const from of urls) if (from) mappings.push({ from, to: marker });
   });
   let seen = /* @__PURE__ */ new Set();
-  const rewrite = createRenameRewriter(mappings, plugin.getCleanServerUrl(), (marker) => seen.add(markers.get(marker)));
+  const rewrite = createUrlRewriter(mappings, plugin.getCleanServerUrl(), (marker) => seen.add(markers.get(marker)));
   let checked = 0;
   for (const file of plugin.app.vault.getFiles().filter((file2) => isDocFile2(plugin.app, file2))) {
     seen = /* @__PURE__ */ new Set();
@@ -5181,7 +5184,7 @@ async function indexRenameReferences(plugin, items) {
   return documents;
 }
 async function scanRenameReferences(plugin, mappings, { tolerant = false } = {}) {
-  const rewrite = createRenameRewriter(mappings, plugin.getCleanServerUrl()), documents = [], failures = [];
+  const rewrite = createUrlRewriter(mappings, plugin.getCleanServerUrl()), documents = [], failures = [];
   for (const file of plugin.app.vault.getFiles().filter((file2) => isDocFile2(plugin.app, file2))) {
     try {
       const current = await plugin.app.vault.read(file), result = rewrite(current);
@@ -5220,7 +5223,7 @@ async function executeRemoteRename(plugin, request, onProgress = null, pending =
       await saveJob(plugin, job);
       galleryStore(plugin).load(true);
     }
-    const rewrite = createRenameRewriter(job.result.linkMappings, plugin.getCleanServerUrl());
+    const rewrite = createUrlRewriter(job.result.linkMappings, plugin.getCleanServerUrl());
     const files = plugin.app.vault.getFiles().filter((file) => isDocFile2(plugin.app, file));
     const currentPaths = new Set(files.map((file) => file.path));
     for (const [path, doc] of Object.entries(job.documents)) {
@@ -5288,7 +5291,7 @@ async function fileReferenceDocuments(plugin, item, paths = null, documents = nu
   const file = remote ? item.rawObj || item : item.rawObj || plugin.app.vault.getAbstractFileByPath(item.path || item.displayPath);
   if (!file) throw new Error("Attachment not found");
   let count = 0;
-  const match = remote ? createRenameRewriter([.../* @__PURE__ */ new Set([file.rawUrl, file.pubUrl, ...file.referenceUrls || []])].filter(Boolean).map((from) => ({ from, to: "@@file-master-reference@@" })), plugin.getCleanServerUrl()) : createLocalReferenceMatcher([file], (candidate) => isExcalidrawFile2(plugin.app, candidate), () => count++);
+  const match = remote ? createUrlRewriter([.../* @__PURE__ */ new Set([file.rawUrl, file.pubUrl, ...file.referenceUrls || []])].filter(Boolean).map((from) => ({ from, to: "@@file-master-reference@@" })), plugin.getCleanServerUrl()) : createLocalReferenceMatcher([file], (candidate) => isExcalidrawFile2(plugin.app, candidate), () => count++);
   const wanted = paths && new Set(paths);
   const docs = documents || plugin.app.vault.getFiles().filter((doc) => isDocFile2(plugin.app, doc)).map((file2) => ({ file: file2, path: file2.path }));
   const result = [];
@@ -9499,6 +9502,16 @@ async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
 async function mergeDuplicateGroups(plugin, groups, onComplete) {
   const tasks = [];
   const remoteItemsToDelete = [];
+  let skippedBySafetyGate = 0;
+  const currentHash = async (item) => {
+    if (item.source === "local") return computeSha256Hex(await plugin.app.vault.readBinary(item.rawObj));
+    const url = new URL(item.rawObj.rawUrl);
+    url.searchParams.set("download", "1");
+    url.searchParams.set("raw", "1");
+    const response = await (0, import_obsidian32.requestUrl)({ url: url.href, method: "GET", throw: false });
+    if (response.status !== 200 || !response.arrayBuffer) throw new Error("Unable to verify attachment content");
+    return computeSha256Hex(response.arrayBuffer);
+  };
   for (const grp of groups) {
     const keepItem = grp.items.find((i) => i.id === grp.keepId);
     if (!keepItem) continue;
@@ -9509,10 +9522,11 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
         remoteItemsToDelete.push({ removeItem: rem, keepItem });
       }
     }
-    tasks.push({ keepItem, removeItems });
+    tasks.push({ keepItem, removeItems, sha256: grp.sha256 });
   }
   if (tasks.length === 0) {
     new import_obsidian32.Notice(plugin.t("noDupToProcess"));
+    onComplete == null ? void 0 : onComplete({ modified: 0, local: 0, remote: 0, skipped: skippedBySafetyGate });
     return;
   }
   if (remoteItemsToDelete.length > 0) {
@@ -9529,40 +9543,39 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
     if (!confirmed) return;
   }
   const allDocs = plugin.app.vault.getFiles().filter((f) => isScannableDocFile(plugin, f));
-  const localPathsBeingRemoved = /* @__PURE__ */ new Set();
-  for (const { removeItems } of tasks) {
-    for (const rem of removeItems) {
-      if (rem.source === "local" && !rem.locked) {
-        localPathsBeingRemoved.add(rem.displayPath);
+  for (let i = tasks.length - 1; i >= 0; i--) {
+    const task = tasks[i];
+    try {
+      if (await currentHash(task.keepItem) !== task.sha256) throw new Error("Retained attachment changed");
+      const verified = [];
+      for (const item of task.removeItems) {
+        try {
+          if (await currentHash(item) !== task.sha256) throw new Error("Attachment changed");
+          verified.push(item);
+        } catch (error) {
+          skippedBySafetyGate++;
+          plugin.logOperation("WARN", "DEDUP_SAFETY_GATE", `Kept ${item.displayPath}`, { error: error.message });
+        }
       }
+      task.removeItems = verified;
+    } catch (error) {
+      skippedBySafetyGate += task.removeItems.length;
+      tasks.splice(i, 1);
+      plugin.logOperation("WARN", "DEDUP_SAFETY_GATE", `Kept duplicate group because ${task.keepItem.displayPath} changed`, { error: error.message });
     }
   }
   const pairs = tasks.flatMap(({ keepItem, removeItems }) => removeItems.map((removeItem) => ({ removeItem, keepItem })));
   const rewritten = await rewriteAttachmentPairs(
     plugin,
     pairs,
-    allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path)
+    allDocs.map((doc) => doc.path)
   );
   const modifiedDocsCount = rewritten.modified.size;
   const postSnapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
   await indexRemoteReferences(pairs.filter((p) => p.removeItem.source === "remote").map((p) => p.removeItem.rawObj), postSnapshot);
-  const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === "local").map(({ removeItem, keepItem }) => ({
-    value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
-    id: removeItem.displayPath
-  }));
-  const matchLocalGate = createTextReferenceMatcher(localGatePatterns);
-  const remainingLocal = /* @__PURE__ */ new Map();
-  for (const doc of postSnapshot.docContents) {
-    if (localPathsBeingRemoved.has(doc.path)) continue;
-    for (const path of matchLocalGate(doc.rawText)) addReference(remainingLocal, path, doc.path);
-    if (doc.decodedText !== doc.rawText) {
-      for (const path of matchLocalGate(doc.decodedText)) addReference(remainingLocal, path, doc.path);
-    }
-  }
   let deletedLocalCount = 0;
   let deletedRemoteCount = 0;
-  let skippedBySafetyGate = 0;
-  for (const { keepItem, removeItems } of tasks) {
+  for (const { keepItem, removeItems, sha256 } of tasks) {
     for (const rem of removeItems) {
       if (rem.locked) {
         continue;
@@ -9573,7 +9586,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
       }
       let remainingRefs = [];
       if (rem.source === "local") {
-        remainingRefs = [...remainingLocal.get(rem.displayPath) || []];
+        remainingRefs = findReferencingNotesForLocalFile(rem.rawObj, postSnapshot);
       } else {
         remainingRefs = findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
       }
@@ -9586,6 +9599,13 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
         skippedBySafetyGate++;
         continue;
       }
+      try {
+        if (await currentHash(keepItem) !== sha256 || await currentHash(rem) !== sha256 || !plugin.isReferenceSnapshotCurrent(postSnapshot)) throw new Error("Attachment content or references changed");
+      } catch (error) {
+        skippedBySafetyGate++;
+        plugin.logOperation("WARN", "DEDUP_SAFETY_GATE", `Kept ${rem.displayPath}`, { error: error.message });
+        continue;
+      }
       if (rem.source === "local") {
         try {
           await plugin.app.vault.trash(rem.rawObj, true);
@@ -9596,7 +9616,7 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
         }
       } else {
         try {
-          await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
+          await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename, sha256);
           deletedRemoteCount++;
         } catch (err) {
           new import_obsidian32.Notice(plugin.t("noticeRemoteDeleteFailed", { name: rem.name, err: err.message }));
@@ -10232,6 +10252,7 @@ function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrCon
     }
   };
   const rewriteMarkdownFragment = (fragment) => {
+    var _a;
     if (!fragment) return fragment;
     let updated = fragment;
     if (removeItem.source === "local") {
@@ -10247,10 +10268,10 @@ function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrCon
         const esc = escapeRegExp(cand);
         const isBare = isBareCandidate(cand);
         const checkBareMatchAllowed = () => {
-          var _a, _b;
+          var _a2, _b;
           if (!isBare) return true;
           const hasActiveResolver = Boolean(
-            customResolve || ((_b = (_a = plugin.app) == null ? void 0 : _a.metadataCache) == null ? void 0 : _b.getFirstLinkpathDest) && docPath
+            customResolve || ((_b = (_a2 = plugin.app) == null ? void 0 : _a2.metadataCache) == null ? void 0 : _b.getFirstLinkpathDest) && docPath
           );
           if (hasActiveResolver) {
             const dest = resolveLink(cand);
@@ -10286,25 +10307,13 @@ function rewriteContentLinks(plugin, content, removeItem, keepItem, docPathOrCon
       }
     } else {
       const r = removeItem.rawObj;
-      const encodedName = encodeURIComponent(r.filename);
-      const urlPatterns = /* @__PURE__ */ new Set([
-        r.rawUrl,
-        r.pubUrl,
-        `${r.year}/${r.month}/${r.filename}`,
-        `${r.year}/${r.month}/${encodedName}`
-      ]);
-      for (const pat of urlPatterns) {
-        if (!pat) continue;
-        const esc = escapeRegExp(pat);
-        const remoteMdRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(([^)\\s]*${esc})(?:[?#][^)\\s]*)?\\)`, "g");
-        updated = updated.replace(
-          remoteMdRe,
-          (_, bang, alt) => buildReplacementForMdLink(bang === "!", alt)
-        );
-      }
+      const urls = [.../* @__PURE__ */ new Set([r.rawUrl, r.pubUrl, ...r.referenceUrls || []])].filter(Boolean);
       if (keepItem.source === "remote") {
-        if (r.rawUrl) updated = updated.split(r.rawUrl).join(keepItem.rawObj.rawUrl);
-        if (r.pubUrl) updated = updated.split(r.pubUrl).join(keepItem.rawObj.pubUrl);
+        const mappings = urls.map((from) => ({ from, to: from === r.pubUrl ? keepItem.rawObj.pubUrl || keepItem.rawObj.rawUrl : keepItem.rawObj.rawUrl }));
+        updated = createUrlRewriter(mappings, ((_a = plugin.getCleanServerUrl) == null ? void 0 : _a.call(plugin)) || "")(updated).text;
+      } else {
+        const match2 = createUrlRewriter(urls.map((from) => ({ from, to: "@@fm-reference@@" })));
+        updated = updated.replace(/(!?)\[([^\]]*)\]\((<?)([^)]+?)>?\)/g, (whole, bang, alt, angle, url) => match2(url).count ? buildReplacementForMdLink(bang === "!", alt) : whole);
       }
     }
     return updated;
@@ -10373,8 +10382,8 @@ var FileMasterPlugin = class extends import_obsidian33.Plugin {
   fetchRemoteFileList() {
     return fetchRemoteFileList(this);
   }
-  deleteRemoteFile(year, month, filename) {
-    return deleteRemoteFile(this, year, month, filename);
+  deleteRemoteFile(year, month, filename, expectedSha256) {
+    return deleteRemoteFile(this, year, month, filename, expectedSha256);
   }
   buildVaultReferenceSnapshot(scanCtx = {}) {
     return buildVaultReferenceSnapshot(this, scanCtx);

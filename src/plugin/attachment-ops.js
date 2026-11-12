@@ -5,7 +5,6 @@ import { computeSha256Hex, escapeRegExp, formatBytes, getBaseName, getExt, getFi
 import { ActiveNoteActionModal } from '../modals/active-note.js';
 import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
 import { ConfirmActionModal } from '../modals/dialogs.js';
-import { addReference, createTextReferenceMatcher } from '../references.js';
 import { migrateLocalAttachments, migrationCheckpointPath, requestWithBackoff, rewriteAttachmentPairs, runAttachmentOperation, throwIfTransferCancelled } from '../transfers.js';
 import { Notice, requestUrl } from 'obsidian';
 
@@ -17,6 +16,14 @@ export async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
 export async function mergeDuplicateGroups(plugin, groups, onComplete) {
   const tasks = [];
   const remoteItemsToDelete = [];
+  let skippedBySafetyGate = 0;
+  const currentHash = async item => {
+    if (item.source === 'local') return computeSha256Hex(await plugin.app.vault.readBinary(item.rawObj));
+    const url = new URL(item.rawObj.rawUrl); url.searchParams.set('download','1'); url.searchParams.set('raw','1');
+    const response = await requestUrl({url:url.href,method:'GET',throw:false});
+    if (response.status !== 200 || !response.arrayBuffer) throw new Error('Unable to verify attachment content');
+    return computeSha256Hex(response.arrayBuffer);
+  };
 
   for (const grp of groups) {
     const keepItem = grp.items.find((i) => i.id === grp.keepId);
@@ -29,11 +36,12 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
         remoteItemsToDelete.push({ removeItem: rem, keepItem });
       }
     }
-    tasks.push({ keepItem, removeItems });
+    tasks.push({ keepItem, removeItems, sha256:grp.sha256 });
   }
 
   if (tasks.length === 0) {
     new Notice(plugin.t('noDupToProcess'));
+    onComplete?.({modified:0,local:0,remote:0,skipped:skippedBySafetyGate});
     return;
   }
 
@@ -55,39 +63,32 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
     .getFiles()
     .filter((f) => isScannableDocFile(plugin, f));
 
-  const localPathsBeingRemoved = new Set();
-  for (const { removeItems } of tasks) {
-    for (const rem of removeItems) {
-      if (rem.source === 'local' && !rem.locked) {
-        localPathsBeingRemoved.add(rem.displayPath);
+  // Confirmation can remain open while files change. Revalidate immediately before rewriting.
+  for (let i = tasks.length - 1; i >= 0; i--) {
+    const task = tasks[i];
+    try {
+      if (await currentHash(task.keepItem) !== task.sha256) throw new Error('Retained attachment changed');
+      const verified = [];
+      for (const item of task.removeItems) {
+        try { if (await currentHash(item) !== task.sha256) throw new Error('Attachment changed'); verified.push(item); }
+        catch (error) { skippedBySafetyGate++; plugin.logOperation('WARN','DEDUP_SAFETY_GATE',`Kept ${item.displayPath}`,{error:error.message}); }
       }
+      task.removeItems = verified;
+    } catch (error) {
+      skippedBySafetyGate += task.removeItems.length; tasks.splice(i,1);
+      plugin.logOperation('WARN','DEDUP_SAFETY_GATE',`Kept duplicate group because ${task.keepItem.displayPath} changed`,{error:error.message});
     }
   }
 
   const pairs = tasks.flatMap(({ keepItem, removeItems }) => removeItems.map((removeItem) => ({ removeItem, keepItem })));
   const rewritten = await rewriteAttachmentPairs(plugin, pairs,
-    allDocs.filter((doc) => !localPathsBeingRemoved.has(doc.path)).map((doc) => doc.path));
+    allDocs.map((doc) => doc.path));
   const modifiedDocsCount = rewritten.modified.size;
   const postSnapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
   await indexRemoteReferences(pairs.filter((p) => p.removeItem.source === 'remote').map((p) => p.removeItem.rawObj), postSnapshot);
-  const localGatePatterns = pairs.filter((pair) => pair.removeItem.source === 'local').map(({ removeItem, keepItem }) => ({
-    value: keepItem.name === removeItem.name ? removeItem.displayPath : removeItem.name,
-    id: removeItem.displayPath
-  }));
-  const matchLocalGate = createTextReferenceMatcher(localGatePatterns);
-  const remainingLocal = new Map();
-  for (const doc of postSnapshot.docContents) {
-    if (localPathsBeingRemoved.has(doc.path)) continue;
-    for (const path of matchLocalGate(doc.rawText)) addReference(remainingLocal, path, doc.path);
-    if (doc.decodedText !== doc.rawText) {
-      for (const path of matchLocalGate(doc.decodedText)) addReference(remainingLocal, path, doc.path);
-    }
-  }
   let deletedLocalCount = 0;
   let deletedRemoteCount = 0;
-  let skippedBySafetyGate = 0;
-
-  for (const { keepItem, removeItems } of tasks) {
+  for (const { keepItem, removeItems, sha256 } of tasks) {
     for (const rem of removeItems) {
       if (rem.locked) {
         continue;
@@ -96,7 +97,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
 
       let remainingRefs = [];
       if (rem.source === 'local') {
-        remainingRefs = [...(remainingLocal.get(rem.displayPath) || [])];
+        remainingRefs = findReferencingNotesForLocalFile(rem.rawObj, postSnapshot);
       } else {
         remainingRefs = findReferencingNotesForRemoteItem(rem.rawObj, postSnapshot);
       }
@@ -111,6 +112,10 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
         continue;
       }
 
+      try {
+        if (await currentHash(keepItem) !== sha256 || await currentHash(rem) !== sha256 || !plugin.isReferenceSnapshotCurrent(postSnapshot)) throw new Error('Attachment content or references changed');
+      } catch (error) { skippedBySafetyGate++; plugin.logOperation('WARN','DEDUP_SAFETY_GATE',`Kept ${rem.displayPath}`,{error:error.message}); continue; }
+
       if (rem.source === 'local') {
         try {
           await plugin.app.vault.trash(rem.rawObj, true);
@@ -121,7 +126,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
         }
       } else {
         try {
-          await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename);
+          await plugin.deleteRemoteFile(rem.rawObj.year, rem.rawObj.month, rem.rawObj.filename, sha256);
           deletedRemoteCount++;
         } catch (err) {
           new Notice(plugin.t('noticeRemoteDeleteFailed', { name: rem.name, err: err.message }));

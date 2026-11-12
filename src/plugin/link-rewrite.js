@@ -1,3 +1,4 @@
+import { createUrlRewriter } from '../url-rewrite.js';
 import { IMAGE_EXTS } from '../constants.js';
 import { escapeRegExp, isExcalidrawContent, rewriteExcalidrawEmbeddedFiles } from '../engine.js';
 
@@ -137,26 +138,14 @@ export function rewriteContentLinks(plugin, content, removeItem, keepItem, docPa
       }
     } else {
       const r = removeItem.rawObj;
-      const encodedName = encodeURIComponent(r.filename);
-      const urlPatterns = new Set([
-        r.rawUrl,
-        r.pubUrl,
-        `${r.year}/${r.month}/${r.filename}`,
-        `${r.year}/${r.month}/${encodedName}`
-      ]);
-
-      for (const pat of urlPatterns) {
-        if (!pat) continue;
-        const esc = escapeRegExp(pat);
-        const remoteMdRe = new RegExp(`(!?)\\[([^\\]]*)\\]\\(([^)\\s]*${esc})(?:[?#][^)\\s]*)?\\)`, 'g');
-        updated = updated.replace(remoteMdRe, (_, bang, alt) =>
-          buildReplacementForMdLink(bang === '!', alt)
-        );
-      }
-
+      const urls = [...new Set([r.rawUrl, r.pubUrl, ...(r.referenceUrls || [])])].filter(Boolean);
       if (keepItem.source === 'remote') {
-        if (r.rawUrl) updated = updated.split(r.rawUrl).join(keepItem.rawObj.rawUrl);
-        if (r.pubUrl) updated = updated.split(r.pubUrl).join(keepItem.rawObj.pubUrl);
+        const mappings = urls.map(from => ({from, to: from === r.pubUrl ? keepItem.rawObj.pubUrl || keepItem.rawObj.rawUrl : keepItem.rawObj.rawUrl}));
+        updated = createUrlRewriter(mappings, plugin.getCleanServerUrl?.() || '')(updated).text;
+      } else {
+        const match = createUrlRewriter(urls.map(from => ({from, to:'@@fm-reference@@'})));
+        updated = updated.replace(/(!?)\[([^\]]*)\]\((<?)([^)]+?)>?\)/g, (whole,bang,alt,angle,url) =>
+          match(url).count ? buildReplacementForMdLink(bang === '!',alt) : whole);
       }
     }
 

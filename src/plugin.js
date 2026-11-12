@@ -80,8 +80,8 @@ export class FileMasterPlugin extends Plugin {
     return serverClient.fetchRemoteFileList(this);
   }
 
-  deleteRemoteFile(year, month, filename) {
-    return serverClient.deleteRemoteFile(this, year, month, filename);
+  deleteRemoteFile(year, month, filename, expectedSha256) {
+    return serverClient.deleteRemoteFile(this, year, month, filename, expectedSha256);
   }
 
   buildVaultReferenceSnapshot(scanCtx = {}) {

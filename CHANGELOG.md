@@ -1,5 +1,19 @@
 # Changelog (file-master)
 
+## [1.1.5] - 2026-11-12
+
+### Safer duplicate cleanup
+- Recheck both the retained and redundant attachments before updating note links, then verify their contents again before deletion.
+- Keep files when their contents change or an ambiguous same-name reference remains; report skipped files instead of removing them.
+- Send the expected attachment hash with remote deletion requests so the updated server can reject files changed during cleanup.
+- Match complete remote URLs when updating links, preserving queries and avoiding unrelated hosts or longer filenames.
+
+### Defaults and consistency
+- Classify Obsidian Bases as notes so default orphan cleanup does not select `.base` files.
+- Use `http://localhost:3210` for new installations and empty-address fallbacks, while preserving existing server addresses.
+- Share the exact URL rewrite helper between duplicate cleanup and remote renaming.
+- Validate with 134 automated tests and rebuild the release bundle.
+
 ## [1.1.4] - 2026-11-12
 
 ### Remote asset rename & link synchronization
