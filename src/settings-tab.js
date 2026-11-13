@@ -11,10 +11,9 @@ export class FileMasterSettingTab extends PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
-    this.activePage = 'home';
   }
 
-  createNativeHeading(containerEl, label, emoji = '') {
+  createNativeHeading(containerEl, label, emoji = '', badge = null) {
     const heading = new Setting(containerEl).setName(label);
     if (typeof heading.setHeading === 'function') heading.setHeading();
     heading.settingEl.addClass('setting-item-heading', 'fm-settings-heading-row');
@@ -23,14 +22,21 @@ export class FileMasterSettingTab extends PluginSettingTab {
       const iconEl = heading.nameEl.createSpan({ cls: 'fm-settings-heading-icon', text: emoji, attr: { 'aria-hidden': 'true' } });
       heading.nameEl.prepend(iconEl);
     }
+    if (badge) {
+      heading.nameEl.createSpan({
+        cls: `fm-settings-status-pill ${badge.cls}`.trim(),
+        text: badge.text
+      });
+    }
     return heading;
   }
 
-  createHeading(containerEl, tag, emoji, label) {
-    const heading = containerEl.createEl(tag, { cls: 'fm-settings-heading' });
-    heading.createSpan({ cls: 'fm-settings-heading-icon', text: emoji, attr: { 'aria-hidden': 'true' } });
-    heading.createSpan({ text: label });
-    return heading;
+  addSettingEmoji(setting, emoji) {
+    if (!emoji || !setting?.nameEl) return setting;
+    setting.settingEl?.addClass('fm-settings-has-icon');
+    const iconEl = setting.nameEl.createSpan({ cls: 'fm-settings-item-icon', text: emoji, attr: { 'aria-hidden': 'true' } });
+    setting.nameEl.prepend(iconEl);
+    return setting;
   }
 
   display() {
@@ -38,119 +44,51 @@ export class FileMasterSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.addClass('fm-settings');
 
-    const pages = {
-      general: 'tabGeneral',
-      server: 'tabServer',
-      upload: 'tabUpload',
-      exemptions: 'tabExemptions',
-      about: 'aboutTitle'
-    };
-    const pageIcons = {
-      general: '🎨',
-      server: '🛰️',
-      upload: '🖼️',
-      exemptions: '🛡️',
-      about: '✨'
+    const addSection = (titleKey, emoji, renderFn) => {
+      const section = containerEl.createDiv({ cls: 'fm-settings-nav-section' });
+      this.createNativeHeading(section, this.plugin.t(titleKey), emoji);
+      const card = section.createDiv({ cls: 'fm-settings-section' });
+      renderFn(card);
+      return section;
     };
 
-    if (this.activePage === 'home' || !pages[this.activePage]) {
-      this.activePage = 'home';
-      this.renderSettingsHome(containerEl);
-      return;
-    }
-
-    const header = containerEl.createDiv({ cls: 'fm-settings-page-header' });
-    const back = header.createEl('button', {
-      cls: 'clickable-icon fm-settings-back',
-      attr: { 'aria-label': this.plugin.t('settingsBack') }
-    });
-    setIcon(back, 'chevron-left');
-    back.onclick = () => {
-      this.activePage = 'home';
-      this.display();
-    };
-    this.createHeading(header, 'h2', pageIcons[this.activePage], this.plugin.t(pages[this.activePage]));
-    const section = containerEl.createDiv({ cls: 'fm-settings-section' });
-    if (this.activePage === 'general') this.renderGeneralSettings(section);
-    if (this.activePage === 'server') this.renderServerSettings(section);
-    if (this.activePage === 'upload') this.renderUploadSettings(section);
-    if (this.activePage === 'exemptions') this.renderExemptionsSettings(section);
-    if (this.activePage === 'about') {
-      section.addClass('fm-settings-about');
-      this.renderAboutFooter(section);
-    }
+    addSection('tabServer', '🛰️', (card) => this.renderServerSettings(card));
+    addSection('uploadGroupCapture', '📥', (card) => this.renderCaptureSettings(card));
+    addSection('uploadGroupLinks', '🔗', (card) => this.renderLinkSettings(card));
+    addSection('uploadGroupNaming', '✏️', (card) => this.renderNamingSettings(card));
+    addSection('tabGeneral', '🎨', (card) => this.renderGeneralSettings(card));
+    addSection('tabExemptions', '🛡️', (card) => this.renderExemptionsSettings(card));
+    addSection('settingsToolsGroup', '🪄', (card) => this.renderToolsSettings(card));
+    this.renderCompactAbout(containerEl);
   }
 
-  renderSettingsHome(containerEl) {
-    const serverBadge = !this.plugin.settings.enableRemoteServer
-      ? { text: this.plugin.t('serverStatusOff'), cls: '' }
-      : this.plugin.settings.serverVerified
-        ? { text: this.plugin.t('serverVerifiedBadge'), cls: 'is-online' }
-        : { text: this.plugin.t('serverUnverifiedBadge'), cls: 'is-pending' };
-
-    const group = (title, emoji, entries, { isActionGroup = false } = {}) => {
-      const section = containerEl.createDiv({ cls: 'fm-settings-nav-section' });
-      this.createNativeHeading(section, this.plugin.t(title), emoji);
-      const list = section.createDiv({ cls: 'fm-settings-nav-list' });
-      for (const [page, label, descKey, itemEmoji, badge] of entries) {
-        const setting = new Setting(list).setName(this.plugin.t(label));
-        const row = setting.settingEl;
-        row.addClass('fm-settings-nav-item');
-        if (isActionGroup) {
-          row.addClass('fm-settings-action-item');
-          if (typeof setting.setDesc === 'function') setting.setDesc(this.plugin.t(descKey));
-        } else {
-          setting.descEl?.remove();
-          const iconEl = setting.nameEl.createSpan({ cls: 'fm-settings-nav-icon', text: itemEmoji, attr: { 'aria-hidden': 'true' } });
-          setting.nameEl.prepend(iconEl);
-        }
-        row.setAttribute('role', 'button');
-        row.setAttribute('tabindex', '0');
-        if (badge) {
-          setting.controlEl.createSpan({
-            cls: `fm-settings-status-pill ${badge.cls}`.trim(),
-            text: badge.text
-          });
-        }
-        if (!isActionGroup) {
-          setIcon(setting.controlEl.createSpan({ cls: 'fm-settings-nav-chevron' }), 'chevron-right');
-        }
-        const open = () => {
-          if (page === 'hub') {
-            openModalSafely(new FileMasterHubModal(this.app, this.plugin));
-            return;
-          }
-          if (page === 'logs') {
-            openModalSafely(new OperationLogModal(this.app, this.plugin));
-            return;
-          }
-          this.activePage = page;
-          this.display();
-          containerEl.scrollTop = 0;
-        };
-        row.onclick = open;
-        row.onkeydown = (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            open();
-          }
-        };
-      }
-    };
-
-    group('settingsCoreGroup', '🚀', [
-      ['server', 'tabServer', 'tabServerDesc', '🛰️', serverBadge],
-      ['upload', 'tabUpload', 'tabUploadDesc', '🖼️']
-    ]);
-    group('settingsPreferencesGroup', '🎛️', [
-      ['general', 'tabGeneral', 'tabGeneralDesc', '🎨'],
-      ['exemptions', 'tabExemptions', 'tabExemptionsDesc', '🛡️']
-    ]);
-    group('settingsToolsGroup', '🪄', [
+  renderToolsSettings(containerEl) {
+    const tools = [
       ['hub', 'openHubName', 'openHubDesc', '🧰'],
       ['logs', 'opLogTitle', 'opLogDesc', '📝']
-    ], { isActionGroup: true });
-    this.renderCompactAbout(containerEl);
+    ];
+    for (const [page, label, descKey, emoji] of tools) {
+      const setting = this.addSettingEmoji(new Setting(containerEl).setName(this.plugin.t(label)), emoji);
+      if (typeof setting.setDesc === 'function') setting.setDesc(this.plugin.t(descKey));
+      const row = setting.settingEl;
+      row.addClass('fm-settings-nav-item', 'fm-settings-action-item');
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      const open = () => {
+        if (page === 'hub') {
+          openModalSafely(new FileMasterHubModal(this.app, this.plugin));
+          return;
+        }
+        openModalSafely(new OperationLogModal(this.app, this.plugin));
+      };
+      row.onclick = open;
+      row.onkeydown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          open();
+        }
+      };
+    }
   }
 
   renderCompactAbout(containerEl) {
@@ -163,67 +101,108 @@ export class FileMasterSettingTab extends PluginSettingTab {
     const section = containerEl.createDiv({ cls: 'fm-settings-nav-section' });
     this.createNativeHeading(section, this.plugin.t('settingsInfoGroup'), '🏷️');
     const footer = section.createDiv({ cls: 'fm-settings-about-footer' });
-    const top = footer.createDiv({ cls: 'fm-settings-about-title' });
-    top.createSpan({ text: 'File Master ✨' });
-    top.createSpan({ cls: 'fm-settings-about-version', text: `v${version}` });
 
-    const links = footer.createDiv({ cls: 'fm-settings-about-links' });
-    links.createEl('a', { text: author, href: authorUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
-    links.createSpan({ text: '·' });
-    links.createEl('a', { text: 'GitHub', href: repoUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
-    links.createSpan({ text: '·' });
-    links.createSpan({ text: `${this.plugin.t('aboutServerCompat')} v${MIN_SERVER_VERSION}+` });
-    links.createSpan({ text: '·' });
-    links.createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+    const header = footer.createDiv({ cls: 'fm-settings-about-header' });
+    const titleRow = header.createDiv({ cls: 'fm-settings-about-title-row' });
+    const title = titleRow.createDiv({ cls: 'fm-settings-about-title' });
+    title.createSpan({ text: 'File Master' });
+    title.createSpan({ cls: 'fm-settings-about-sparkle', text: '✨', attr: { 'aria-hidden': 'true' } });
+
+    header.createDiv({ cls: 'fm-settings-about-desc', text: this.plugin.t('aboutDesc') });
+
+    const meta = footer.createDiv({ cls: 'fm-settings-about-grid' });
+    const addRow = (label, buildValue) => {
+      const item = meta.createDiv({ cls: 'fm-settings-about-item' });
+      item.createSpan({ cls: 'fm-settings-about-label', text: label });
+      const value = item.createSpan({ cls: 'fm-settings-about-value' });
+      buildValue(value);
+    };
+
+    const serverVer = this.plugin.lastServerCompatStatus?.serverVersion;
+    const serverVerText = !this.plugin.settings.enableRemoteServer
+      ? this.plugin.t('serverStatusOff')
+      : serverVer
+        ? `v${displayVersion(serverVer)}`
+        : this.plugin.t('aboutServerOffline');
+
+    addRow(this.plugin.t('aboutPluginVersion'), (el) => {
+      el.createSpan({ text: `v${version}` });
+    });
+    addRow(this.plugin.t('aboutServerVersion'), (el) => {
+      el.createSpan({ text: serverVerText });
+    });
+    addRow(this.plugin.t('aboutAuthor'), (el) => {
+      el.createEl('a', { text: author, href: authorUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+    });
+    addRow(this.plugin.t('aboutRepo'), (el) => {
+      el.createEl('a', { text: 'GitHub', href: repoUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+    });
+    addRow(this.plugin.t('aboutLicense'), (el) => {
+      el.createSpan({ text: 'MIT' });
+    });
+    addRow(this.plugin.t('aboutFeedback'), (el) => {
+      el.createEl('a', { text: this.plugin.t('aboutChangelog'), href: `${repoUrl}/blob/main/CHANGELOG.md`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+      el.createSpan({ cls: 'fm-settings-about-sep', text: '/' });
+      el.createEl('a', { text: 'Issues', href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+    });
   }
 
   renderGeneralSettings(containerEl) {
-    new Setting(containerEl)
-      .setName(this.plugin.t('langName'))
-      .setDesc(this.plugin.t('langDesc'))
-      .addDropdown((drop) =>
-        drop
-          .addOption('auto', this.plugin.t('langAuto'))
-          .addOption('zh', '简体中文')
-          .addOption('en', 'English')
-          .setValue(this.plugin.settings.language || 'auto')
-          .onChange(async (value) => {
-            this.plugin.settings.language = value;
-            await this.plugin.saveSettings();
-            onLanguageChange(this.plugin);
-            this.display();
-          })
-      );
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('langName'))
+        .setDesc(this.plugin.t('langDesc'))
+        .addDropdown((drop) =>
+          drop
+            .addOption('auto', this.plugin.t('langAuto'))
+            .addOption('zh', '简体中文')
+            .addOption('en', 'English')
+            .setValue(this.plugin.settings.language || 'auto')
+            .onChange(async (value) => {
+              this.plugin.settings.language = value;
+              await this.plugin.saveSettings();
+              onLanguageChange(this.plugin);
+              this.display();
+            })
+        ),
+      '🌍'
+    );
 
-    new Setting(containerEl)
-      .setName(this.plugin.t('sidebarBtnName'))
-      .setDesc(this.plugin.t('sidebarBtnDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
-          this.plugin.settings.enableSidebarButton = value;
-          await this.plugin.saveSettings();
-          updateSidebarRibbonButton(this.plugin);
-        })
-      );
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('sidebarBtnName'))
+        .setDesc(this.plugin.t('sidebarBtnDesc'))
+        .addToggle((toggle) =>
+          toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
+            this.plugin.settings.enableSidebarButton = value;
+            await this.plugin.saveSettings();
+            updateSidebarRibbonButton(this.plugin);
+          })
+        ),
+      '📌'
+    );
   }
 
   renderServerSettings(containerEl) {
-    new Setting(containerEl)
-      .setName(this.plugin.t('enableRemoteServerName'))
-      .setDesc(this.plugin.t('enableRemoteServerDesc'))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(Boolean(this.plugin.settings.enableRemoteServer))
-          .onChange(async (value) => {
-            this.plugin.settings.enableRemoteServer = value;
-            if (!value) {
-              this.plugin.settings.serverVerified = false;
-              this.plugin.lastServerCompatStatus = null;
-            }
-            await this.plugin.saveSettings();
-            this.display();
-          })
-      );
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('enableRemoteServerName'))
+        .setDesc(this.plugin.t('enableRemoteServerDesc'))
+        .addToggle((toggle) =>
+          toggle
+            .setValue(Boolean(this.plugin.settings.enableRemoteServer))
+            .onChange(async (value) => {
+              this.plugin.settings.enableRemoteServer = value;
+              if (!value) {
+                this.plugin.settings.serverVerified = false;
+                this.plugin.lastServerCompatStatus = null;
+              }
+              await this.plugin.saveSettings();
+              this.display();
+            })
+        ),
+      '🔌'
+    );
 
     if (!this.plugin.settings.enableRemoteServer) {
       const hint = containerEl.createDiv({ cls: 'fm-settings-hint' });
@@ -231,21 +210,24 @@ export class FileMasterSettingTab extends PluginSettingTab {
       return;
     }
 
-    new Setting(containerEl)
-      .setName(this.plugin.t('serverUrlName'))
-      .setDesc(this.plugin.t('serverUrlDesc'))
-      .addText((text) =>
-        text
-          .setPlaceholder('https://files.example.com')
-          .setValue(this.plugin.settings.serverUrl)
-          .onChange(async (value) => {
-            this.plugin.settings.serverUrl = value.trim();
-            this.plugin.settings.serverVerified = false;
-            this.plugin.lastServerCompatStatus = null;
-            updateStatusBox(null);
-            await this.plugin.saveSettings();
-          })
-      );
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('serverUrlName'))
+        .setDesc(this.plugin.t('serverUrlDesc'))
+        .addText((text) =>
+          text
+            .setPlaceholder('https://files.example.com')
+            .setValue(this.plugin.settings.serverUrl)
+            .onChange(async (value) => {
+              this.plugin.settings.serverUrl = value.trim();
+              this.plugin.settings.serverVerified = false;
+              this.plugin.lastServerCompatStatus = null;
+              updateStatusBox(null);
+              await this.plugin.saveSettings();
+            })
+        ),
+      '🌐'
+    );
 
     let statusBox;
     const updateStatusBox = (compat) => {
@@ -257,32 +239,35 @@ export class FileMasterSettingTab extends PluginSettingTab {
     };
 
     let tokenInput;
-    new Setting(containerEl)
-      .setName(this.plugin.t('apiTokenName'))
-      .setDesc(this.plugin.t('apiTokenDesc'))
-      .addText((text) => {
-        tokenInput = text.inputEl;
-        tokenInput.type = 'password';
-        text
-          .setPlaceholder('API token')
-          .setValue(this.plugin.settings.apiToken)
-          .onChange(async (value) => {
-            this.plugin.settings.apiToken = value.trim();
-            this.plugin.settings.serverVerified = false;
-            this.plugin.lastServerCompatStatus = null;
-            updateStatusBox(null);
-            await this.plugin.saveSettings();
-          });
-      })
-      .addExtraButton((btn) => btn
-        .setIcon('eye')
-        .setTooltip(this.plugin.t('showToken'))
-        .onClick(() => {
-          const hidden = tokenInput.type === 'password';
-          tokenInput.type = hidden ? 'text' : 'password';
-          btn.setIcon(hidden ? 'eye-off' : 'eye');
-          btn.setTooltip(this.plugin.t(hidden ? 'hideToken' : 'showToken'));
-        }));
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('apiTokenName'))
+        .setDesc(this.plugin.t('apiTokenDesc'))
+        .addText((text) => {
+          tokenInput = text.inputEl;
+          tokenInput.type = 'password';
+          text
+            .setPlaceholder('API token')
+            .setValue(this.plugin.settings.apiToken)
+            .onChange(async (value) => {
+              this.plugin.settings.apiToken = value.trim();
+              this.plugin.settings.serverVerified = false;
+              this.plugin.lastServerCompatStatus = null;
+              updateStatusBox(null);
+              await this.plugin.saveSettings();
+            });
+        })
+        .addExtraButton((btn) => btn
+          .setIcon('eye')
+          .setTooltip(this.plugin.t('showToken'))
+          .onClick(() => {
+            const hidden = tokenInput.type === 'password';
+            tokenInput.type = hidden ? 'text' : 'password';
+            btn.setIcon(hidden ? 'eye-off' : 'eye');
+            btn.setTooltip(this.plugin.t(hidden ? 'hideToken' : 'showToken'));
+          })),
+      '🔑'
+    );
 
     const connectionRow = containerEl.createDiv({ cls: 'fm-settings-connection-row' });
     statusBox = connectionRow.createDiv({ cls: 'fm-server-compat-banner' });
@@ -309,180 +294,171 @@ export class FileMasterSettingTab extends PluginSettingTab {
       );
   }
 
-  renderUploadSettings(containerEl) {
-    containerEl.removeClass('fm-settings-section');
-    const makeCard = (titleKey) => {
-      const groupWrap = containerEl.createDiv({ cls: 'fm-settings-upload-group' });
-      this.createNativeHeading(groupWrap, this.plugin.t(titleKey));
-      return groupWrap.createDiv({ cls: 'fm-settings-section' });
-    };
-
-    const captureCard = makeCard('uploadGroupCapture');
-    new Setting(captureCard)
-      .setName(this.plugin.t('clipboardMonitorName'))
-      .setDesc(this.plugin.t('clipboardMonitorDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
-          this.plugin.settings.enableClipboardMonitor = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-    new Setting(captureCard)
-      .setName(this.plugin.t('saveLocationName'))
-      .setDesc(this.plugin.t('saveLocationDesc'))
-      .addDropdown((drop) =>
-        drop
-          .addOption('ask', this.plugin.t('optSaveAsk'))
-          .addOption('remote', this.plugin.t('optSaveRemote'))
-          .addOption('local', this.plugin.t('optSaveLocal'))
-          .setValue(this.plugin.settings.saveLocationMode)
-          .onChange(async (value) => {
-            this.plugin.settings.saveLocationMode = value;
+  renderCaptureSettings(captureCard) {
+    this.addSettingEmoji(
+      new Setting(captureCard)
+        .setName(this.plugin.t('clipboardMonitorName'))
+        .setDesc(this.plugin.t('clipboardMonitorDesc'))
+        .addToggle((toggle) =>
+          toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
+            this.plugin.settings.enableClipboardMonitor = value;
             await this.plugin.saveSettings();
           })
-      );
+        ),
+      '📋'
+    );
 
-    new Setting(captureCard)
-      .setName(this.plugin.t('defaultSaveLocationName'))
-      .setDesc(this.plugin.t('defaultSaveLocationDesc'))
-      .addDropdown((drop) =>
-        drop
-          .addOption('remote', this.plugin.t('destSaveRemote'))
-          .addOption('local', this.plugin.t('destSaveLocal'))
-          .setValue(this.plugin.settings.defaultSaveLocation || 'remote')
-          .onChange(async (value) => {
-            this.plugin.settings.defaultSaveLocation = value;
+    this.addSettingEmoji(
+      new Setting(captureCard)
+        .setName(this.plugin.t('saveLocationName'))
+        .setDesc(this.plugin.t('saveLocationDesc'))
+        .addDropdown((drop) =>
+          drop
+            .addOption('ask', this.plugin.t('optSaveAsk'))
+            .addOption('remote', this.plugin.t('optSaveRemote'))
+            .addOption('local', this.plugin.t('optSaveLocal'))
+            .setValue(this.plugin.settings.saveLocationMode)
+            .onChange(async (value) => {
+              this.plugin.settings.saveLocationMode = value;
+              await this.plugin.saveSettings();
+            })
+        ),
+      '📍'
+    );
+
+    this.addSettingEmoji(
+      new Setting(captureCard)
+        .setName(this.plugin.t('defaultSaveLocationName'))
+        .setDesc(this.plugin.t('defaultSaveLocationDesc'))
+        .addDropdown((drop) =>
+          drop
+            .addOption('remote', this.plugin.t('destSaveRemote'))
+            .addOption('local', this.plugin.t('destSaveLocal'))
+            .setValue(this.plugin.settings.defaultSaveLocation || 'remote')
+            .onChange(async (value) => {
+              this.plugin.settings.defaultSaveLocation = value;
+              await this.plugin.saveSettings();
+            })
+        ),
+      '💾'
+    );
+  }
+
+  renderLinkSettings(linksCard) {
+    this.addSettingEmoji(
+      new Setting(linksCard)
+        .setName(this.plugin.t('insertOptimizedName'))
+        .setDesc(this.plugin.t('insertOptimizedDesc'))
+        .addToggle((toggle) =>
+          toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
+            this.plugin.settings.insertOptimizedLinkOnUpload = value;
             await this.plugin.saveSettings();
           })
-      );
+        ),
+      '⚡'
+    );
 
-    const linksCard = makeCard('uploadGroupLinks');
-    new Setting(linksCard)
-      .setName(this.plugin.t('insertOptimizedName'))
-      .setDesc(this.plugin.t('insertOptimizedDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
-          this.plugin.settings.insertOptimizedLinkOnUpload = value;
-          await this.plugin.saveSettings();
-        })
-      );
+    this.addSettingEmoji(
+      new Setting(linksCard)
+        .setName(this.plugin.t('galleryDefaultLinkName'))
+        .setDesc(this.plugin.t('galleryDefaultLinkDesc'))
+        .addDropdown((drop) => {
+          const store = galleryStore(this.plugin);
+          drop.addOption('raw', this.plugin.t('galleryModeRaw'))
+            .addOption('webp', this.plugin.t('galleryModeWebp'))
+            .setValue(store.state.insertMode)
+            .onChange(async (value) => {
+              try { await store.setInsertMode(value); }
+              catch (error) { drop.setValue(store.state.insertMode); new Notice(error.message); }
+            });
+        }),
+      '🖼️'
+    );
 
-    new Setting(linksCard)
-      .setName(this.plugin.t('galleryDefaultLinkName'))
-      .setDesc(this.plugin.t('galleryDefaultLinkDesc'))
-      .addDropdown((drop) => {
-        const store = galleryStore(this.plugin);
-        drop.addOption('raw', this.plugin.t('galleryModeRaw'))
-          .addOption('webp', this.plugin.t('galleryModeWebp'))
-          .setValue(store.state.insertMode)
-          .onChange(async (value) => {
-            try { await store.setInsertMode(value); }
-            catch (error) { drop.setValue(store.state.insertMode); new Notice(error.message); }
-          });
-      });
+    this.addSettingEmoji(
+      new Setting(linksCard)
+        .setName(this.plugin.t('uploadNonImageName'))
+        .setDesc(this.plugin.t('uploadNonImageDesc'))
+        .addToggle((toggle) =>
+          toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
+            this.plugin.settings.uploadNonImageAttachments = value;
+            await this.plugin.saveSettings();
+          })
+        ),
+      '📎'
+    );
+  }
 
-    new Setting(linksCard)
-      .setName(this.plugin.t('uploadNonImageName'))
-      .setDesc(this.plugin.t('uploadNonImageDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
-          this.plugin.settings.uploadNonImageAttachments = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-    const namingCard = makeCard('uploadGroupNaming');
+  renderNamingSettings(namingCard) {
     let patternSetting = null;
-    new Setting(namingCard)
-      .setName(this.plugin.t('namingStrategyName'))
-      .setDesc(this.plugin.t('namingStrategyDesc'))
-      .addDropdown((drop) =>
-        drop
-          .addOption('keep', this.plugin.t('optNamingKeep'))
-          .addOption('rule', this.plugin.t('optNamingRule'))
-          .setValue(this.plugin.settings.namingMode || 'keep')
-          .onChange(async (value) => {
-            this.plugin.settings.namingMode = value;
-            await this.plugin.saveSettings();
-            if (patternSetting && patternSetting.settingEl) {
-              patternSetting.settingEl.style.display = value === 'rule' ? '' : 'none';
-            }
-          })
-      );
+    this.addSettingEmoji(
+      new Setting(namingCard)
+        .setName(this.plugin.t('namingStrategyName'))
+        .setDesc(this.plugin.t('namingStrategyDesc'))
+        .addDropdown((drop) =>
+          drop
+            .addOption('keep', this.plugin.t('optNamingKeep'))
+            .addOption('rule', this.plugin.t('optNamingRule'))
+            .setValue(this.plugin.settings.namingMode || 'keep')
+            .onChange(async (value) => {
+              this.plugin.settings.namingMode = value;
+              await this.plugin.saveSettings();
+              if (patternSetting && patternSetting.settingEl) {
+                patternSetting.settingEl.style.display = value === 'rule' ? '' : 'none';
+              }
+            })
+        ),
+      '🏷️'
+    );
 
-    patternSetting = new Setting(namingCard)
-      .setName(this.plugin.t('namingPatternName'))
-      .setDesc(this.plugin.t('namingPatternDesc'))
-      .addText((text) =>
-        text
-          .setPlaceholder('{note}_{date}_{rand:4}')
-          .setValue(this.plugin.settings.namingPattern || '{note}_{date}_{rand:4}')
-          .onChange(async (value) => {
-            this.plugin.settings.namingPattern = value.trim() || '{note}_{date}_{rand:4}';
-            await this.plugin.saveSettings();
-          })
-      );
+    patternSetting = this.addSettingEmoji(
+      new Setting(namingCard)
+        .setName(this.plugin.t('namingPatternName'))
+        .setDesc(this.plugin.t('namingPatternDesc'))
+        .addText((text) =>
+          text
+            .setPlaceholder('{note}_{date}_{rand:4}')
+            .setValue(this.plugin.settings.namingPattern || '{note}_{date}_{rand:4}')
+            .onChange(async (value) => {
+              this.plugin.settings.namingPattern = value.trim() || '{note}_{date}_{rand:4}';
+              await this.plugin.saveSettings();
+            })
+        ),
+      '🧩'
+    );
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === 'rule' ? '' : 'none';
     }
   }
 
   renderExemptionsSettings(containerEl) {
-    new Setting(containerEl)
-      .setName(this.plugin.t('excludedFoldersName'))
-      .setDesc(this.plugin.t('excludedFoldersDesc'))
-      .addText((text) =>
-        text
-          .setPlaceholder('')
-          .setValue(this.plugin.settings.excludedLocalFolders)
-          .onChange(async (value) => {
-            this.plugin.settings.excludedLocalFolders = value;
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('excludedFoldersName'))
+        .setDesc(this.plugin.t('excludedFoldersDesc'))
+        .addText((text) =>
+          text
+            .setPlaceholder('')
+            .setValue(this.plugin.settings.excludedLocalFolders)
+            .onChange(async (value) => {
+              this.plugin.settings.excludedLocalFolders = value;
+              await this.plugin.saveSettings();
+            })
+        ),
+      '📁'
+    );
+
+    this.addSettingEmoji(
+      new Setting(containerEl)
+        .setName(this.plugin.t('excludeLockedRemoteName'))
+        .setDesc(this.plugin.t('excludeLockedRemoteDesc'))
+        .addToggle((toggle) =>
+          toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
+            this.plugin.settings.excludeLockedRemoteFiles = value;
             await this.plugin.saveSettings();
           })
-      );
-
-    new Setting(containerEl)
-      .setName(this.plugin.t('excludeLockedRemoteName'))
-      .setDesc(this.plugin.t('excludeLockedRemoteDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
-          this.plugin.settings.excludeLockedRemoteFiles = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-  }
-
-  renderAboutFooter(containerEl) {
-    const manifest = this.plugin.manifest || {};
-    const version = displayVersion(manifest.version || '0.1.1');
-    const author = manifest.author || 'weichen-ink';
-    const authorUrl = manifest.authorUrl || 'https://github.com/weichen-ink';
-    const repoUrl = 'https://github.com/weichen-ink/file-master';
-
-    const intro = new Setting(containerEl)
-      .setName('File Master')
-      .setDesc(this.plugin.t('aboutDesc'));
-    intro.controlEl.createSpan({ text: `v${version}` });
-
-    const addRow = (label) => new Setting(containerEl).setName(this.plugin.t(label)).controlEl;
-    addRow('aboutAuthor').createEl('a', { text: author, href: authorUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
-    addRow('aboutRepo').createEl('a', { text: 'weichen-ink/file-master', href: repoUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
-    addRow('aboutServerCompat').createSpan({ text: `v${MIN_SERVER_VERSION}+` });
-    const sCompat = this.plugin.lastServerCompatStatus;
-    addRow('aboutServerStatus').createSpan({
-      cls: `fm-about-status ${sCompat?.ok ? 'is-connected' : ''}`,
-      text: sCompat ? getCompatibilityMessage(this.plugin, sCompat) : this.plugin.t('aboutServerOffline')
-    });
-    new Setting(containerEl)
-      .setName(this.plugin.t('opLogTitle'))
-      .setDesc(this.plugin.t('opLogDesc'))
-      .addButton((btn) =>
-        btn.setButtonText(this.plugin.t('opLogBtnOpen')).onClick(() => {
-          openModalSafely(new OperationLogModal(this.app, this.plugin));
-        })
-      );
-    addRow('aboutFeedback').createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+        ),
+      '🔒'
+    );
   }
 }

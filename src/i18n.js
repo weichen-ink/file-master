@@ -447,7 +447,11 @@ export const UI_STRINGS = {
     aboutRepo: '官方开源仓库',
     aboutFeedback: '问题反馈',
     aboutFeedbackLink: '打开 GitHub Issues',
+    aboutChangelog: '更新日志',
     aboutServerCompat: '服务端兼容要求',
+    aboutPluginVersion: '插件版本',
+    aboutServerVersion: '服务端版本',
+    aboutLicense: '开源协议',
     aboutServerStatus: '关联服务端状态',
     aboutServerOffline: '未连接',
 
@@ -1144,7 +1148,11 @@ export const UI_STRINGS = {
     aboutRepo: 'GitHub Repository',
     aboutFeedback: 'Report an Issue',
     aboutFeedbackLink: 'Open GitHub Issues',
+    aboutChangelog: 'Changelog',
     aboutServerCompat: 'Server Compatibility',
+    aboutPluginVersion: 'Plugin Version',
+    aboutServerVersion: 'Server Version',
+    aboutLicense: 'License',
     aboutServerStatus: 'Connected Server',
     aboutServerOffline: 'Offline',
 

@@ -37,5 +37,12 @@ class Setting {
     this.controlEl = this.settingEl.createDiv();
   }
   setName(name) { this.settingEl.name = name; return this; }
+  setDesc(desc) { this.descEl.text = desc; return this; }
+  setHeading() { return this; }
+  addToggle(cb) { const t = { setValue: () => t, onChange: () => t }; cb?.(t); return this; }
+  addDropdown(cb) { const d = { addOption: () => d, setValue: () => d, onChange: () => d }; cb?.(d); return this; }
+  addText(cb) { const t = { inputEl: this.controlEl.createEl('input'), setPlaceholder: () => t, setValue: () => t, onChange: () => t }; cb?.(t); return this; }
+  addButton(cb) { const b = { setButtonText: () => b, onClick: () => b }; cb?.(b); return this; }
+  addExtraButton(cb) { const b = { setIcon: () => b, setTooltip: () => b, onClick: () => b }; cb?.(b); return this; }
 }
 module.exports = { Element, Setting };

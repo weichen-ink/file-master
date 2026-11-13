@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.2.2] - 2026-11-13
+
+### Single-page settings & responsive layout
+- Flatten all plugin settings onto a single unified page with aligned emoji headings and setting row icons.
+- Refine the About card with a balanced 3×2 metadata grid displaying both plugin and connected server versions.
+- Fix responsive layout using CSS container queries (`@container`) so wide descriptions and narrow stacked controls align cleanly at any window or modal width.
+
 ## [1.2.1] - 2026-11-13
 
 ### Settings home & Hub UI polish
