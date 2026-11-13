@@ -1,3 +1,4 @@
+import { queryRemoteFiles } from '../remote-file-query.js';
 import { DEFAULT_SERVER_URL, IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt } from '../constants.js';
 import { applyNamingPattern, buildMultipartBuffer, compareSemver, computeSha256Hex, getBaseName, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { IncomingFileModal } from '../modals/incoming-file.js';
@@ -378,7 +379,20 @@ export async function fetchRemoteFilePage(plugin, options = {}) {
     throw new Error(response.json?.error || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
   const list = (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
-  return { items: list, totalCount: response.json.totalCount ?? list.length, buckets: response.json.buckets || [] };
+  // Older servers ignore paging parameters and return the complete catalog.
+  // Normalize that response here so every browser receives the requested page.
+  const paged = Number.isFinite(options.limit) && options.limit > 0;
+  const serverPaged = Number.isInteger(response.json.totalCount) && response.json.totalCount >= list.length && (!paged || list.length <= options.limit);
+  if (serverPaged) {
+    return { items: list, totalCount: response.json.totalCount, buckets: response.json.buckets || [] };
+  }
+  const filtered = queryRemoteFiles(list, options);
+  const offset = Number.isFinite(options.offset) ? Math.max(0, Math.trunc(options.offset)) : 0;
+  return {
+    items: paged ? filtered.slice(offset, offset + Math.trunc(options.limit)) : filtered,
+    totalCount: filtered.length,
+    buckets: [...new Set(list.map(item => `${item.year}/${item.month}`))].sort()
+  };
 }
 
 export async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {

@@ -1,5 +1,16 @@
 # Changelog (file-master)
 
+## [1.1.8] - 2026-11-13
+
+### Correct pagination with older servers
+- Fix file browsers displaying the entire catalog when a running server ignores pagination parameters.
+- Normalize full-catalog responses in the shared client: apply search, directory/type filters, and sorting before selecting the requested 20 files.
+- Use the same filtering and sorting implementation for local gallery queries and client-side pagination.
+- Keep Hub, sidebar, and server-file renaming on the selected page, with correct totals, directory filters, distinct next/previous pages, and the final partial page.
+- Preserve native server pagination without slicing pages twice, and keep full-list access for attachment scans.
+- Add regression coverage using a 1,024-file response through the actual client and browser handlers.
+- Older servers still transfer the full catalog on each request; update the server to enable pagination over the network.
+
 ## [1.1.7] - 2026-11-13
 
 ### Faster browsing and renaming

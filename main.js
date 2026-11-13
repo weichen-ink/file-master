@@ -2567,6 +2567,39 @@ function formatLogsForExport(plugin) {
   return [...header, ...body].join("\n");
 }
 
+// src/remote-file-query.js
+function queryRemoteFiles(items, options = {}) {
+  const query = String(options.q || "").trim().toLowerCase();
+  const filtered = items.filter((item) => {
+    var _a, _b;
+    if (((_a = options.buckets) == null ? void 0 : _a.length) && !options.buckets.includes(`${item.year}/${item.month}`)) return false;
+    if (((_b = options.types) == null ? void 0 : _b.length) && !options.types.includes(getFileTypeGroup(getExt(item.name || item.filename)))) return false;
+    return !query || (item.name || item.filename || "").toLowerCase().includes(query);
+  });
+  const sort = options.sort || "time_desc";
+  filtered.sort((a, b) => {
+    if (sort === "size_desc") return (b.size || 0) - (a.size || 0);
+    if (sort === "size_asc") return (a.size || 0) - (b.size || 0);
+    if (sort === "name_asc") {
+      const na = a.name || a.filename || "";
+      const nb = b.name || b.filename || "";
+      return na.localeCompare(nb, void 0, { numeric: true, sensitivity: "base" });
+    }
+    if (sort === "name_desc") {
+      const na = a.name || a.filename || "";
+      const nb = b.name || b.filename || "";
+      return nb.localeCompare(na, void 0, { numeric: true, sensitivity: "base" });
+    }
+    if (sort === "hits_desc" || sort === "hits_asc") {
+      const difference = (a.hits || 0) - (b.hits || 0);
+      return (sort === "hits_asc" ? difference : -difference) || (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    if (sort === "time_asc") return (a.createdAt || 0) - (b.createdAt || 0);
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+  return filtered;
+}
+
 // src/ui/navigation.js
 var import_obsidian4 = require("obsidian");
 var modalHeaders = /* @__PURE__ */ new WeakMap();
@@ -5293,7 +5326,7 @@ async function fetchRemoteFileList(plugin, options = {}) {
   return (await fetchRemoteFilePage(plugin, options)).items;
 }
 async function fetchRemoteFilePage(plugin, options = {}) {
-  var _a, _b, _c;
+  var _a, _b;
   const params = new URLSearchParams();
   if (options && typeof options === "object") {
     if (options.q !== void 0 && String(options.q).trim()) {
@@ -5320,7 +5353,18 @@ async function fetchRemoteFilePage(plugin, options = {}) {
     throw new Error(((_b = response.json) == null ? void 0 : _b.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
   const list = (response.json.images || []).map((item) => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
-  return { items: list, totalCount: (_c = response.json.totalCount) != null ? _c : list.length, buckets: response.json.buckets || [] };
+  const paged = Number.isFinite(options.limit) && options.limit > 0;
+  const serverPaged = Number.isInteger(response.json.totalCount) && response.json.totalCount >= list.length && (!paged || list.length <= options.limit);
+  if (serverPaged) {
+    return { items: list, totalCount: response.json.totalCount, buckets: response.json.buckets || [] };
+  }
+  const filtered = queryRemoteFiles(list, options);
+  const offset = Number.isFinite(options.offset) ? Math.max(0, Math.trunc(options.offset)) : 0;
+  return {
+    items: paged ? filtered.slice(offset, offset + Math.trunc(options.limit)) : filtered,
+    totalCount: filtered.length,
+    buckets: [...new Set(list.map((item) => `${item.year}/${item.month}`))].sort()
+  };
 }
 async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
   var _a;
@@ -7563,34 +7607,12 @@ var OrphanWizardModal = class extends FileMasterModal {
 // src/gallery.js
 var import_obsidian23 = require("obsidian");
 function filterRemoteGallery(view) {
-  const filtered = view.items.filter((item) => {
-    var _a, _b;
-    if (((_a = view.selectedBuckets) == null ? void 0 : _a.length) && !view.selectedBuckets.includes(`${item.year}/${item.month}`)) return false;
-    if (((_b = view.selectedTypes) == null ? void 0 : _b.length) && !view.selectedTypes.includes(getFileTypeGroup(getExt(item.name || item.filename)))) return false;
-    return !view.searchQuery || (item.name || item.filename || "").toLowerCase().includes(view.searchQuery);
+  return queryRemoteFiles(view.items, {
+    buckets: view.selectedBuckets,
+    types: view.selectedTypes,
+    q: view.searchQuery,
+    sort: view.selectedSort
   });
-  const sort = view.selectedSort || "time_desc";
-  filtered.sort((a, b) => {
-    if (sort === "size_desc") return (b.size || 0) - (a.size || 0);
-    if (sort === "size_asc") return (a.size || 0) - (b.size || 0);
-    if (sort === "name_asc") {
-      const na = a.name || a.filename || "";
-      const nb = b.name || b.filename || "";
-      return na.localeCompare(nb, void 0, { numeric: true, sensitivity: "base" });
-    }
-    if (sort === "name_desc") {
-      const na = a.name || a.filename || "";
-      const nb = b.name || b.filename || "";
-      return nb.localeCompare(na, void 0, { numeric: true, sensitivity: "base" });
-    }
-    if (sort === "hits_desc" || sort === "hits_asc") {
-      const difference = (a.hits || 0) - (b.hits || 0);
-      return (sort === "hits_asc" ? difference : -difference) || (b.createdAt || 0) - (a.createdAt || 0);
-    }
-    if (sort === "time_asc") return (a.createdAt || 0) - (b.createdAt || 0);
-    return (b.createdAt || 0) - (a.createdAt || 0);
-  });
-  return filtered;
 }
 function renderRemoteGallery(view, containerEl) {
   containerEl.empty();

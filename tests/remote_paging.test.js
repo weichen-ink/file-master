@@ -125,13 +125,69 @@ test('A persisted preview from an earlier plugin session safely rediscovers refe
 
 test('The client sends paging filters while complete-list consumers retain every result',async()=>{
   const calls=[],images=Array.from({length:45},(_,i)=>image(i));
-  const {serverClient}=loadPlugin(async options=>{calls.push(options);return {status:200,json:{images,totalCount:45,buckets:['2026/11']}};});
+  const {serverClient}=loadPlugin(async options=>{
+    calls.push(options);const params=new URL(options.url).searchParams;
+    const items=params.has('limit')?images.slice(Number(params.get('offset')),Number(params.get('offset'))+Number(params.get('limit'))):images;
+    return {status:200,json:{images:items,totalCount:45,buckets:['2026/11']}};
+  });
   const plugin={settings:{apiToken:'secret'},getCleanServerUrl:()=> 'https://example.com'};
   const page=await serverClient.fetchRemoteFilePage(plugin,{q:'图片',types:['image','audio'],buckets:['2025/01','2026/11'],sort:'hits_asc',limit:20,offset:20});
   const query=new URL(calls[0].url).searchParams;
   assert.equal(query.get('q'),'图片');assert.equal(query.get('types'),'image,audio');assert.equal(query.get('buckets'),'2025/01,2026/11');
   assert.equal(query.get('sort'),'hits_asc');assert.equal(query.get('limit'),'20');assert.equal(query.get('offset'),'20');
   assert.equal(calls[0].headers.Authorization,'Bearer secret');assert.equal(page.totalCount,45);
+  assert.deepEqual(page.items.map(item=>item.filename),images.slice(20,40).map(item=>item.filename));
   assert.equal((await serverClient.fetchRemoteFileList(plugin)).length,45);
   assert.equal(new URL(calls[1].url).search,'');
+});
+
+
+test('Full-catalog server responses show only the selected 20 files in rename, Hub and sidebar',async()=>{
+  const images=Array.from({length:1024},(_,i)=>({...image(i),createdAt:i}));
+  const f=createVaultFixture(async()=>({status:200,json:{images,optimizationEnabled:false,stats:{}}}));
+  // Exercise the actual client boundary, not the fixture's list-to-page adapter.
+  f.plugin.fetchRemoteFilePage=options=>f.serverClient.fetchRemoteFilePage(f.plugin,options);
+  f.plugin.app.workspace.on=()=>({});f.plugin.app.workspace.offref=()=>{};
+  const rename=new f.RemoteRenameModal(f.plugin.app,f.plugin);await rename.onOpen();
+  const names=()=>[...rename.rowControls.values()].map(control=>control.input.value);
+  assert.equal(rename.rowControls.size,20);assert.equal(rename.pages.state.totalCount,1024);
+  assert.equal(rename.pages.state.items[0].filename,'image-1023.png');const first=names();
+  await rename.browserFooter.next.onclick();
+  assert.equal(rename.rowControls.size,20);assert.equal(rename.pages.state.items[0].filename,'image-1003.png');
+  assert.ok(names().every(name=>!first.includes(name)));
+  await rename.browserFooter.previous.onclick();assert.deepEqual(names(),first);rename.onClose();
+
+  const hub=new f.RemoteGalleryModal(f.plugin.app,f.plugin);await hub.onOpen();
+  const sidebar=new f.RemoteGalleryView({},f.plugin);sidebar.app=f.plugin.app;sidebar.contentEl=new Element();await sidebar.onOpen();
+  const rowCount=host=>host.contentEl.all().filter(el=>el.className.split(' ').includes('fm-gallery-list-row')).length;
+  assert.equal(rowCount(hub),20);assert.equal(rowCount(sidebar),20);
+  await hub.browserFooter.next.onclick();
+  assert.equal(rowCount(hub),20);assert.equal(rowCount(sidebar),20);
+  assert.equal(hub.store.state.items[0].filename,'image-1003.png');
+  await hub.store.goToPage(51);assert.equal(rowCount(hub),4);assert.equal(rowCount(sidebar),4);
+  assert.equal(hub.store.state.items[0].filename,'image-3.png');
+  hub.onClose();sidebar.onClose();hub.store.clear();
+});
+
+test('Full-catalog fallback filters and sorts globally before slicing, retains facets and complete-list access',async()=>{
+  const images=Array.from({length:80},(_,i)=>({...image(i),filename:`Photo-${i}.png`,year:i<40?'2025':'2026',createdAt:i,hits:80-i}));
+  images.push({...image(999),filename:'Photo-999.mp3',year:'2024'});
+  const {serverClient}=loadPlugin(async()=>({status:200,json:{images}}));
+  const plugin={settings:{apiToken:'test'},getCleanServerUrl:()=> 'https://example.com'};
+  const page=await serverClient.fetchRemoteFilePage(plugin,{q:'PHOTO',types:['image'],buckets:['2026/11'],sort:'size_desc',limit:20,offset:20});
+  assert.equal(page.totalCount,40);assert.equal(page.items.length,20);
+  assert.deepEqual(page.items.map(item=>item.size),Array.from({length:20},(_,i)=>59-i));
+  assert.deepEqual(page.buckets,['2024/11','2025/11','2026/11']);
+  const hits=await serverClient.fetchRemoteFilePage(plugin,{types:['image'],sort:'hits_asc',limit:20,offset:0});
+  assert.equal(hits.items[0].filename,'Photo-79.png');
+  const empty=await serverClient.fetchRemoteFilePage(plugin,{q:'missing',limit:20,offset:0});
+  assert.equal(empty.totalCount,0);assert.deepEqual(empty.items,[]);assert.equal(empty.buckets.length,3);
+  assert.equal((await serverClient.fetchRemoteFileList(plugin)).length,81);
+});
+
+test('Oversized responses cannot bypass pagination even if they include a total count',async()=>{
+  const images=Array.from({length:45},(_,i)=>({...image(i),createdAt:i}));
+  const {serverClient}=loadPlugin(async()=>({status:200,json:{images,totalCount:45}}));
+  const page=await serverClient.fetchRemoteFilePage({settings:{},getCleanServerUrl:()=> 'https://example.com'},{limit:20,offset:40});
+  assert.equal(page.items.length,5);assert.equal(page.items[0].filename,'image-4.png');assert.equal(page.totalCount,45);
 });

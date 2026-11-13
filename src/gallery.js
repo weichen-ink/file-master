@@ -1,6 +1,7 @@
+import { queryRemoteFiles } from './remote-file-query.js';
 import { insertMarkdownToActiveEditor } from './plugin/lifecycle.js';
 import { IMAGE_EXTS } from './constants.js';
-import { getExt, getFileTypeGroup } from './engine.js';
+import { getExt } from './engine.js';
 import { ImageLightboxModal } from './modals/dialogs.js';
 import { assetUrl, assetMarkdown, hasOptimizedVariant, copyText } from './ui/links.js';
 import { openModal } from './ui/navigation.js';
@@ -9,35 +10,12 @@ import { Notice, setIcon } from 'obsidian';
 import { fileActionRow, fileSizeBadge } from './ui/file-action-list.js';
 
 export function filterRemoteGallery(view) {
-  const filtered = view.items.filter((item) => {
-    if (view.selectedBuckets?.length && !view.selectedBuckets.includes(`${item.year}/${item.month}`)) return false;
-    if (view.selectedTypes?.length && !view.selectedTypes.includes(getFileTypeGroup(getExt(item.name || item.filename)))) return false;
-    return !view.searchQuery || (item.name || item.filename || '').toLowerCase().includes(view.searchQuery);
+  return queryRemoteFiles(view.items, {
+    buckets: view.selectedBuckets,
+    types: view.selectedTypes,
+    q: view.searchQuery,
+    sort: view.selectedSort
   });
-
-  const sort = view.selectedSort || 'time_desc';
-  filtered.sort((a, b) => {
-    if (sort === 'size_desc') return (b.size || 0) - (a.size || 0);
-    if (sort === 'size_asc') return (a.size || 0) - (b.size || 0);
-    if (sort === 'name_asc') {
-      const na = a.name || a.filename || '';
-      const nb = b.name || b.filename || '';
-      return na.localeCompare(nb, undefined, { numeric: true, sensitivity: 'base' });
-    }
-    if (sort === 'name_desc') {
-      const na = a.name || a.filename || '';
-      const nb = b.name || b.filename || '';
-      return nb.localeCompare(na, undefined, { numeric: true, sensitivity: 'base' });
-    }
-    if (sort === 'hits_desc' || sort === 'hits_asc') {
-      const difference=(a.hits || 0)-(b.hits || 0);
-      return (sort === 'hits_asc' ? difference : -difference) || ((b.createdAt || 0) - (a.createdAt || 0));
-    }
-    if (sort === 'time_asc') return (a.createdAt || 0) - (b.createdAt || 0);
-    return (b.createdAt || 0) - (a.createdAt || 0);
-  });
-
-  return filtered;
 }
 
 export function renderRemoteGallery(view, containerEl) {
