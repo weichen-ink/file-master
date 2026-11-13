@@ -1197,6 +1197,8 @@ var UI_STRINGS = {
     hubBack: "\u8FD4\u56DE",
     hubSettingsUnavailable: "\u65E0\u6CD5\u6253\u5F00\u63D2\u4EF6\u8BBE\u7F6E",
     hubOpenNote: "\u5148\u6253\u5F00\u4E00\u7BC7\u7B14\u8BB0",
+    hubStatusOnline: "\u5DF2\u8FDE\u63A5",
+    hubStatusOffline: "\u672A\u8FDE\u63A5",
     hubConnect: "\u8FDE\u63A5\u670D\u52A1\u5668",
     hubConnectHelp: "\u8BBE\u7F6E\u670D\u52A1\u5668\u5730\u5740\u4E0E\u8BBF\u95EE\u4EE4\u724C",
     hubDockGallery: "\u5728\u4FA7\u680F\u6D4F\u89C8\u670D\u52A1\u5668\u6587\u4EF6",
@@ -1463,14 +1465,22 @@ var UI_STRINGS = {
     // 设置面板标签
     settingsTitle: "File Master \u8BBE\u7F6E",
     settingsBack: "\u8FD4\u56DE\u8BBE\u7F6E\u9996\u9875",
-    settingsCoreGroup: "\u6838\u5FC3\u529F\u80FD",
-    settingsPreferencesGroup: "\u7CFB\u7EDF\u504F\u597D",
-    settingsToolsGroup: "\u6587\u4EF6\u5DE5\u5177",
-    settingsInfoGroup: "\u63D2\u4EF6\u4FE1\u606F",
-    tabGeneral: "\u5E38\u89C4\u504F\u597D",
+    settingsCoreGroup: "\u6838\u5FC3\u914D\u7F6E",
+    settingsPreferencesGroup: "\u504F\u597D\u4E0E\u4FDD\u62A4",
+    settingsToolsGroup: "\u5DE5\u4F5C\u53F0\u4E0E\u65E5\u5FD7",
+    settingsInfoGroup: "\u5173\u4E8E",
+    tabGeneral: "\u5E38\u89C4\u4E0E\u754C\u9762",
+    tabGeneralDesc: "\u5207\u6362\u754C\u9762\u8BED\u8A00\u4E0E\u5DE6\u4FA7\u8FB9\u680F\u5FEB\u6377\u5165\u53E3",
     tabServer: "\u670D\u52A1\u5668\u8FDE\u63A5",
-    tabUpload: "\u9644\u4EF6\u5904\u7406",
-    tabExemptions: "\u4FDD\u62A4\u4E0E\u6392\u9664",
+    tabServerDesc: "\u914D\u7F6E\u670D\u52A1\u5730\u5740\u3001API \u4EE4\u724C\u5E76\u6D4B\u8BD5\u8FDE\u901A\u6027",
+    serverStatusOff: "\u672A\u5F00\u542F",
+    tabUpload: "\u4E0A\u4F20\u4E0E\u94FE\u63A5",
+    tabUploadDesc: "\u63A7\u5236\u526A\u8D34\u677F\u6355\u83B7\u3001\u4FDD\u5B58\u4F4D\u7F6E\u3001WebP \u94FE\u63A5\u4E0E\u547D\u540D\u89C4\u5219",
+    tabExemptions: "\u6392\u9664\u4E0E\u4FDD\u62A4",
+    tabExemptionsDesc: "\u8BBE\u7F6E\u626B\u63CF\u6392\u9664\u76EE\u5F55\u4E0E\u670D\u52A1\u7AEF\u9632\u8BEF\u5220\u4FDD\u62A4",
+    uploadGroupCapture: "\u6355\u83B7\u4E0E\u5B58\u50A8",
+    uploadGroupLinks: "\u94FE\u63A5\u4E0E\u683C\u5F0F",
+    uploadGroupNaming: "\u6587\u4EF6\u547D\u540D",
     // 常规与语言
     langName: "\u754C\u9762\u8BED\u8A00",
     langDesc: "\u8BBE\u7F6E File Master \u7684\u754C\u9762\u8BED\u8A00",
@@ -1856,6 +1866,8 @@ var UI_STRINGS = {
     hubBack: "Back",
     hubSettingsUnavailable: "Plugin settings are unavailable",
     hubOpenNote: "Open a note first",
+    hubStatusOnline: "Connected",
+    hubStatusOffline: "Offline",
     hubConnect: "Connect to server",
     hubConnectHelp: "Set up the server address and access token",
     hubDockGallery: "Browse server files in sidebar",
@@ -2122,14 +2134,22 @@ var UI_STRINGS = {
     // Settings Tabs
     settingsTitle: "File Master settings",
     settingsBack: "Back to settings",
-    settingsCoreGroup: "Core Features",
-    settingsPreferencesGroup: "Preferences",
-    settingsToolsGroup: "Tools & Logs",
-    settingsInfoGroup: "Plugin Information",
-    tabGeneral: "General",
+    settingsCoreGroup: "Core Setup",
+    settingsPreferencesGroup: "Preferences & Safety",
+    settingsToolsGroup: "Workspace & Logs",
+    settingsInfoGroup: "About",
+    tabGeneral: "General & Interface",
+    tabGeneralDesc: "Choose interface language and left ribbon shortcut",
     tabServer: "Server Connection",
-    tabUpload: "Attachments",
-    tabExemptions: "Exemptions & Protection",
+    tabServerDesc: "Configure server URL, API token, and test connectivity",
+    serverStatusOff: "Off",
+    tabUpload: "Uploads & Links",
+    tabUploadDesc: "Control paste capture, storage target, WebP links, and naming",
+    tabExemptions: "Exclusions & Safety",
+    tabExemptionsDesc: "Set excluded folders and server file deletion protection",
+    uploadGroupCapture: "Capture & Storage",
+    uploadGroupLinks: "Links & Formats",
+    uploadGroupNaming: "File Naming",
     // General & Language
     langName: "Interface Language",
     langDesc: "Choose the language for File Master",
@@ -2174,7 +2194,7 @@ var UI_STRINGS = {
     optSaveLocal: "Save to vault",
     insertOptimizedName: "Insert WebP links after upload",
     insertOptimizedDesc: "Use WebP links when on, original file links when off",
-    namingStrategyName: "Attachment Naming Strategy",
+    namingStrategyName: "Attachment naming",
     namingStrategyDesc: "Set the default filename. You can still edit it before saving.",
     optNamingKeep: "Keep filename",
     optNamingRule: "Use naming pattern",
@@ -8588,9 +8608,21 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
     this.plugin = plugin;
     this.activePage = "home";
   }
-  createHeading(containerEl, tag, icon, label) {
+  createNativeHeading(containerEl, label, emoji = "") {
+    var _a;
+    const heading = new import_obsidian27.Setting(containerEl).setName(label);
+    if (typeof heading.setHeading === "function") heading.setHeading();
+    heading.settingEl.addClass("setting-item-heading", "fm-settings-heading-row");
+    (_a = heading.descEl) == null ? void 0 : _a.remove();
+    if (emoji) {
+      const iconEl = heading.nameEl.createSpan({ cls: "fm-settings-heading-icon", text: emoji, attr: { "aria-hidden": "true" } });
+      heading.nameEl.prepend(iconEl);
+    }
+    return heading;
+  }
+  createHeading(containerEl, tag, emoji, label) {
     const heading = containerEl.createEl(tag, { cls: "fm-settings-heading" });
-    heading.createSpan({ cls: "fm-settings-heading-icon", text: icon, attr: { "aria-hidden": "true" } });
+    heading.createSpan({ cls: "fm-settings-heading-icon", text: emoji, attr: { "aria-hidden": "true" } });
     heading.createSpan({ text: label });
     return heading;
   }
@@ -8606,11 +8638,11 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
       about: "aboutTitle"
     };
     const pageIcons = {
-      general: "\u2699\uFE0F",
-      server: "\u{1F5A5}\uFE0F",
-      upload: "\u{1F4CE}",
+      general: "\u{1F3A8}",
+      server: "\u{1F6F0}\uFE0F",
+      upload: "\u{1F5BC}\uFE0F",
       exemptions: "\u{1F6E1}\uFE0F",
-      about: "\u2139\uFE0F"
+      about: "\u2728"
     };
     if (this.activePage === "home" || !pages[this.activePage]) {
       this.activePage = "home";
@@ -8622,7 +8654,7 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
       cls: "clickable-icon fm-settings-back",
       attr: { "aria-label": this.plugin.t("settingsBack") }
     });
-    (0, import_obsidian27.setIcon)(back, "arrow-left");
+    (0, import_obsidian27.setIcon)(back, "chevron-left");
     back.onclick = () => {
       this.activePage = "home";
       this.display();
@@ -8639,22 +8671,35 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
     }
   }
   renderSettingsHome(containerEl) {
-    const group = (title, icon, entries) => {
+    const serverBadge = !this.plugin.settings.enableRemoteServer ? { text: this.plugin.t("serverStatusOff"), cls: "" } : this.plugin.settings.serverVerified ? { text: this.plugin.t("serverVerifiedBadge"), cls: "is-online" } : { text: this.plugin.t("serverUnverifiedBadge"), cls: "is-pending" };
+    const group = (title, emoji, entries, { isActionGroup = false } = {}) => {
       var _a;
       const section = containerEl.createDiv({ cls: "fm-settings-nav-section" });
-      this.createHeading(section, "h3", icon, this.plugin.t(title));
+      this.createNativeHeading(section, this.plugin.t(title), emoji);
       const list = section.createDiv({ cls: "fm-settings-nav-list" });
-      for (const [page, label, icon2] of entries) {
+      for (const [page, label, descKey, itemEmoji, badge] of entries) {
         const setting = new import_obsidian27.Setting(list).setName(this.plugin.t(label));
         const row = setting.settingEl;
         row.addClass("fm-settings-nav-item");
-        (_a = setting.descEl) == null ? void 0 : _a.remove();
+        if (isActionGroup) {
+          row.addClass("fm-settings-action-item");
+          if (typeof setting.setDesc === "function") setting.setDesc(this.plugin.t(descKey));
+        } else {
+          (_a = setting.descEl) == null ? void 0 : _a.remove();
+          const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon", text: itemEmoji, attr: { "aria-hidden": "true" } });
+          setting.nameEl.prepend(iconEl);
+        }
         row.setAttribute("role", "button");
         row.setAttribute("tabindex", "0");
-        const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
-        (0, import_obsidian27.setIcon)(iconEl, icon2);
-        setting.nameEl.prepend(iconEl);
-        (0, import_obsidian27.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        if (badge) {
+          setting.controlEl.createSpan({
+            cls: `fm-settings-status-pill ${badge.cls}`.trim(),
+            text: badge.text
+          });
+        }
+        if (!isActionGroup) {
+          (0, import_obsidian27.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        }
         const open = () => {
           if (page === "hub") {
             openModalSafely(new FileMasterHubModal(this.app, this.plugin));
@@ -8677,21 +8722,40 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
         };
       }
     };
-    group("settingsCoreGroup", "\u26A1", [
-      ["upload", "tabUpload", "paperclip"],
-      ["server", "tabServer", "server"]
+    group("settingsCoreGroup", "\u{1F680}", [
+      ["server", "tabServer", "tabServerDesc", "\u{1F6F0}\uFE0F", serverBadge],
+      ["upload", "tabUpload", "tabUploadDesc", "\u{1F5BC}\uFE0F"]
     ]);
-    group("settingsPreferencesGroup", "\u2699\uFE0F", [
-      ["general", "tabGeneral", "sliders-horizontal"],
-      ["exemptions", "tabExemptions", "shield"]
+    group("settingsPreferencesGroup", "\u{1F39B}\uFE0F", [
+      ["general", "tabGeneral", "tabGeneralDesc", "\u{1F3A8}"],
+      ["exemptions", "tabExemptions", "tabExemptionsDesc", "\u{1F6E1}\uFE0F"]
     ]);
-    group("settingsToolsGroup", "\u{1F9F0}", [
-      ["hub", "openHubName", "wrench"],
-      ["logs", "opLogTitle", "file-text"]
-    ]);
-    group("settingsInfoGroup", "\u2139\uFE0F", [
-      ["about", "aboutTitle", "info"]
-    ]);
+    group("settingsToolsGroup", "\u{1FA84}", [
+      ["hub", "openHubName", "openHubDesc", "\u{1F9F0}"],
+      ["logs", "opLogTitle", "opLogDesc", "\u{1F4DD}"]
+    ], { isActionGroup: true });
+    this.renderCompactAbout(containerEl);
+  }
+  renderCompactAbout(containerEl) {
+    const manifest = this.plugin.manifest || {};
+    const version = displayVersion(manifest.version || "0.1.1");
+    const author = manifest.author || "weichen-ink";
+    const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
+    const repoUrl = "https://github.com/weichen-ink/file-master";
+    const section = containerEl.createDiv({ cls: "fm-settings-nav-section" });
+    this.createNativeHeading(section, this.plugin.t("settingsInfoGroup"), "\u{1F3F7}\uFE0F");
+    const footer = section.createDiv({ cls: "fm-settings-about-footer" });
+    const top = footer.createDiv({ cls: "fm-settings-about-title" });
+    top.createSpan({ text: "\u2728 File Master" });
+    top.createSpan({ cls: "fm-settings-about-version", text: `v${version}` });
+    const links = footer.createDiv({ cls: "fm-settings-about-links" });
+    links.createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
+    links.createSpan({ text: "\xB7" });
+    links.createEl("a", { text: "GitHub", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
+    links.createSpan({ text: "\xB7" });
+    links.createSpan({ text: `${this.plugin.t("aboutServerCompat")} v${MIN_SERVER_VERSION}+` });
+    links.createSpan({ text: "\xB7" });
+    links.createEl("a", { text: this.plugin.t("aboutFeedbackLink"), href: `${repoUrl}/issues`, attr: { target: "_blank", rel: "noopener noreferrer" } });
   }
   renderGeneralSettings(containerEl) {
     new import_obsidian27.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
@@ -8782,31 +8846,39 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
     );
   }
   renderUploadSettings(containerEl) {
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
+    containerEl.removeClass("fm-settings-section");
+    const makeCard = (titleKey) => {
+      const groupWrap = containerEl.createDiv({ cls: "fm-settings-upload-group" });
+      this.createNativeHeading(groupWrap, this.plugin.t(titleKey));
+      return groupWrap.createDiv({ cls: "fm-settings-section" });
+    };
+    const captureCard = makeCard("uploadGroupCapture");
+    new import_obsidian27.Setting(captureCard).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
         this.plugin.settings.enableClipboardMonitor = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
+    new import_obsidian27.Setting(captureCard).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
       (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
         this.plugin.settings.saveLocationMode = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
+    new import_obsidian27.Setting(captureCard).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
       (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
         this.plugin.settings.defaultSaveLocation = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
+    const linksCard = makeCard("uploadGroupLinks");
+    new import_obsidian27.Setting(linksCard).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
         this.plugin.settings.insertOptimizedLinkOnUpload = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("galleryDefaultLinkName")).setDesc(this.plugin.t("galleryDefaultLinkDesc")).addDropdown((drop) => {
+    new import_obsidian27.Setting(linksCard).setName(this.plugin.t("galleryDefaultLinkName")).setDesc(this.plugin.t("galleryDefaultLinkDesc")).addDropdown((drop) => {
       const store = galleryStore(this.plugin);
       drop.addOption("raw", this.plugin.t("galleryModeRaw")).addOption("webp", this.plugin.t("galleryModeWebp")).setValue(store.state.insertMode).onChange(async (value) => {
         try {
@@ -8817,8 +8889,15 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
         }
       });
     });
+    new import_obsidian27.Setting(linksCard).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
+        this.plugin.settings.uploadNonImageAttachments = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    const namingCard = makeCard("uploadGroupNaming");
     let patternSetting = null;
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
+    new import_obsidian27.Setting(namingCard).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
       (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
         this.plugin.settings.namingMode = value;
         await this.plugin.saveSettings();
@@ -8827,7 +8906,7 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
         }
       })
     );
-    patternSetting = new import_obsidian27.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
+    patternSetting = new import_obsidian27.Setting(namingCard).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
       (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
         this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
         await this.plugin.saveSettings();
@@ -8836,12 +8915,6 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
     }
-    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
-        this.plugin.settings.uploadNonImageAttachments = value;
-        await this.plugin.saveSettings();
-      })
-    );
   }
   renderExemptionsSettings(containerEl) {
     new import_obsidian27.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
@@ -9900,6 +9973,9 @@ var FileMasterHubModal = class extends FileMasterModal {
     header.createEl("h2", { text: t2("hubTitle") });
     header.createSpan({ text: "v" + displayVersion(this.plugin.manifest.version), cls: "fm-hub-version" });
     const remote = Boolean(this.plugin.isRemoteServerReady());
+    const statusEl = remote ? header.createSpan({ cls: "fm-hub-status is-online" }) : header.createEl("button", { cls: "fm-hub-status is-offline", attr: { type: "button" } });
+    statusEl.createSpan({ cls: "fm-hub-status-dot", attr: { "aria-hidden": "true" } });
+    statusEl.createSpan({ text: t2(remote ? "hubStatusOnline" : "hubStatusOffline") });
     const file = this.app.workspace.getActiveFile();
     const supported = Boolean(file && isDocFile2(this.app, file));
     const show = (modal) => this.navigator.show(modal);
@@ -9908,6 +9984,7 @@ var FileMasterHubModal = class extends FileMasterModal {
       await this.app.setting.open();
       await this.app.setting.openTabById(this.plugin.manifest.id);
     });
+    if (!remote) statusEl.onclick = settings;
     const noteAction = (mode) => {
       if (!file || this.app.vault.getAbstractFileByPath(file.path) !== file) throw new Error(t2("noticeOpenMdFirst"));
       return show(new ActiveNoteActionModal(this.app, this.plugin, file, mode, { fromHub: true }));
@@ -9955,16 +10032,22 @@ var FileMasterHubModal = class extends FileMasterModal {
     for (const section of sections) {
       const group = home.createDiv({ cls: "fm-hub-section" }), title = group.createDiv({ cls: "fm-hub-section-heading" });
       title.createEl("h3", { text: t2(section.title) });
-      if (section.context) title.createSpan({ text: section.context, cls: "fm-hub-context" });
+      if (section.context) {
+        const ctxEl = title.createSpan({ cls: `fm-hub-context${supported ? " is-active" : ""}` });
+        if (supported) (0, import_obsidian31.setIcon)(ctxEl.createSpan({ cls: "fm-hub-context-icon", attr: { "aria-hidden": "true" } }), "file-text");
+        ctxEl.createSpan({ text: section.context });
+      }
       const list = group.createDiv({ cls: "fm-hub-list" });
       for (const action of section.actions.filter((action2) => !action2.hidden)) {
         const row = list.createEl("button", { cls: "fm-hub-card", attr: { type: "button" } });
         (0, import_obsidian31.setIcon)(row.createSpan({ cls: "fm-hub-card-icon" }), action.icon);
         const text = row.createSpan({ cls: "fm-hub-card-text" });
         text.createSpan({ text: t2(action.title), cls: "fm-hub-card-title" });
+        const disabledReason = action.disabled ? t2(!remote ? "noticeRemoteNotReady" : "hubOpenNote") : "";
+        if (disabledReason) text.createSpan({ text: disabledReason, cls: "fm-hub-card-hint" });
         (0, import_obsidian31.setIcon)(row.createSpan({ cls: "fm-hub-chevron" }), "chevron-right");
         row.disabled = Boolean(action.disabled);
-        if (action.disabled) row.setAttribute("aria-label", `${t2(action.title)} \xB7 ${t2(!remote ? "noticeRemoteNotReady" : "hubOpenNote")}`);
+        if (disabledReason) row.setAttribute("aria-label", `${t2(action.title)} \xB7 ${disabledReason}`);
         bind(row, action);
       }
     }

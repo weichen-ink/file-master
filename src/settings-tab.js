@@ -14,9 +14,21 @@ export class FileMasterSettingTab extends PluginSettingTab {
     this.activePage = 'home';
   }
 
-  createHeading(containerEl, tag, icon, label) {
+  createNativeHeading(containerEl, label, emoji = '') {
+    const heading = new Setting(containerEl).setName(label);
+    if (typeof heading.setHeading === 'function') heading.setHeading();
+    heading.settingEl.addClass('setting-item-heading', 'fm-settings-heading-row');
+    heading.descEl?.remove();
+    if (emoji) {
+      const iconEl = heading.nameEl.createSpan({ cls: 'fm-settings-heading-icon', text: emoji, attr: { 'aria-hidden': 'true' } });
+      heading.nameEl.prepend(iconEl);
+    }
+    return heading;
+  }
+
+  createHeading(containerEl, tag, emoji, label) {
     const heading = containerEl.createEl(tag, { cls: 'fm-settings-heading' });
-    heading.createSpan({ cls: 'fm-settings-heading-icon', text: icon, attr: { 'aria-hidden': 'true' } });
+    heading.createSpan({ cls: 'fm-settings-heading-icon', text: emoji, attr: { 'aria-hidden': 'true' } });
     heading.createSpan({ text: label });
     return heading;
   }
@@ -34,11 +46,11 @@ export class FileMasterSettingTab extends PluginSettingTab {
       about: 'aboutTitle'
     };
     const pageIcons = {
-      general: '⚙️',
-      server: '🖥️',
-      upload: '📎',
+      general: '🎨',
+      server: '🛰️',
+      upload: '🖼️',
       exemptions: '🛡️',
-      about: 'ℹ️'
+      about: '✨'
     };
 
     if (this.activePage === 'home' || !pages[this.activePage]) {
@@ -52,7 +64,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
       cls: 'clickable-icon fm-settings-back',
       attr: { 'aria-label': this.plugin.t('settingsBack') }
     });
-    setIcon(back, 'arrow-left');
+    setIcon(back, 'chevron-left');
     back.onclick = () => {
       this.activePage = 'home';
       this.display();
@@ -70,21 +82,39 @@ export class FileMasterSettingTab extends PluginSettingTab {
   }
 
   renderSettingsHome(containerEl) {
-    const group = (title, icon, entries) => {
+    const serverBadge = !this.plugin.settings.enableRemoteServer
+      ? { text: this.plugin.t('serverStatusOff'), cls: '' }
+      : this.plugin.settings.serverVerified
+        ? { text: this.plugin.t('serverVerifiedBadge'), cls: 'is-online' }
+        : { text: this.plugin.t('serverUnverifiedBadge'), cls: 'is-pending' };
+
+    const group = (title, emoji, entries, { isActionGroup = false } = {}) => {
       const section = containerEl.createDiv({ cls: 'fm-settings-nav-section' });
-      this.createHeading(section, 'h3', icon, this.plugin.t(title));
+      this.createNativeHeading(section, this.plugin.t(title), emoji);
       const list = section.createDiv({ cls: 'fm-settings-nav-list' });
-      for (const [page, label, icon] of entries) {
+      for (const [page, label, descKey, itemEmoji, badge] of entries) {
         const setting = new Setting(list).setName(this.plugin.t(label));
         const row = setting.settingEl;
         row.addClass('fm-settings-nav-item');
-        setting.descEl?.remove();
+        if (isActionGroup) {
+          row.addClass('fm-settings-action-item');
+          if (typeof setting.setDesc === 'function') setting.setDesc(this.plugin.t(descKey));
+        } else {
+          setting.descEl?.remove();
+          const iconEl = setting.nameEl.createSpan({ cls: 'fm-settings-nav-icon', text: itemEmoji, attr: { 'aria-hidden': 'true' } });
+          setting.nameEl.prepend(iconEl);
+        }
         row.setAttribute('role', 'button');
         row.setAttribute('tabindex', '0');
-        const iconEl = setting.nameEl.createSpan({ cls: 'fm-settings-nav-icon' });
-        setIcon(iconEl, icon);
-        setting.nameEl.prepend(iconEl);
-        setIcon(setting.controlEl.createSpan({ cls: 'fm-settings-nav-chevron' }), 'chevron-right');
+        if (badge) {
+          setting.controlEl.createSpan({
+            cls: `fm-settings-status-pill ${badge.cls}`.trim(),
+            text: badge.text
+          });
+        }
+        if (!isActionGroup) {
+          setIcon(setting.controlEl.createSpan({ cls: 'fm-settings-nav-chevron' }), 'chevron-right');
+        }
         const open = () => {
           if (page === 'hub') {
             openModalSafely(new FileMasterHubModal(this.app, this.plugin));
@@ -108,21 +138,43 @@ export class FileMasterSettingTab extends PluginSettingTab {
       }
     };
 
-    group('settingsCoreGroup', '⚡', [
-      ['upload', 'tabUpload', 'paperclip'],
-      ['server', 'tabServer', 'server']
+    group('settingsCoreGroup', '🚀', [
+      ['server', 'tabServer', 'tabServerDesc', '🛰️', serverBadge],
+      ['upload', 'tabUpload', 'tabUploadDesc', '🖼️']
     ]);
-    group('settingsPreferencesGroup', '⚙️', [
-      ['general', 'tabGeneral', 'sliders-horizontal'],
-      ['exemptions', 'tabExemptions', 'shield']
+    group('settingsPreferencesGroup', '🎛️', [
+      ['general', 'tabGeneral', 'tabGeneralDesc', '🎨'],
+      ['exemptions', 'tabExemptions', 'tabExemptionsDesc', '🛡️']
     ]);
-    group('settingsToolsGroup', '🧰', [
-      ['hub', 'openHubName', 'wrench'],
-      ['logs', 'opLogTitle', 'file-text']
-    ]);
-    group('settingsInfoGroup', 'ℹ️', [
-      ['about', 'aboutTitle', 'info']
-    ]);
+    group('settingsToolsGroup', '🪄', [
+      ['hub', 'openHubName', 'openHubDesc', '🧰'],
+      ['logs', 'opLogTitle', 'opLogDesc', '📝']
+    ], { isActionGroup: true });
+    this.renderCompactAbout(containerEl);
+  }
+
+  renderCompactAbout(containerEl) {
+    const manifest = this.plugin.manifest || {};
+    const version = displayVersion(manifest.version || '0.1.1');
+    const author = manifest.author || 'weichen-ink';
+    const authorUrl = manifest.authorUrl || 'https://github.com/weichen-ink';
+    const repoUrl = 'https://github.com/weichen-ink/file-master';
+
+    const section = containerEl.createDiv({ cls: 'fm-settings-nav-section' });
+    this.createNativeHeading(section, this.plugin.t('settingsInfoGroup'), '🏷️');
+    const footer = section.createDiv({ cls: 'fm-settings-about-footer' });
+    const top = footer.createDiv({ cls: 'fm-settings-about-title' });
+    top.createSpan({ text: '✨ File Master' });
+    top.createSpan({ cls: 'fm-settings-about-version', text: `v${version}` });
+
+    const links = footer.createDiv({ cls: 'fm-settings-about-links' });
+    links.createEl('a', { text: author, href: authorUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+    links.createSpan({ text: '·' });
+    links.createEl('a', { text: 'GitHub', href: repoUrl, attr: { target: '_blank', rel: 'noopener noreferrer' } });
+    links.createSpan({ text: '·' });
+    links.createSpan({ text: `${this.plugin.t('aboutServerCompat')} v${MIN_SERVER_VERSION}+` });
+    links.createSpan({ text: '·' });
+    links.createEl('a', { text: this.plugin.t('aboutFeedbackLink'), href: `${repoUrl}/issues`, attr: { target: '_blank', rel: 'noopener noreferrer' } });
   }
 
   renderGeneralSettings(containerEl) {
@@ -258,7 +310,15 @@ export class FileMasterSettingTab extends PluginSettingTab {
   }
 
   renderUploadSettings(containerEl) {
-    new Setting(containerEl)
+    containerEl.removeClass('fm-settings-section');
+    const makeCard = (titleKey) => {
+      const groupWrap = containerEl.createDiv({ cls: 'fm-settings-upload-group' });
+      this.createNativeHeading(groupWrap, this.plugin.t(titleKey));
+      return groupWrap.createDiv({ cls: 'fm-settings-section' });
+    };
+
+    const captureCard = makeCard('uploadGroupCapture');
+    new Setting(captureCard)
       .setName(this.plugin.t('clipboardMonitorName'))
       .setDesc(this.plugin.t('clipboardMonitorDesc'))
       .addToggle((toggle) =>
@@ -268,7 +328,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl)
+    new Setting(captureCard)
       .setName(this.plugin.t('saveLocationName'))
       .setDesc(this.plugin.t('saveLocationDesc'))
       .addDropdown((drop) =>
@@ -283,7 +343,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(captureCard)
       .setName(this.plugin.t('defaultSaveLocationName'))
       .setDesc(this.plugin.t('defaultSaveLocationDesc'))
       .addDropdown((drop) =>
@@ -297,7 +357,8 @@ export class FileMasterSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    const linksCard = makeCard('uploadGroupLinks');
+    new Setting(linksCard)
       .setName(this.plugin.t('insertOptimizedName'))
       .setDesc(this.plugin.t('insertOptimizedDesc'))
       .addToggle((toggle) =>
@@ -307,7 +368,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl)
+    new Setting(linksCard)
       .setName(this.plugin.t('galleryDefaultLinkName'))
       .setDesc(this.plugin.t('galleryDefaultLinkDesc'))
       .addDropdown((drop) => {
@@ -321,8 +382,19 @@ export class FileMasterSettingTab extends PluginSettingTab {
           });
       });
 
+    new Setting(linksCard)
+      .setName(this.plugin.t('uploadNonImageName'))
+      .setDesc(this.plugin.t('uploadNonImageDesc'))
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
+          this.plugin.settings.uploadNonImageAttachments = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    const namingCard = makeCard('uploadGroupNaming');
     let patternSetting = null;
-    new Setting(containerEl)
+    new Setting(namingCard)
       .setName(this.plugin.t('namingStrategyName'))
       .setDesc(this.plugin.t('namingStrategyDesc'))
       .addDropdown((drop) =>
@@ -339,7 +411,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
           })
       );
 
-    patternSetting = new Setting(containerEl)
+    patternSetting = new Setting(namingCard)
       .setName(this.plugin.t('namingPatternName'))
       .setDesc(this.plugin.t('namingPatternDesc'))
       .addText((text) =>
@@ -354,16 +426,6 @@ export class FileMasterSettingTab extends PluginSettingTab {
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === 'rule' ? '' : 'none';
     }
-
-    new Setting(containerEl)
-      .setName(this.plugin.t('uploadNonImageName'))
-      .setDesc(this.plugin.t('uploadNonImageDesc'))
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
-          this.plugin.settings.uploadNonImageAttachments = value;
-          await this.plugin.saveSettings();
-        })
-      );
   }
 
   renderExemptionsSettings(containerEl) {

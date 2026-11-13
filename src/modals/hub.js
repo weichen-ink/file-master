@@ -29,6 +29,11 @@ export class FileMasterHubModal extends Modal {
     header.createEl('h2',{text:t('hubTitle')});
     header.createSpan({text:'v'+displayVersion(this.plugin.manifest.version),cls:'fm-hub-version'});
     const remote=Boolean(this.plugin.isRemoteServerReady());
+    const statusEl=remote
+      ? header.createSpan({cls:'fm-hub-status is-online'})
+      : header.createEl('button',{cls:'fm-hub-status is-offline',attr:{type:'button'}});
+    statusEl.createSpan({cls:'fm-hub-status-dot',attr:{'aria-hidden':'true'}});
+    statusEl.createSpan({text:t(remote?'hubStatusOnline':'hubStatusOffline')});
     const file=this.app.workspace.getActiveFile();
     const supported=Boolean(file&&isDocFile(this.app,file));
     const show=modal=>this.navigator.show(modal);
@@ -37,6 +42,7 @@ export class FileMasterHubModal extends Modal {
       await this.app.setting.open();
       await this.app.setting.openTabById(this.plugin.manifest.id);
     });
+    if(!remote) statusEl.onclick=settings;
     const noteAction=mode=>{
       if (!file || this.app.vault.getAbstractFileByPath(file.path)!==file) throw new Error(t('noticeOpenMdFirst'));
       return show(new ActiveNoteActionModal(this.app,this.plugin,file,mode,{fromHub:true}));
@@ -74,16 +80,22 @@ export class FileMasterHubModal extends Modal {
     for(const section of sections){
       const group=home.createDiv({cls:'fm-hub-section'}),title=group.createDiv({cls:'fm-hub-section-heading'});
       title.createEl('h3',{text:t(section.title)});
-      if(section.context)title.createSpan({text:section.context,cls:'fm-hub-context'});
+      if(section.context){
+        const ctxEl=title.createSpan({cls:`fm-hub-context${supported?' is-active':''}`});
+        if(supported) setIcon(ctxEl.createSpan({cls:'fm-hub-context-icon',attr:{'aria-hidden':'true'}}),'file-text');
+        ctxEl.createSpan({text:section.context});
+      }
       const list=group.createDiv({cls:'fm-hub-list'});
       for(const action of section.actions.filter(action=>!action.hidden)){
         const row=list.createEl('button',{cls:'fm-hub-card',attr:{type:'button'}});
         setIcon(row.createSpan({cls:'fm-hub-card-icon'}),action.icon);
         const text=row.createSpan({cls:'fm-hub-card-text'});
         text.createSpan({text:t(action.title),cls:'fm-hub-card-title'});
+        const disabledReason=action.disabled?t(!remote?'noticeRemoteNotReady':'hubOpenNote'):'';
+        if(disabledReason) text.createSpan({text:disabledReason,cls:'fm-hub-card-hint'});
         setIcon(row.createSpan({cls:'fm-hub-chevron'}),'chevron-right');
         row.disabled=Boolean(action.disabled);
-        if(action.disabled)row.setAttribute('aria-label',`${t(action.title)} · ${t(!remote?'noticeRemoteNotReady':'hubOpenNote')}`);
+        if(disabledReason)row.setAttribute('aria-label',`${t(action.title)} · ${disabledReason}`);
         bind(row,action);
       }
 

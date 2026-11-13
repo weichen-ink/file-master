@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.2.1] - 2026-11-13
+
+### Settings home & Hub UI polish
+- Align Settings Home group headings with native Obsidian typography and add unique emoji section icons.
+- Add quick-action accent rows for File Master Hub and operation/debug logs, plus an understated About footer card under the `🏷️ 关于` heading.
+- Refine Hub modal spacing, hover feedback, and connection status pill styling.
+
 ## [1.2.0] - 2026-11-13
 
 ### Preview dialog & gallery list polish

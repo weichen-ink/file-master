@@ -1,7 +1,7 @@
 {
   "id": "file-master",
   "name": "File Master",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "minAppVersion": "1.0.0",
   "description": "Manage attachments, browse server files, find duplicates, and check broken links in your notes.",
   "author": "weichen-ink",
