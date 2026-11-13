@@ -101,7 +101,15 @@ export async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
       await Promise.all(
         batch.map(async (url) => {
           try {
-            const res = await requestUrl({ url, method: 'HEAD', throw: false });
+            let res = await requestUrl({ url, method: 'HEAD', throw: false });
+            if (res.status === 405 || res.status === 403 || res.status === 501) {
+              res = await requestUrl({
+                url,
+                method: 'GET',
+                headers: { Range: 'bytes=0-0' },
+                throw: false
+              });
+            }
             if (res.status >= 400) {
               failedUrlMap.set(url, `HTTP ${res.status}`);
             }

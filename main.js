@@ -627,24 +627,55 @@ function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
   }
   return false;
 }
+function maskMarkdownCodeForScanning(text) {
+  let masked = text.replace(
+    /^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1\2[ \t]*$/gm,
+    (block) => block.replace(/[^\n]/g, " ")
+  );
+  masked = masked.replace(
+    /(`+)([^`\n]|[^`\n][\s\S]*?[^`\n])\1/g,
+    (span) => span.replace(/[^\n]/g, " ")
+  );
+  return masked;
+}
+function buildLineOffsetIndex(text) {
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 10) starts.push(i + 1);
+  }
+  return starts;
+}
+function getLineInfoAtOffset(text, lineStarts, index) {
+  let lo = 0;
+  let hi = lineStarts.length - 1;
+  while (lo <= hi) {
+    const mid = lo + hi >> 1;
+    if (lineStarts[mid] <= index) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  const lineIdx = Math.max(0, hi);
+  const lineStart = lineStarts[lineIdx];
+  const lineEnd = lineIdx + 1 < lineStarts.length ? lineStarts[lineIdx + 1] - 1 : text.length;
+  return {
+    lineNumber: lineIdx + 1,
+    lineText: text.substring(lineStart, lineEnd).trim()
+  };
+}
 function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {}) {
   const issues = [];
   if (!rawText) return issues;
+  const scanText = maskMarkdownCodeForScanning(rawText);
+  const lineStarts = buildLineOffsetIndex(rawText);
   if (options.checkWikiLinks !== false) {
     const wikiRegex = /(!?)\[\[([^\]\n\r]+)\]\]/g;
     let m2;
-    while ((m2 = wikiRegex.exec(rawText)) !== null) {
+    while ((m2 = wikiRegex.exec(scanText)) !== null) {
       const isEmbed = Boolean(m2[1]);
       const rawInside = m2[2].trim();
       const targetPart = rawInside.split(/[|#]/)[0].trim();
       if (!targetPart) continue;
       if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
-        const prefix = rawText.substring(0, m2.index);
-        const lineNumber = prefix.split("\n").length;
-        const lineStart = prefix.lastIndexOf("\n") + 1;
-        let lineEnd = rawText.indexOf("\n", m2.index);
-        if (lineEnd === -1) lineEnd = rawText.length;
-        const lineText = rawText.substring(lineStart, lineEnd).trim();
+        const { lineNumber, lineText } = getLineInfoAtOffset(rawText, lineStarts, m2.index);
         issues.push({
           type: isEmbed ? "wikilink-embed" : "wikilink",
           category: "wikilink",
@@ -660,7 +691,7 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
   }
   const mdRegex = /(!?)\[([^\]\r\n]*)\]\((\s*<[^>]+>|[^\s)]+)(?:\s+["'][^"']*["'])?\)/g;
   let m;
-  while ((m = mdRegex.exec(rawText)) !== null) {
+  while ((m = mdRegex.exec(scanText)) !== null) {
     const isEmbed = Boolean(m[1]);
     let rawUrl = m[3].trim();
     if (rawUrl.startsWith("<") && rawUrl.endsWith(">")) {
@@ -670,12 +701,7 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
     if (/^(?:mailto:|obsidian:|tel:|data:)/i.test(rawUrl)) continue;
     if (/^(?:https?|ftp):\/\//i.test(rawUrl)) {
       if (options.checkRemote) {
-        const prefix = rawText.substring(0, m.index);
-        const lineNumber = prefix.split("\n").length;
-        const lineStart = prefix.lastIndexOf("\n") + 1;
-        let lineEnd = rawText.indexOf("\n", m.index);
-        if (lineEnd === -1) lineEnd = rawText.length;
-        const lineText = rawText.substring(lineStart, lineEnd).trim();
+        const { lineNumber, lineText } = getLineInfoAtOffset(rawText, lineStarts, m.index);
         issues.push({
           type: isEmbed ? "remote-embed" : "remote-link",
           category: "remote",
@@ -691,12 +717,7 @@ function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, options = {
       const cleanTarget = rawUrl.split(/[?#]/)[0].trim();
       if (!cleanTarget) continue;
       if (!resolveLocalMarkdownTarget(cleanTarget, docPath, vaultIndex)) {
-        const prefix = rawText.substring(0, m.index);
-        const lineNumber = prefix.split("\n").length;
-        const lineStart = prefix.lastIndexOf("\n") + 1;
-        let lineEnd = rawText.indexOf("\n", m.index);
-        if (lineEnd === -1) lineEnd = rawText.length;
-        const lineText = rawText.substring(lineStart, lineEnd).trim();
+        const { lineNumber, lineText } = getLineInfoAtOffset(rawText, lineStarts, m.index);
         issues.push({
           type: isEmbed ? "local-embed" : "local-link",
           category: "local",
@@ -1259,10 +1280,11 @@ var UI_STRINGS = {
     analyticsLocalStats: "\u56FE\u7247\uFF1A{imgBytes} \xB7 \u5176\u4ED6\uFF1A{othBytes}",
     analyticsRemoteStats: "WebP \u7F13\u5B58\uFF1A{cache} \xB7 \u9632\u5220\u4FDD\u62A4\uFF1A{locked}",
     analyticsInsightsTitle: "\u8D44\u4EA7\u5065\u5EB7\u4E0E\u4F18\u5316\u5EFA\u8BAE",
-    analyticsInsightStorageLocal: '\u672C\u5730\u5B58\u50A8\u5360\u6BD4\u504F\u9AD8\uFF08<strong style="color: var(--text-accent);">{pct}%</strong>\uFF09\uFF0C\u5B58\u5728\u8D85\u5927\u5355\u6587\u4EF6\uFF0C\u5EFA\u8BAE\u6309\u9700\u8FC1\u79FB\u81F3\u670D\u52A1\u5668\u91CA\u653E\u672C\u5730\u4E0E\u540C\u6B65\u7A7A\u95F4\u3002',
-    analyticsInsightStorageRemote: '\u4E91\u7AEF\u6258\u7BA1\u5360\u6BD4\u4E3B\u5BFC\uFF08<strong style="color: #10b981;">{pct}%</strong>\uFF09\uFF0C\u6709\u6548\u51CF\u8F7B\u672C\u5730\u77E5\u8BC6\u5E93\u53CA\u79FB\u52A8\u7AEF\u591A\u8BBE\u5907\u540C\u6B65\u8D1F\u62C5\u3002',
-    analyticsInsightCacheReady: '\u4E91\u7AEF WebP \u884D\u751F\u7F13\u5B58 <strong style="color: #10b981;">100% \u5C31\u7EEA</strong>\uFF0C\u5DF2\u4E3A\u79FB\u52A8\u7AEF\u4E0E\u5BA2\u6237\u7AEF\u63D0\u4F9B\u8F7B\u91CF\u5316\u52A0\u8F7D\u52A0\u901F\u3002',
-    analyticsInsightLockedSafe: '\u5DF2\u6709 <strong style="color: #10b981;">{count} \u9879</strong> \u4E91\u7AEF\u5173\u952E\u8D44\u4EA7\u5F00\u542F\u9632\u5220\u4FDD\u62A4\u9501\u5B9A\uFF0C\u9632\u6B62\u610F\u5916\u5220\u9664\u3002',
+    analyticsInsightStorageLocal: "\u672C\u5730\u5B58\u50A8\u5360\u6BD4\u504F\u9AD8\uFF08**{pct}%**\uFF09\uFF0C\u5B58\u5728\u8D85\u5927\u5355\u6587\u4EF6\uFF0C\u5EFA\u8BAE\u6309\u9700\u8FC1\u79FB\u81F3\u670D\u52A1\u5668\u91CA\u653E\u672C\u5730\u4E0E\u540C\u6B65\u7A7A\u95F4\u3002",
+    analyticsInsightStorageRemote: "\u4E91\u7AEF\u6258\u7BA1\u5360\u6BD4\u4E3B\u5BFC\uFF08**{pct}%**\uFF09\uFF0C\u6709\u6548\u51CF\u8F7B\u672C\u5730\u77E5\u8BC6\u5E93\u53CA\u79FB\u52A8\u7AEF\u591A\u8BBE\u5907\u540C\u6B65\u8D1F\u62C5\u3002",
+    analyticsInsightCacheReady: "\u4E91\u7AEF WebP \u884D\u751F\u7F13\u5B58 **100% \u5C31\u7EEA**\uFF0C\u5DF2\u4E3A\u79FB\u52A8\u7AEF\u4E0E\u5BA2\u6237\u7AEF\u63D0\u4F9B\u8F7B\u91CF\u5316\u52A0\u8F7D\u52A0\u901F\u3002",
+    analyticsInsightLockedSafe: "\u5DF2\u6709 **{count} \u9879** \u4E91\u7AEF\u5173\u952E\u8D44\u4EA7\u5F00\u542F\u9632\u5220\u4FDD\u62A4\u9501\u5B9A\uFF0C\u9632\u6B62\u610F\u5916\u5220\u9664\u3002",
+    instantUploadBadge: "\u26A1 \u79D2\u4F20",
     analyticsTopLargest: "\u4F53\u79EF\u6700\u5927\u7684 10 \u4E2A\u9644\u4EF6",
     analyticsFilterAll: "\u5168\u90E8",
     analyticsFilterLocal: "\u{1F4BB} \u672C\u5730",
@@ -1911,10 +1933,11 @@ var UI_STRINGS = {
     analyticsLocalStats: "Images: {imgBytes} \xB7 Other: {othBytes}",
     analyticsRemoteStats: "WebP cache: {cache} \xB7 Protected: {locked}",
     analyticsInsightsTitle: "Health & optimization insights",
-    analyticsInsightStorageLocal: 'Local storage is high (<strong style="color: var(--text-accent);">{pct}%</strong>); consider offloading large files to the server.',
-    analyticsInsightStorageRemote: 'Cloud-primary storage (<strong style="color: #10b981;">{pct}%</strong>), reducing local footprint and mobile sync traffic.',
-    analyticsInsightCacheReady: 'WebP cache <strong style="color: #10b981;">100% ready</strong>, optimizing client loading bandwidth.',
-    analyticsInsightLockedSafe: '<strong style="color: #10b981;">{count}</strong> server assets are locked with delete protection.',
+    analyticsInsightStorageLocal: "Local storage is high (**{pct}%**); consider offloading large files to the server.",
+    analyticsInsightStorageRemote: "Cloud-primary storage (**{pct}%**), reducing local footprint and mobile sync traffic.",
+    analyticsInsightCacheReady: "WebP cache **100% ready**, optimizing client loading bandwidth.",
+    analyticsInsightLockedSafe: "**{count}** server assets are locked with delete protection.",
+    instantUploadBadge: "\u26A1 Instant",
     analyticsTopLargest: "10 largest attachments",
     analyticsFilterAll: "All",
     analyticsFilterLocal: "\u{1F4BB} Local",
@@ -2335,15 +2358,21 @@ async function loadOperationLogs(plugin) {
   return plugin.operationLogs;
 }
 async function saveOperationLogs(plugin) {
-  var _a, _b;
-  try {
-    const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
-    if (!adapter) return;
-    const logPath = getLogFilePath(plugin);
-    const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
-    await adapter.write(logPath, lines.join("\n") + (lines.length ? "\n" : ""));
-  } catch (e) {
-  }
+  const previous = plugin._logWriteQueue || Promise.resolve();
+  const next = previous.then(async () => {
+    var _a, _b;
+    try {
+      const adapter = (_b = (_a = plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
+      if (!adapter) return;
+      const logPath = getLogFilePath(plugin);
+      const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
+      await adapter.write(logPath, lines.join("\n") + (lines.length ? "\n" : ""));
+    } catch (e) {
+    }
+  });
+  plugin._logWriteQueue = next.catch(() => {
+  });
+  return next;
 }
 function logOperation(plugin, level, action, summary, details = null) {
   if (!Array.isArray(plugin.operationLogs)) {
@@ -3237,7 +3266,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
       const remote = await plugin.uploadBufferToServer(bytes, tfile.name, "application/octet-stream", { signal: options.signal });
       const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1e3);
       const fileSpeed = (bytes.byteLength || fileSize) / fileDurationSec;
-      lastSpeed = remote.isInstant ? "\u26A1 \u79D2\u4F20" : formatSpeed(fileSpeed);
+      lastSpeed = remote.isInstant ? plugin.t("instantUploadBadge") || "\u26A1 Instant" : formatSpeed(fileSpeed);
       transferredBytes += bytes.byteLength || fileSize;
       if (entry.locked && !remote.locked) {
         await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
@@ -3353,12 +3382,23 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
 // src/plugin/vault-scans.js
 var import_obsidian9 = require("obsidian");
 async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
-  const { signal, onProgress, freshRead = false } = scanCtx || {};
+  var _a, _b, _c;
+  const {
+    signal,
+    onProgress,
+    freshRead = false,
+    includeDocContents = true,
+    targetLocalPaths = null
+  } = scanCtx || {};
   const revision = plugin.referenceRevision || 0;
   const allFiles = plugin.app.vault.getFiles();
   const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
   const matchLocal = createLocalReferenceMatcher(allFiles, (file) => isExcalidrawFile2(plugin.app, file));
   const localReferences = /* @__PURE__ */ new Map();
+  const resolvedLinks = ((_a = plugin.app.metadataCache) == null ? void 0 : _a.resolvedLinks) || {};
+  const unresolvedLinks = ((_b = plugin.app.metadataCache) == null ? void 0 : _b.unresolvedLinks) || {};
+  const hasMetadataGraph = !freshRead && Object.keys(resolvedLinks).length > 0;
+  const targetSet = targetLocalPaths instanceof Set ? targetLocalPaths : null;
   const docContents = [];
   for (let i = 0; i < docFiles.length; i++) {
     if (signal == null ? void 0 : signal.aborted) throw new Error("SCAN_ABORTED");
@@ -3367,26 +3407,38 @@ async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
       onProgress == null ? void 0 : onProgress(i + 1, docFiles.length, doc.path);
       await new Promise((r) => setTimeout(r, 0));
     }
+    if (!includeDocContents && hasMetadataGraph && targetSet && ((_c = doc.extension) == null ? void 0 : _c.toLowerCase()) === "md" && !isExcalidrawFile2(plugin.app, doc) && Object.prototype.hasOwnProperty.call(resolvedLinks, doc.path)) {
+      const docResolved = resolvedLinks[doc.path] || {};
+      const docUnresolved = unresolvedLinks[doc.path] || {};
+      const hitsResolved = Object.keys(docResolved).some((p) => targetSet.has(p));
+      const hasUnresolved = Object.keys(docUnresolved).length > 0;
+      if (!hitsResolved && !hasUnresolved) {
+        continue;
+      }
+    }
     const rawText = freshRead ? await plugin.app.vault.read(doc) : await plugin.app.vault.cachedRead(doc);
-    let decodedText = rawText;
-    try {
-      decodedText = decodeURIComponent(rawText);
-    } catch (e) {
-    }
     for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
-    if (decodedText !== rawText) {
-      for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+    if (rawText.includes("%")) {
+      let decodedText = rawText;
+      try {
+        decodedText = decodeURIComponent(rawText);
+      } catch (e) {
+      }
+      if (decodedText !== rawText) {
+        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+      }
     }
-    docContents.push({
-      file: doc,
-      path: doc.path,
-      rawText,
-      decodedText
-    });
+    if (includeDocContents) {
+      docContents.push({
+        file: doc,
+        path: doc.path,
+        rawText
+      });
+    }
   }
   if (!freshRead) {
-    const resolvedLinks = plugin.app.metadataCache.resolvedLinks || {};
-    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+    const resolvedLinks2 = plugin.app.metadataCache.resolvedLinks || {};
+    for (const [sourcePath, targets] of Object.entries(resolvedLinks2)) {
       if (isReportFile(sourcePath)) {
         continue;
       }
@@ -3423,8 +3475,15 @@ async function indexRemoteReferences(items, snapshot) {
     if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     const doc = snapshot.docContents[i];
     for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
-    if (doc.decodedText !== doc.rawText) {
-      for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+    if (doc.rawText.includes("%")) {
+      let decodedText = doc.rawText;
+      try {
+        decodedText = decodeURIComponent(doc.rawText);
+      } catch (e) {
+      }
+      if (decodedText !== doc.rawText) {
+        for (const id of match(decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+      }
     }
   }
 }
@@ -3437,7 +3496,11 @@ function findReferencingNotesForRemoteItem(remoteItem, snapshot) {
 async function scanUnusedFiles(plugin, options, scanCtx = {}) {
   var _a;
   const { signal, onProgress } = scanCtx || {};
-  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const snapshot = await plugin.buildVaultReferenceSnapshot({
+    signal,
+    onProgress,
+    includeDocContents: Boolean(options == null ? void 0 : options.scanRemote)
+  });
   const allowedGroups = /* @__PURE__ */ new Set();
   if (options.typeNote) allowedGroups.add("note");
   if (options.typeImage) allowedGroups.add("image");
@@ -4314,6 +4377,31 @@ var NoteRefsModal = class extends FileMasterModal {
 
 // src/modals/incoming-file.js
 var import_obsidian13 = require("obsidian");
+function insertLinkAtTarget(editor, linkText, insertionRange) {
+  var _a, _b, _c, _d, _e;
+  const from = (insertionRange == null ? void 0 : insertionRange.from) || ((_a = editor.getCursor) == null ? void 0 : _a.call(editor, "from"));
+  const to = (insertionRange == null ? void 0 : insertionRange.to) || from || ((_b = editor.getCursor) == null ? void 0 : _b.call(editor, "to"));
+  const lineText = from && typeof editor.getLine === "function" ? editor.getLine(from.line) : "";
+  const isTableOrInline = typeof lineText === "string" && (lineText.trimStart().startsWith("|") || lineText.trim().length > 0);
+  const snippet = isTableOrInline ? linkText : `${linkText}
+`;
+  if (from && to && typeof editor.replaceRange === "function") {
+    editor.replaceRange(snippet, from, to);
+    const lines = snippet.split("\n");
+    const nextCursor = {
+      line: from.line + lines.length - 1,
+      ch: lines.length === 1 ? from.ch + lines[0].length : lines[lines.length - 1].length
+    };
+    (_c = editor.setCursor) == null ? void 0 : _c.call(editor, nextCursor);
+    if (insertionRange) {
+      insertionRange.from = { ...nextCursor };
+      insertionRange.to = { ...nextCursor };
+    }
+  } else {
+    (_d = editor.replaceSelection) == null ? void 0 : _d.call(editor, snippet);
+  }
+  (_e = editor.focus) == null ? void 0 : _e.call(editor);
+}
 function renderItemVisualThumb(parentEl, item, plugin) {
   const t2 = (k, p) => plugin ? plugin.t(k, p) : translateUi("auto", k, p);
   const ext = getExt(item.name);
@@ -4397,7 +4485,16 @@ var IncomingFileModal = class extends FileMasterModal {
     if (IMAGE_EXTS.has(this.fileInfo.ext)) {
       const img = thumbWrap.createEl("img", { cls: "fm-incoming-thumb-img" });
       convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin).then((url) => {
-        if (url) img.src = url;
+        if (url) {
+          if (this.previewBlobUrl && this.previewBlobUrl.startsWith("blob:")) {
+            try {
+              URL.revokeObjectURL(this.previewBlobUrl);
+            } catch (e) {
+            }
+          }
+          this.previewBlobUrl = url;
+          img.src = url;
+        }
       }).catch(() => {
       });
     } else {
@@ -4564,7 +4661,7 @@ var IncomingFileModal = class extends FileMasterModal {
           mdLink = `!${mdLink}`;
         }
         if (editor) {
-          editor.replaceSelection(mdLink + "\n");
+          insertLinkAtTarget(editor, mdLink, this.options.insertionRange);
         }
         if (this.progressBar) this.progressBar.style.width = "100%";
         this.result = {
@@ -4605,7 +4702,7 @@ var IncomingFileModal = class extends FileMasterModal {
           finalMarkdown = `!${finalMarkdown}`;
         }
         if (editor) {
-          editor.replaceSelection(finalMarkdown + "\n");
+          insertLinkAtTarget(editor, finalMarkdown, this.options.insertionRange);
         }
         this.result = {
           success: true,
@@ -4751,6 +4848,13 @@ var IncomingFileModal = class extends FileMasterModal {
     };
   }
   onClose() {
+    if (this.previewBlobUrl && this.previewBlobUrl.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(this.previewBlobUrl);
+      } catch (e) {
+      }
+      this.previewBlobUrl = null;
+    }
     if (!this.isDone && this.callback) {
       this.callback({ target: null });
     }
@@ -4774,9 +4878,28 @@ function filterAllowedFiles(settings, fileList) {
   return out;
 }
 function getCleanServerUrl(settings) {
-  return String(settings.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, "");
+  const raw = String(settings.serverUrl || DEFAULT_SERVER_URL).trim().replace(/\/+$/, "");
+  if (!raw) return DEFAULT_SERVER_URL;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    return raw;
+  } catch (e) {
+    return raw;
+  }
 }
-async function handleIncomingBrowserFile(plugin, file, editor) {
+async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
+  var _a, _b;
+  let insertionRange = (options == null ? void 0 : options.insertionRange) || null;
+  if (!insertionRange && editor) {
+    const from = (_a = editor.getCursor) == null ? void 0 : _a.call(editor, "from");
+    const to = ((_b = editor.getCursor) == null ? void 0 : _b.call(editor, "to")) || from;
+    if (from && typeof from.line === "number" && typeof from.ch === "number") {
+      insertionRange = { from: { ...from }, to: { ...to } };
+    }
+  }
   const arrayBuffer = await file.arrayBuffer();
   const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
   const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
@@ -4807,7 +4930,8 @@ async function handleIncomingBrowserFile(plugin, file, editor) {
     fixedLocation: plugin.settings.saveLocationMode,
     plugin,
     editor,
-    activeFile
+    activeFile,
+    insertionRange
   };
   new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
 }
@@ -5922,6 +6046,7 @@ function extractLocalAttachmentFromLine(plugin, lineText) {
 }
 function setupHeicInlinePreviewObserver(plugin) {
   const scanEmbeds = () => {
+    if (plugin.isUnloading) return;
     const embeds = document.querySelectorAll(".internal-embed[src]");
     embeds.forEach((el) => {
       const rawSrc = el.getAttribute("src") || "";
@@ -5935,13 +6060,37 @@ function setupHeicInlinePreviewObserver(plugin) {
       });
     });
   };
+  const scheduleScanEmbeds = (delayMs = 120) => {
+    if (plugin.isUnloading) return;
+    if (plugin.heicScanTimer) clearTimeout(plugin.heicScanTimer);
+    plugin.heicScanTimer = setTimeout(() => {
+      plugin.heicScanTimer = null;
+      scanEmbeds();
+    }, delayMs);
+  };
+  const hasPotentialEmbedMutation = (mutations) => {
+    var _a, _b, _c;
+    for (const m of mutations) {
+      if (m.type !== "childList" || !((_a = m.addedNodes) == null ? void 0 : _a.length)) continue;
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (((_b = node.matches) == null ? void 0 : _b.call(node, ".internal-embed[src]")) || ((_c = node.querySelector) == null ? void 0 : _c.call(node, ".internal-embed[src]"))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
   plugin.app.workspace.onLayoutReady(() => {
+    if (plugin.isUnloading) return;
     scanEmbeds();
-    plugin.heicObserver = new MutationObserver(() => scanEmbeds());
+    plugin.heicObserver = new MutationObserver((mutations) => {
+      if (hasPotentialEmbedMutation(mutations)) scheduleScanEmbeds(120);
+    });
     plugin.heicObserver.observe(document.body, { childList: true, subtree: true });
   });
-  plugin.registerEvent(plugin.app.workspace.on("layout-change", () => scanEmbeds()));
-  plugin.registerEvent(plugin.app.workspace.on("file-open", () => setTimeout(scanEmbeds, 80)));
+  plugin.registerEvent(plugin.app.workspace.on("layout-change", () => scheduleScanEmbeds(60)));
+  plugin.registerEvent(plugin.app.workspace.on("file-open", () => scheduleScanEmbeds(80)));
 }
 async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
   var _a;
@@ -5960,7 +6109,20 @@ async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
   if (!previewUrl) {
     const buf = await plugin.app.vault.readBinary(tfile);
     previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
-    plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    if (previewUrl) {
+      if (plugin.heicPreviewCache.size >= 100) {
+        const oldestKey = plugin.heicPreviewCache.keys().next().value;
+        const oldestUrl = plugin.heicPreviewCache.get(oldestKey);
+        plugin.heicPreviewCache.delete(oldestKey);
+        if (oldestUrl && oldestUrl.startsWith("blob:")) {
+          try {
+            URL.revokeObjectURL(oldestUrl);
+          } catch (e) {
+          }
+        }
+      }
+      plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    }
   }
   embedEl.empty();
   embedEl.removeClass("file-embed", "mod-generic");
@@ -6316,7 +6478,15 @@ async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
       await Promise.all(
         batch.map(async (url) => {
           try {
-            const res = await (0, import_obsidian19.requestUrl)({ url, method: "HEAD", throw: false });
+            let res = await (0, import_obsidian19.requestUrl)({ url, method: "HEAD", throw: false });
+            if (res.status === 405 || res.status === 403 || res.status === 501) {
+              res = await (0, import_obsidian19.requestUrl)({
+                url,
+                method: "GET",
+                headers: { Range: "bytes=0-0" },
+                throw: false
+              });
+            }
             if (res.status >= 400) {
               failedUrlMap.set(url, `HTTP ${res.status}`);
             }
@@ -7602,7 +7772,7 @@ var VaultAnalyticsModal = class extends FileMasterModal {
     const insightsList = insightsBox.createDiv({
       attr: { style: "display: flex; flex-direction: column; gap: 6px; margin-top: 8px;" }
     });
-    const addInsightItem = (icon, html) => {
+    const addInsightItem = (icon, message, accentColor = "#10b981") => {
       const itemEl = insightsList.createDiv({
         attr: {
           style: "display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.5; color: var(--text-muted); padding: 2px 0;"
@@ -7610,18 +7780,28 @@ var VaultAnalyticsModal = class extends FileMasterModal {
       });
       itemEl.createSpan({ text: icon, attr: { style: "flex-shrink: 0; font-size: 13px; margin-top: 1px;" } });
       const textSpan = itemEl.createSpan({ attr: { style: "flex: 1;" } });
-      textSpan.innerHTML = html;
+      const parts = String(message || "").split(/(\*\*[^*]+\*\*)/g);
+      for (const part of parts) {
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+          textSpan.createEl("strong", {
+            text: part.slice(2, -2),
+            attr: { style: `color: ${accentColor};` }
+          });
+        } else if (part) {
+          textSpan.createSpan({ text: part });
+        }
+      }
     };
     if (localPct >= 70 && s.local.totalBytes > 10 * 1024 * 1024) {
-      addInsightItem("\u{1F4E6}", t2("analyticsInsightStorageLocal", { pct: localPct }));
+      addInsightItem("\u{1F4E6}", t2("analyticsInsightStorageLocal", { pct: localPct }), "var(--text-accent)");
     } else if (remotePct >= 50) {
-      addInsightItem("\u2601\uFE0F", t2("analyticsInsightStorageRemote", { pct: remotePct }));
+      addInsightItem("\u2601\uFE0F", t2("analyticsInsightStorageRemote", { pct: remotePct }), "#10b981");
     }
     if (cacheCov > 0) {
-      addInsightItem("\u26A1", t2("analyticsInsightCacheReady"));
+      addInsightItem("\u26A1", t2("analyticsInsightCacheReady"), "#10b981");
     }
     if (s.remote.lockedCount > 0) {
-      addInsightItem("\u{1F6E1}\uFE0F", t2("analyticsInsightLockedSafe", { count: s.remote.lockedCount }));
+      addInsightItem("\u{1F6E1}\uFE0F", t2("analyticsInsightLockedSafe", { count: s.remote.lockedCount }), "#10b981");
     }
     const allTop = s.topLargestAttachments || [];
     if (allTop.length > 0) {
@@ -8065,9 +8245,12 @@ async function onload(plugin) {
     }
     reconcileGalleryLeaves(plugin);
   });
-  setTimeout(() => {
-    checkServerCompatibility(plugin).catch(() => {
-    });
+  plugin.compatCheckTimer = setTimeout(() => {
+    plugin.compatCheckTimer = null;
+    if (!plugin.isUnloading) {
+      checkServerCompatibility(plugin).catch(() => {
+      });
+    }
   }, 1200);
   plugin.registerEvent(
     plugin.app.workspace.on("editor-paste", async (evt, editor) => {
@@ -8078,8 +8261,9 @@ async function onload(plugin) {
       const targetFiles = filterAllowedFiles(plugin.settings, files);
       if (targetFiles.length === 0) return;
       evt.preventDefault();
+      const insertionRange = captureEditorRange(editor, null);
       for (const f of targetFiles) {
-        await handleIncomingBrowserFile(plugin, f, editor);
+        await handleIncomingBrowserFile(plugin, f, editor, { insertionRange });
       }
     })
   );
@@ -8092,8 +8276,9 @@ async function onload(plugin) {
       const targetFiles = filterAllowedFiles(plugin.settings, files);
       if (targetFiles.length === 0) return;
       evt.preventDefault();
+      const insertionRange = captureEditorRange(editor, evt);
       for (const f of targetFiles) {
-        await handleIncomingBrowserFile(plugin, f, editor);
+        await handleIncomingBrowserFile(plugin, f, editor, { insertionRange });
       }
     })
   );
@@ -8234,6 +8419,25 @@ function getCompatibilityMessage(plugin, compat) {
 function onunload(plugin) {
   var _a, _b;
   plugin.isUnloading = true;
+  if (plugin.compatCheckTimer) {
+    clearTimeout(plugin.compatCheckTimer);
+    plugin.compatCheckTimer = null;
+  }
+  if (plugin.heicScanTimer) {
+    clearTimeout(plugin.heicScanTimer);
+    plugin.heicScanTimer = null;
+  }
+  if (plugin.heicPreviewCache) {
+    for (const url of plugin.heicPreviewCache.values()) {
+      if (typeof url === "string" && url.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+        }
+      }
+    }
+    plugin.heicPreviewCache.clear();
+  }
   (_a = plugin.activeTransferController) == null ? void 0 : _a.abort();
   (_b = plugin.galleryStore) == null ? void 0 : _b.clear();
   if (plugin.sidebarRibbonEl) {
@@ -8289,6 +8493,36 @@ async function activateGalleryView(plugin) {
   }
   if (import_obsidian27.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
   return initGalleryLeaf(plugin, true);
+}
+function captureEditorRange(editor, evt) {
+  var _a, _b;
+  if (!editor) return null;
+  if (evt && typeof evt.clientX === "number" && typeof evt.clientY === "number") {
+    try {
+      if (typeof editor.posAtCoords === "function") {
+        const pos = editor.posAtCoords(evt.clientX, evt.clientY);
+        if (pos && typeof pos.line === "number" && typeof pos.ch === "number") {
+          return { from: { ...pos }, to: { ...pos } };
+        }
+      }
+      if (editor.cm && typeof editor.cm.posAtCoords === "function" && typeof editor.offsetToPos === "function") {
+        const offset = editor.cm.posAtCoords({ x: evt.clientX, y: evt.clientY });
+        if (typeof offset === "number" && offset >= 0) {
+          const pos = editor.offsetToPos(offset);
+          if (pos && typeof pos.line === "number" && typeof pos.ch === "number") {
+            return { from: { ...pos }, to: { ...pos } };
+          }
+        }
+      }
+    } catch (e) {
+    }
+  }
+  const from = (_a = editor.getCursor) == null ? void 0 : _a.call(editor, "from");
+  const to = ((_b = editor.getCursor) == null ? void 0 : _b.call(editor, "to")) || from;
+  if (from && typeof from.line === "number" && typeof from.ch === "number") {
+    return { from: { ...from }, to: { ...to } };
+  }
+  return null;
 }
 function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = void 0) {
   if (target !== void 0 && !isInsertionTargetValid(plugin, target)) {
@@ -9598,11 +9832,13 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
   const remoteItemsToDelete = [];
   let skippedBySafetyGate = 0;
   const currentHash = async (item) => {
+    var _a;
     if (item.source === "local") return computeSha256Hex(await plugin.app.vault.readBinary(item.rawObj));
     const url = new URL(item.rawObj.rawUrl);
     url.searchParams.set("download", "1");
     url.searchParams.set("raw", "1");
-    const response = await (0, import_obsidian33.requestUrl)({ url: url.href, method: "GET", throw: false });
+    const headers = ((_a = plugin.settings) == null ? void 0 : _a.apiToken) ? { Authorization: `Bearer ${plugin.settings.apiToken}` } : void 0;
+    const response = await (0, import_obsidian33.requestUrl)({ url: url.href, method: "GET", headers, throw: false });
     if (response.status !== 200 || !response.arrayBuffer) throw new Error("Unable to verify attachment content");
     return computeSha256Hex(response.arrayBuffer);
   };

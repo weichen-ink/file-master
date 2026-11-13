@@ -42,13 +42,18 @@ export async function loadOperationLogs(plugin) {
 }
 
 export async function saveOperationLogs(plugin) {
-  try {
-    const adapter = plugin.app?.vault?.adapter;
-    if (!adapter) return;
-    const logPath = getLogFilePath(plugin);
-    const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
-    await adapter.write(logPath, lines.join('\n') + (lines.length ? '\n' : ''));
-  } catch { }
+  const previous = plugin._logWriteQueue || Promise.resolve();
+  const next = previous.then(async () => {
+    try {
+      const adapter = plugin.app?.vault?.adapter;
+      if (!adapter) return;
+      const logPath = getLogFilePath(plugin);
+      const lines = (plugin.operationLogs || []).slice(-500).map((entry) => JSON.stringify(entry));
+      await adapter.write(logPath, lines.join('\n') + (lines.length ? '\n' : ''));
+    } catch { }
+  });
+  plugin._logWriteQueue = next.catch(() => {});
+  return next;
 }
 
 export function logOperation(plugin, level, action, summary, details = null) {

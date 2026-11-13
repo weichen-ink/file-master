@@ -162,7 +162,7 @@ export class VaultAnalyticsModal extends Modal {
       attr: { style: 'display: flex; flex-direction: column; gap: 6px; margin-top: 8px;' }
     });
 
-    const addInsightItem = (icon, html) => {
+    const addInsightItem = (icon, message, accentColor = '#10b981') => {
       const itemEl = insightsList.createDiv({
         attr: {
           style: 'display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.5; color: var(--text-muted); padding: 2px 0;'
@@ -170,21 +170,31 @@ export class VaultAnalyticsModal extends Modal {
       });
       itemEl.createSpan({ text: icon, attr: { style: 'flex-shrink: 0; font-size: 13px; margin-top: 1px;' } });
       const textSpan = itemEl.createSpan({ attr: { style: 'flex: 1;' } });
-      textSpan.innerHTML = html;
+      const parts = String(message || '').split(/(\*\*[^*]+\*\*)/g);
+      for (const part of parts) {
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+          textSpan.createEl('strong', {
+            text: part.slice(2, -2),
+            attr: { style: `color: ${accentColor};` }
+          });
+        } else if (part) {
+          textSpan.createSpan({ text: part });
+        }
+      }
     };
 
     if (localPct >= 70 && s.local.totalBytes > 10 * 1024 * 1024) {
-      addInsightItem('📦', t('analyticsInsightStorageLocal', { pct: localPct }));
+      addInsightItem('📦', t('analyticsInsightStorageLocal', { pct: localPct }), 'var(--text-accent)');
     } else if (remotePct >= 50) {
-      addInsightItem('☁️', t('analyticsInsightStorageRemote', { pct: remotePct }));
+      addInsightItem('☁️', t('analyticsInsightStorageRemote', { pct: remotePct }), '#10b981');
     }
 
     if (cacheCov > 0) {
-      addInsightItem('⚡', t('analyticsInsightCacheReady'));
+      addInsightItem('⚡', t('analyticsInsightCacheReady'), '#10b981');
     }
 
     if (s.remote.lockedCount > 0) {
-      addInsightItem('🛡️', t('analyticsInsightLockedSafe', { count: s.remote.lockedCount }));
+      addInsightItem('🛡️', t('analyticsInsightLockedSafe', { count: s.remote.lockedCount }), '#10b981');
     }
 
     // ==========================================

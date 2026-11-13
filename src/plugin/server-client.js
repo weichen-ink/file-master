@@ -20,10 +20,28 @@ export function filterAllowedFiles(settings, fileList) {
 }
 
 export function getCleanServerUrl(settings) {
-  return String(settings.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+  const raw = String(settings.serverUrl || DEFAULT_SERVER_URL).trim().replace(/\/+$/, '');
+  if (!raw) return DEFAULT_SERVER_URL;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return '';
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
 }
 
-export async function handleIncomingBrowserFile(plugin, file, editor) {
+export async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
+  let insertionRange = options?.insertionRange || null;
+  if (!insertionRange && editor) {
+    const from = editor.getCursor?.('from');
+    const to = editor.getCursor?.('to') || from;
+    if (from && typeof from.line === 'number' && typeof from.ch === 'number') {
+      insertionRange = { from: { ...from }, to: { ...to } };
+    }
+  }
   const arrayBuffer = await file.arrayBuffer();
   const ext = getExt(file.name) || (file.type.startsWith('image/') ? 'png' : 'bin');
   const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), 'Pasted_image');
@@ -58,7 +76,8 @@ export async function handleIncomingBrowserFile(plugin, file, editor) {
     fixedLocation: plugin.settings.saveLocationMode,
     plugin: plugin,
     editor,
-    activeFile
+    activeFile,
+    insertionRange
   };
 
   new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();

@@ -74,8 +74,11 @@ export async function onload(plugin) {
   });
 
   // Background non-blocking handshake to verify version contract and connectivity
-  setTimeout(() => {
-    checkServerCompatibility(plugin).catch(() => {});
+  plugin.compatCheckTimer = setTimeout(() => {
+    plugin.compatCheckTimer = null;
+    if (!plugin.isUnloading) {
+      checkServerCompatibility(plugin).catch(() => {});
+    }
   }, 1200);
 
   // 1. Listen for clipboard paste events
@@ -89,8 +92,9 @@ export async function onload(plugin) {
       if (targetFiles.length === 0) return;
 
       evt.preventDefault();
+      const insertionRange = captureEditorRange(editor, null);
       for (const f of targetFiles) {
-        await handleIncomingBrowserFile(plugin, f, editor);
+        await handleIncomingBrowserFile(plugin, f, editor, { insertionRange });
       }
     })
   );
@@ -106,8 +110,9 @@ export async function onload(plugin) {
       if (targetFiles.length === 0) return;
 
       evt.preventDefault();
+      const insertionRange = captureEditorRange(editor, evt);
       for (const f of targetFiles) {
-        await handleIncomingBrowserFile(plugin, f, editor);
+        await handleIncomingBrowserFile(plugin, f, editor, { insertionRange });
       }
     })
   );
@@ -251,6 +256,22 @@ export function getCompatibilityMessage(plugin, compat) {
 
 export function onunload(plugin) {
   plugin.isUnloading = true;
+  if (plugin.compatCheckTimer) {
+    clearTimeout(plugin.compatCheckTimer);
+    plugin.compatCheckTimer = null;
+  }
+  if (plugin.heicScanTimer) {
+    clearTimeout(plugin.heicScanTimer);
+    plugin.heicScanTimer = null;
+  }
+  if (plugin.heicPreviewCache) {
+    for (const url of plugin.heicPreviewCache.values()) {
+      if (typeof url === 'string' && url.startsWith('blob:')) {
+        try { URL.revokeObjectURL(url); } catch { }
+      }
+    }
+    plugin.heicPreviewCache.clear();
+  }
   plugin.activeTransferController?.abort();
   plugin.galleryStore?.clear();
   // Note: Do NOT detach VIEW_TYPE_REMOTE_GALLERY here, allowing Obsidian workspace layout
@@ -307,6 +328,35 @@ export async function activateGalleryView(plugin) {
   }
   if (Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
   return initGalleryLeaf(plugin, true);
+}
+
+function captureEditorRange(editor, evt) {
+  if (!editor) return null;
+  if (evt && typeof evt.clientX === 'number' && typeof evt.clientY === 'number') {
+    try {
+      if (typeof editor.posAtCoords === 'function') {
+        const pos = editor.posAtCoords(evt.clientX, evt.clientY);
+        if (pos && typeof pos.line === 'number' && typeof pos.ch === 'number') {
+          return { from: { ...pos }, to: { ...pos } };
+        }
+      }
+      if (editor.cm && typeof editor.cm.posAtCoords === 'function' && typeof editor.offsetToPos === 'function') {
+        const offset = editor.cm.posAtCoords({ x: evt.clientX, y: evt.clientY });
+        if (typeof offset === 'number' && offset >= 0) {
+          const pos = editor.offsetToPos(offset);
+          if (pos && typeof pos.line === 'number' && typeof pos.ch === 'number') {
+            return { from: { ...pos }, to: { ...pos } };
+          }
+        }
+      }
+    } catch { }
+  }
+  const from = editor.getCursor?.('from');
+  const to = editor.getCursor?.('to') || from;
+  if (from && typeof from.line === 'number' && typeof from.ch === 'number') {
+    return { from: { ...from }, to: { ...to } };
+  }
+  return null;
 }
 
 export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = undefined) {

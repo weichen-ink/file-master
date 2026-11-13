@@ -7,12 +7,22 @@ import { Notice, TFile } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
-  const { signal, onProgress, freshRead = false } = scanCtx || {};
+  const {
+    signal,
+    onProgress,
+    freshRead = false,
+    includeDocContents = true,
+    targetLocalPaths = null
+  } = scanCtx || {};
   const revision = plugin.referenceRevision || 0;
   const allFiles = plugin.app.vault.getFiles();
   const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
   const matchLocal = createLocalReferenceMatcher(allFiles, (file) => isExcalidrawFile(plugin.app, file));
   const localReferences = new Map();
+  const resolvedLinks = plugin.app.metadataCache?.resolvedLinks || {};
+  const unresolvedLinks = plugin.app.metadataCache?.unresolvedLinks || {};
+  const hasMetadataGraph = !freshRead && Object.keys(resolvedLinks).length > 0;
+  const targetSet = targetLocalPaths instanceof Set ? targetLocalPaths : null;
 
   const docContents = [];
   for (let i = 0; i < docFiles.length; i++) {
@@ -22,23 +32,46 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
       onProgress?.(i + 1, docFiles.length, doc.path);
       await new Promise((r) => setTimeout(r, 0));
     }
+
+    // Lightweight candidate filtering: when scanning only specific local targets on a non-fresh read,
+    // skip Markdown files whose Obsidian metadataCache graph shows no matching resolved/unresolved links.
+    if (
+      !includeDocContents &&
+      hasMetadataGraph &&
+      targetSet &&
+      doc.extension?.toLowerCase() === 'md' &&
+      !isExcalidrawFile(plugin.app, doc) &&
+      Object.prototype.hasOwnProperty.call(resolvedLinks, doc.path)
+    ) {
+      const docResolved = resolvedLinks[doc.path] || {};
+      const docUnresolved = unresolvedLinks[doc.path] || {};
+      const hitsResolved = Object.keys(docResolved).some((p) => targetSet.has(p));
+      const hasUnresolved = Object.keys(docUnresolved).length > 0;
+      if (!hitsResolved && !hasUnresolved) {
+        continue;
+      }
+    }
+
     const rawText = freshRead
       ? await plugin.app.vault.read(doc)
       : await plugin.app.vault.cachedRead(doc);
-    let decodedText = rawText;
-    try {
-      decodedText = decodeURIComponent(rawText);
-    } catch { }
     for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
-    if (decodedText !== rawText) {
-      for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+    if (rawText.includes('%')) {
+      let decodedText = rawText;
+      try {
+        decodedText = decodeURIComponent(rawText);
+      } catch { }
+      if (decodedText !== rawText) {
+        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
+      }
     }
-    docContents.push({
-      file: doc,
-      path: doc.path,
-      rawText,
-      decodedText
-    });
+    if (includeDocContents) {
+      docContents.push({
+        file: doc,
+        path: doc.path,
+        rawText
+      });
+    }
   }
 
   if (!freshRead) {
@@ -53,8 +86,10 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
     }
   }
 
-  return { docContents, localReferences, revision, signal,
-    stable: revision === (plugin.referenceRevision || 0) };
+  return {
+    docContents, localReferences, revision, signal,
+    stable: revision === (plugin.referenceRevision || 0)
+  };
 }
 
 export function isReferenceSnapshotCurrent(plugin, snapshot) {
@@ -77,8 +112,14 @@ export async function indexRemoteReferences(items, snapshot) {
     if (i % 25 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     const doc = snapshot.docContents[i];
     for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
-    if (doc.decodedText !== doc.rawText) {
-      for (const id of match(doc.decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+    if (doc.rawText.includes('%')) {
+      let decodedText = doc.rawText;
+      try {
+        decodedText = decodeURIComponent(doc.rawText);
+      } catch { }
+      if (decodedText !== doc.rawText) {
+        for (const id of match(decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
+      }
     }
   }
 }
@@ -93,7 +134,11 @@ export function findReferencingNotesForRemoteItem(remoteItem, snapshot) {
 
 export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
   const { signal, onProgress } = scanCtx || {};
-  const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
+  const snapshot = await plugin.buildVaultReferenceSnapshot({
+    signal,
+    onProgress,
+    includeDocContents: Boolean(options?.scanRemote)
+  });
   const allowedGroups = new Set();
   if (options.typeNote) allowedGroups.add('note');
   if (options.typeImage) allowedGroups.add('image');

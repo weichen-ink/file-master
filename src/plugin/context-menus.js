@@ -213,6 +213,7 @@ export function extractLocalAttachmentFromLine(plugin, lineText) {
 
 export function setupHeicInlinePreviewObserver(plugin) {
   const scanEmbeds = () => {
+    if (plugin.isUnloading) return;
     const embeds = document.querySelectorAll('.internal-embed[src]');
     embeds.forEach((el) => {
       const rawSrc = el.getAttribute('src') || '';
@@ -228,14 +229,39 @@ export function setupHeicInlinePreviewObserver(plugin) {
     });
   };
 
+  const scheduleScanEmbeds = (delayMs = 120) => {
+    if (plugin.isUnloading) return;
+    if (plugin.heicScanTimer) clearTimeout(plugin.heicScanTimer);
+    plugin.heicScanTimer = setTimeout(() => {
+      plugin.heicScanTimer = null;
+      scanEmbeds();
+    }, delayMs);
+  };
+
+  const hasPotentialEmbedMutation = (mutations) => {
+    for (const m of mutations) {
+      if (m.type !== 'childList' || !m.addedNodes?.length) continue;
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.matches?.('.internal-embed[src]') || node.querySelector?.('.internal-embed[src]')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   plugin.app.workspace.onLayoutReady(() => {
+    if (plugin.isUnloading) return;
     scanEmbeds();
-    plugin.heicObserver = new MutationObserver(() => scanEmbeds());
+    plugin.heicObserver = new MutationObserver((mutations) => {
+      if (hasPotentialEmbedMutation(mutations)) scheduleScanEmbeds(120);
+    });
     plugin.heicObserver.observe(document.body, { childList: true, subtree: true });
   });
 
-  plugin.registerEvent(plugin.app.workspace.on('layout-change', () => scanEmbeds()));
-  plugin.registerEvent(plugin.app.workspace.on('file-open', () => setTimeout(scanEmbeds, 80)));
+  plugin.registerEvent(plugin.app.workspace.on('layout-change', () => scheduleScanEmbeds(60)));
+  plugin.registerEvent(plugin.app.workspace.on('file-open', () => scheduleScanEmbeds(80)));
 }
 
 export async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
@@ -255,7 +281,17 @@ export async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
   if (!previewUrl) {
     const buf = await plugin.app.vault.readBinary(tfile);
     previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
-    plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    if (previewUrl) {
+      if (plugin.heicPreviewCache.size >= 100) {
+        const oldestKey = plugin.heicPreviewCache.keys().next().value;
+        const oldestUrl = plugin.heicPreviewCache.get(oldestKey);
+        plugin.heicPreviewCache.delete(oldestKey);
+        if (oldestUrl && oldestUrl.startsWith('blob:')) {
+          try { URL.revokeObjectURL(oldestUrl); } catch { }
+        }
+      }
+      plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    }
   }
 
   embedEl.empty();

@@ -20,7 +20,8 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
   const currentHash = async item => {
     if (item.source === 'local') return computeSha256Hex(await plugin.app.vault.readBinary(item.rawObj));
     const url = new URL(item.rawObj.rawUrl); url.searchParams.set('download','1'); url.searchParams.set('raw','1');
-    const response = await requestUrl({url:url.href,method:'GET',throw:false});
+    const headers = plugin.settings?.apiToken ? { Authorization: `Bearer ${plugin.settings.apiToken}` } : undefined;
+    const response = await requestUrl({ url: url.href, method: 'GET', headers, throw: false });
     if (response.status !== 200 || !response.arrayBuffer) throw new Error('Unable to verify attachment content');
     return computeSha256Hex(response.arrayBuffer);
   };

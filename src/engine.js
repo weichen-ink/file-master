@@ -447,6 +447,42 @@ export function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
   return false;
 }
 
+function maskMarkdownCodeForScanning(text) {
+  // Replace fenced code blocks (``` or ~~~) and inline code (`...`) with spaces, preserving newlines and offsets.
+  let masked = text.replace(/^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1\2[ \t]*$/gm, (block) =>
+    block.replace(/[^\n]/g, ' ')
+  );
+  masked = masked.replace(/(`+)([^`\n]|[^`\n][\s\S]*?[^`\n])\1/g, (span) =>
+    span.replace(/[^\n]/g, ' ')
+  );
+  return masked;
+}
+
+function buildLineOffsetIndex(text) {
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 10) starts.push(i + 1);
+  }
+  return starts;
+}
+
+function getLineInfoAtOffset(text, lineStarts, index) {
+  let lo = 0;
+  let hi = lineStarts.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (lineStarts[mid] <= index) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  const lineIdx = Math.max(0, hi);
+  const lineStart = lineStarts[lineIdx];
+  const lineEnd = lineIdx + 1 < lineStarts.length ? lineStarts[lineIdx + 1] - 1 : text.length;
+  return {
+    lineNumber: lineIdx + 1,
+    lineText: text.substring(lineStart, lineEnd).trim()
+  };
+}
+
 /**
  * Scans markdown text content for broken WikiLinks and missing local markdown files
  */
@@ -454,23 +490,21 @@ export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, opti
   const issues = [];
   if (!rawText) return issues;
 
+  const scanText = maskMarkdownCodeForScanning(rawText);
+  const lineStarts = buildLineOffsetIndex(rawText);
+
   // 1. Check WikiLinks: ![[...]] and [[...]]
   if (options.checkWikiLinks !== false) {
     const wikiRegex = /(!?)\[\[([^\]\n\r]+)\]\]/g;
     let m;
-    while ((m = wikiRegex.exec(rawText)) !== null) {
+    while ((m = wikiRegex.exec(scanText)) !== null) {
       const isEmbed = Boolean(m[1]);
       const rawInside = m[2].trim();
       const targetPart = rawInside.split(/[|#]/)[0].trim();
       if (!targetPart) continue; // Same-page anchor [[#heading]]
 
       if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
-        const prefix = rawText.substring(0, m.index);
-        const lineNumber = prefix.split('\n').length;
-        const lineStart = prefix.lastIndexOf('\n') + 1;
-        let lineEnd = rawText.indexOf('\n', m.index);
-        if (lineEnd === -1) lineEnd = rawText.length;
-        const lineText = rawText.substring(lineStart, lineEnd).trim();
+        const { lineNumber, lineText } = getLineInfoAtOffset(rawText, lineStarts, m.index);
 
         issues.push({
           type: isEmbed ? 'wikilink-embed' : 'wikilink',
@@ -489,7 +523,7 @@ export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, opti
   // 2. Check Standard Markdown Links: ![alt](url) and [alt](url)
   const mdRegex = /(!?)\[([^\]\r\n]*)\]\((\s*<[^>]+>|[^\s)]+)(?:\s+["'][^"']*["'])?\)/g;
   let m;
-  while ((m = mdRegex.exec(rawText)) !== null) {
+  while ((m = mdRegex.exec(scanText)) !== null) {
     const isEmbed = Boolean(m[1]);
     let rawUrl = m[3].trim();
     if (rawUrl.startsWith('<') && rawUrl.endsWith('>')) {
@@ -500,12 +534,7 @@ export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, opti
 
     if (/^(?:https?|ftp):\/\//i.test(rawUrl)) {
       if (options.checkRemote) {
-        const prefix = rawText.substring(0, m.index);
-        const lineNumber = prefix.split('\n').length;
-        const lineStart = prefix.lastIndexOf('\n') + 1;
-        let lineEnd = rawText.indexOf('\n', m.index);
-        if (lineEnd === -1) lineEnd = rawText.length;
-        const lineText = rawText.substring(lineStart, lineEnd).trim();
+        const { lineNumber, lineText } = getLineInfoAtOffset(rawText, lineStarts, m.index);
 
         issues.push({
           type: isEmbed ? 'remote-embed' : 'remote-link',
@@ -523,12 +552,7 @@ export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, opti
       if (!cleanTarget) continue;
 
       if (!resolveLocalMarkdownTarget(cleanTarget, docPath, vaultIndex)) {
-        const prefix = rawText.substring(0, m.index);
-        const lineNumber = prefix.split('\n').length;
-        const lineStart = prefix.lastIndexOf('\n') + 1;
-        let lineEnd = rawText.indexOf('\n', m.index);
-        if (lineEnd === -1) lineEnd = rawText.length;
-        const lineText = rawText.substring(lineStart, lineEnd).trim();
+        const { lineNumber, lineText } = getLineInfoAtOffset(rawText, lineStarts, m.index);
 
         issues.push({
           type: isEmbed ? 'local-embed' : 'local-link',

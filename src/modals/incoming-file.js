@@ -8,6 +8,31 @@ import { ImageLightboxModal } from './dialogs.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
+function insertLinkAtTarget(editor, linkText, insertionRange) {
+  const from = insertionRange?.from || editor.getCursor?.('from');
+  const to = insertionRange?.to || from || editor.getCursor?.('to');
+  const lineText = from && typeof editor.getLine === 'function' ? editor.getLine(from.line) : '';
+  const isTableOrInline = typeof lineText === 'string' && (lineText.trimStart().startsWith('|') || lineText.trim().length > 0);
+  const snippet = isTableOrInline ? linkText : `${linkText}\n`;
+
+  if (from && to && typeof editor.replaceRange === 'function') {
+    editor.replaceRange(snippet, from, to);
+    const lines = snippet.split('\n');
+    const nextCursor = {
+      line: from.line + lines.length - 1,
+      ch: lines.length === 1 ? from.ch + lines[0].length : lines[lines.length - 1].length
+    };
+    editor.setCursor?.(nextCursor);
+    if (insertionRange) {
+      insertionRange.from = { ...nextCursor };
+      insertionRange.to = { ...nextCursor };
+    }
+  } else {
+    editor.replaceSelection?.(snippet);
+  }
+  editor.focus?.();
+}
+
 /**
  * Renders a 44x44 thumbnail or icon in wizard lists (click to inspect)
  */
@@ -112,7 +137,13 @@ export class IncomingFileModal extends Modal {
       const img = thumbWrap.createEl('img', { cls: 'fm-incoming-thumb-img' });
       convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin)
         .then((url) => {
-          if (url) img.src = url;
+          if (url) {
+            if (this.previewBlobUrl && this.previewBlobUrl.startsWith('blob:')) {
+              try { URL.revokeObjectURL(this.previewBlobUrl); } catch { }
+            }
+            this.previewBlobUrl = url;
+            img.src = url;
+          }
         })
         .catch(() => {});
     } else {
@@ -310,7 +341,7 @@ export class IncomingFileModal extends Modal {
         }
 
         if (editor) {
-          editor.replaceSelection(mdLink + '\n');
+          insertLinkAtTarget(editor, mdLink, this.options.insertionRange);
         }
 
         if (this.progressBar) this.progressBar.style.width = '100%';
@@ -368,7 +399,7 @@ export class IncomingFileModal extends Modal {
         }
 
         if (editor) {
-          editor.replaceSelection(finalMarkdown + '\n');
+          insertLinkAtTarget(editor, finalMarkdown, this.options.insertionRange);
         }
 
         this.result = {
@@ -533,6 +564,10 @@ export class IncomingFileModal extends Modal {
   }
 
   onClose() {
+    if (this.previewBlobUrl && this.previewBlobUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(this.previewBlobUrl); } catch { }
+      this.previewBlobUrl = null;
+    }
     if (!this.isDone && this.callback) {
       this.callback({ target: null });
     }

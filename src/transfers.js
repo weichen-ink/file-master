@@ -168,7 +168,7 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
       const remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', { signal: options.signal });
       const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1000);
       const fileSpeed = (bytes.byteLength || fileSize) / fileDurationSec;
-      lastSpeed = remote.isInstant ? '⚡ 秒传' : formatSpeed(fileSpeed);
+      lastSpeed = remote.isInstant ? (plugin.t('instantUploadBadge') || '⚡ Instant') : formatSpeed(fileSpeed);
       transferredBytes += (bytes.byteLength || fileSize);
 
       if (entry.locked && !remote.locked) {
