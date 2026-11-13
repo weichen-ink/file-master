@@ -125,7 +125,7 @@ export class OrphanWizardModal extends Modal {
     }
 
     if (!this.results.length) {
-      renderScanEmpty(this,contentEl,'orphanNoneFound',{showMessage:!this.lastCleanSummary});
+      renderScanEmpty(this,contentEl,'orphanNoneFound',{showMessage:!this.lastCleanSummary, closeLabel:this.lastCleanSummary ? 'destBtnDone' : null});
       return;
     }
 

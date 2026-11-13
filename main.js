@@ -2759,7 +2759,7 @@ function returnToHub(modal) {
     openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
   }
 }
-function renderScanEmpty(modal, contentEl, message, { showMessage = true, retryLabel = "scanChooseScopeAgain" } = {}) {
+function renderScanEmpty(modal, contentEl, message, { showMessage = true, retryLabel = "scanChooseScopeAgain", closeLabel = null } = {}) {
   const t2 = (key) => modal.plugin.t(key);
   if (showMessage) contentEl.createDiv({ cls: "fm-empty-state", text: t2(message) });
   const actions = contentEl.createDiv({ cls: "fm-btn-row" });
@@ -2767,7 +2767,7 @@ function renderScanEmpty(modal, contentEl, message, { showMessage = true, retryL
     modal.step = 1;
     modal.render();
   };
-  actions.createEl("button", { text: t2(modal.fromHub ? "btnCancel" : "closeBtn") }).onclick = () => returnToHub(modal);
+  actions.createEl("button", { text: t2(closeLabel || (modal.fromHub ? "btnCancel" : "closeBtn")) }).onclick = () => returnToHub(modal);
 }
 function formatFriendlyError(modal, rawErr) {
   const errStr = String(rawErr || "").trim();
@@ -7524,7 +7524,7 @@ var OrphanWizardModal = class extends FileMasterModal {
       }) });
     }
     if (!this.results.length) {
-      renderScanEmpty(this, contentEl, "orphanNoneFound", { showMessage: !this.lastCleanSummary });
+      renderScanEmpty(this, contentEl, "orphanNoneFound", { showMessage: !this.lastCleanSummary, closeLabel: this.lastCleanSummary ? "destBtnDone" : null });
       return;
     }
     const toolbar = contentEl.createDiv({ cls: "fm-toolbar-row" });

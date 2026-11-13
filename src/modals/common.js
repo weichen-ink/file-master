@@ -15,12 +15,12 @@ export function returnToHub(modal) {
 }
 
 /** Empty scan results share one message and the same recovery actions. */
-export function renderScanEmpty(modal, contentEl, message, {showMessage=true, retryLabel='scanChooseScopeAgain'}={}) {
+export function renderScanEmpty(modal, contentEl, message, {showMessage=true, retryLabel='scanChooseScopeAgain', closeLabel=null}={}) {
   const t=(key)=>modal.plugin.t(key);
   if(showMessage)contentEl.createDiv({cls:'fm-empty-state',text:t(message)});
   const actions=contentEl.createDiv({cls:'fm-btn-row'});
   actions.createEl('button',{text:t(retryLabel)}).onclick=()=>{modal.step=1;modal.render();};
-  actions.createEl('button',{text:t(modal.fromHub?'btnCancel':'closeBtn')}).onclick=()=>returnToHub(modal);
+  actions.createEl('button',{text:t(closeLabel || (modal.fromHub?'btnCancel':'closeBtn'))}).onclick=()=>returnToHub(modal);
 }
 
 /**
