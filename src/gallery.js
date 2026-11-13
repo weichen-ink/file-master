@@ -92,7 +92,7 @@ export function renderRemoteGallery(view, containerEl) {
     }
 
     // Protection is changed in the preview, never accidentally on a thumbnail.
-    if (item.locked) {
+    if (item.locked && view.layoutMode !== 'list') {
       const lockBadge = thumbWrap.createSpan({
         cls: 'fm-gallery-lock-badge',
         attr: { 'aria-label':view.t('previewProtected') }
@@ -110,6 +110,12 @@ export function renderRemoteGallery(view, containerEl) {
       }, (action, target) => {
         if (action === 'deleted') {
           view.items = view.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
+        } else if (action === 'renamed' && target?.oldItem && target?.item) {
+          view.items = view.items.map((i) =>
+            i.year === target.oldItem.year && i.month === target.oldItem.month && i.filename === target.oldItem.filename
+              ? target.item
+              : i
+          );
         }
         view.store?.emit();
       }, {insertMode:view.insertMode, insertionTarget:view.insertionTarget})).catch(error=>new Notice(error.message));
@@ -134,6 +140,14 @@ export function renderRemoteGallery(view, containerEl) {
     }
     nameButton.onclick=openPreview;
     actions.addClass('fm-gallery-actions');
+
+    if (item.locked && view.layoutMode === 'list') {
+      const lockIndicator = actions.createSpan({
+        cls: 'fm-gallery-lock-indicator',
+        attr: { 'aria-label': view.t('previewProtected') }
+      });
+      setIcon(lockIndicator, 'lock');
+    }
 
     // Clean single action: 📝 插入笔记
     const isWebpMode = view.insertMode === 'webp' && hasOptimizedVariant(item);

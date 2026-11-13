@@ -1216,11 +1216,11 @@ var UI_STRINGS = {
     previewCreated: "\u4E0A\u4F20\u65F6\u95F4",
     previewSource: "\u6765\u6E90",
     previewProtection: "\u5220\u9664\u4FDD\u62A4",
-    previewProtectionHelp: "\u5F00\u542F\u540E\uFF0C\u6587\u4EF6\u4E0D\u4F1A\u88AB\u79FB\u5165\u56DE\u6536\u7AD9\u3002",
-    previewProtectionLocked: "\u5DF2\u4FDD\u62A4\uFF0C\u5173\u95ED\u540E\u53EF\u79FB\u5165\u56DE\u6536\u7AD9\u3002",
+    previewProtectionHelp: "\u5F00\u542F\u540E\u6587\u4EF6\u4E0D\u53C2\u4E0E\u53BB\u91CD\u6E05\u7406\u4E14\u65E0\u6CD5\u88AB\u5220\u9664",
+    previewProtectionLocked: "\u5DF2\u9501\u5B9A\uFF0C\u5173\u95ED\u540E\u53EF\u6E05\u7406\u3001\u53BB\u91CD\u6216\u5220\u9664",
     previewOriginalSize: "\u539F\u6587\u4EF6\u5927\u5C0F",
     previewDanger: "\u5371\u9669\u64CD\u4F5C",
-    previewTrashHelp: "\u53EF\u5728 File Master Hub \u7684\u56DE\u6536\u7AD9\u4E2D\u6062\u590D\u3002",
+    previewTrashHelp: "\u53EF\u5728\u56DE\u6536\u7AD9\u4E2D\u6062\u590D\u6587\u4EF6",
     previewLoading: "\u6B63\u5728\u52A0\u8F7D\u9884\u89C8\u2026",
     previewLoadFailed: "\u65E0\u6CD5\u52A0\u8F7D\u56FE\u7247\uFF0C\u6587\u4EF6\u94FE\u63A5\u4ECD\u53EF\u590D\u5236",
     previewRetry: "\u91CD\u8BD5",
@@ -1595,11 +1595,13 @@ var UI_STRINGS = {
     noticeDedupSuccess: "\u5DF2\u66F4\u65B0 {modified} \u7BC7\u7B14\u8BB0\uFF1B\u5904\u7406\u77E5\u8BC6\u5E93\u6587\u4EF6 {local} \u4E2A\u3001\u670D\u52A1\u5668\u6587\u4EF6 {remote} \u4E2A\u3002",
     previewTitle: "\u6587\u4EF6\u9884\u89C8\uFF1A{name}",
     previewTitleLabel: "\u6587\u4EF6\u9884\u89C8",
+    previewFilenameLabel: "\u6587\u4EF6\u540D",
+    previewRename: "\u91CD\u547D\u540D",
     previewLinksTitle: "\u590D\u5236\u94FE\u63A5",
     previewSourceLocal: "\u672C\u5730\u77E5\u8BC6\u5E93",
     previewSourceRemote: "\u670D\u52A1\u5668",
     previewMeta: "{source} \xB7 \u8DEF\u5F84\uFF1A{path} \xB7 \u5927\u5C0F\uFF1A{size}",
-    previewPathLabel: "\u6587\u4EF6\u4F4D\u7F6E",
+    previewPathLabel: "\u8DEF\u5F84",
     previewSizeLabel: "\u6587\u4EF6\u5927\u5C0F",
     previewCopyMarkdown: "\u590D\u5236 Markdown",
     previewCopyUrl: "\u590D\u5236\u6587\u4EF6\u94FE\u63A5",
@@ -1872,11 +1874,11 @@ var UI_STRINGS = {
     previewCreated: "Uploaded",
     previewSource: "Source",
     previewProtection: "Deletion protection",
-    previewProtectionHelp: "Prevent this file from being moved to the recycle bin.",
-    previewProtectionLocked: "Protected. Turn off to move this file to the recycle bin.",
+    previewProtectionHelp: "Skips cleanup & deduplication and cannot be deleted.",
+    previewProtectionLocked: "Locked. Turn off to allow cleanup, dedup, or deletion.",
     previewOriginalSize: "Original size",
     previewDanger: "Danger zone",
-    previewTrashHelp: "Restore files from the recycle bin in File Master Hub.",
+    previewTrashHelp: "Files can be restored from the recycle bin.",
     previewLoading: "Loading preview\u2026",
     previewLoadFailed: "Could not load the image. File links are still available.",
     previewRetry: "Retry",
@@ -2251,11 +2253,13 @@ var UI_STRINGS = {
     noticeDedupSuccess: "Updated {modified} notes and processed {local} vault files and {remote} server files.",
     previewTitle: "File preview: {name}",
     previewTitleLabel: "File preview",
+    previewFilenameLabel: "Filename",
+    previewRename: "Rename",
     previewLinksTitle: "Copy links",
     previewSourceLocal: "Local vault",
     previewSourceRemote: "Server",
     previewMeta: "{source} \xB7 Path: {path} \xB7 Size: {size}",
-    previewPathLabel: "Location",
+    previewPathLabel: "Path",
     previewSizeLabel: "File size",
     previewCopyMarkdown: "Copy Markdown",
     previewCopyUrl: "Copy file URL",
@@ -3196,7 +3200,7 @@ function mountImageViewport(stage, image, onScale) {
 }
 
 // src/modals/dialogs.js
-var import_obsidian12 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 
 // src/ui/modal.js
 var import_obsidian8 = require("obsidian");
@@ -4186,1228 +4190,11 @@ function documentRow(parent, plugin, document2, { onOpened = null, renderDetails
   return { row, content, actions, open };
 }
 
-// src/modals/dialogs.js
-var imageCanvasSequence = 0;
-var ConfirmActionModal = class extends FileMasterModal {
-  constructor(app, title, message, confirmText = "Confirm", onConfirm, plugin = null) {
-    super(app);
-    this.title = title;
-    this.message = message;
-    this.confirmText = confirmText;
-    this.onConfirm = onConfirm;
-    this.plugin = plugin;
-    this.resolved = false;
-  }
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    this.modalEl.addClass("fm-ui", "fm-confirm-dialog");
-    modalChrome(this);
-    contentEl.addClass("fm-confirm-content");
-    modalTitle(this, this.title);
-    const p = contentEl.createEl("p", { text: this.message });
-    p.style.lineHeight = "1.6";
-    p.style.margin = "12px 0 18px";
-    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const cancelLabel = this.plugin ? this.plugin.t("btnCancel") : translateUi("auto", "btnCancel");
-    const cancelBtn = btnRow.createEl("button", { text: cancelLabel });
-    cancelBtn.onclick = () => {
-      if (this.resolved) return;
-      this.resolved = true;
-      this.close();
-      return this.onConfirm(false);
-    };
-    const okBtn = btnRow.createEl("button", { text: this.confirmText, cls: "mod-warning" });
-    okBtn.onclick = () => {
-      if (this.resolved) return;
-      this.resolved = true;
-      this.close();
-      return this.onConfirm(true);
-    };
-  }
-  onClose() {
-    if (!this.resolved && this.onConfirm) {
-      this.resolved = true;
-      this.onConfirm(false);
-    }
-    this.contentEl.empty();
-  }
-};
-var ImageLightboxModal = class extends FileMasterModal {
-  constructor(app, plugin, item, onActionChanged = null, options = {}) {
-    var _a;
-    super(app);
-    Object.assign(this, { plugin, item, onActionChanged });
-    this.insertionTarget = (_a = options.insertionTarget) != null ? _a : captureInsertionTarget(plugin);
-    this.insertMode = options.insertMode || plugin.settings.galleryInsertFormat || "raw";
-    this.generation = 0;
-  }
-  onOpen() {
-    var _a;
-    this.closed = false;
-    this.contentEl.empty();
-    this.contentEl.addClass("fm-asset-viewer");
-    this.modalEl.addClass("fm-ui", "fm-lightbox-dialog");
-    modalChrome(this);
-    const t2 = (key, params) => this.plugin.t(key, params), remote = this.item.source === "remote" ? this.item.rawObj : null;
-    const image = IMAGE_EXTS.has(getExt(this.item.name));
-    const header = this.contentEl.createDiv({ cls: "fm-asset-header" });
-    modalTitle(this, this.item.name);
-    const location = (_a = this.item.displayPath) == null ? void 0 : _a.split("/").slice(0, -1).join(" / ");
-    if (location) {
-      (0, import_obsidian12.setIcon)(header.createSpan({ cls: "fm-asset-path-icon" }), "folder");
-      header.createSpan({ text: location, cls: "fm-asset-location" });
-    }
-    const layout = this.contentEl.createDiv({ cls: "fm-asset-layout" });
-    const canvas = layout.createDiv({ cls: "fm-asset-canvas" });
-    const tools = canvas.createDiv({ cls: "fm-asset-tools" });
-    this.variant = "raw";
-    const variants = tools.createDiv({ cls: "fm-gallery-mode-group", attr: { role: "group", "aria-label": t2("previewVariant") } });
-    const variantButtons = [];
-    if (image) for (const mode of remote && hasOptimizedVariant(remote) ? ["raw", "webp"] : ["raw"]) {
-      const button = variants.createEl("button", { text: t2(mode === "raw" ? "galleryModeRaw" : "galleryModeWebp"), attr: { type: "button", "aria-pressed": String(mode === "raw") } });
-      button.onclick = () => {
-        this.variant = mode;
-        variantButtons.forEach(([b, m]) => b.setAttribute("aria-pressed", String(m === mode)));
-        this.loadPreview();
-      };
-      variantButtons.push([button, mode]);
-    }
-    const zoom = tools.createDiv({ cls: "fm-asset-zoom", attr: { role: "group", "aria-label": t2("previewZoomLabel") } });
-    const zoomButtons = [];
-    if (image) {
-      zoomButtons.push(iconButton(zoom, this.plugin, "previewZoomOut", "minus", () => {
-        var _a2;
-        return (_a2 = this.viewport) == null ? void 0 : _a2.zoomOut();
-      }));
-      this.percentage = zoom.createEl("button", { text: "\u2014", attr: { type: "button", "aria-label": t2("previewActualSize") } });
-      this.percentage.onclick = () => {
-        var _a2;
-        return (_a2 = this.viewport) == null ? void 0 : _a2.actual();
-      };
-      zoomButtons.push(this.percentage);
-      zoomButtons.push(iconButton(zoom, this.plugin, "previewZoomIn", "plus", () => {
-        var _a2;
-        return (_a2 = this.viewport) == null ? void 0 : _a2.zoomIn();
-      }));
-      zoomButtons.push(iconButton(zoom, this.plugin, "previewFit", "maximize", () => {
-        var _a2;
-        return (_a2 = this.viewport) == null ? void 0 : _a2.fit();
-      }));
-    }
-    this.zoomButtons = zoomButtons;
-    const canvasLabel = `fm-image-canvas-${++imageCanvasSequence}`;
-    canvas.createSpan({ text: t2("previewGestures"), attr: { id: canvasLabel, hidden: "" } });
-    this.stage = canvas.createDiv({ cls: "fm-image-stage", attr: { tabindex: "0", role: "region", "aria-labelledby": canvasLabel } });
-    this.status = canvas.createDiv({ cls: "fm-preview-status", attr: { "aria-live": "polite" } });
-    const inspector = layout.createDiv({ cls: "fm-asset-inspector" });
-    const actions = inspector.createDiv({ cls: "fm-asset-primary" });
-    if (remote) {
-      const mode = this.insertMode === "webp" && hasOptimizedVariant(remote) ? "webp" : "raw";
-      const insert = actions.createEl("button", { text: t2(mode === "webp" ? "galleryInsertWebp" : "galleryInsertRaw"), cls: "mod-cta", attr: { type: "button" } });
-      insert.disabled = !isInsertionTargetValid(this.plugin, this.insertionTarget);
-      insert.hidden = insert.disabled;
-      if (insert.disabled) actions.createDiv({ text: t2("galleryOpenNoteFirst"), cls: "fm-asset-hint" });
-      insert.onclick = () => {
-        if (insertMarkdownToActiveEditor(this.plugin, assetMarkdown(this.item.name, assetUrl(remote, mode)) + "\n", t2("galleryInserted"), this.insertionTarget)) this.close();
-      };
-      const links = inspector.createDiv({ cls: "fm-asset-section fm-asset-panel fm-asset-links" });
-      links.createEl("h4", { text: t2("previewLinksTitle") });
-      for (const variant of hasOptimizedVariant(remote) ? ["raw", "webp"] : ["raw"]) {
-        const url = assetUrl(remote, variant);
-        if (!url) continue;
-        const group = links.createDiv({ cls: "fm-asset-link-variant" });
-        group.createSpan({ text: t2(variant === "raw" ? "galleryTrackRaw" : "galleryTrackWebp"), cls: "fm-asset-link-label" });
-        const copyActions = group.createDiv({ cls: "fm-asset-copy-pair" });
-        for (const markdown of [false, true]) {
-          const label = t2(variant === "raw" ? "galleryTrackRaw" : "galleryTrackWebp") + (markdown ? " \xB7 Markdown" : " \xB7 URL");
-          const value = markdown ? assetMarkdown(this.item.name, url) : url;
-          const copy = copyActions.createEl("button", { cls: "fm-asset-copy-action", attr: { type: "button", "aria-label": label } });
-          (0, import_obsidian12.setIcon)(copy.createSpan({ cls: "fm-copy-icon" }), "copy");
-          copy.createSpan({ text: markdown ? "Markdown" : "URL" });
-          copy.onclick = () => copyText(this.plugin, value);
-        }
-      }
-    } else if (this.item.rawObj) {
-      const open = actions.createEl("button", { text: t2("btnOpenInObsidian"), cls: "mod-cta" });
-      open.onclick = async () => {
-        if (open.disabled) return;
-        open.disabled = true;
-        try {
-          const leaf = this.app.workspace.getLeaf(false);
-          if (leaf) {
-            await leaf.openFile(this.item.rawObj);
-            this.close();
-          }
-        } catch (error) {
-          new import_obsidian12.Notice(error.message);
-        } finally {
-          open.disabled = false;
-        }
-      };
-    }
-    const properties = inspector.createDiv({ cls: "fm-asset-section fm-asset-panel" });
-    properties.createEl("h4", { text: t2("previewProperties") });
-    const list = properties.createEl("dl", { cls: "fm-asset-properties" });
-    const property = (key, value) => {
-      list.createEl("dt", { text: t2(key) });
-      return list.createEl("dd", { text: String(value) });
-    };
-    property(remote ? "previewOriginalSize" : "previewSizeLabel", formatBytes(this.item.size));
-    if (image) this.dimensions = property("previewDimensions", "\u2014");
-    if (remote == null ? void 0 : remote.createdAt) {
-      const created = new Date(remote.createdAt);
-      if (Number.isFinite(created.getTime())) {
-        const locale = this.plugin.settings.language === "zh" ? "zh-CN" : this.plugin.settings.language === "en" ? "en-GB" : void 0;
-        const value = property("previewCreated", "");
-        const timestamp = value.createEl("time", { cls: "fm-asset-timestamp", attr: { datetime: created.toISOString() } });
-        timestamp.createSpan({ text: created.toLocaleDateString(locale, { year: "numeric", month: "2-digit", day: "2-digit" }) });
-        timestamp.createSpan({ text: created.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }), cls: "fm-asset-time" });
-      }
-    }
-    property("previewSource", t2(remote ? "previewSourceRemote" : "previewSourceLocal"));
-    if (remote) {
-      const management = inspector.createDiv({ cls: "fm-asset-management" });
-      const protection = management.createDiv({ cls: "fm-asset-section fm-asset-protection" });
-      const protectionRow = protection.createDiv({ cls: "fm-asset-section-heading" });
-      protectionRow.createEl("h4", { text: t2("previewProtection") });
-      const lock = protectionRow.createEl("button", { cls: "fm-asset-lock-switch", attr: { type: "button", role: "switch" } });
-      const protectionHelp = protection.createDiv({ cls: "fm-asset-hint" });
-      const danger = management.createDiv({ cls: "fm-asset-section fm-asset-danger" });
-      const dangerRow = danger.createDiv({ cls: "fm-asset-section-heading" });
-      dangerRow.createEl("h4", { text: t2("previewDanger") });
-      const del = dangerRow.createEl("button", { cls: "fm-asset-trash-action", text: t2("galleryBtnDelete"), attr: { type: "button" } });
-      danger.createDiv({ text: t2("previewTrashHelp"), cls: "fm-asset-hint" });
-      const update = () => {
-        lock.setAttribute("aria-label", t2(remote.locked ? "galleryBtnUnlock" : "galleryBtnLock"));
-        lock.setAttribute("aria-checked", String(Boolean(remote.locked)));
-        protectionHelp.setText(t2(remote.locked ? "previewProtectionLocked" : "previewProtectionHelp"));
-        del.disabled = Boolean(remote.locked || this.deleting);
-      };
-      update();
-      lock.onclick = async () => {
-        var _a2;
-        if (lock.disabled) return;
-        lock.disabled = true;
-        del.disabled = true;
-        try {
-          const locked = !remote.locked;
-          await this.plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, locked);
-          remote.locked = locked;
-          if (!this.closed) {
-            update();
-            new import_obsidian12.Notice(t2(locked ? "previewProtected" : "previewUnprotected"));
-          }
-          (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "lock", remote);
-        } catch (error) {
-          new import_obsidian12.Notice(t2("previewLockFailed", { err: error.message }));
-        } finally {
-          lock.disabled = false;
-          if (!this.closed) update();
-        }
-      };
-      del.onclick = async () => {
-        if (del.disabled || this.deleting || remote.locked) return;
-        del.disabled = true;
-        const confirm = new ConfirmActionModal(this.app, t2("previewTrashConfirmTitle"), t2("galleryDeleteConfirm", { name: this.item.name }), t2("galleryBtnDelete"), async (confirmed) => {
-          var _a2;
-          if (!confirmed || this.closed) {
-            if (!this.closed) update();
-            return;
-          }
-          if (remote.locked || this.deleting) {
-            update();
-            return;
-          }
-          this.deleting = true;
-          lock.disabled = true;
-          try {
-            await this.plugin.deleteRemoteFile(remote.year, remote.month, remote.filename);
-            (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "deleted", remote);
-            new import_obsidian12.Notice(t2("galleryDeleteSuccess", { name: this.item.name }));
-            this.close();
-          } catch (error) {
-            new import_obsidian12.Notice(t2("previewDeleteFailed", { err: error.message }));
-          } finally {
-            this.deleting = false;
-            lock.disabled = false;
-            if (!this.closed) update();
-          }
-        }, this.plugin);
-        try {
-          await openModal(confirm);
-        } catch (error) {
-          update();
-          new import_obsidian12.Notice(error.message);
-        }
-      };
-    }
-    if (image) this.loadPreview();
-    else {
-      this.stage.createDiv({ text: t2("previewNonImageTip", { ext: getExt(this.item.name).toUpperCase() }) });
-      this.status.hidden = true;
-    }
-  }
-  async loadPreview() {
-    var _a, _b, _c;
-    const generation = ++this.generation, t2 = (key) => this.plugin.t(key);
-    (_a = this.viewport) == null ? void 0 : _a.dispose();
-    this.viewport = null;
-    (_b = this.imageEvents) == null ? void 0 : _b.abort();
-    this.imageEvents = new AbortController();
-    this.stage.empty();
-    this.status.empty();
-    this.status.createSpan({ text: t2("previewLoading") });
-    this.zoomButtons.forEach((button) => button.disabled = true);
-    (_c = this.percentage) == null ? void 0 : _c.setText("\u2014");
-    if (this.dimensions) this.dimensions.setText("\u2014");
-    const current = () => !this.closed && generation === this.generation;
-    const failed = () => {
-      if (!current()) return;
-      this.status.empty();
-      this.status.createSpan({ text: t2("previewLoadFailed") });
-      const retry = this.status.createEl("button", { text: t2("previewRetry") });
-      retry.onclick = () => this.loadPreview();
-    };
-    try {
-      const remote = this.item.source === "remote" ? this.item.rawObj : null;
-      const url = remote ? assetUrl(remote, this.variant) : await getItemPreviewUrl(this.plugin, this.item);
-      if (!current()) return;
-      if (!url) {
-        failed();
-        return;
-      }
-      const img = this.stage.createEl("img", { cls: "fm-viewport-image", attr: { alt: this.item.name, draggable: "false" } });
-      img.addEventListener("load", () => {
-        var _a2;
-        if (!current()) return;
-        this.status.empty();
-        this.zoomButtons.forEach((button) => button.disabled = false);
-        (_a2 = this.dimensions) == null ? void 0 : _a2.setText(`${img.naturalWidth} \xD7 ${img.naturalHeight}`);
-        this.viewport = mountImageViewport(this.stage, img, (percent) => this.percentage.setText(percent + "%"));
-      }, { once: true, signal: this.imageEvents.signal });
-      img.addEventListener("error", failed, { once: true, signal: this.imageEvents.signal });
-      img.src = url;
-    } catch (e) {
-      failed();
-    }
-  }
-  onClose() {
-    var _a, _b;
-    this.closed = true;
-    this.generation++;
-    (_a = this.imageEvents) == null ? void 0 : _a.abort();
-    (_b = this.viewport) == null ? void 0 : _b.dispose();
-    this.viewport = null;
-    this.contentEl.empty();
-  }
-};
-var NoteRefsModal = class extends FileMasterModal {
-  constructor(app, itemName, refNotePaths, onJump, plugin = null) {
-    super(app);
-    this.itemName = itemName;
-    this.refNotePaths = refNotePaths || [];
-    this.onJump = onJump;
-    this.plugin = plugin;
-  }
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    this.modalEl.addClass("fm-reference-dialog");
-    contentEl.addClass("fm-wizard-modal");
-    const t2 = (k, p) => this.plugin ? this.plugin.t(k, p) : translateUi("auto", k, p);
-    modalTitle(this, t2("noteRefsTitle", { name: this.itemName, count: this.refNotePaths.length }));
-    if (this.refNotePaths.length === 0) {
-      contentEl.createDiv({
-        cls: "fm-section-box",
-        text: t2("noteRefsNone"),
-        attr: { style: "text-align: center; padding: 24px;" }
-      });
-    } else {
-      contentEl.createEl("p", { text: t2("notePreviewHint"), cls: "fm-inline-hint" });
-      const listEl = contentEl.createDiv({ cls: "fm-scroll-list fm-document-list" });
-      for (const notePath of this.refNotePaths) {
-        documentRow(listEl, this.plugin || { app: this.app, t: t2 }, typeof notePath === "string" ? { path: notePath } : notePath, { hoverParent: this, onOpened: () => {
-          var _a;
-          this.close();
-          (_a = this.onJump) == null ? void 0 : _a.call(this);
-        } });
-      }
-    }
-    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const closeBtn = btnRow.createEl("button", { text: t2("closeBtn") });
-    closeBtn.onclick = () => this.close();
-  }
-  onClose() {
-    this.contentEl.empty();
-  }
-};
-
-// src/modals/incoming-file.js
+// src/modals/remote-rename.js
 var import_obsidian13 = require("obsidian");
-function renderItemVisualThumb(parentEl, item, plugin) {
-  const t2 = (k, p) => plugin ? plugin.t(k, p) : translateUi("auto", k, p);
-  const ext = getExt(item.name);
-  if (IMAGE_EXTS.has(ext)) {
-    const img = parentEl.createEl("img", {
-      cls: "fm-item-thumb",
-      attr: { "aria-label": t2("thumbEnlargeTooltip") }
-    });
-    img.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      new ImageLightboxModal(plugin.app, plugin, item).open();
-    };
-    getItemPreviewUrl(plugin, item).then((url) => {
-      if (url) img.src = url;
-    });
-  } else {
-    const box = parentEl.createDiv({
-      cls: "fm-item-icon-box",
-      attr: { "aria-label": t2("thumbDetailsTooltip") }
-    });
-    const icon = ext === "md" ? "\u{1F4DD}" : AUDIO_EXTS.has(ext) ? "\u{1F3B5}" : ["mp4", "webm", "mov", "mkv"].includes(ext) ? "\u{1F3AC}" : ext === "pdf" ? "\u{1F4C4}" : "\u{1F4E6}";
-    box.createSpan({ text: icon });
-    box.createSpan({ text: (ext || "FILE").slice(0, 4).toUpperCase(), cls: "fm-item-icon-ext" });
-    box.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      new ImageLightboxModal(plugin.app, plugin, item).open();
-    };
-  }
-}
-var IncomingFileModal = class extends FileMasterModal {
-  constructor(app, fileInfo, options, callback = null) {
-    var _a, _b, _c, _d;
-    super(app);
-    this.fileInfo = fileInfo;
-    this.options = options || {};
-    this.callback = callback;
-    this.plugin = this.options.plugin;
-    const isRemote = Boolean((_b = (_a = this.plugin) == null ? void 0 : _a.isRemoteServerReady) == null ? void 0 : _b.call(_a));
-    if (this.options.fixedLocation === "local") {
-      this.targetLocation = "local";
-    } else if (this.options.fixedLocation === "remote") {
-      this.targetLocation = isRemote ? "remote" : "local";
-    } else {
-      const userPref = ((_d = (_c = this.plugin) == null ? void 0 : _c.settings) == null ? void 0 : _d.defaultSaveLocation) || "remote";
-      this.targetLocation = !isRemote || userPref === "local" ? "local" : "remote";
-    }
-    this.finalFilename = `${fileInfo.defaultBaseName}.${fileInfo.ext}`;
-    this.step = "input";
-    this.result = null;
-    this.isDone = false;
-    this.isExecuting = false;
-  }
-  t(k, p) {
-    return this.plugin ? this.plugin.t(k, p) : k;
-  }
-  onOpen() {
-    var _a, _b;
-    (_b = (_a = this.modalEl) == null ? void 0 : _a.addClass) == null ? void 0 : _b.call(_a, "fm-incoming-dialog");
-    this.render();
-  }
-  render() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("fm-incoming-modal-dialog");
-    if (this.step === "input") {
-      this.renderInputStep();
-    } else if (this.step === "executing") {
-      this.renderExecutingStep();
-    } else if (this.step === "result") {
-      this.renderResultStep();
-    }
-  }
-  renderInputStep() {
-    var _a, _b, _c, _d, _e, _f;
-    const { contentEl } = this;
-    modalTitle(this, this.t("destTitle"));
-    const card = contentEl.createDiv({ cls: "fm-incoming-card" });
-    const thumbWrap = card.createDiv({ cls: "fm-incoming-thumb-wrap" });
-    if (IMAGE_EXTS.has(this.fileInfo.ext)) {
-      const img = thumbWrap.createEl("img", { cls: "fm-incoming-thumb-img" });
-      convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin).then((url) => {
-        if (!url) return;
-        if (this.closed) {
-          revokeBlobUrl(url);
-          return;
-        }
-        revokeBlobUrl(this.previewBlobUrl);
-        this.previewBlobUrl = url;
-        img.src = url;
-      }).catch(() => {
-      });
-    } else {
-      const ext = this.fileInfo.ext;
-      const icon = ext === "md" ? "\u{1F4DD}" : AUDIO_EXTS.has(ext) ? "\u{1F3B5}" : ["mp4", "webm", "mov", "mkv"].includes(ext) ? "\u{1F3AC}" : ext === "pdf" ? "\u{1F4C4}" : "\u{1F4E6}";
-      thumbWrap.createSpan({ text: icon, attr: { style: "font-size: 24px;" } });
-    }
-    const editCol = card.createDiv({ cls: "fm-incoming-edit-col" });
-    const inputRow = editCol.createDiv({ cls: "fm-incoming-input-row" });
-    const nameInput = inputRow.createEl("input", {
-      type: "text",
-      value: this.fileInfo.defaultBaseName,
-      cls: "fm-incoming-name-input",
-      attr: {
-        placeholder: this.t("destFilenameHint"),
-        spellcheck: "false"
-      }
-    });
-    inputRow.createSpan({ text: `.${this.fileInfo.ext}`, cls: "fm-incoming-ext-badge" });
-    editCol.createDiv({
-      cls: "fm-incoming-sub-meta",
-      text: formatBytes(this.fileInfo.size)
-    });
-    const isRemoteReady = Boolean(
-      ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.enableRemoteServer) && ((_d = (_c = this.plugin) == null ? void 0 : _c.isRemoteServerReady) == null ? void 0 : _d.call(_c))
-    );
-    const isAskMode = this.options.askLocation !== false;
-    let isRemoteFallback = false;
-    if (!isAskMode && this.options.fixedLocation === "local") {
-      this.targetLocation = "local";
-    } else if (!isAskMode && this.options.fixedLocation === "remote") {
-      if (isRemoteReady) {
-        this.targetLocation = "remote";
-      } else {
-        this.targetLocation = "local";
-        isRemoteFallback = true;
-      }
-    } else if (!this.targetLocation) {
-      const userPref = ((_f = (_e = this.plugin) == null ? void 0 : _e.settings) == null ? void 0 : _f.defaultSaveLocation) || "remote";
-      this.targetLocation = !isRemoteReady || userPref === "local" ? "local" : "remote";
-    }
-    contentEl.createDiv({
-      cls: "fm-section-title",
-      text: this.t("destDestTitle"),
-      attr: { style: "margin-top: 14px; margin-bottom: 8px;" }
-    });
-    const grid = contentEl.createDiv({ cls: "fm-incoming-dest-grid" });
-    const localCard = grid.createDiv({
-      cls: `fm-incoming-dest-card ${this.targetLocation === "local" ? "is-selected" : ""}`
-    });
-    const localTitle = localCard.createDiv({ cls: "fm-incoming-dest-card-title" });
-    localTitle.createSpan({ text: this.t("destSaveLocal") });
-    const localCheck = localCard.createSpan({ cls: "fm-incoming-dest-card-check" });
-    (0, import_obsidian13.setIcon)(localCheck, "check");
-    let remoteCard = null;
-    let remoteCheck = null;
-    if (isRemoteReady) {
-      remoteCard = grid.createDiv({
-        cls: `fm-incoming-dest-card ${this.targetLocation === "remote" ? "is-selected" : ""}`
-      });
-      const remoteTitle = remoteCard.createDiv({ cls: "fm-incoming-dest-card-title" });
-      remoteTitle.createSpan({ text: this.t("destSaveRemote") });
-      remoteCheck = remoteCard.createSpan({ cls: "fm-incoming-dest-card-check" });
-      (0, import_obsidian13.setIcon)(remoteCheck, "check");
-    }
-    const updateSelection = (loc) => {
-      this.targetLocation = loc;
-      if (loc === "local") {
-        localCard.addClass("is-selected");
-        if (remoteCard) remoteCard.removeClass("is-selected");
-      } else {
-        localCard.removeClass("is-selected");
-        if (remoteCard) remoteCard.addClass("is-selected");
-      }
-    };
-    if (isAskMode) {
-      localCard.onclick = () => updateSelection("local");
-      if (remoteCard) {
-        remoteCard.onclick = () => updateSelection("remote");
-      }
-    } else {
-      localCard.style.cursor = "default";
-      if (remoteCard) remoteCard.style.cursor = "default";
-      let hintText = "";
-      if (isRemoteFallback) {
-        hintText = this.t("destFixedRemoteFallbackHint");
-      } else if (this.targetLocation === "local") {
-        hintText = this.t("destFixedLocalHint");
-      } else {
-        hintText = this.t("destFixedRemoteHint");
-      }
-      contentEl.createDiv({
-        cls: "fm-incoming-fixed-hint",
-        text: hintText,
-        attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px;" }
-      });
-    }
-    const triggerExecute = () => {
-      if (this.isExecuting) return;
-      this.isExecuting = true;
-      const cleanBase = sanitizeCleanBaseName(nameInput.value, this.fileInfo.defaultBaseName);
-      this.finalFilename = `${cleanBase}.${this.fileInfo.ext}`;
-      this.step = "executing";
-      this.render();
-      this.runExecution();
-    };
-    let isComposing = false;
-    let lastCompositionEndAt = 0;
-    nameInput.addEventListener("compositionstart", () => {
-      isComposing = true;
-    });
-    nameInput.addEventListener("compositionend", () => {
-      isComposing = false;
-      lastCompositionEndAt = Date.now();
-    });
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        if (e.isComposing || e.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) {
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        triggerExecute();
-      }
-    });
-    contentEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        if (e.isComposing || e.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) {
-          return;
-        }
-        const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
-        if (tag === "textarea" || tag === "button" || tag === "input") return;
-        e.preventDefault();
-        triggerExecute();
-      }
-    });
-    const btnRow = contentEl.createDiv({ cls: "fm-btn-row", attr: { style: "margin-top: 18px;" } });
-    const cancelBtn = btnRow.createEl("button", { text: this.t("btnCancel") });
-    cancelBtn.onclick = () => {
-      this.isDone = true;
-      this.close();
-      if (this.callback) this.callback({ target: null });
-    };
-    const insertBtn = btnRow.createEl("button", { text: this.t("btnInsert") || "\u63D2\u5165", cls: "mod-cta" });
-    insertBtn.onclick = () => triggerExecute();
-  }
-  renderExecutingStep() {
-    const { contentEl } = this;
-    modalTitle(this, this.t("destProcessingTitle"));
-    const infoBox = contentEl.createDiv({ cls: "fm-section-box", attr: { style: "margin-bottom: 14px;" } });
-    infoBox.createDiv({
-      text: `\u{1F4C4} ${this.finalFilename}  (${formatBytes(this.fileInfo.size)})`,
-      attr: { style: "font-weight: 600; margin-bottom: 10px;" }
-    });
-    const progressWrap = infoBox.createDiv({ cls: "fm-progress-wrap" });
-    this.progressBar = progressWrap.createDiv({ cls: "fm-progress-bar", attr: { style: "width: 15%;" } });
-    this.statusLabel = infoBox.createDiv({
-      text: this.targetLocation === "remote" ? this.t("destProbeChecking") : this.t("destSavingLocal"),
-      attr: { style: "font-size: 12px; color: var(--text-accent); margin-top: 8px;" }
-    });
-  }
-  async runExecution() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-    try {
-      const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
-      const editor = this.options.editor;
-      const sourcePath = activeFile ? activeFile.path : "";
-      if (this.targetLocation === "local") {
-        if (this.progressBar) this.progressBar.style.width = "40%";
-        if (this.statusLabel) this.statusLabel.setText(this.t("destSavingLocal"));
-        const localPath = await this.app.fileManager.getAvailablePathForAttachment(
-          this.finalFilename,
-          sourcePath
-        );
-        if (this.progressBar) this.progressBar.style.width = "75%";
-        const createdFile = await this.app.vault.createBinary(localPath, this.fileInfo.arrayBuffer);
-        let mdLink = this.app.fileManager.generateMarkdownLink(createdFile, sourcePath);
-        if (IMAGE_EXTS.has(this.fileInfo.ext) && !mdLink.startsWith("!")) {
-          mdLink = `!${mdLink}`;
-        }
-        let inserted = false;
-        let insertionWarning = null;
-        if (editor || this.options.insertionTarget) {
-          const insertResult = insertLinkAtTarget(this.plugin, mdLink, this.options.insertionTarget);
-          inserted = insertResult.inserted;
-          insertionWarning = insertResult.reason || null;
-        }
-        if (this.progressBar) this.progressBar.style.width = "100%";
-        this.result = {
-          success: true,
-          target: "local",
-          localPath: createdFile.path,
-          mdLink,
-          inserted,
-          insertionWarning
-        };
-        (_b = (_a = this.plugin) == null ? void 0 : _a.logOperation) == null ? void 0 : _b.call(_a, "INFO", "SAVE_LOCAL", `Saved attachment to vault: ${createdFile.path}`, {
-          size: this.fileInfo.size,
-          note: sourcePath || null
-        });
-      } else {
-        if (this.progressBar) this.progressBar.style.width = "25%";
-        if (this.statusLabel) this.statusLabel.setText(this.t("destProbeChecking"));
-        const sha256 = this.fileInfo.sha256 || await computeSha256Hex(this.fileInfo.arrayBuffer);
-        let res = null;
-        const probed = await this.plugin.probeRemoteSha256(sha256);
-        if (probed && probed.exists) {
-          res = Object.assign({}, probed, { isInstant: true });
-          if (this.progressBar) this.progressBar.style.width = "100%";
-          if (this.statusLabel) this.statusLabel.setText(this.t("destInstantBadge"));
-        } else {
-          if (this.progressBar) this.progressBar.style.width = "55%";
-          if (this.statusLabel) this.statusLabel.setText(this.t("destUploadingRemote"));
-          res = await this.plugin.uploadBufferToServer(
-            this.fileInfo.arrayBuffer,
-            this.finalFilename,
-            this.fileInfo.mimeType || "application/octet-stream",
-            { skipProbe: true }
-          );
-          if (this.progressBar) this.progressBar.style.width = "100%";
-        }
-        const useOpt = this.plugin.settings.insertOptimizedLinkOnUpload && res.optimizationEnabled !== false && res.category === "image" && res.pubUrl;
-        let finalMarkdown = useOpt ? `![](${res.pubUrl})` : res.markdown || `[${this.finalFilename}](${res.rawUrl})`;
-        if (IMAGE_EXTS.has(this.fileInfo.ext) && !finalMarkdown.startsWith("!")) {
-          finalMarkdown = `!${finalMarkdown}`;
-        }
-        let inserted = false;
-        let insertionWarning = null;
-        if (editor || this.options.insertionTarget) {
-          const insertResult = insertLinkAtTarget(this.plugin, finalMarkdown, this.options.insertionTarget);
-          inserted = insertResult.inserted;
-          insertionWarning = insertResult.reason || null;
-        }
-        this.result = {
-          success: true,
-          target: "remote",
-          res,
-          finalMarkdown,
-          isInstant: !!res.isInstant,
-          inserted,
-          insertionWarning
-        };
-        (_d = (_c = this.plugin) == null ? void 0 : _c.logOperation) == null ? void 0 : _d.call(_c, "INFO", "UPLOAD_REMOTE", `${res.isInstant ? "Reused existing remote file" : "Uploaded attachment to server"}: ${this.finalFilename}`, {
-          remotePath: `${res.year}/${res.month}/${res.filename}`,
-          isInstant: !!res.isInstant,
-          size: this.fileInfo.size,
-          note: sourcePath || null
-        });
-      }
-    } catch (err) {
-      this.isExecuting = false;
-      this.result = {
-        success: false,
-        error: err.message || String(err)
-      };
-      (_f = (_e = this.plugin) == null ? void 0 : _e.logOperation) == null ? void 0 : _f.call(_e, "ERROR", "SAVE_ATTACHMENT", `Failed to process attachment "${this.finalFilename}": ${this.result.error}`, {
-        target: this.targetLocation,
-        size: this.fileInfo.size
-      });
-    }
-    if (this.callback) {
-      this.callback({ target: this.targetLocation, finalFilename: this.finalFilename, result: this.result });
-    }
-    if (((_g = this.result) == null ? void 0 : _g.success) && ((_h = this.result) == null ? void 0 : _h.inserted)) {
-      const noticeMsg = this.result.target === "remote" ? this.plugin ? this.plugin.t("noticeUploadedRemote", { name: this.finalFilename }) : `\u5DF2\u4E0A\u4F20\u5230\u670D\u52A1\u5668\u5E76\u63D2\u5165\u94FE\u63A5\uFF1A${this.finalFilename}` : this.t("destInsertSuccess");
-      new import_obsidian13.Notice(noticeMsg);
-      this.isDone = true;
-      this.close();
-      return;
-    } else if ((_i = this.result) == null ? void 0 : _i.success) {
-      if (this.result.insertionWarning) {
-        new import_obsidian13.Notice(this.result.insertionWarning);
-        this.step = "result";
-        this.render();
-        return;
-      }
-      new import_obsidian13.Notice(this.t("destInsertSuccess"));
-      this.isDone = true;
-      this.close();
-      return;
-    } else {
-      new import_obsidian13.Notice(`\u274C ${((_j = this.result) == null ? void 0 : _j.error) || "Insert failed"}`);
-      this.isDone = true;
-      this.close();
-      return;
-    }
-  }
-  renderResultStep() {
-    var _a, _b;
-    const { contentEl } = this;
-    modalTitle(this, this.t("destResultTitle"));
-    if (!this.result.success) {
-      const errBanner = contentEl.createDiv({ cls: "fm-result-banner fm-result-banner-error" });
-      errBanner.createDiv({
-        cls: "fm-result-banner-title",
-        text: this.t("destProcessingError", { err: formatFriendlyError(this, this.result.error) })
-      });
-      const btnRow2 = contentEl.createDiv({ cls: "fm-btn-row" });
-      const closeBtn = btnRow2.createEl("button", { text: this.t("destBtnDone"), cls: "mod-cta" });
-      closeBtn.onclick = () => {
-        this.isDone = true;
-        this.close();
-      };
-      return;
-    }
-    if (this.result.target === "remote") {
-      const isInstant = this.result.isInstant;
-      const banner = contentEl.createDiv({
-        cls: `fm-result-banner ${isInstant ? "fm-result-banner-instant" : "fm-result-banner-success"}`
-      });
-      banner.createDiv({
-        cls: "fm-result-banner-title",
-        text: isInstant ? this.t("destInstantBadge") : this.t("destSuccessBadge")
-      });
-      if (isInstant) banner.createDiv({ cls: "fm-result-banner-desc", text: this.t("destInstantDesc") });
-      const detailsBox = contentEl.createDiv({ cls: "fm-section-box" });
-      detailsBox.createDiv({
-        text: `\u{1F4C4} ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
-        attr: { style: "font-weight: 600; margin-bottom: 12px; color: var(--text-normal);" }
-      });
-      const addCopyRow = (label, val) => {
-        if (!val) return;
-        detailsBox.createDiv({ cls: "fm-copy-row-label", text: label });
-        const row = detailsBox.createDiv({ cls: "fm-copy-row" });
-        row.createEl("input", { type: "text", value: val, attr: { readonly: true } });
-        const copyBtn = row.createEl("button", { text: this.t("destBtnCopy"), cls: "fm-mini-btn" });
-        copyBtn.onclick = async () => {
-          await navigator.clipboard.writeText(val);
-          copyBtn.setText(this.t("destBtnCopied"));
-          setTimeout(() => {
-            if (copyBtn && copyBtn.isConnected) copyBtn.setText(this.t("destBtnCopy"));
-          }, 1800);
-        };
-      };
-      addCopyRow(this.t("destLabelRawUrl"), (_a = this.result.res) == null ? void 0 : _a.rawUrl);
-      if ((_b = this.result.res) == null ? void 0 : _b.pubUrl) {
-        addCopyRow(this.t("destLabelPubUrl"), this.result.res.pubUrl);
-      }
-      addCopyRow(this.t("destLabelMarkdown"), this.result.finalMarkdown);
-      if (this.result.inserted) {
-        detailsBox.createDiv({
-          cls: "fm-result-inserted-tip",
-          text: this.t("destInsertedNotice")
-        });
-      }
-    } else {
-      const banner = contentEl.createDiv({ cls: "fm-result-banner fm-result-banner-local" });
-      banner.createDiv({ cls: "fm-result-banner-title", text: this.t("destLocalBadge") });
-      const detailsBox = contentEl.createDiv({ cls: "fm-section-box" });
-      detailsBox.createDiv({
-        text: `\u{1F4C4} ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
-        attr: { style: "font-weight: 600; margin-bottom: 12px; color: var(--text-normal);" }
-      });
-      const addCopyRow = (label, val) => {
-        if (!val) return;
-        detailsBox.createDiv({ cls: "fm-copy-row-label", text: label });
-        const row = detailsBox.createDiv({ cls: "fm-copy-row" });
-        row.createEl("input", { type: "text", value: val, attr: { readonly: true } });
-        const copyBtn = row.createEl("button", { text: this.t("destBtnCopy"), cls: "fm-mini-btn" });
-        copyBtn.onclick = async () => {
-          await navigator.clipboard.writeText(val);
-          copyBtn.setText(this.t("destBtnCopied"));
-          setTimeout(() => {
-            if (copyBtn && copyBtn.isConnected) copyBtn.setText(this.t("destBtnCopy"));
-          }, 1800);
-        };
-      };
-      addCopyRow(this.t("destLabelLocalPath"), this.result.localPath);
-      addCopyRow(this.t("destLabelMarkdown"), this.result.mdLink);
-      if (this.result.inserted) {
-        detailsBox.createDiv({
-          cls: "fm-result-inserted-tip",
-          text: this.t("destInsertedNotice")
-        });
-      }
-    }
-    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
-    const doneBtn = btnRow.createEl("button", { text: this.t("destBtnDone"), cls: "mod-cta" });
-    doneBtn.onclick = () => {
-      this.isDone = true;
-      this.close();
-    };
-  }
-  onClose() {
-    this.closed = true;
-    revokeBlobUrl(this.previewBlobUrl);
-    this.previewBlobUrl = null;
-    if (!this.isDone && this.callback) {
-      this.callback({ target: null });
-    }
-    this.contentEl.empty();
-  }
-};
-
-// src/plugin/server-client.js
-var import_obsidian14 = require("obsidian");
-function filterAllowedFiles(settings, fileList) {
-  const out = [];
-  for (let i = 0; i < fileList.length; i++) {
-    const f = fileList[i];
-    const ext = getExt(f.name) || (f.type.startsWith("image/") ? "png" : "");
-    if (IMAGE_EXTS.has(ext)) {
-      out.push(f);
-    } else if (settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
-      out.push(f);
-    }
-  }
-  return out;
-}
-function getCleanServerUrl(settings) {
-  const raw = String(settings.serverUrl || DEFAULT_SERVER_URL).trim().replace(/\/+$/, "");
-  if (!raw) return DEFAULT_SERVER_URL;
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return "";
-    }
-    return raw;
-  } catch (e) {
-    return raw;
-  }
-}
-async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
-  const insertionTarget = (options == null ? void 0 : options.insertionTarget) || captureEditorTarget(plugin, { editor, info: (options == null ? void 0 : options.info) || null });
-  const activeFile = (insertionTarget == null ? void 0 : insertionTarget.file) || (!editor ? plugin.app.workspace.getActiveFile() : null);
-  const arrayBuffer = await file.arrayBuffer();
-  const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
-  const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
-  const sha256 = await computeSha256Hex(arrayBuffer);
-  const noteName = activeFile ? activeFile.basename : "note";
-  let defaultBaseName = rawOriginBase;
-  if (plugin.settings.namingMode === "rule") {
-    defaultBaseName = applyNamingPattern(plugin.settings.namingPattern, {
-      noteName,
-      originBase: rawOriginBase,
-      sha256
-    });
-  } else if (/^image$/i.test(rawOriginBase)) {
-    defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
-  }
-  const askLocation = plugin.settings.saveLocationMode === "ask";
-  const fileInfo = {
-    arrayBuffer,
-    defaultBaseName,
-    ext,
-    size: file.size || arrayBuffer.byteLength,
-    mimeType: file.type || "application/octet-stream",
-    sha256
-  };
-  const modalOptions = {
-    askLocation,
-    fixedLocation: plugin.settings.saveLocationMode,
-    plugin,
-    editor,
-    activeFile,
-    insertionTarget
-  };
-  new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
-}
-async function probeRemoteSha256(plugin, sha256) {
-  var _a;
-  try {
-    const serverUrl = plugin.getCleanServerUrl();
-    if (!serverUrl || !plugin.settings.apiToken || !sha256) return null;
-    const response = await (0, import_obsidian14.requestUrl)({
-      url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${plugin.settings.apiToken}`
-      },
-      throw: false
-    });
-    if (response.status === 200 && ((_a = response.json) == null ? void 0 : _a.exists)) {
-      return response.json;
-    }
-  } catch (e) {
-  }
-  return null;
-}
-async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
-  var _a;
-  const opts = options || {};
-  throwIfTransferCancelled(opts.signal);
-  const fullSha256 = await computeSha256Hex(arrayBuffer);
-  if (!opts.skipProbe) {
-    try {
-      const probed = await plugin.probeRemoteSha256(fullSha256);
-      if (probed && probed.exists && probed.sha256 === fullSha256) {
-        probed.isInstant = true;
-        return probed;
-      }
-    } catch (e) {
-    }
-  }
-  const url = `${plugin.getCleanServerUrl()}/api/image/upload`;
-  const { boundary, arrayBuffer: bodyBuffer } = buildMultipartBuffer(arrayBuffer, filename, mimeType);
-  const headers = {
-    Authorization: `Bearer ${plugin.settings.apiToken}`,
-    "X-File-Name": encodeURIComponent(filename),
-    "Content-Type": `multipart/form-data; boundary=${boundary}`
-  };
-  const response = await requestWithBackoff(() => (0, import_obsidian14.requestUrl)({
-    url,
-    method: "POST",
-    headers,
-    body: bodyBuffer,
-    throw: false
-  }), { signal: opts.signal });
-  if (response.status < 200 || response.status >= 300) {
-    const errMsg = ((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`;
-    throw new Error(errMsg);
-  }
-  const result = response.json;
-  if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(plugin.t("transferIntegrityFailed"));
-  return result;
-}
-async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
-  var _a;
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/lock`;
-  const response = await (0, import_obsidian14.requestUrl)({
-    url,
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${plugin.settings.apiToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ year, month, filename, locked }),
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Lock operation failed (HTTP ${response.status})`);
-  }
-  return response.json;
-}
-async function checkServerCompatibility(plugin) {
-  var _a, _b, _c;
-  if (!((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer)) {
-    plugin.lastServerCompatStatus = null;
-    if (plugin.settings) {
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-    }
-    return null;
-  }
-  const pluginVer = ((_b = plugin.manifest) == null ? void 0 : _b.version) || "0.1.1";
-  const serverUrl = plugin.getCleanServerUrl();
-  if (!serverUrl) {
-    plugin.lastServerCompatStatus = {
-      ok: false,
-      status: "offline",
-      error: "No URL configured",
-      serverVersion: null
-    };
-    plugin.settings.serverVerified = false;
-    await plugin.saveSettings();
-    return plugin.lastServerCompatStatus;
-  }
-  try {
-    const verUrl = `${serverUrl}/api/platform/version`;
-    const verRes = await (0, import_obsidian14.requestUrl)({
-      url: verUrl,
-      method: "GET",
-      throw: false
-    });
-    if (verRes.status !== 200) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "offline",
-        serverVersion: null,
-        error: `HTTP ${verRes.status}`
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    const verData = verRes.json || {};
-    const serverVer = verData.version || "0.1.0";
-    const minPluginReq = verData.minPluginVersion || "0.1.0";
-    if (compareSemver(pluginVer, minPluginReq) < 0) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "plugin_outdated",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        minPluginVersion: minPluginReq,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    if (compareSemver(serverVer, MIN_SERVER_VERSION) < 0) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "server_outdated",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        minServerVersion: MIN_SERVER_VERSION,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    let assetCount = 0;
-    const token = (plugin.settings.apiToken || "").trim();
-    if (!token) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "token_missing",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    let listRes;
-    try {
-      listRes = await (0, import_obsidian14.requestUrl)({
-        url: `${serverUrl}/api/modules/image-host/list`,
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        throw: false
-      });
-    } catch (netErr) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "offline",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        error: netErr.message || String(netErr)
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    if (listRes.status === 401 || listRes.status === 403) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "auth_failed",
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    if (listRes.status !== 200) {
-      plugin.lastServerCompatStatus = {
-        ok: false,
-        status: "server_error",
-        statusCode: listRes.status,
-        serverVersion: serverVer,
-        pluginVersion: pluginVer,
-        features: verData.features || {}
-      };
-      plugin.settings.serverVerified = false;
-      await plugin.saveSettings();
-      return plugin.lastServerCompatStatus;
-    }
-    assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
-    plugin.lastServerCompatStatus = {
-      ok: true,
-      status: "compatible",
-      serverVersion: serverVer,
-      pluginVersion: pluginVer,
-      apiVersion: verData.apiVersion || 1,
-      assetCount,
-      features: verData.features || {}
-    };
-    plugin.settings.serverVerified = true;
-    await plugin.saveSettings();
-    return plugin.lastServerCompatStatus;
-  } catch (err) {
-    plugin.lastServerCompatStatus = {
-      ok: false,
-      status: "offline",
-      serverVersion: null,
-      error: err.message || "Network error"
-    };
-    plugin.settings.serverVerified = false;
-    await plugin.saveSettings();
-    return plugin.lastServerCompatStatus;
-  }
-}
-async function fetchRemoteFileList(plugin, options = {}) {
-  return (await fetchRemoteFilePage(plugin, options)).items;
-}
-async function fetchRemoteFilePage(plugin, options = {}) {
-  var _a, _b;
-  const params = new URLSearchParams();
-  if (options && typeof options === "object") {
-    if (options.q !== void 0 && String(options.q).trim()) {
-      params.set("q", String(options.q).trim());
-    }
-    if (Number.isFinite(options.limit) && options.limit > 0) {
-      params.set("limit", String(options.limit));
-    }
-    if (Number.isFinite(options.offset) && options.offset >= 0) {
-      params.set("offset", String(options.offset));
-    }
-    for (const key of ["types", "buckets"]) if ((_a = options[key]) == null ? void 0 : _a.length) params.set(key, options[key].join(","));
-    if (options.sort) params.set("sort", options.sort);
-  }
-  const qs = params.toString();
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list${qs ? `?${qs}` : ""}`;
-  const response = await (0, import_obsidian14.requestUrl)({
-    url,
-    method: "GET",
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(((_b = response.json) == null ? void 0 : _b.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
-  }
-  const list = (response.json.images || []).map((item) => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
-  const paged = Number.isFinite(options.limit) && options.limit > 0;
-  const serverPaged = Number.isInteger(response.json.totalCount) && response.json.totalCount >= list.length && (!paged || list.length <= options.limit);
-  if (serverPaged) {
-    return { items: list, totalCount: response.json.totalCount, buckets: response.json.buckets || [] };
-  }
-  const filtered = queryRemoteFiles(list, options);
-  const offset = Number.isFinite(options.offset) ? Math.max(0, Math.trunc(options.offset)) : 0;
-  return {
-    items: paged ? filtered.slice(offset, offset + Math.trunc(options.limit)) : filtered,
-    totalCount: filtered.length,
-    buckets: [...new Set(list.map((item) => `${item.year}/${item.month}`))].sort()
-  };
-}
-async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
-  var _a;
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
-  const response = await (0, import_obsidian14.requestUrl)({
-    url,
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...expectedSha256 ? { "If-Match": `"${expectedSha256}"` } : {} },
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Failed to delete remote file (HTTP ${response.status})`);
-  }
-  return true;
-}
-async function fetchRemoteTrash(plugin) {
-  var _a;
-  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash`, method: "GET", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
-  if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
-  return response.json.items || [];
-}
-async function restoreRemoteTrash(plugin, id) {
-  var _a;
-  const response = await (0, import_obsidian14.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
-  if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
-  return response.json;
-}
-async function permanentlyDeleteRemoteTrash(plugin, id) {
-  var _a;
-  const response = await (0, import_obsidian14.requestUrl)({
-    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}`,
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
-    throw: false
-  });
-  if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
-  return response.json;
-}
 
 // src/plugin/remote-rename.js
-var import_obsidian15 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/ui/remote-file-pages.js
 var REMOTE_FILE_BATCH_SIZE = 20;
@@ -5599,7 +4386,7 @@ function createUrlRewriter(mappings, serverUrl = "", onMatch = null) {
 var renameCheckpointPath = (plugin) => getLogFilePath(plugin).replace(/operation\.log$/, "rename-pending.json");
 async function requestRemoteRename(plugin, payload, preview = false) {
   var _a, _b, _c, _d;
-  const response = await (0, import_obsidian15.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/rename${preview ? "/preview" : ""}`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), throw: false });
+  const response = await (0, import_obsidian12.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/rename${preview ? "/preview" : ""}`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), throw: false });
   if (response.status < 200 || response.status >= 300) {
     const error = new Error(response.status === 404 && !((_a = response.json) == null ? void 0 : _a.error) ? plugin.t("renameServerUpgrade") : ((_b = response.json) == null ? void 0 : _b.error) || `HTTP ${response.status}`);
     error.status = response.status;
@@ -5819,8 +4606,1666 @@ function fileReferenceButton(parent, item, plugin, paths = null, onJump = null, 
   return { button, update };
 }
 
-// src/modals/batch-migrate-wizard.js
+// src/ui/file-browser-footer.js
+function fileBrowserFooter(parent, plugin, source) {
+  const root = parent.createDiv({ cls: "fm-browser-footer" });
+  const pagination = root.createEl("nav", { cls: "fm-browser-pagination", attr: { "aria-label": plugin.t("galleryPaginationLabel") } });
+  const previous = pagination.createEl("button", { text: plugin.t("pagePrevious"), attr: { type: "button" } });
+  const count = pagination.createSpan({ cls: "fm-browser-page-count", attr: { "aria-live": "polite" } });
+  const next = pagination.createEl("button", { text: plugin.t("pageNext"), attr: { type: "button" } });
+  const actions = root.createDiv({ cls: "fm-btn-row" });
+  const retry = pagination.createEl("button", { text: plugin.t("previewRetry"), attr: { type: "button" } });
+  let busy = false;
+  const change = (index) => {
+    if (!busy && !source.state.loading) return source.goToPage(index);
+  };
+  previous.onclick = () => change(source.state.pageIndex - 1);
+  next.onclick = () => change(source.state.pageIndex + 1);
+  retry.onclick = () => {
+    if (!busy) return source.retry();
+  };
+  return { root, actions, pagination, previous, next, count, sync(disabled = false) {
+    busy = disabled;
+    const state = source.state, total = source.pageCount;
+    pagination.hidden = total <= 1 && !state.error;
+    previous.disabled = busy || state.loading || state.pageIndex === 0;
+    next.disabled = busy || state.loading || state.pageIndex >= total - 1;
+    retry.hidden = !state.error;
+    retry.disabled = busy || state.loading;
+    count.setText(plugin.t("pageCount", { current: state.pageIndex + 1, total }));
+  } };
+}
+
+// src/modals/remote-rename.js
+var RemoteRenameModal = class extends FileMasterModal {
+  constructor(app, plugin, { initialItem = null, onReturn = null } = {}) {
+    super(app);
+    this.plugin = plugin;
+    this.revision = 0;
+    this.query = "";
+    this.drafts = /* @__PURE__ */ new Map();
+    this.initialItem = initialItem;
+    this.onReturn = onReturn;
+    this.renamedItem = null;
+  }
+  t(key, params) {
+    return this.plugin.t(key, params);
+  }
+  returnToCaller() {
+    if (this.onReturn) {
+      const target = this.renamedItem || this.initialItem;
+      this.close();
+      this.onReturn(target);
+      return;
+    }
+    returnToHub(this);
+  }
+  async onOpen() {
+    var _a, _b;
+    (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
+    (_b = this.pages) == null ? void 0 : _b.clear();
+    this.closed = false;
+    this.inSearch = false;
+    this.modalEl.addClass("fm-ui", "fm-rename-dialog");
+    this.contentEl.addClass("fm-wizard-modal", "fm-rename");
+    this.shell();
+    this.body.createDiv({ text: this.t("renameLoading"), cls: "fm-browser-status" });
+    try {
+      this.pending = await loadPendingRename(this.plugin);
+      if (this.closed) return;
+      if (this.pending) return this.recovery();
+      if (this.initialItem) {
+        this.pages = null;
+        this.items = [this.initialItem];
+        this.selected = this.initialItem;
+        this.search();
+        return;
+      }
+      this.pages = new RemoteFilePages(this.plugin, { types: ["image"], sort: "time_desc" });
+      this.items = [];
+      this.unsubscribe = this.pages.subscribe((state) => {
+        this.items = state.items;
+        if (!this.closed && !this.inReview && !this.busy) this.renderList();
+      });
+      this.search();
+      await this.pages.load();
+    } catch (error) {
+      if (!this.closed) this.loadError(error);
+    }
+  }
+  shell(step, back = null) {
+    var _a;
+    this.contentEl.empty();
+    moduleHeading(this, this.contentEl, { title: "remoteRenameTitle", symbol: "file-pen-line", step, total: 2 });
+    this.body = this.contentEl.createDiv({ cls: "fm-rename-body" });
+    this.browserFooter = (step === 1 || this.inSearch) && this.pages ? fileBrowserFooter(this.contentEl, this.plugin, this.pages) : null;
+    this.footer = ((_a = this.browserFooter) == null ? void 0 : _a.actions) || this.contentEl.createDiv({ cls: "fm-btn-row" });
+    this.cancel = this.button(this.footer, back ? "btnBack" : "btnCancel", back || (() => this.returnToCaller()));
+  }
+  button(parent, key, handler, primary = false) {
+    const button = parent.createEl("button", { text: this.t(key), cls: primary ? "mod-cta" : "", attr: { type: "button" } });
+    button.onclick = handler;
+    return button;
+  }
+  loadError(error) {
+    this.inSearch = false;
+    this.shell();
+    this.body.createEl("p", { text: error.message, cls: "fm-rename-error" });
+    this.button(this.footer, "previewRetry", () => this.onOpen());
+  }
+  splitName(item) {
+    const position = item.filename.lastIndexOf(".");
+    const base = position > 0 ? item.filename.slice(0, position) : item.filename;
+    const extension = position > 0 ? item.filename.slice(position) : "";
+    const duplicate = extension && new RegExp(extension.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=(_[a-f0-9]{8,64})?$)", "i");
+    let suggestion = base;
+    if (duplicate) while (duplicate.test(suggestion)) suggestion = suggestion.replace(duplicate, "");
+    return { base, extension, suggestion: suggestion || base };
+  }
+  visualItem(item) {
+    return { name: item.filename, source: "remote", rawObj: item, size: item.size };
+  }
+  renderEditableFile(parent, item) {
+    const { base, suggestion, extension } = this.splitName(item), key = remoteFileKey(item);
+    let input, radio, error;
+    const select = () => {
+      this.selected = item;
+      if (suggestion !== base && !this.drafts.has(key)) this.drafts.set(key, suggestion);
+      this.updateSelection();
+    };
+    const slots = fileActionRow(parent, this.visualItem(item), this.plugin, {
+      selection: (parent2) => {
+        radio = parent2.createEl("input", { type: "radio", attr: { name: "fm-rename-file", "aria-label": this.t("renameChooseFile", { name: item.filename }) } });
+        radio.onchange = select;
+      },
+      renderName: (parent2) => {
+        parent2.addClass("fm-rename-editor");
+        input = parent2.createEl("input", { type: "text", value: suggestion, cls: "fm-rename-name-input", attr: { "aria-label": this.t("renameFilenameLabel", { name: item.filename }), spellcheck: "false" } });
+        const details = parent2.createSpan({ cls: "fm-rename-file-details" });
+        details.createSpan({ text: extension.toLowerCase(), cls: "fm-file-extension" });
+        fileSizeBadge(details, item.size);
+      }
+    });
+    error = slots.content.createDiv({ cls: "fm-rename-error", attr: { role: "alert" } });
+    this.rowControls.set(key, { row: slots.row, input, radio, error, item });
+    input.onfocus = select;
+    input.oninput = () => {
+      this.drafts.set(key, input.value);
+      this.selected = item;
+      this.preview = null;
+      this.validation.empty();
+      input.setAttribute("aria-invalid", "false");
+      error.empty();
+      this.updateSelection();
+    };
+    let isComposing = false;
+    let lastCompositionEndAt = 0;
+    input.addEventListener("compositionstart", () => {
+      isComposing = true;
+    });
+    input.addEventListener("compositionend", () => {
+      isComposing = false;
+      lastCompositionEndAt = Date.now();
+    });
+    input.onkeydown = (event) => {
+      if (event.key === "Enter" && !this.next.disabled) {
+        if (event.isComposing || event.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) return;
+        event.preventDefault();
+        this.precheck();
+      }
+    };
+  }
+  nameChange(parent, item, newFilename, oldFilename = item.filename) {
+    const box = parent.createDiv({ cls: "fm-section-box fm-rename-preview" });
+    fileActionRow(box, this.visualItem(item), this.plugin, {
+      renderName: (parent2) => {
+        const details = parent2.createEl("dl", { cls: "fm-rename-names" });
+        for (const [key, name] of [["renameBefore", oldFilename], ["renameAfter", newFilename]]) {
+          details.createEl("dt", { text: this.t(key) });
+          details.createEl("dd", { text: name, cls: key === "renameAfter" ? "fm-rename-new-name" : "" });
+        }
+      }
+    });
+  }
+  search() {
+    this.revision++;
+    this.inReview = false;
+    this.inSearch = true;
+    this.showingStep = !!this.items.length;
+    this.shell(this.showingStep ? 1 : null);
+    this.body.createEl("p", { text: this.t("renameStep1Desc"), cls: "fm-module-summary" });
+    if (!this.initialItem) {
+      const toolbar = this.body.createDiv({ cls: "fm-toolbar-row" });
+      this.searchInput = toolbar.createEl("input", { type: "search", value: this.query, cls: "fm-gallery-search", attr: { placeholder: this.t("renameSearch"), "aria-label": this.t("renameSearch") } });
+      this.matchCount = toolbar.createSpan({ cls: "fm-file-row-meta" });
+      this.searchInput.oninput = () => {
+        this.query = this.searchInput.value;
+        clearTimeout(this.searchTimer);
+        this.searchTimer = setTimeout(() => {
+          this.searchTimer = null;
+          this.reloadRemotePage();
+        }, 220);
+      };
+    } else {
+      this.searchInput = null;
+      this.matchCount = null;
+    }
+    this.list = this.body.createDiv({ cls: "fm-scroll-list fm-file-action-list" });
+    this.rows = this.list.createDiv();
+    this.rowControls = /* @__PURE__ */ new Map();
+    this.validation = this.body.createDiv({ cls: "fm-rename-validation", attr: { "aria-live": "polite" } });
+    this.next = this.button(this.footer, "renameNextPreview", () => this.precheck(), true);
+    this.renderList();
+  }
+  async reloadRemotePage() {
+    if (this.closed || this.checking || !this.pages) return;
+    this.list.scrollTop = 0;
+    return this.pages.setQuery({ q: this.query.trim(), types: ["image"], sort: "time_desc" });
+  }
+  renderList() {
+    var _a, _b, _c, _d;
+    const state = ((_a = this.pages) == null ? void 0 : _a.state) || { totalCount: this.items.length, loading: false, error: null, pageIndex: 0 };
+    if (this.showingStep !== !!this.items.length) {
+      this.showingStep = !!this.items.length;
+      moduleHeading(this, this.contentEl, { title: "remoteRenameTitle", symbol: "file-pen-line", step: this.showingStep ? 1 : null, total: 2 });
+    }
+    if (!this.items.length || [...this.rowControls.keys()].some((key) => !this.items.some((item) => remoteFileKey(item) === key))) {
+      this.rows.empty();
+      this.rowControls.clear();
+    }
+    if (this.items.length && !this.rowControls.size) this.rows.empty();
+    for (const item of this.items) if (!this.rowControls.has(remoteFileKey(item))) this.renderEditableFile(this.rows, item);
+    (_b = this.matchCount) == null ? void 0 : _b.setText(this.t("renameFileCount", { count: state.totalCount }));
+    if (!this.items.length && !state.loading && !state.error) {
+      this.rows.empty();
+      this.rows.createDiv({ text: this.t("renameNoFiles"), cls: "fm-empty-state" });
+    }
+    if (state.error) (_c = this.validation) == null ? void 0 : _c.setText(state.error);
+    else if (!this.checking) (_d = this.validation) == null ? void 0 : _d.empty();
+    if (this.renderedPage !== state.pageIndex) {
+      this.list.scrollTop = 0;
+      this.renderedPage = state.pageIndex;
+    }
+    this.next.hidden = !this.items.length;
+    this.updateSelection();
+  }
+  updateSelection() {
+    var _a, _b, _c, _d, _e;
+    const selectedKey = this.selected && remoteFileKey(this.selected);
+    for (const [key, { row, input, radio, item }] of this.rowControls) {
+      const active = key === selectedKey;
+      row.toggleClass("is-selected", active);
+      radio.checked = active;
+      radio.disabled = !!this.checking;
+      input.disabled = !!this.checking;
+      input.readOnly = !active;
+      const value = active ? (_a = this.drafts.get(key)) != null ? _a : this.splitName(item).suggestion : this.splitName(item).suggestion;
+      if (input.value !== value) input.value = value;
+    }
+    const draft = selectedKey && ((_b = this.drafts.get(selectedKey)) == null ? void 0 : _b.trim().normalize("NFC"));
+    (_c = this.browserFooter) == null ? void 0 : _c.sync(!!this.checking);
+    this.next.disabled = this.checking || !!((_e = (_d = this.pages) == null ? void 0 : _d.state) == null ? void 0 : _e.loading) || !this.rowControls.has(selectedKey) || !draft || draft === this.splitName(this.selected).base;
+  }
+  async precheck() {
+    var _a, _b;
+    if (this.next.disabled || this.checking) return;
+    this.checking = true;
+    const revision = ++this.revision, selected = this.selected, key = remoteFileKey(selected);
+    const { extension } = this.splitName(selected);
+    const request = { year: selected.year, month: selected.month, filename: selected.filename, newFilename: `${this.drafts.get(key).trim().normalize("NFC")}${extension}`, expectedSha256: selected.sha256 };
+    this.validation.empty();
+    const status = this.validation.createDiv({ text: this.t("renameChecking"), cls: "fm-rename-hint" });
+    this.updateSelection();
+    for (const { input } of this.rowControls.values()) input.disabled = true;
+    if (this.searchInput) this.searchInput.disabled = true;
+    try {
+      const preview = await requestRemoteRename(this.plugin, request, true);
+      if (this.closed || revision !== this.revision) return;
+      const references = await scanRenameReferences(this.plugin, preview.linkMappings);
+      if (this.closed || revision !== this.revision) return;
+      this.preview = { request, preview, references };
+      this.review();
+    } catch (error) {
+      if (!this.closed && revision === this.revision) {
+        status.setText("");
+        (_a = this.rowControls.get(key)) == null ? void 0 : _a.error.setText(["NAME_CONFLICT", "NAME_RESERVED"].includes(error.code) ? this.t("renameNameTaken") : error.message);
+        const input = (_b = this.rowControls.get(key)) == null ? void 0 : _b.input;
+        input == null ? void 0 : input.setAttribute("aria-invalid", "true");
+      }
+    } finally {
+      this.checking = false;
+      if (!this.closed && revision === this.revision && !this.inReview) {
+        for (const { input } of this.rowControls.values()) input.disabled = false;
+        if (this.searchInput) this.searchInput.disabled = false;
+        this.updateSelection();
+      }
+    }
+  }
+  review() {
+    this.inReview = true;
+    this.inSearch = false;
+    this.shell(2, () => this.search());
+    const { request, preview, references } = this.preview;
+    this.nameChange(this.body, preview.oldItem || this.selected, request.newFilename);
+    if (!references.documents.length) this.body.createDiv({ text: this.t("renameNoReferences"), cls: "fm-rename-hint" });
+    this.documentList(this.body, references.documents, { title: "renameAffected", state: "renameReferencesPlanned" });
+    this.aliasNotice(preview);
+    this.submit = this.button(this.footer, "renameApply", () => this.execute(), true);
+  }
+  documentList(parent, documents, { title = null, state = "referenceCount" } = {}) {
+    if (!documents.length) return;
+    if (title) parent.createDiv({ text: this.t(title, { documents: documents.length }), cls: "fm-section-title" });
+    const list = parent.createDiv({ cls: "fm-scroll-list fm-document-list" });
+    for (const doc of documents) {
+      documentRow(list, this.plugin, doc, { hoverParent: this, referenceState: state, onOpened: () => this.close() });
+    }
+  }
+  aliasNotice(data) {
+    const notice = this.body.createDiv({ cls: "fm-rename-expiry" });
+    (0, import_obsidian13.setIcon)(notice.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), "info");
+    const expiresAt = Number(data == null ? void 0 : data.aliasExpiresAt);
+    const days = Math.max(0, Math.ceil((expiresAt - Date.now()) / 864e5));
+    notice.createSpan({ text: this.t(!expiresAt ? "renameAliasFallback" : days ? "renameAliasExpiry" : "renameAliasExpired", {
+      days,
+      date: expiresAt ? new Date(expiresAt).toLocaleDateString(getEffectiveLanguage2(this.plugin.settings) === "zh" ? "zh-CN" : "en-US") : ""
+    }) });
+  }
+  recovery(error) {
+    var _a, _b;
+    this.inSearch = false;
+    this.shell();
+    this.body.createEl("p", { text: this.t("renamePending") });
+    this.body.createDiv({ text: `${this.pending.request.filename} \u2192 ${((_b = (_a = this.pending.result) == null ? void 0 : _a.item) == null ? void 0 : _b.filename) || this.pending.request.newFilename}`, cls: "fm-rename-count" });
+    if (this.pending.result) this.aliasNotice(this.pending.result);
+    if (error) this.body.createDiv({ text: error.message, cls: "fm-rename-error" });
+    const same = this.pending.serverUrl === this.plugin.getCleanServerUrl();
+    if (!same) this.body.createEl("p", { text: this.t("renameServerMismatch"), cls: "fm-rename-error" });
+    this.button(this.footer, "renameContinue", () => this.execute(this.pending), true).disabled = !same;
+  }
+  async execute(pending = null) {
+    var _a;
+    if (this.busy || !pending && !this.preview) return;
+    this.busy = true;
+    this.revision++;
+    const request = (pending == null ? void 0 : pending.request) || this.preview.request;
+    this.inSearch = false;
+    this.shell();
+    this.cancel.disabled = true;
+    const status = this.body.createDiv({ text: this.t("renameWorking"), cls: "fm-rename-count", attr: { "aria-live": "polite" } });
+    try {
+      const report = await executeRemoteRename(this.plugin, request, (progress) => {
+        if (!this.closed) status.setText(this.t("renameProgress", { current: progress.completed, total: progress.total }));
+      }, pending, (_a = this.preview) == null ? void 0 : _a.references);
+      if (this.closed) {
+        new import_obsidian13.Notice(this.t(report.complete ? "renameComplete" : "renameIncomplete"));
+        return;
+      }
+      this.result(report);
+    } catch (error) {
+      this.pending = await loadPendingRename(this.plugin).catch(() => pending);
+      if (this.closed) {
+        new import_obsidian13.Notice(error.message);
+        return;
+      }
+      if (this.pending) this.recovery(error);
+      else this.loadError(error);
+    } finally {
+      this.busy = false;
+    }
+  }
+  result(report) {
+    var _a;
+    this.pending = report.complete ? null : report.job;
+    if (report.item) this.renamedItem = report.item;
+    this.shell();
+    this.cancel.setText(this.t("destBtnDone"));
+    this.cancel.addClass("mod-cta");
+    const status = this.body.createDiv({ cls: `fm-rename-status${report.complete ? "" : " is-incomplete"}`, attr: { role: "status" } });
+    (0, import_obsidian13.setIcon)(status.createSpan({ cls: "fm-rename-status-icon", attr: { "aria-hidden": "true" } }), report.complete ? "check" : "circle-alert");
+    const summary = status.createDiv();
+    summary.createDiv({ text: this.t(report.complete ? "renameComplete" : "renameIncomplete"), cls: "fm-rename-status-title" });
+    summary.createDiv({ text: report.updatedDocuments ? this.t("renameUpdated", { documents: report.updatedDocuments, references: report.updatedReferences }) : this.t(report.complete ? "renameNoReferences" : "renameNotesPending"), cls: "fm-rename-status-desc" });
+    const file = this.body.createDiv({ cls: "fm-section-box fm-rename-preview fm-rename-result-file" });
+    fileActionRow(file, this.visualItem(report.item), this.plugin, {
+      metadata: (parent) => parent.createSpan({ text: this.t("renamePreviousName", { name: report.oldFilename }) })
+    });
+    if (report.countsUncertain) this.body.createDiv({ text: this.t("renameCountsUncertain"), cls: "fm-rename-hint" });
+    this.documentList(this.body, report.documents, { title: "renameDocumentsUpdated", state: "renameReferencesUpdated" });
+    for (const failure of report.failures) this.body.createDiv({ text: `${failure.path}: ${failure.error}`, cls: "fm-rename-error" });
+    this.documentList(this.body, report.remaining, { title: "renameDocumentsRemaining", state: "renameReferencesPlanned" });
+    this.aliasNotice((_a = report.job) == null ? void 0 : _a.result);
+    if (!report.complete) {
+      this.cancel.removeClass("mod-cta");
+      this.button(this.footer, "renameContinue", () => this.execute(report.job), true);
+    }
+  }
+  onClose() {
+    var _a, _b;
+    (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
+    (_b = this.pages) == null ? void 0 : _b.clear();
+    this.closed = true;
+    this.revision++;
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+    this.contentEl.empty();
+  }
+};
+
+// src/modals/dialogs.js
+var imageCanvasSequence = 0;
+var ConfirmActionModal = class extends FileMasterModal {
+  constructor(app, title, message, confirmText = "Confirm", onConfirm, plugin = null) {
+    super(app);
+    this.title = title;
+    this.message = message;
+    this.confirmText = confirmText;
+    this.onConfirm = onConfirm;
+    this.plugin = plugin;
+    this.resolved = false;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.modalEl.addClass("fm-ui", "fm-confirm-dialog");
+    modalChrome(this);
+    contentEl.addClass("fm-confirm-content");
+    modalTitle(this, this.title);
+    const p = contentEl.createEl("p", { text: this.message });
+    p.style.lineHeight = "1.6";
+    p.style.margin = "12px 0 18px";
+    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
+    const cancelLabel = this.plugin ? this.plugin.t("btnCancel") : translateUi("auto", "btnCancel");
+    const cancelBtn = btnRow.createEl("button", { text: cancelLabel });
+    cancelBtn.onclick = () => {
+      if (this.resolved) return;
+      this.resolved = true;
+      this.close();
+      return this.onConfirm(false);
+    };
+    const okBtn = btnRow.createEl("button", { text: this.confirmText, cls: "mod-warning" });
+    okBtn.onclick = () => {
+      if (this.resolved) return;
+      this.resolved = true;
+      this.close();
+      return this.onConfirm(true);
+    };
+  }
+  onClose() {
+    if (!this.resolved && this.onConfirm) {
+      this.resolved = true;
+      this.onConfirm(false);
+    }
+    this.contentEl.empty();
+  }
+};
+var ImageLightboxModal = class _ImageLightboxModal extends FileMasterModal {
+  constructor(app, plugin, item, onActionChanged = null, options = {}) {
+    var _a;
+    super(app);
+    Object.assign(this, { plugin, item, onActionChanged });
+    this.insertionTarget = (_a = options.insertionTarget) != null ? _a : captureInsertionTarget(plugin);
+    this.insertMode = options.insertMode || plugin.settings.galleryInsertFormat || "raw";
+    this.generation = 0;
+  }
+  onOpen() {
+    var _a, _b, _c;
+    this.closed = false;
+    this.contentEl.empty();
+    this.contentEl.addClass("fm-asset-viewer");
+    this.modalEl.addClass("fm-ui", "fm-lightbox-dialog");
+    modalChrome(this);
+    const t2 = (key, params) => this.plugin.t(key, params), remote = this.item.source === "remote" ? this.item.rawObj : null;
+    const image = IMAGE_EXTS.has(getExt(this.item.name));
+    modalTitle(this, this.item.name);
+    if (remote) {
+      const titleBar = modalChrome(this).title;
+      titleBar.addClass("fm-asset-title-row");
+      const renameBtn = titleBar.createEl("button", { cls: "fm-asset-rename-trigger", attr: { type: "button", "aria-label": t2("previewRename") } });
+      const renameIconWrap = renameBtn.createSpan({ cls: "fm-copy-icon" });
+      (0, import_obsidian14.setIcon)(renameIconWrap, "pencil");
+      const renameSvg = (_a = renameIconWrap.querySelector) == null ? void 0 : _a.call(renameIconWrap, "svg");
+      if (renameSvg) {
+        (_b = renameSvg.classList) == null ? void 0 : _b.remove("svg-icon");
+        renameSvg.style.width = "13px";
+        renameSvg.style.height = "13px";
+        renameSvg.style.strokeWidth = "1.5px";
+      }
+      renameBtn.onclick = () => {
+        const currentItem = remote;
+        this.close();
+        openModal(new RemoteRenameModal(this.app, this.plugin, {
+          initialItem: currentItem,
+          onReturn: (finalItem) => {
+            var _a2;
+            const target = finalItem || currentItem;
+            if (finalItem && finalItem.filename !== currentItem.filename) {
+              (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "renamed", { oldItem: currentItem, item: finalItem });
+            }
+            openModal(new _ImageLightboxModal(this.app, this.plugin, {
+              source: "remote",
+              name: target.name || target.filename,
+              displayPath: `${target.year}/${target.month}/${target.filename}`,
+              size: target.size,
+              rawObj: target
+            }, this.onActionChanged, { insertMode: this.insertMode, insertionTarget: this.insertionTarget })).catch((error) => new import_obsidian14.Notice(error.message));
+          }
+        })).catch((error) => new import_obsidian14.Notice(error.message));
+      };
+    }
+    const location = (_c = this.item.displayPath) == null ? void 0 : _c.split("/").slice(0, -1).join(" / ");
+    const layout = this.contentEl.createDiv({ cls: "fm-asset-layout" });
+    const canvas = layout.createDiv({ cls: "fm-asset-canvas" });
+    const tools = canvas.createDiv({ cls: "fm-asset-tools" });
+    this.variant = "raw";
+    const variants = tools.createDiv({ cls: "fm-gallery-mode-group", attr: { role: "group", "aria-label": t2("previewVariant") } });
+    const variantButtons = [];
+    if (image) for (const mode of remote && hasOptimizedVariant(remote) ? ["raw", "webp"] : ["raw"]) {
+      const button = variants.createEl("button", { text: t2(mode === "raw" ? "galleryModeRaw" : "galleryModeWebp"), attr: { type: "button", "aria-pressed": String(mode === "raw") } });
+      button.onclick = () => {
+        this.variant = mode;
+        variantButtons.forEach(([b, m]) => b.setAttribute("aria-pressed", String(m === mode)));
+        this.loadPreview();
+      };
+      variantButtons.push([button, mode]);
+    }
+    const zoom = tools.createDiv({ cls: "fm-asset-zoom", attr: { role: "group", "aria-label": t2("previewZoomLabel") } });
+    const zoomButtons = [];
+    if (image) {
+      zoomButtons.push(iconButton(zoom, this.plugin, "previewZoomOut", "minus", () => {
+        var _a2;
+        return (_a2 = this.viewport) == null ? void 0 : _a2.zoomOut();
+      }));
+      this.percentage = zoom.createEl("button", { text: "\u2014", attr: { type: "button", "aria-label": t2("previewActualSize") } });
+      this.percentage.onclick = () => {
+        var _a2;
+        return (_a2 = this.viewport) == null ? void 0 : _a2.actual();
+      };
+      zoomButtons.push(this.percentage);
+      zoomButtons.push(iconButton(zoom, this.plugin, "previewZoomIn", "plus", () => {
+        var _a2;
+        return (_a2 = this.viewport) == null ? void 0 : _a2.zoomIn();
+      }));
+      zoomButtons.push(iconButton(zoom, this.plugin, "previewFit", "maximize", () => {
+        var _a2;
+        return (_a2 = this.viewport) == null ? void 0 : _a2.fit();
+      }));
+    }
+    this.zoomButtons = zoomButtons;
+    const canvasLabel = `fm-image-canvas-${++imageCanvasSequence}`;
+    canvas.createSpan({ text: t2("previewGestures"), attr: { id: canvasLabel, hidden: "" } });
+    this.stage = canvas.createDiv({ cls: "fm-image-stage", attr: { tabindex: "0", role: "region", "aria-labelledby": canvasLabel } });
+    this.status = canvas.createDiv({ cls: "fm-preview-status", attr: { "aria-live": "polite" } });
+    const inspector = layout.createDiv({ cls: "fm-asset-inspector" });
+    const actions = inspector.createDiv({ cls: "fm-asset-primary" });
+    if (remote) {
+      const mode = this.insertMode === "webp" && hasOptimizedVariant(remote) ? "webp" : "raw";
+      const insert = actions.createEl("button", { text: t2(mode === "webp" ? "galleryInsertWebp" : "galleryInsertRaw"), cls: "mod-cta", attr: { type: "button" } });
+      insert.disabled = !isInsertionTargetValid(this.plugin, this.insertionTarget);
+      insert.hidden = insert.disabled;
+      if (insert.disabled) actions.createDiv({ text: t2("galleryOpenNoteFirst"), cls: "fm-asset-hint" });
+      insert.onclick = () => {
+        if (insertMarkdownToActiveEditor(this.plugin, assetMarkdown(this.item.name, assetUrl(remote, mode)) + "\n", t2("galleryInserted"), this.insertionTarget)) this.close();
+      };
+      const links = inspector.createDiv({ cls: "fm-asset-section fm-asset-panel fm-asset-links" });
+      links.createEl("h4", { text: t2("previewLinksTitle") });
+      for (const variant of hasOptimizedVariant(remote) ? ["raw", "webp"] : ["raw"]) {
+        const url = assetUrl(remote, variant);
+        if (!url) continue;
+        const group = links.createDiv({ cls: "fm-asset-link-variant" });
+        group.createSpan({ text: t2(variant === "raw" ? "galleryTrackRaw" : "galleryTrackWebp"), cls: "fm-asset-link-label" });
+        const copyActions = group.createDiv({ cls: "fm-asset-copy-pair" });
+        for (const markdown of [false, true]) {
+          const label = t2(variant === "raw" ? "galleryTrackRaw" : "galleryTrackWebp") + (markdown ? " \xB7 Markdown" : " \xB7 URL");
+          const value = markdown ? assetMarkdown(this.item.name, url) : url;
+          const copy = copyActions.createEl("button", { cls: "fm-asset-copy-action", attr: { type: "button", "aria-label": label } });
+          (0, import_obsidian14.setIcon)(copy.createSpan({ cls: "fm-copy-icon" }), "copy");
+          copy.createSpan({ text: markdown ? "Markdown" : "URL" });
+          copy.onclick = () => copyText(this.plugin, value);
+        }
+      }
+    } else if (this.item.rawObj) {
+      const open = actions.createEl("button", { text: t2("btnOpenInObsidian"), cls: "mod-cta" });
+      open.onclick = async () => {
+        if (open.disabled) return;
+        open.disabled = true;
+        try {
+          const leaf = this.app.workspace.getLeaf(false);
+          if (leaf) {
+            await leaf.openFile(this.item.rawObj);
+            this.close();
+          }
+        } catch (error) {
+          new import_obsidian14.Notice(error.message);
+        } finally {
+          open.disabled = false;
+        }
+      };
+    }
+    const properties = inspector.createDiv({ cls: "fm-asset-section fm-asset-panel" });
+    properties.createEl("h4", { text: t2("previewProperties") });
+    const list = properties.createEl("dl", { cls: "fm-asset-properties" });
+    const property = (key, value) => {
+      list.createEl("dt", { text: t2(key) });
+      return list.createEl("dd", { text: String(value) });
+    };
+    property(remote ? "previewOriginalSize" : "previewSizeLabel", formatBytes(this.item.size));
+    if (image) this.dimensions = property("previewDimensions", "\u2014");
+    if (remote == null ? void 0 : remote.createdAt) {
+      const created = new Date(remote.createdAt);
+      if (Number.isFinite(created.getTime())) {
+        const locale = this.plugin.settings.language === "zh" ? "zh-CN" : this.plugin.settings.language === "en" ? "en-GB" : void 0;
+        const value = property("previewCreated", "");
+        const timestamp = value.createEl("time", { cls: "fm-asset-timestamp", attr: { datetime: created.toISOString() } });
+        timestamp.createSpan({ text: created.toLocaleDateString(locale, { year: "numeric", month: "2-digit", day: "2-digit" }) });
+        timestamp.createSpan({ text: created.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }), cls: "fm-asset-time" });
+      }
+    }
+    if (location) property("previewPathLabel", location);
+    if (!remote) property("previewSource", t2("previewSourceLocal"));
+    if (remote) {
+      const management = inspector.createDiv({ cls: "fm-asset-panel fm-asset-management" });
+      const protection = management.createDiv({ cls: "fm-asset-section fm-asset-protection" });
+      const protectionRow = protection.createDiv({ cls: "fm-asset-section-heading" });
+      protectionRow.createEl("h4", { text: t2("previewProtection") });
+      const lock = protectionRow.createEl("button", { cls: "fm-asset-lock-switch", attr: { type: "button", role: "switch" } });
+      const protectionHelp = protection.createDiv({ cls: "fm-asset-hint" });
+      const danger = management.createDiv({ cls: "fm-asset-section fm-asset-danger" });
+      const dangerRow = danger.createDiv({ cls: "fm-asset-section-heading" });
+      dangerRow.createEl("h4", { text: t2("previewDanger") });
+      const del = dangerRow.createEl("button", { cls: "fm-asset-trash-action", text: t2("galleryBtnDelete"), attr: { type: "button" } });
+      danger.createDiv({ text: t2("previewTrashHelp"), cls: "fm-asset-hint" });
+      const update = () => {
+        lock.setAttribute("aria-label", t2(remote.locked ? "galleryBtnUnlock" : "galleryBtnLock"));
+        lock.setAttribute("aria-checked", String(Boolean(remote.locked)));
+        protectionHelp.setText(t2(remote.locked ? "previewProtectionLocked" : "previewProtectionHelp"));
+        del.disabled = Boolean(remote.locked || this.deleting);
+      };
+      update();
+      lock.onclick = async () => {
+        var _a2;
+        if (lock.disabled) return;
+        lock.disabled = true;
+        del.disabled = true;
+        try {
+          const locked = !remote.locked;
+          await this.plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, locked);
+          remote.locked = locked;
+          if (!this.closed) {
+            update();
+            new import_obsidian14.Notice(t2(locked ? "previewProtected" : "previewUnprotected"));
+          }
+          (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "lock", remote);
+        } catch (error) {
+          new import_obsidian14.Notice(t2("previewLockFailed", { err: error.message }));
+        } finally {
+          lock.disabled = false;
+          if (!this.closed) update();
+        }
+      };
+      del.onclick = async () => {
+        if (del.disabled || this.deleting || remote.locked) return;
+        del.disabled = true;
+        const confirm = new ConfirmActionModal(this.app, t2("previewTrashConfirmTitle"), t2("galleryDeleteConfirm", { name: this.item.name }), t2("galleryBtnDelete"), async (confirmed) => {
+          var _a2;
+          if (!confirmed || this.closed) {
+            if (!this.closed) update();
+            return;
+          }
+          if (remote.locked || this.deleting) {
+            update();
+            return;
+          }
+          this.deleting = true;
+          lock.disabled = true;
+          try {
+            await this.plugin.deleteRemoteFile(remote.year, remote.month, remote.filename);
+            (_a2 = this.onActionChanged) == null ? void 0 : _a2.call(this, "deleted", remote);
+            new import_obsidian14.Notice(t2("galleryDeleteSuccess", { name: this.item.name }));
+            this.close();
+          } catch (error) {
+            new import_obsidian14.Notice(t2("previewDeleteFailed", { err: error.message }));
+          } finally {
+            this.deleting = false;
+            lock.disabled = false;
+            if (!this.closed) update();
+          }
+        }, this.plugin);
+        try {
+          await openModal(confirm);
+        } catch (error) {
+          update();
+          new import_obsidian14.Notice(error.message);
+        }
+      };
+    }
+    if (image) this.loadPreview();
+    else {
+      this.stage.createDiv({ text: t2("previewNonImageTip", { ext: getExt(this.item.name).toUpperCase() }) });
+      this.status.hidden = true;
+    }
+  }
+  async loadPreview() {
+    var _a, _b, _c;
+    const generation = ++this.generation, t2 = (key) => this.plugin.t(key);
+    (_a = this.viewport) == null ? void 0 : _a.dispose();
+    this.viewport = null;
+    (_b = this.imageEvents) == null ? void 0 : _b.abort();
+    this.imageEvents = new AbortController();
+    this.stage.empty();
+    this.status.empty();
+    this.status.createSpan({ text: t2("previewLoading") });
+    this.zoomButtons.forEach((button) => button.disabled = true);
+    (_c = this.percentage) == null ? void 0 : _c.setText("\u2014");
+    if (this.dimensions) this.dimensions.setText("\u2014");
+    const current = () => !this.closed && generation === this.generation;
+    const failed = () => {
+      if (!current()) return;
+      this.status.empty();
+      this.status.createSpan({ text: t2("previewLoadFailed") });
+      const retry = this.status.createEl("button", { text: t2("previewRetry") });
+      retry.onclick = () => this.loadPreview();
+    };
+    try {
+      const remote = this.item.source === "remote" ? this.item.rawObj : null;
+      const url = remote ? assetUrl(remote, this.variant) : await getItemPreviewUrl(this.plugin, this.item);
+      if (!current()) return;
+      if (!url) {
+        failed();
+        return;
+      }
+      const img = this.stage.createEl("img", { cls: "fm-viewport-image", attr: { alt: this.item.name, draggable: "false" } });
+      img.addEventListener("load", () => {
+        var _a2;
+        if (!current()) return;
+        this.status.empty();
+        this.zoomButtons.forEach((button) => button.disabled = false);
+        (_a2 = this.dimensions) == null ? void 0 : _a2.setText(`${img.naturalWidth} \xD7 ${img.naturalHeight}`);
+        this.viewport = mountImageViewport(this.stage, img, (percent) => this.percentage.setText(percent + "%"));
+      }, { once: true, signal: this.imageEvents.signal });
+      img.addEventListener("error", failed, { once: true, signal: this.imageEvents.signal });
+      img.src = url;
+    } catch (e) {
+      failed();
+    }
+  }
+  onClose() {
+    var _a, _b;
+    this.closed = true;
+    this.generation++;
+    (_a = this.imageEvents) == null ? void 0 : _a.abort();
+    (_b = this.viewport) == null ? void 0 : _b.dispose();
+    this.viewport = null;
+    this.contentEl.empty();
+  }
+};
+var NoteRefsModal = class extends FileMasterModal {
+  constructor(app, itemName, refNotePaths, onJump, plugin = null) {
+    super(app);
+    this.itemName = itemName;
+    this.refNotePaths = refNotePaths || [];
+    this.onJump = onJump;
+    this.plugin = plugin;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.modalEl.addClass("fm-reference-dialog");
+    contentEl.addClass("fm-wizard-modal");
+    const t2 = (k, p) => this.plugin ? this.plugin.t(k, p) : translateUi("auto", k, p);
+    modalTitle(this, t2("noteRefsTitle", { name: this.itemName, count: this.refNotePaths.length }));
+    if (this.refNotePaths.length === 0) {
+      contentEl.createDiv({
+        cls: "fm-section-box",
+        text: t2("noteRefsNone"),
+        attr: { style: "text-align: center; padding: 24px;" }
+      });
+    } else {
+      contentEl.createEl("p", { text: t2("notePreviewHint"), cls: "fm-inline-hint" });
+      const listEl = contentEl.createDiv({ cls: "fm-scroll-list fm-document-list" });
+      for (const notePath of this.refNotePaths) {
+        documentRow(listEl, this.plugin || { app: this.app, t: t2 }, typeof notePath === "string" ? { path: notePath } : notePath, { hoverParent: this, onOpened: () => {
+          var _a;
+          this.close();
+          (_a = this.onJump) == null ? void 0 : _a.call(this);
+        } });
+      }
+    }
+    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
+    const closeBtn = btnRow.createEl("button", { text: t2("closeBtn") });
+    closeBtn.onclick = () => this.close();
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
+// src/modals/incoming-file.js
+var import_obsidian15 = require("obsidian");
+function renderItemVisualThumb(parentEl, item, plugin) {
+  const t2 = (k, p) => plugin ? plugin.t(k, p) : translateUi("auto", k, p);
+  const ext = getExt(item.name);
+  if (IMAGE_EXTS.has(ext)) {
+    const img = parentEl.createEl("img", {
+      cls: "fm-item-thumb",
+      attr: { "aria-label": t2("thumbEnlargeTooltip") }
+    });
+    img.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      new ImageLightboxModal(plugin.app, plugin, item).open();
+    };
+    getItemPreviewUrl(plugin, item).then((url) => {
+      if (url) img.src = url;
+    });
+  } else {
+    const box = parentEl.createDiv({
+      cls: "fm-item-icon-box",
+      attr: { "aria-label": t2("thumbDetailsTooltip") }
+    });
+    const icon = ext === "md" ? "\u{1F4DD}" : AUDIO_EXTS.has(ext) ? "\u{1F3B5}" : ["mp4", "webm", "mov", "mkv"].includes(ext) ? "\u{1F3AC}" : ext === "pdf" ? "\u{1F4C4}" : "\u{1F4E6}";
+    box.createSpan({ text: icon });
+    box.createSpan({ text: (ext || "FILE").slice(0, 4).toUpperCase(), cls: "fm-item-icon-ext" });
+    box.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      new ImageLightboxModal(plugin.app, plugin, item).open();
+    };
+  }
+}
+var IncomingFileModal = class extends FileMasterModal {
+  constructor(app, fileInfo, options, callback = null) {
+    var _a, _b, _c, _d;
+    super(app);
+    this.fileInfo = fileInfo;
+    this.options = options || {};
+    this.callback = callback;
+    this.plugin = this.options.plugin;
+    const isRemote = Boolean((_b = (_a = this.plugin) == null ? void 0 : _a.isRemoteServerReady) == null ? void 0 : _b.call(_a));
+    if (this.options.fixedLocation === "local") {
+      this.targetLocation = "local";
+    } else if (this.options.fixedLocation === "remote") {
+      this.targetLocation = isRemote ? "remote" : "local";
+    } else {
+      const userPref = ((_d = (_c = this.plugin) == null ? void 0 : _c.settings) == null ? void 0 : _d.defaultSaveLocation) || "remote";
+      this.targetLocation = !isRemote || userPref === "local" ? "local" : "remote";
+    }
+    this.finalFilename = `${fileInfo.defaultBaseName}.${fileInfo.ext}`;
+    this.step = "input";
+    this.result = null;
+    this.isDone = false;
+    this.isExecuting = false;
+  }
+  t(k, p) {
+    return this.plugin ? this.plugin.t(k, p) : k;
+  }
+  onOpen() {
+    var _a, _b;
+    (_b = (_a = this.modalEl) == null ? void 0 : _a.addClass) == null ? void 0 : _b.call(_a, "fm-incoming-dialog");
+    this.render();
+  }
+  render() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fm-incoming-modal-dialog");
+    if (this.step === "input") {
+      this.renderInputStep();
+    } else if (this.step === "executing") {
+      this.renderExecutingStep();
+    } else if (this.step === "result") {
+      this.renderResultStep();
+    }
+  }
+  renderInputStep() {
+    var _a, _b, _c, _d, _e, _f;
+    const { contentEl } = this;
+    modalTitle(this, this.t("destTitle"));
+    const card = contentEl.createDiv({ cls: "fm-incoming-card" });
+    const thumbWrap = card.createDiv({ cls: "fm-incoming-thumb-wrap" });
+    if (IMAGE_EXTS.has(this.fileInfo.ext)) {
+      const img = thumbWrap.createEl("img", { cls: "fm-incoming-thumb-img" });
+      convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin).then((url) => {
+        if (!url) return;
+        if (this.closed) {
+          revokeBlobUrl(url);
+          return;
+        }
+        revokeBlobUrl(this.previewBlobUrl);
+        this.previewBlobUrl = url;
+        img.src = url;
+      }).catch(() => {
+      });
+    } else {
+      const ext = this.fileInfo.ext;
+      const icon = ext === "md" ? "\u{1F4DD}" : AUDIO_EXTS.has(ext) ? "\u{1F3B5}" : ["mp4", "webm", "mov", "mkv"].includes(ext) ? "\u{1F3AC}" : ext === "pdf" ? "\u{1F4C4}" : "\u{1F4E6}";
+      thumbWrap.createSpan({ text: icon, attr: { style: "font-size: 24px;" } });
+    }
+    const editCol = card.createDiv({ cls: "fm-incoming-edit-col" });
+    const inputRow = editCol.createDiv({ cls: "fm-incoming-input-row" });
+    const nameInput = inputRow.createEl("input", {
+      type: "text",
+      value: this.fileInfo.defaultBaseName,
+      cls: "fm-incoming-name-input",
+      attr: {
+        placeholder: this.t("destFilenameHint"),
+        spellcheck: "false"
+      }
+    });
+    inputRow.createSpan({ text: `.${this.fileInfo.ext}`, cls: "fm-incoming-ext-badge" });
+    editCol.createDiv({
+      cls: "fm-incoming-sub-meta",
+      text: formatBytes(this.fileInfo.size)
+    });
+    const isRemoteReady = Boolean(
+      ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.enableRemoteServer) && ((_d = (_c = this.plugin) == null ? void 0 : _c.isRemoteServerReady) == null ? void 0 : _d.call(_c))
+    );
+    const isAskMode = this.options.askLocation !== false;
+    let isRemoteFallback = false;
+    if (!isAskMode && this.options.fixedLocation === "local") {
+      this.targetLocation = "local";
+    } else if (!isAskMode && this.options.fixedLocation === "remote") {
+      if (isRemoteReady) {
+        this.targetLocation = "remote";
+      } else {
+        this.targetLocation = "local";
+        isRemoteFallback = true;
+      }
+    } else if (!this.targetLocation) {
+      const userPref = ((_f = (_e = this.plugin) == null ? void 0 : _e.settings) == null ? void 0 : _f.defaultSaveLocation) || "remote";
+      this.targetLocation = !isRemoteReady || userPref === "local" ? "local" : "remote";
+    }
+    contentEl.createDiv({
+      cls: "fm-section-title",
+      text: this.t("destDestTitle"),
+      attr: { style: "margin-top: 14px; margin-bottom: 8px;" }
+    });
+    const grid = contentEl.createDiv({ cls: "fm-incoming-dest-grid" });
+    const localCard = grid.createDiv({
+      cls: `fm-incoming-dest-card ${this.targetLocation === "local" ? "is-selected" : ""}`
+    });
+    const localTitle = localCard.createDiv({ cls: "fm-incoming-dest-card-title" });
+    localTitle.createSpan({ text: this.t("destSaveLocal") });
+    const localCheck = localCard.createSpan({ cls: "fm-incoming-dest-card-check" });
+    (0, import_obsidian15.setIcon)(localCheck, "check");
+    let remoteCard = null;
+    let remoteCheck = null;
+    if (isRemoteReady) {
+      remoteCard = grid.createDiv({
+        cls: `fm-incoming-dest-card ${this.targetLocation === "remote" ? "is-selected" : ""}`
+      });
+      const remoteTitle = remoteCard.createDiv({ cls: "fm-incoming-dest-card-title" });
+      remoteTitle.createSpan({ text: this.t("destSaveRemote") });
+      remoteCheck = remoteCard.createSpan({ cls: "fm-incoming-dest-card-check" });
+      (0, import_obsidian15.setIcon)(remoteCheck, "check");
+    }
+    const updateSelection = (loc) => {
+      this.targetLocation = loc;
+      if (loc === "local") {
+        localCard.addClass("is-selected");
+        if (remoteCard) remoteCard.removeClass("is-selected");
+      } else {
+        localCard.removeClass("is-selected");
+        if (remoteCard) remoteCard.addClass("is-selected");
+      }
+    };
+    if (isAskMode) {
+      localCard.onclick = () => updateSelection("local");
+      if (remoteCard) {
+        remoteCard.onclick = () => updateSelection("remote");
+      }
+    } else {
+      localCard.style.cursor = "default";
+      if (remoteCard) remoteCard.style.cursor = "default";
+      let hintText = "";
+      if (isRemoteFallback) {
+        hintText = this.t("destFixedRemoteFallbackHint");
+      } else if (this.targetLocation === "local") {
+        hintText = this.t("destFixedLocalHint");
+      } else {
+        hintText = this.t("destFixedRemoteHint");
+      }
+      contentEl.createDiv({
+        cls: "fm-incoming-fixed-hint",
+        text: hintText,
+        attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px;" }
+      });
+    }
+    const triggerExecute = () => {
+      if (this.isExecuting) return;
+      this.isExecuting = true;
+      const cleanBase = sanitizeCleanBaseName(nameInput.value, this.fileInfo.defaultBaseName);
+      this.finalFilename = `${cleanBase}.${this.fileInfo.ext}`;
+      this.step = "executing";
+      this.render();
+      this.runExecution();
+    };
+    let isComposing = false;
+    let lastCompositionEndAt = 0;
+    nameInput.addEventListener("compositionstart", () => {
+      isComposing = true;
+    });
+    nameInput.addEventListener("compositionend", () => {
+      isComposing = false;
+      lastCompositionEndAt = Date.now();
+    });
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        if (e.isComposing || e.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        triggerExecute();
+      }
+    });
+    contentEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        if (e.isComposing || e.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) {
+          return;
+        }
+        const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
+        if (tag === "textarea" || tag === "button" || tag === "input") return;
+        e.preventDefault();
+        triggerExecute();
+      }
+    });
+    const btnRow = contentEl.createDiv({ cls: "fm-btn-row", attr: { style: "margin-top: 18px;" } });
+    const cancelBtn = btnRow.createEl("button", { text: this.t("btnCancel") });
+    cancelBtn.onclick = () => {
+      this.isDone = true;
+      this.close();
+      if (this.callback) this.callback({ target: null });
+    };
+    const insertBtn = btnRow.createEl("button", { text: this.t("btnInsert") || "\u63D2\u5165", cls: "mod-cta" });
+    insertBtn.onclick = () => triggerExecute();
+  }
+  renderExecutingStep() {
+    const { contentEl } = this;
+    modalTitle(this, this.t("destProcessingTitle"));
+    const infoBox = contentEl.createDiv({ cls: "fm-section-box", attr: { style: "margin-bottom: 14px;" } });
+    infoBox.createDiv({
+      text: `\u{1F4C4} ${this.finalFilename}  (${formatBytes(this.fileInfo.size)})`,
+      attr: { style: "font-weight: 600; margin-bottom: 10px;" }
+    });
+    const progressWrap = infoBox.createDiv({ cls: "fm-progress-wrap" });
+    this.progressBar = progressWrap.createDiv({ cls: "fm-progress-bar", attr: { style: "width: 15%;" } });
+    this.statusLabel = infoBox.createDiv({
+      text: this.targetLocation === "remote" ? this.t("destProbeChecking") : this.t("destSavingLocal"),
+      attr: { style: "font-size: 12px; color: var(--text-accent); margin-top: 8px;" }
+    });
+  }
+  async runExecution() {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    try {
+      const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
+      const editor = this.options.editor;
+      const sourcePath = activeFile ? activeFile.path : "";
+      if (this.targetLocation === "local") {
+        if (this.progressBar) this.progressBar.style.width = "40%";
+        if (this.statusLabel) this.statusLabel.setText(this.t("destSavingLocal"));
+        const localPath = await this.app.fileManager.getAvailablePathForAttachment(
+          this.finalFilename,
+          sourcePath
+        );
+        if (this.progressBar) this.progressBar.style.width = "75%";
+        const createdFile = await this.app.vault.createBinary(localPath, this.fileInfo.arrayBuffer);
+        let mdLink = this.app.fileManager.generateMarkdownLink(createdFile, sourcePath);
+        if (IMAGE_EXTS.has(this.fileInfo.ext) && !mdLink.startsWith("!")) {
+          mdLink = `!${mdLink}`;
+        }
+        let inserted = false;
+        let insertionWarning = null;
+        if (editor || this.options.insertionTarget) {
+          const insertResult = insertLinkAtTarget(this.plugin, mdLink, this.options.insertionTarget);
+          inserted = insertResult.inserted;
+          insertionWarning = insertResult.reason || null;
+        }
+        if (this.progressBar) this.progressBar.style.width = "100%";
+        this.result = {
+          success: true,
+          target: "local",
+          localPath: createdFile.path,
+          mdLink,
+          inserted,
+          insertionWarning
+        };
+        (_b = (_a = this.plugin) == null ? void 0 : _a.logOperation) == null ? void 0 : _b.call(_a, "INFO", "SAVE_LOCAL", `Saved attachment to vault: ${createdFile.path}`, {
+          size: this.fileInfo.size,
+          note: sourcePath || null
+        });
+      } else {
+        if (this.progressBar) this.progressBar.style.width = "25%";
+        if (this.statusLabel) this.statusLabel.setText(this.t("destProbeChecking"));
+        const sha256 = this.fileInfo.sha256 || await computeSha256Hex(this.fileInfo.arrayBuffer);
+        let res = null;
+        const probed = await this.plugin.probeRemoteSha256(sha256);
+        if (probed && probed.exists) {
+          res = Object.assign({}, probed, { isInstant: true });
+          if (this.progressBar) this.progressBar.style.width = "100%";
+          if (this.statusLabel) this.statusLabel.setText(this.t("destInstantBadge"));
+        } else {
+          if (this.progressBar) this.progressBar.style.width = "55%";
+          if (this.statusLabel) this.statusLabel.setText(this.t("destUploadingRemote"));
+          res = await this.plugin.uploadBufferToServer(
+            this.fileInfo.arrayBuffer,
+            this.finalFilename,
+            this.fileInfo.mimeType || "application/octet-stream",
+            { skipProbe: true }
+          );
+          if (this.progressBar) this.progressBar.style.width = "100%";
+        }
+        const useOpt = this.plugin.settings.insertOptimizedLinkOnUpload && res.optimizationEnabled !== false && res.category === "image" && res.pubUrl;
+        let finalMarkdown = useOpt ? `![](${res.pubUrl})` : res.markdown || `[${this.finalFilename}](${res.rawUrl})`;
+        if (IMAGE_EXTS.has(this.fileInfo.ext) && !finalMarkdown.startsWith("!")) {
+          finalMarkdown = `!${finalMarkdown}`;
+        }
+        let inserted = false;
+        let insertionWarning = null;
+        if (editor || this.options.insertionTarget) {
+          const insertResult = insertLinkAtTarget(this.plugin, finalMarkdown, this.options.insertionTarget);
+          inserted = insertResult.inserted;
+          insertionWarning = insertResult.reason || null;
+        }
+        this.result = {
+          success: true,
+          target: "remote",
+          res,
+          finalMarkdown,
+          isInstant: !!res.isInstant,
+          inserted,
+          insertionWarning
+        };
+        (_d = (_c = this.plugin) == null ? void 0 : _c.logOperation) == null ? void 0 : _d.call(_c, "INFO", "UPLOAD_REMOTE", `${res.isInstant ? "Reused existing remote file" : "Uploaded attachment to server"}: ${this.finalFilename}`, {
+          remotePath: `${res.year}/${res.month}/${res.filename}`,
+          isInstant: !!res.isInstant,
+          size: this.fileInfo.size,
+          note: sourcePath || null
+        });
+      }
+    } catch (err) {
+      this.isExecuting = false;
+      this.result = {
+        success: false,
+        error: err.message || String(err)
+      };
+      (_f = (_e = this.plugin) == null ? void 0 : _e.logOperation) == null ? void 0 : _f.call(_e, "ERROR", "SAVE_ATTACHMENT", `Failed to process attachment "${this.finalFilename}": ${this.result.error}`, {
+        target: this.targetLocation,
+        size: this.fileInfo.size
+      });
+    }
+    if (this.callback) {
+      this.callback({ target: this.targetLocation, finalFilename: this.finalFilename, result: this.result });
+    }
+    if (((_g = this.result) == null ? void 0 : _g.success) && ((_h = this.result) == null ? void 0 : _h.inserted)) {
+      const noticeMsg = this.result.target === "remote" ? this.plugin ? this.plugin.t("noticeUploadedRemote", { name: this.finalFilename }) : `\u5DF2\u4E0A\u4F20\u5230\u670D\u52A1\u5668\u5E76\u63D2\u5165\u94FE\u63A5\uFF1A${this.finalFilename}` : this.t("destInsertSuccess");
+      new import_obsidian15.Notice(noticeMsg);
+      this.isDone = true;
+      this.close();
+      return;
+    } else if ((_i = this.result) == null ? void 0 : _i.success) {
+      if (this.result.insertionWarning) {
+        new import_obsidian15.Notice(this.result.insertionWarning);
+        this.step = "result";
+        this.render();
+        return;
+      }
+      new import_obsidian15.Notice(this.t("destInsertSuccess"));
+      this.isDone = true;
+      this.close();
+      return;
+    } else {
+      new import_obsidian15.Notice(`\u274C ${((_j = this.result) == null ? void 0 : _j.error) || "Insert failed"}`);
+      this.isDone = true;
+      this.close();
+      return;
+    }
+  }
+  renderResultStep() {
+    var _a, _b;
+    const { contentEl } = this;
+    modalTitle(this, this.t("destResultTitle"));
+    if (!this.result.success) {
+      const errBanner = contentEl.createDiv({ cls: "fm-result-banner fm-result-banner-error" });
+      errBanner.createDiv({
+        cls: "fm-result-banner-title",
+        text: this.t("destProcessingError", { err: formatFriendlyError(this, this.result.error) })
+      });
+      const btnRow2 = contentEl.createDiv({ cls: "fm-btn-row" });
+      const closeBtn = btnRow2.createEl("button", { text: this.t("destBtnDone"), cls: "mod-cta" });
+      closeBtn.onclick = () => {
+        this.isDone = true;
+        this.close();
+      };
+      return;
+    }
+    if (this.result.target === "remote") {
+      const isInstant = this.result.isInstant;
+      const banner = contentEl.createDiv({
+        cls: `fm-result-banner ${isInstant ? "fm-result-banner-instant" : "fm-result-banner-success"}`
+      });
+      banner.createDiv({
+        cls: "fm-result-banner-title",
+        text: isInstant ? this.t("destInstantBadge") : this.t("destSuccessBadge")
+      });
+      if (isInstant) banner.createDiv({ cls: "fm-result-banner-desc", text: this.t("destInstantDesc") });
+      const detailsBox = contentEl.createDiv({ cls: "fm-section-box" });
+      detailsBox.createDiv({
+        text: `\u{1F4C4} ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
+        attr: { style: "font-weight: 600; margin-bottom: 12px; color: var(--text-normal);" }
+      });
+      const addCopyRow = (label, val) => {
+        if (!val) return;
+        detailsBox.createDiv({ cls: "fm-copy-row-label", text: label });
+        const row = detailsBox.createDiv({ cls: "fm-copy-row" });
+        row.createEl("input", { type: "text", value: val, attr: { readonly: true } });
+        const copyBtn = row.createEl("button", { text: this.t("destBtnCopy"), cls: "fm-mini-btn" });
+        copyBtn.onclick = async () => {
+          await navigator.clipboard.writeText(val);
+          copyBtn.setText(this.t("destBtnCopied"));
+          setTimeout(() => {
+            if (copyBtn && copyBtn.isConnected) copyBtn.setText(this.t("destBtnCopy"));
+          }, 1800);
+        };
+      };
+      addCopyRow(this.t("destLabelRawUrl"), (_a = this.result.res) == null ? void 0 : _a.rawUrl);
+      if ((_b = this.result.res) == null ? void 0 : _b.pubUrl) {
+        addCopyRow(this.t("destLabelPubUrl"), this.result.res.pubUrl);
+      }
+      addCopyRow(this.t("destLabelMarkdown"), this.result.finalMarkdown);
+      if (this.result.inserted) {
+        detailsBox.createDiv({
+          cls: "fm-result-inserted-tip",
+          text: this.t("destInsertedNotice")
+        });
+      }
+    } else {
+      const banner = contentEl.createDiv({ cls: "fm-result-banner fm-result-banner-local" });
+      banner.createDiv({ cls: "fm-result-banner-title", text: this.t("destLocalBadge") });
+      const detailsBox = contentEl.createDiv({ cls: "fm-section-box" });
+      detailsBox.createDiv({
+        text: `\u{1F4C4} ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
+        attr: { style: "font-weight: 600; margin-bottom: 12px; color: var(--text-normal);" }
+      });
+      const addCopyRow = (label, val) => {
+        if (!val) return;
+        detailsBox.createDiv({ cls: "fm-copy-row-label", text: label });
+        const row = detailsBox.createDiv({ cls: "fm-copy-row" });
+        row.createEl("input", { type: "text", value: val, attr: { readonly: true } });
+        const copyBtn = row.createEl("button", { text: this.t("destBtnCopy"), cls: "fm-mini-btn" });
+        copyBtn.onclick = async () => {
+          await navigator.clipboard.writeText(val);
+          copyBtn.setText(this.t("destBtnCopied"));
+          setTimeout(() => {
+            if (copyBtn && copyBtn.isConnected) copyBtn.setText(this.t("destBtnCopy"));
+          }, 1800);
+        };
+      };
+      addCopyRow(this.t("destLabelLocalPath"), this.result.localPath);
+      addCopyRow(this.t("destLabelMarkdown"), this.result.mdLink);
+      if (this.result.inserted) {
+        detailsBox.createDiv({
+          cls: "fm-result-inserted-tip",
+          text: this.t("destInsertedNotice")
+        });
+      }
+    }
+    const btnRow = contentEl.createDiv({ cls: "fm-btn-row" });
+    const doneBtn = btnRow.createEl("button", { text: this.t("destBtnDone"), cls: "mod-cta" });
+    doneBtn.onclick = () => {
+      this.isDone = true;
+      this.close();
+    };
+  }
+  onClose() {
+    this.closed = true;
+    revokeBlobUrl(this.previewBlobUrl);
+    this.previewBlobUrl = null;
+    if (!this.isDone && this.callback) {
+      this.callback({ target: null });
+    }
+    this.contentEl.empty();
+  }
+};
+
+// src/plugin/server-client.js
 var import_obsidian16 = require("obsidian");
+function filterAllowedFiles(settings, fileList) {
+  const out = [];
+  for (let i = 0; i < fileList.length; i++) {
+    const f = fileList[i];
+    const ext = getExt(f.name) || (f.type.startsWith("image/") ? "png" : "");
+    if (IMAGE_EXTS.has(ext)) {
+      out.push(f);
+    } else if (settings.uploadNonImageAttachments && isAttachmentExt(ext)) {
+      out.push(f);
+    }
+  }
+  return out;
+}
+function getCleanServerUrl(settings) {
+  const raw = String(settings.serverUrl || DEFAULT_SERVER_URL).trim().replace(/\/+$/, "");
+  if (!raw) return DEFAULT_SERVER_URL;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    return raw;
+  } catch (e) {
+    return raw;
+  }
+}
+async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
+  const insertionTarget = (options == null ? void 0 : options.insertionTarget) || captureEditorTarget(plugin, { editor, info: (options == null ? void 0 : options.info) || null });
+  const activeFile = (insertionTarget == null ? void 0 : insertionTarget.file) || (!editor ? plugin.app.workspace.getActiveFile() : null);
+  const arrayBuffer = await file.arrayBuffer();
+  const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
+  const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
+  const sha256 = await computeSha256Hex(arrayBuffer);
+  const noteName = activeFile ? activeFile.basename : "note";
+  let defaultBaseName = rawOriginBase;
+  if (plugin.settings.namingMode === "rule") {
+    defaultBaseName = applyNamingPattern(plugin.settings.namingPattern, {
+      noteName,
+      originBase: rawOriginBase,
+      sha256
+    });
+  } else if (/^image$/i.test(rawOriginBase)) {
+    defaultBaseName = `Pasted_${applyNamingPattern("{date}_{time}", { noteName, originBase: rawOriginBase, sha256 })}`;
+  }
+  const askLocation = plugin.settings.saveLocationMode === "ask";
+  const fileInfo = {
+    arrayBuffer,
+    defaultBaseName,
+    ext,
+    size: file.size || arrayBuffer.byteLength,
+    mimeType: file.type || "application/octet-stream",
+    sha256
+  };
+  const modalOptions = {
+    askLocation,
+    fixedLocation: plugin.settings.saveLocationMode,
+    plugin,
+    editor,
+    activeFile,
+    insertionTarget
+  };
+  new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
+}
+async function probeRemoteSha256(plugin, sha256) {
+  var _a;
+  try {
+    const serverUrl = plugin.getCleanServerUrl();
+    if (!serverUrl || !plugin.settings.apiToken || !sha256) return null;
+    const response = await (0, import_obsidian16.requestUrl)({
+      url: `${serverUrl}/api/image/probe?sha256=${encodeURIComponent(sha256)}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${plugin.settings.apiToken}`
+      },
+      throw: false
+    });
+    if (response.status === 200 && ((_a = response.json) == null ? void 0 : _a.exists)) {
+      return response.json;
+    }
+  } catch (e) {
+  }
+  return null;
+}
+async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
+  var _a;
+  const opts = options || {};
+  throwIfTransferCancelled(opts.signal);
+  const fullSha256 = await computeSha256Hex(arrayBuffer);
+  if (!opts.skipProbe) {
+    try {
+      const probed = await plugin.probeRemoteSha256(fullSha256);
+      if (probed && probed.exists && probed.sha256 === fullSha256) {
+        probed.isInstant = true;
+        return probed;
+      }
+    } catch (e) {
+    }
+  }
+  const url = `${plugin.getCleanServerUrl()}/api/image/upload`;
+  const { boundary, arrayBuffer: bodyBuffer } = buildMultipartBuffer(arrayBuffer, filename, mimeType);
+  const headers = {
+    Authorization: `Bearer ${plugin.settings.apiToken}`,
+    "X-File-Name": encodeURIComponent(filename),
+    "Content-Type": `multipart/form-data; boundary=${boundary}`
+  };
+  const response = await requestWithBackoff(() => (0, import_obsidian16.requestUrl)({
+    url,
+    method: "POST",
+    headers,
+    body: bodyBuffer,
+    throw: false
+  }), { signal: opts.signal });
+  if (response.status < 200 || response.status >= 300) {
+    const errMsg = ((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`;
+    throw new Error(errMsg);
+  }
+  const result = response.json;
+  if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(plugin.t("transferIntegrityFailed"));
+  return result;
+}
+async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/lock`;
+  const response = await (0, import_obsidian16.requestUrl)({
+    url,
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${plugin.settings.apiToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ year, month, filename, locked }),
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Lock operation failed (HTTP ${response.status})`);
+  }
+  return response.json;
+}
+async function checkServerCompatibility(plugin) {
+  var _a, _b, _c;
+  if (!((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer)) {
+    plugin.lastServerCompatStatus = null;
+    if (plugin.settings) {
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+    }
+    return null;
+  }
+  const pluginVer = ((_b = plugin.manifest) == null ? void 0 : _b.version) || "0.1.1";
+  const serverUrl = plugin.getCleanServerUrl();
+  if (!serverUrl) {
+    plugin.lastServerCompatStatus = {
+      ok: false,
+      status: "offline",
+      error: "No URL configured",
+      serverVersion: null
+    };
+    plugin.settings.serverVerified = false;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  }
+  try {
+    const verUrl = `${serverUrl}/api/platform/version`;
+    const verRes = await (0, import_obsidian16.requestUrl)({
+      url: verUrl,
+      method: "GET",
+      throw: false
+    });
+    if (verRes.status !== 200) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "offline",
+        serverVersion: null,
+        error: `HTTP ${verRes.status}`
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    const verData = verRes.json || {};
+    const serverVer = verData.version || "0.1.0";
+    const minPluginReq = verData.minPluginVersion || "0.1.0";
+    if (compareSemver(pluginVer, minPluginReq) < 0) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "plugin_outdated",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        minPluginVersion: minPluginReq,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (compareSemver(serverVer, MIN_SERVER_VERSION) < 0) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "server_outdated",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        minServerVersion: MIN_SERVER_VERSION,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    let assetCount = 0;
+    const token = (plugin.settings.apiToken || "").trim();
+    if (!token) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "token_missing",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    let listRes;
+    try {
+      listRes = await (0, import_obsidian16.requestUrl)({
+        url: `${serverUrl}/api/modules/image-host/list`,
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        throw: false
+      });
+    } catch (netErr) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "offline",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        error: netErr.message || String(netErr)
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (listRes.status === 401 || listRes.status === 403) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "auth_failed",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    if (listRes.status !== 200) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "server_error",
+        statusCode: listRes.status,
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
+    assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
+    plugin.lastServerCompatStatus = {
+      ok: true,
+      status: "compatible",
+      serverVersion: serverVer,
+      pluginVersion: pluginVer,
+      apiVersion: verData.apiVersion || 1,
+      assetCount,
+      features: verData.features || {}
+    };
+    plugin.settings.serverVerified = true;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  } catch (err) {
+    plugin.lastServerCompatStatus = {
+      ok: false,
+      status: "offline",
+      serverVersion: null,
+      error: err.message || "Network error"
+    };
+    plugin.settings.serverVerified = false;
+    await plugin.saveSettings();
+    return plugin.lastServerCompatStatus;
+  }
+}
+async function fetchRemoteFileList(plugin, options = {}) {
+  return (await fetchRemoteFilePage(plugin, options)).items;
+}
+async function fetchRemoteFilePage(plugin, options = {}) {
+  var _a, _b;
+  const params = new URLSearchParams();
+  if (options && typeof options === "object") {
+    if (options.q !== void 0 && String(options.q).trim()) {
+      params.set("q", String(options.q).trim());
+    }
+    if (Number.isFinite(options.limit) && options.limit > 0) {
+      params.set("limit", String(options.limit));
+    }
+    if (Number.isFinite(options.offset) && options.offset >= 0) {
+      params.set("offset", String(options.offset));
+    }
+    for (const key of ["types", "buckets"]) if ((_a = options[key]) == null ? void 0 : _a.length) params.set(key, options[key].join(","));
+    if (options.sort) params.set("sort", options.sort);
+  }
+  const qs = params.toString();
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list${qs ? `?${qs}` : ""}`;
+  const response = await (0, import_obsidian16.requestUrl)({
+    url,
+    method: "GET",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_b = response.json) == null ? void 0 : _b.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
+  }
+  const list = (response.json.images || []).map((item) => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
+  const paged = Number.isFinite(options.limit) && options.limit > 0;
+  const serverPaged = Number.isInteger(response.json.totalCount) && response.json.totalCount >= list.length && (!paged || list.length <= options.limit);
+  if (serverPaged) {
+    return { items: list, totalCount: response.json.totalCount, buckets: response.json.buckets || [] };
+  }
+  const filtered = queryRemoteFiles(list, options);
+  const offset = Number.isFinite(options.offset) ? Math.max(0, Math.trunc(options.offset)) : 0;
+  return {
+    items: paged ? filtered.slice(offset, offset + Math.trunc(options.limit)) : filtered,
+    totalCount: filtered.length,
+    buckets: [...new Set(list.map((item) => `${item.year}/${item.month}`))].sort()
+  };
+}
+async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
+  var _a;
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/item/${encodeURIComponent(year)}/${encodeURIComponent(month)}/${encodeURIComponent(filename)}`;
+  const response = await (0, import_obsidian16.requestUrl)({
+    url,
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...expectedSha256 ? { "If-Match": `"${expectedSha256}"` } : {} },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Failed to delete remote file (HTTP ${response.status})`);
+  }
+  return true;
+}
+async function fetchRemoteTrash(plugin) {
+  var _a;
+  const response = await (0, import_obsidian16.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash`, method: "GET", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
+  if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
+  return response.json.items || [];
+}
+async function restoreRemoteTrash(plugin, id) {
+  var _a;
+  const response = await (0, import_obsidian16.requestUrl)({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`, method: "POST", headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
+  if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
+  return response.json;
+}
+async function permanentlyDeleteRemoteTrash(plugin, id) {
+  var _a;
+  const response = await (0, import_obsidian16.requestUrl)({
+    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}`,
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300) throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `HTTP ${response.status}`);
+  return response.json;
+}
+
+// src/modals/batch-migrate-wizard.js
+var import_obsidian17 = require("obsidian");
 var BatchMigrateWizardModal = class extends FileMasterModal {
   constructor(app, plugin, initialFolder = "") {
     super(app);
@@ -5896,7 +6341,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
     const nextBtn = btnRow.createEl("button", { text: t2("migrateNextPreview"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian16.Notice(t2("migrateSelectTypeNotice"));
+        new import_obsidian17.Notice(t2("migrateSelectTypeNotice"));
         return;
       }
       nextBtn.disabled = true;
@@ -5911,7 +6356,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian16.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian17.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("migrateNextPreview"));
       }
@@ -5992,7 +6437,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
     runBtn.onclick = async () => {
       const selected = this.items.filter((i) => i.selected);
       if (selected.length === 0) {
-        new import_obsidian16.Notice(t2("migrateSelectNotice"));
+        new import_obsidian17.Notice(t2("migrateSelectNotice"));
         return;
       }
       runBtn.disabled = true;
@@ -6019,7 +6464,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
           }
         );
       } catch (err) {
-        new import_obsidian16.Notice(err.message);
+        new import_obsidian17.Notice(err.message);
         runBtn.disabled = false;
         backBtn.disabled = false;
       } finally {
@@ -6061,11 +6506,11 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
             cls: "fm-icon-button",
             attr: { "aria-label": t2("copyRawUrl") || "Copy URL" }
           });
-          (0, import_obsidian16.setIcon)(copyBtn, "copy");
+          (0, import_obsidian17.setIcon)(copyBtn, "copy");
           copyBtn.onclick = async (e) => {
             e.stopPropagation();
             await navigator.clipboard.writeText(pItem.rawUrl);
-            new import_obsidian16.Notice(t2("noticeCopied"));
+            new import_obsidian17.Notice(t2("noticeCopied"));
           };
         }
       }
@@ -6115,7 +6560,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
           };
         }
       } catch (err) {
-        new import_obsidian16.Notice("\u274C " + err.message);
+        new import_obsidian17.Notice("\u274C " + err.message);
         exportBtn.disabled = false;
       }
     };
@@ -6140,7 +6585,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
 };
 
 // src/plugin/context-menus.js
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 
 // src/plugin/remote-links.js
 var referenceUrls = (item) => [.../* @__PURE__ */ new Set([item.rawUrl, item.pubUrl, ...item.referenceUrls || []])].filter(Boolean);
@@ -6243,7 +6688,7 @@ function registerContextMenus(plugin) {
         menu.addItem((item) => {
           item.setTitle(plugin.t("menuCopyRaw", { name: remoteMatch.filename })).setIcon("copy").onClick(async () => {
             await navigator.clipboard.writeText(remoteMatch.matchedUrl);
-            new import_obsidian17.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
+            new import_obsidian18.Notice(plugin.t("noticeCopiedRaw", { name: remoteMatch.filename }));
           });
         });
         menu.addItem((item) => {
@@ -6253,11 +6698,11 @@ function registerContextMenus(plugin) {
               const list = await plugin.fetchRemoteFileList();
               remoteObj = findRemoteAsset(list, remoteMatch.matchedUrl, plugin.getCleanServerUrl());
             } catch (error) {
-              new import_obsidian17.Notice(plugin.t("galleryLoadFail", { err: error.message }));
+              new import_obsidian18.Notice(plugin.t("galleryLoadFail", { err: error.message }));
               return;
             }
             if (!remoteObj) {
-              new import_obsidian17.Notice(plugin.t("remoteFileNotFound"));
+              new import_obsidian18.Notice(plugin.t("remoteFileNotFound"));
               return;
             }
             const url = createAssetLinkRewriter([remoteObj], plugin.getCleanServerUrl())(remoteMatch.matchedUrl).text;
@@ -6279,9 +6724,9 @@ function registerContextMenus(plugin) {
                 remoteMatch.filename,
                 true
               );
-              new import_obsidian17.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
+              new import_obsidian18.Notice(plugin.t("noticeProtectedRemote", { name: remoteMatch.filename }));
             } catch (err) {
-              new import_obsidian17.Notice(plugin.t("noticeLockFailed", { err: err.message }));
+              new import_obsidian18.Notice(plugin.t("noticeLockFailed", { err: err.message }));
             }
           });
         });
@@ -6418,7 +6863,7 @@ async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
 }
 
 // src/modals/duplicate-wizard.js
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 var DuplicateWizardModal = class extends FileMasterModal {
   constructor(app, plugin) {
     var _a;
@@ -6492,7 +6937,7 @@ var DuplicateWizardModal = class extends FileMasterModal {
     const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.fileTypes.typeImage && !this.fileTypes.typeAudio && !this.fileTypes.typeOther && !this.fileTypes.typeNote) {
-        new import_obsidian18.Notice(this.plugin.t("dupSelectTypeRequired"));
+        new import_obsidian19.Notice(this.plugin.t("dupSelectTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
@@ -6510,7 +6955,7 @@ var DuplicateWizardModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian18.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
+        new import_obsidian19.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Comparison failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("btnNext"));
       }
@@ -6668,7 +7113,7 @@ var DuplicateWizardModal = class extends FileMasterModal {
 };
 
 // src/plugin/health-analytics.js
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
   const { signal, onProgress } = scanCtx || {};
   const allFiles = plugin.app.vault.getFiles();
@@ -6756,9 +7201,9 @@ async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
       await Promise.all(
         batch.map(async (url) => {
           try {
-            let res = await (0, import_obsidian19.requestUrl)({ url, method: "HEAD", throw: false });
+            let res = await (0, import_obsidian20.requestUrl)({ url, method: "HEAD", throw: false });
             if (res.status === 405 || res.status === 403 || res.status === 501) {
-              res = await (0, import_obsidian19.requestUrl)({
+              res = await (0, import_obsidian20.requestUrl)({
                 url,
                 method: "GET",
                 headers: { Range: "bytes=0-0" },
@@ -6878,7 +7323,7 @@ async function exportHealthReportToRoot(plugin, issues, totalDocsScanned) {
     lines.push(labels.none);
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian19.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian20.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
 }
 async function scanVaultAnalytics(plugin) {
   const allFiles = plugin.app.vault.getFiles();
@@ -7101,11 +7546,11 @@ async function exportAnalyticsReportToRoot(plugin, stats) {
     lines.push(``);
   }
   await plugin.writeOrUpdateRootReport(reportPath, lines.join("\n"));
-  new import_obsidian19.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
+  new import_obsidian20.Notice(plugin.t("noticeReportGenerated", { path: reportPath }));
 }
 
 // src/modals/health-check.js
-var import_obsidian20 = require("obsidian");
+var import_obsidian21 = require("obsidian");
 var HealthCheckModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -7168,7 +7613,7 @@ var HealthCheckModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian20.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
+        new import_obsidian21.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Link health scan failed: " + err.message);
         startBtn.disabled = false;
         startBtn.setText(t2("healthStartScan"));
       }
@@ -7264,7 +7709,7 @@ var HealthCheckModal = class extends FileMasterModal {
 };
 
 // src/modals/operation-log.js
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 var OperationLogModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -7334,7 +7779,7 @@ var OperationLogModal = class extends FileMasterModal {
     copyBtn.onclick = async () => {
       const text = (this.plugin == null ? void 0 : formatLogsForExport(this.plugin)) || "";
       await navigator.clipboard.writeText(text);
-      new import_obsidian21.Notice(this.t("opLogCopiedNotice"));
+      new import_obsidian22.Notice(this.t("opLogCopiedNotice"));
     };
     const exportBtn = leftBtns.createEl("button", { text: this.t("opLogExportFile") });
     exportBtn.onclick = () => {
@@ -7356,7 +7801,7 @@ var OperationLogModal = class extends FileMasterModal {
       if (this.plugin) {
         await clearOperationLogs(this.plugin);
       }
-      new import_obsidian21.Notice(this.t("opLogClearedNotice"));
+      new import_obsidian22.Notice(this.t("opLogClearedNotice"));
       this.render();
     };
     const closeBtn = btnRow.createEl("button", { text: this.t("closeBtn") });
@@ -7420,7 +7865,7 @@ var OperationLogModal = class extends FileMasterModal {
 };
 
 // src/modals/orphan-wizard.js
-var import_obsidian22 = require("obsidian");
+var import_obsidian23 = require("obsidian");
 var OrphanWizardModal = class extends FileMasterModal {
   constructor(app, plugin) {
     var _a;
@@ -7478,11 +7923,11 @@ var OrphanWizardModal = class extends FileMasterModal {
     const nextBtn = btnRow.createEl("button", { text: t2("btnNext"), cls: "mod-cta" });
     nextBtn.onclick = async () => {
       if (!this.options.scanLocal && !this.options.scanRemote) {
-        new import_obsidian22.Notice(t2("orphanLocRequired"));
+        new import_obsidian23.Notice(t2("orphanLocRequired"));
         return;
       }
       if (!this.options.typeNote && !this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
-        new import_obsidian22.Notice(t2("orphanTypeRequired"));
+        new import_obsidian23.Notice(t2("orphanTypeRequired"));
         return;
       }
       nextBtn.disabled = true;
@@ -7497,7 +7942,7 @@ var OrphanWizardModal = class extends FileMasterModal {
         this.render();
       } catch (err) {
         progressWidget.hide();
-        new import_obsidian22.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
+        new import_obsidian23.Notice(err.message === "SCAN_ABORTED" ? this.plugin.t("scanCancelled") : "\u274C Scan failed: " + err.message);
         nextBtn.disabled = false;
         nextBtn.setText(t2("btnNext"));
       }
@@ -7570,11 +8015,11 @@ var OrphanWizardModal = class extends FileMasterModal {
         lockBtn.onclick = async () => {
           try {
             await this.plugin.toggleRemoteFileLock(item.rawObj.year, item.rawObj.month, item.rawObj.filename, true);
-            new import_obsidian22.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
+            new import_obsidian23.Notice(this.plugin.t("noticeProtectedRemote", { name: item.name }));
             this.results = this.results.filter((result) => result.id !== item.id);
             this.render();
           } catch (error) {
-            new import_obsidian22.Notice(this.plugin.t("noticeLockFailed", { err: error.message }));
+            new import_obsidian23.Notice(this.plugin.t("noticeLockFailed", { err: error.message }));
           }
         };
       }
@@ -7589,7 +8034,7 @@ var OrphanWizardModal = class extends FileMasterModal {
     cleanBtn.onclick = async () => {
       const selected = this.results.filter((r) => r.selected);
       if (selected.length === 0) {
-        new import_obsidian22.Notice(this.plugin.t("orphanSelectRequired"));
+        new import_obsidian23.Notice(this.plugin.t("orphanSelectRequired"));
         return;
       }
       await cleanSelectedOrphans(this.plugin, selected, (summary) => {
@@ -7607,7 +8052,7 @@ var OrphanWizardModal = class extends FileMasterModal {
 };
 
 // src/gallery.js
-var import_obsidian23 = require("obsidian");
+var import_obsidian24 = require("obsidian");
 function renderGalleryMeta(parent, item, view) {
   const meta = parent.createDiv({ cls: "fm-gallery-meta" });
   const hasSize = typeof item.size === "number";
@@ -7621,7 +8066,7 @@ function renderGalleryMeta(parent, item, view) {
     attr: { title: `${view.t("galleryHits")}: ${hits}` }
   });
   const iconEl = hitsEl.createSpan({ cls: "fm-meta-icon", attr: { "aria-hidden": "true" } });
-  (0, import_obsidian23.setIcon)(iconEl, "eye");
+  (0, import_obsidian24.setIcon)(iconEl, "eye");
   hitsEl.createSpan({ text: String(hits) });
 }
 function filterRemoteGallery(view) {
@@ -7684,18 +8129,18 @@ function renderRemoteGallery(view, containerEl) {
       img.onerror = () => {
         img.style.display = "none";
         thumbWrap.addClass("fm-gallery-placeholder");
-        (0, import_obsidian23.setIcon)(thumbWrap.createSpan(), "image-off");
+        (0, import_obsidian24.setIcon)(thumbWrap.createSpan(), "image-off");
       };
     } else {
       thumbWrap.addClass("fm-gallery-placeholder");
       thumbWrap.createSpan({ text: ext.toUpperCase() });
     }
-    if (item.locked) {
+    if (item.locked && view.layoutMode !== "list") {
       const lockBadge = thumbWrap.createSpan({
         cls: "fm-gallery-lock-badge",
         attr: { "aria-label": view.t("previewProtected") }
       });
-      (0, import_obsidian23.setIcon)(lockBadge, "lock");
+      (0, import_obsidian24.setIcon)(lockBadge, "lock");
     }
     const openPreview = () => {
       openModal(new ImageLightboxModal(view.app, view.plugin, {
@@ -7708,9 +8153,13 @@ function renderRemoteGallery(view, containerEl) {
         var _a;
         if (action === "deleted") {
           view.items = view.items.filter((i) => !(i.year === target.year && i.month === target.month && i.filename === target.filename));
+        } else if (action === "renamed" && (target == null ? void 0 : target.oldItem) && (target == null ? void 0 : target.item)) {
+          view.items = view.items.map(
+            (i) => i.year === target.oldItem.year && i.month === target.oldItem.month && i.filename === target.oldItem.filename ? target.item : i
+          );
         }
         (_a = view.store) == null ? void 0 : _a.emit();
-      }, { insertMode: view.insertMode, insertionTarget: view.insertionTarget })).catch((error) => new import_obsidian23.Notice(error.message));
+      }, { insertMode: view.insertMode, insertionTarget: view.insertionTarget })).catch((error) => new import_obsidian24.Notice(error.message));
     };
     thumbWrap.onclick = openPreview;
     thumbWrap.setAttribute("role", "button");
@@ -7731,6 +8180,13 @@ function renderRemoteGallery(view, containerEl) {
     }
     nameButton.onclick = openPreview;
     actions.addClass("fm-gallery-actions");
+    if (item.locked && view.layoutMode === "list") {
+      const lockIndicator = actions.createSpan({
+        cls: "fm-gallery-lock-indicator",
+        attr: { "aria-label": view.t("previewProtected") }
+      });
+      (0, import_obsidian24.setIcon)(lockIndicator, "lock");
+    }
     const isWebpMode = view.insertMode === "webp" && hasOptimizedVariant(item);
     const insertTargetUrl = assetUrl(item, view.insertMode);
     const fn = item.name || item.filename;
@@ -7738,7 +8194,7 @@ function renderRemoteGallery(view, containerEl) {
       cls: "fm-icon-button fm-gallery-insert-btn",
       attr: { type: "button", "data-insert-action": "true" }
     });
-    (0, import_obsidian23.setIcon)(insertBtn.createSpan(), "file-input");
+    (0, import_obsidian24.setIcon)(insertBtn.createSpan(), "file-input");
     insertBtn.setAttribute("aria-label", view.t(isWebpMode ? "galleryInsertWebp" : "galleryInsertRaw"));
     insertBtn.disabled = !isInsertionTargetValid(view.plugin, view.insertionTarget);
     insertBtn.onmousedown = (e) => {
@@ -7750,43 +8206,13 @@ function renderRemoteGallery(view, containerEl) {
       if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, view.insertionTarget);
     };
     const copyBtn = actions.createEl("button", { cls: "fm-icon-button", attr: { type: "button", "aria-label": view.t("previewCopyUrl") } });
-    (0, import_obsidian23.setIcon)(copyBtn, "copy");
+    (0, import_obsidian24.setIcon)(copyBtn, "copy");
     copyBtn.onclick = () => copyText(view.plugin, insertTargetUrl);
   }
 }
 
-// src/ui/file-browser-footer.js
-function fileBrowserFooter(parent, plugin, source) {
-  const root = parent.createDiv({ cls: "fm-browser-footer" });
-  const pagination = root.createEl("nav", { cls: "fm-browser-pagination", attr: { "aria-label": plugin.t("galleryPaginationLabel") } });
-  const previous = pagination.createEl("button", { text: plugin.t("pagePrevious"), attr: { type: "button" } });
-  const count = pagination.createSpan({ cls: "fm-browser-page-count", attr: { "aria-live": "polite" } });
-  const next = pagination.createEl("button", { text: plugin.t("pageNext"), attr: { type: "button" } });
-  const actions = root.createDiv({ cls: "fm-btn-row" });
-  const retry = pagination.createEl("button", { text: plugin.t("previewRetry"), attr: { type: "button" } });
-  let busy = false;
-  const change = (index) => {
-    if (!busy && !source.state.loading) return source.goToPage(index);
-  };
-  previous.onclick = () => change(source.state.pageIndex - 1);
-  next.onclick = () => change(source.state.pageIndex + 1);
-  retry.onclick = () => {
-    if (!busy) return source.retry();
-  };
-  return { root, actions, pagination, previous, next, count, sync(disabled = false) {
-    busy = disabled;
-    const state = source.state, total = source.pageCount;
-    pagination.hidden = total <= 1 && !state.error;
-    previous.disabled = busy || state.loading || state.pageIndex === 0;
-    next.disabled = busy || state.loading || state.pageIndex >= total - 1;
-    retry.hidden = !state.error;
-    retry.disabled = busy || state.loading;
-    count.setText(plugin.t("pageCount", { current: state.pageIndex + 1, total }));
-  } };
-}
-
 // src/modals/remote-gallery.js
-var import_obsidian24 = require("obsidian");
+var import_obsidian25 = require("obsidian");
 function openBrowser(host) {
   host.contentEl.empty();
   host.contentEl.addClass("fm-ui", "fm-browser");
@@ -7874,7 +8300,7 @@ var RemoteGalleryModal = class extends FileMasterModal {
     closeBrowser(this);
   }
 };
-var RemoteGalleryView = class extends import_obsidian24.ItemView {
+var RemoteGalleryView = class extends import_obsidian25.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -7916,7 +8342,7 @@ var RemoteGalleryView = class extends import_obsidian24.ItemView {
 };
 
 // src/modals/vault-analytics.js
-var import_obsidian25 = require("obsidian");
+var import_obsidian26 = require("obsidian");
 var VaultAnalyticsModal = class extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
@@ -8107,13 +8533,13 @@ var VaultAnalyticsModal = class extends FileMasterModal {
           const references = fileReferenceButton(actions, item, this.plugin, item.referenceDocuments, () => this.close());
           if (!item.referenceDocuments) references.update(null, true);
           const copy = actions.createEl("button", { cls: "fm-icon-button", attr: { type: "button", "aria-label": t2("analyticsClickToCopy") } });
-          (0, import_obsidian25.setIcon)(copy, "copy");
+          (0, import_obsidian26.setIcon)(copy, "copy");
           copy.onclick = async () => {
             try {
               await navigator.clipboard.writeText(item.name);
-              new import_obsidian25.Notice(t2("analyticsCopiedName", { name: item.name }));
+              new import_obsidian26.Notice(t2("analyticsCopiedName", { name: item.name }));
             } catch (e) {
-              new import_obsidian25.Notice(item.name);
+              new import_obsidian26.Notice(item.name);
             }
           };
         }
@@ -8164,8 +8590,8 @@ var VaultAnalyticsModal = class extends FileMasterModal {
 };
 
 // src/settings-tab.js
-var import_obsidian26 = require("obsidian");
-var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
+var import_obsidian27 = require("obsidian");
+var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -8205,7 +8631,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
       cls: "clickable-icon fm-settings-back",
       attr: { "aria-label": this.plugin.t("settingsBack") }
     });
-    (0, import_obsidian26.setIcon)(back, "arrow-left");
+    (0, import_obsidian27.setIcon)(back, "arrow-left");
     back.onclick = () => {
       this.activePage = "home";
       this.display();
@@ -8228,16 +8654,16 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
       this.createHeading(section, "h3", icon, this.plugin.t(title));
       const list = section.createDiv({ cls: "fm-settings-nav-list" });
       for (const [page, label, icon2] of entries) {
-        const setting = new import_obsidian26.Setting(list).setName(this.plugin.t(label));
+        const setting = new import_obsidian27.Setting(list).setName(this.plugin.t(label));
         const row = setting.settingEl;
         row.addClass("fm-settings-nav-item");
         (_a = setting.descEl) == null ? void 0 : _a.remove();
         row.setAttribute("role", "button");
         row.setAttribute("tabindex", "0");
         const iconEl = setting.nameEl.createSpan({ cls: "fm-settings-nav-icon" });
-        (0, import_obsidian26.setIcon)(iconEl, icon2);
+        (0, import_obsidian27.setIcon)(iconEl, icon2);
         setting.nameEl.prepend(iconEl);
-        (0, import_obsidian26.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
+        (0, import_obsidian27.setIcon)(setting.controlEl.createSpan({ cls: "fm-settings-nav-chevron" }), "chevron-right");
         const open = () => {
           if (page === "hub") {
             openModalSafely(new FileMasterHubModal(this.app, this.plugin));
@@ -8277,7 +8703,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     ]);
   }
   renderGeneralSettings(containerEl) {
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("langName")).setDesc(this.plugin.t("langDesc")).addDropdown(
       (drop) => drop.addOption("auto", this.plugin.t("langAuto")).addOption("zh", "\u7B80\u4F53\u4E2D\u6587").addOption("en", "English").setValue(this.plugin.settings.language || "auto").onChange(async (value) => {
         this.plugin.settings.language = value;
         await this.plugin.saveSettings();
@@ -8285,7 +8711,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
         this.display();
       })
     );
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("sidebarBtnName")).setDesc(this.plugin.t("sidebarBtnDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableSidebarButton !== false).onChange(async (value) => {
         this.plugin.settings.enableSidebarButton = value;
         await this.plugin.saveSettings();
@@ -8294,7 +8720,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     );
   }
   renderServerSettings(containerEl) {
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("enableRemoteServerName")).setDesc(this.plugin.t("enableRemoteServerDesc")).addToggle(
       (toggle) => toggle.setValue(Boolean(this.plugin.settings.enableRemoteServer)).onChange(async (value) => {
         this.plugin.settings.enableRemoteServer = value;
         if (!value) {
@@ -8310,7 +8736,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
       hint.setText(this.plugin.t("serverDisabledHint"));
       return;
     }
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("serverUrlName")).setDesc(this.plugin.t("serverUrlDesc")).addText(
       (text) => text.setPlaceholder("https://files.example.com").setValue(this.plugin.settings.serverUrl).onChange(async (value) => {
         this.plugin.settings.serverUrl = value.trim();
         this.plugin.settings.serverVerified = false;
@@ -8326,7 +8752,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
       statusBox.textContent = getCompatibilityMessage(this.plugin, compat);
     };
     let tokenInput;
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("apiTokenName")).setDesc(this.plugin.t("apiTokenDesc")).addText((text) => {
       tokenInput = text.inputEl;
       tokenInput.type = "password";
       text.setPlaceholder("API token").setValue(this.plugin.settings.apiToken).onChange(async (value) => {
@@ -8345,7 +8771,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     const connectionRow = containerEl.createDiv({ cls: "fm-settings-connection-row" });
     statusBox = connectionRow.createDiv({ cls: "fm-server-compat-banner" });
     updateStatusBox(this.plugin.lastServerCompatStatus);
-    new import_obsidian26.Setting(connectionRow).addButton(
+    new import_obsidian27.Setting(connectionRow).addButton(
       (btn) => btn.setButtonText(this.plugin.t("btnTestConn")).onClick(async () => {
         btn.disabled = true;
         btn.setButtonText(this.plugin.t("compatStatusChecking"));
@@ -8355,7 +8781,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
         try {
           compat = await checkServerCompatibility(this.plugin);
           updateStatusBox(compat);
-          new import_obsidian26.Notice(getCompatibilityMessage(this.plugin, compat));
+          new import_obsidian27.Notice(getCompatibilityMessage(this.plugin, compat));
         } finally {
           btn.disabled = false;
           btn.setButtonText(this.plugin.t("btnTestConn"));
@@ -8365,43 +8791,43 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     );
   }
   renderUploadSettings(containerEl) {
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("clipboardMonitorName")).setDesc(this.plugin.t("clipboardMonitorDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableClipboardMonitor !== false).onChange(async (value) => {
         this.plugin.settings.enableClipboardMonitor = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("saveLocationName")).setDesc(this.plugin.t("saveLocationDesc")).addDropdown(
       (drop) => drop.addOption("ask", this.plugin.t("optSaveAsk")).addOption("remote", this.plugin.t("optSaveRemote")).addOption("local", this.plugin.t("optSaveLocal")).setValue(this.plugin.settings.saveLocationMode).onChange(async (value) => {
         this.plugin.settings.saveLocationMode = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("defaultSaveLocationName")).setDesc(this.plugin.t("defaultSaveLocationDesc")).addDropdown(
       (drop) => drop.addOption("remote", this.plugin.t("destSaveRemote")).addOption("local", this.plugin.t("destSaveLocal")).setValue(this.plugin.settings.defaultSaveLocation || "remote").onChange(async (value) => {
         this.plugin.settings.defaultSaveLocation = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("insertOptimizedName")).setDesc(this.plugin.t("insertOptimizedDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.insertOptimizedLinkOnUpload).onChange(async (value) => {
         this.plugin.settings.insertOptimizedLinkOnUpload = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("galleryDefaultLinkName")).setDesc(this.plugin.t("galleryDefaultLinkDesc")).addDropdown((drop) => {
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("galleryDefaultLinkName")).setDesc(this.plugin.t("galleryDefaultLinkDesc")).addDropdown((drop) => {
       const store = galleryStore(this.plugin);
       drop.addOption("raw", this.plugin.t("galleryModeRaw")).addOption("webp", this.plugin.t("galleryModeWebp")).setValue(store.state.insertMode).onChange(async (value) => {
         try {
           await store.setInsertMode(value);
         } catch (error) {
           drop.setValue(store.state.insertMode);
-          new import_obsidian26.Notice(error.message);
+          new import_obsidian27.Notice(error.message);
         }
       });
     });
     let patternSetting = null;
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("namingStrategyName")).setDesc(this.plugin.t("namingStrategyDesc")).addDropdown(
       (drop) => drop.addOption("keep", this.plugin.t("optNamingKeep")).addOption("rule", this.plugin.t("optNamingRule")).setValue(this.plugin.settings.namingMode || "keep").onChange(async (value) => {
         this.plugin.settings.namingMode = value;
         await this.plugin.saveSettings();
@@ -8410,7 +8836,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
         }
       })
     );
-    patternSetting = new import_obsidian26.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
+    patternSetting = new import_obsidian27.Setting(containerEl).setName(this.plugin.t("namingPatternName")).setDesc(this.plugin.t("namingPatternDesc")).addText(
       (text) => text.setPlaceholder("{note}_{date}_{rand:4}").setValue(this.plugin.settings.namingPattern || "{note}_{date}_{rand:4}").onChange(async (value) => {
         this.plugin.settings.namingPattern = value.trim() || "{note}_{date}_{rand:4}";
         await this.plugin.saveSettings();
@@ -8419,7 +8845,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     if (patternSetting.settingEl) {
       patternSetting.settingEl.style.display = this.plugin.settings.namingMode === "rule" ? "" : "none";
     }
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("uploadNonImageName")).setDesc(this.plugin.t("uploadNonImageDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.uploadNonImageAttachments !== false).onChange(async (value) => {
         this.plugin.settings.uploadNonImageAttachments = value;
         await this.plugin.saveSettings();
@@ -8427,13 +8853,13 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     );
   }
   renderExemptionsSettings(containerEl) {
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("excludedFoldersName")).setDesc(this.plugin.t("excludedFoldersDesc")).addText(
       (text) => text.setPlaceholder("").setValue(this.plugin.settings.excludedLocalFolders).onChange(async (value) => {
         this.plugin.settings.excludedLocalFolders = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("excludeLockedRemoteName")).setDesc(this.plugin.t("excludeLockedRemoteDesc")).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.excludeLockedRemoteFiles).onChange(async (value) => {
         this.plugin.settings.excludeLockedRemoteFiles = value;
         await this.plugin.saveSettings();
@@ -8446,9 +8872,9 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
     const author = manifest.author || "weichen-ink";
     const authorUrl = manifest.authorUrl || "https://github.com/weichen-ink";
     const repoUrl = "https://github.com/weichen-ink/file-master";
-    const intro = new import_obsidian26.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
+    const intro = new import_obsidian27.Setting(containerEl).setName("File Master").setDesc(this.plugin.t("aboutDesc"));
     intro.controlEl.createSpan({ text: `v${version}` });
-    const addRow = (label) => new import_obsidian26.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
+    const addRow = (label) => new import_obsidian27.Setting(containerEl).setName(this.plugin.t(label)).controlEl;
     addRow("aboutAuthor").createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutRepo").createEl("a", { text: "weichen-ink/file-master", href: repoUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
     addRow("aboutServerCompat").createSpan({ text: `v${MIN_SERVER_VERSION}+` });
@@ -8457,7 +8883,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
       cls: `fm-about-status ${(sCompat == null ? void 0 : sCompat.ok) ? "is-connected" : ""}`,
       text: sCompat ? getCompatibilityMessage(this.plugin, sCompat) : this.plugin.t("aboutServerOffline")
     });
-    new import_obsidian26.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
+    new import_obsidian27.Setting(containerEl).setName(this.plugin.t("opLogTitle")).setDesc(this.plugin.t("opLogDesc")).addButton(
       (btn) => btn.setButtonText(this.plugin.t("opLogBtnOpen")).onClick(() => {
         openModalSafely(new OperationLogModal(this.app, this.plugin));
       })
@@ -8467,7 +8893,7 @@ var FileMasterSettingTab = class extends import_obsidian26.PluginSettingTab {
 };
 
 // src/plugin/lifecycle.js
-var import_obsidian27 = require("obsidian");
+var import_obsidian28 = require("obsidian");
 async function onload(plugin) {
   var _a;
   plugin.isUnloading = false;
@@ -8494,14 +8920,14 @@ async function onload(plugin) {
   plugin.registerEvent(plugin.app.workspace.on("layout-change", () => reconcileGalleryLeaves(plugin)));
   plugin.registerEvent(
     plugin.app.workspace.on("active-leaf-change", (leaf) => {
-      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian27.MarkdownView) {
+      if ((leaf == null ? void 0 : leaf.view) instanceof import_obsidian28.MarkdownView) {
         plugin.lastActiveMarkdownView = leaf.view;
       }
     })
   );
   plugin.registerEvent(
     plugin.app.workspace.on("file-open", () => {
-      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian27.MarkdownView);
+      const mdView = plugin.app.workspace.getActiveViewOfType(import_obsidian28.MarkdownView);
       if (mdView) {
         plugin.lastActiveMarkdownView = mdView;
       }
@@ -8509,7 +8935,7 @@ async function onload(plugin) {
   );
   plugin.app.workspace.onLayoutReady(() => {
     if (plugin.isUnloading) return;
-    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian27.MarkdownView);
+    const activeMd = plugin.app.workspace.getActiveViewOfType(import_obsidian28.MarkdownView);
     if (activeMd) {
       plugin.lastActiveMarkdownView = activeMd;
     }
@@ -8564,7 +8990,7 @@ function registerPluginCommands(plugin) {
       id: "resume-pending-upload",
       nameKey: "cmdResumeUpload",
       requiresRemote: true,
-      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian27.Notice(err.message))
+      callback: () => resumePendingMigration(plugin).catch((err) => new import_obsidian28.Notice(err.message))
     },
     {
       id: "open-control-center",
@@ -8748,377 +9174,24 @@ async function initGalleryLeaf(plugin, reveal = false) {
 }
 async function activateGalleryView(plugin) {
   if (!plugin.isRemoteServerReady()) {
-    new import_obsidian27.Notice(plugin.t("remoteServerRequiredNotice"));
+    new import_obsidian28.Notice(plugin.t("remoteServerRequiredNotice"));
     return;
   }
-  if (import_obsidian27.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
+  if (import_obsidian28.Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
   return initGalleryLeaf(plugin, true);
 }
 function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = void 0) {
   const insertionTarget = target === void 0 ? captureInsertionTarget(plugin) : target;
   const result = insertLinkAtTarget(plugin, mdSnippet, insertionTarget, { appendNewlineOnEmptyLine: false });
   if (!result.inserted) {
-    new import_obsidian27.Notice(result.reason);
+    new import_obsidian28.Notice(result.reason);
     return false;
   }
   const leaf = insertionTarget.view.leaf;
   if (leaf) plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
-  if (successNotice) new import_obsidian27.Notice(successNotice);
+  if (successNotice) new import_obsidian28.Notice(successNotice);
   return true;
 }
-
-// src/modals/remote-rename.js
-var import_obsidian28 = require("obsidian");
-var RemoteRenameModal = class extends FileMasterModal {
-  constructor(app, plugin) {
-    super(app);
-    this.plugin = plugin;
-    this.revision = 0;
-    this.query = "";
-    this.drafts = /* @__PURE__ */ new Map();
-  }
-  t(key, params) {
-    return this.plugin.t(key, params);
-  }
-  async onOpen() {
-    var _a, _b;
-    (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
-    (_b = this.pages) == null ? void 0 : _b.clear();
-    this.closed = false;
-    this.inSearch = false;
-    this.modalEl.addClass("fm-ui", "fm-rename-dialog");
-    this.contentEl.addClass("fm-wizard-modal", "fm-rename");
-    this.shell();
-    this.body.createDiv({ text: this.t("renameLoading"), cls: "fm-browser-status" });
-    try {
-      this.pending = await loadPendingRename(this.plugin);
-      if (this.closed) return;
-      if (this.pending) return this.recovery();
-      this.pages = new RemoteFilePages(this.plugin, { types: ["image"], sort: "time_desc" });
-      this.items = [];
-      this.unsubscribe = this.pages.subscribe((state) => {
-        this.items = state.items;
-        if (!this.closed && !this.inReview && !this.busy) this.renderList();
-      });
-      this.search();
-      await this.pages.load();
-    } catch (error) {
-      if (!this.closed) this.loadError(error);
-    }
-  }
-  shell(step, back = null) {
-    var _a;
-    this.contentEl.empty();
-    moduleHeading(this, this.contentEl, { title: "remoteRenameTitle", symbol: "file-pen-line", step, total: 2 });
-    this.body = this.contentEl.createDiv({ cls: "fm-rename-body" });
-    this.browserFooter = step === 1 || this.inSearch ? fileBrowserFooter(this.contentEl, this.plugin, this.pages) : null;
-    this.footer = ((_a = this.browserFooter) == null ? void 0 : _a.actions) || this.contentEl.createDiv({ cls: "fm-btn-row" });
-    this.cancel = this.button(this.footer, back ? "btnBack" : "btnCancel", back || (() => returnToHub(this)));
-  }
-  button(parent, key, handler, primary = false) {
-    const button = parent.createEl("button", { text: this.t(key), cls: primary ? "mod-cta" : "", attr: { type: "button" } });
-    button.onclick = handler;
-    return button;
-  }
-  loadError(error) {
-    this.inSearch = false;
-    this.shell();
-    this.body.createEl("p", { text: error.message, cls: "fm-rename-error" });
-    this.button(this.footer, "previewRetry", () => this.onOpen());
-  }
-  splitName(item) {
-    const position = item.filename.lastIndexOf(".");
-    const base = position > 0 ? item.filename.slice(0, position) : item.filename;
-    const extension = position > 0 ? item.filename.slice(position) : "";
-    const duplicate = extension && new RegExp(extension.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=(_[a-f0-9]{8,64})?$)", "i");
-    let suggestion = base;
-    if (duplicate) while (duplicate.test(suggestion)) suggestion = suggestion.replace(duplicate, "");
-    return { base, extension, suggestion: suggestion || base };
-  }
-  visualItem(item) {
-    return { name: item.filename, source: "remote", rawObj: item, size: item.size };
-  }
-  renderEditableFile(parent, item) {
-    const { base, suggestion, extension } = this.splitName(item), key = remoteFileKey(item);
-    let input, radio, error;
-    const select = () => {
-      this.selected = item;
-      if (suggestion !== base && !this.drafts.has(key)) this.drafts.set(key, suggestion);
-      this.updateSelection();
-    };
-    const slots = fileActionRow(parent, this.visualItem(item), this.plugin, {
-      selection: (parent2) => {
-        radio = parent2.createEl("input", { type: "radio", attr: { name: "fm-rename-file", "aria-label": this.t("renameChooseFile", { name: item.filename }) } });
-        radio.onchange = select;
-      },
-      renderName: (parent2) => {
-        parent2.addClass("fm-rename-editor");
-        input = parent2.createEl("input", { type: "text", value: suggestion, cls: "fm-rename-name-input", attr: { "aria-label": this.t("renameFilenameLabel", { name: item.filename }), spellcheck: "false" } });
-        const details = parent2.createSpan({ cls: "fm-rename-file-details" });
-        details.createSpan({ text: extension.toLowerCase(), cls: "fm-file-extension" });
-        fileSizeBadge(details, item.size);
-      }
-    });
-    error = slots.content.createDiv({ cls: "fm-rename-error", attr: { role: "alert" } });
-    this.rowControls.set(key, { row: slots.row, input, radio, error, item });
-    input.onfocus = select;
-    input.oninput = () => {
-      this.drafts.set(key, input.value);
-      this.selected = item;
-      this.preview = null;
-      this.validation.empty();
-      input.setAttribute("aria-invalid", "false");
-      error.empty();
-      this.updateSelection();
-    };
-    let isComposing = false;
-    let lastCompositionEndAt = 0;
-    input.addEventListener("compositionstart", () => {
-      isComposing = true;
-    });
-    input.addEventListener("compositionend", () => {
-      isComposing = false;
-      lastCompositionEndAt = Date.now();
-    });
-    input.onkeydown = (event) => {
-      if (event.key === "Enter" && !this.next.disabled) {
-        if (event.isComposing || event.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) return;
-        event.preventDefault();
-        this.precheck();
-      }
-    };
-  }
-  nameChange(parent, item, newFilename, oldFilename = item.filename) {
-    const box = parent.createDiv({ cls: "fm-section-box fm-rename-preview" });
-    fileActionRow(box, this.visualItem(item), this.plugin, {
-      renderName: (parent2) => {
-        const details = parent2.createEl("dl", { cls: "fm-rename-names" });
-        for (const [key, name] of [["renameBefore", oldFilename], ["renameAfter", newFilename]]) {
-          details.createEl("dt", { text: this.t(key) });
-          details.createEl("dd", { text: name, cls: key === "renameAfter" ? "fm-rename-new-name" : "" });
-        }
-      }
-    });
-  }
-  search() {
-    this.revision++;
-    this.inReview = false;
-    this.inSearch = true;
-    this.showingStep = !!this.items.length;
-    this.shell(this.showingStep ? 1 : null);
-    this.body.createEl("p", { text: this.t("renameStep1Desc"), cls: "fm-module-summary" });
-    const toolbar = this.body.createDiv({ cls: "fm-toolbar-row" });
-    this.searchInput = toolbar.createEl("input", { type: "search", value: this.query, cls: "fm-gallery-search", attr: { placeholder: this.t("renameSearch"), "aria-label": this.t("renameSearch") } });
-    this.matchCount = toolbar.createSpan({ cls: "fm-file-row-meta" });
-    this.list = this.body.createDiv({ cls: "fm-scroll-list fm-file-action-list" });
-    this.rows = this.list.createDiv();
-    this.rowControls = /* @__PURE__ */ new Map();
-    this.validation = this.body.createDiv({ cls: "fm-rename-validation", attr: { "aria-live": "polite" } });
-    this.next = this.button(this.footer, "renameNextPreview", () => this.precheck(), true);
-    this.searchInput.oninput = () => {
-      this.query = this.searchInput.value;
-      clearTimeout(this.searchTimer);
-      this.searchTimer = setTimeout(() => {
-        this.searchTimer = null;
-        this.reloadRemotePage();
-      }, 220);
-    };
-    this.renderList();
-  }
-  async reloadRemotePage() {
-    if (this.closed || this.checking) return;
-    this.list.scrollTop = 0;
-    return this.pages.setQuery({ q: this.query.trim(), types: ["image"], sort: "time_desc" });
-  }
-  renderList() {
-    var _a, _b;
-    const state = this.pages.state;
-    if (this.showingStep !== !!this.items.length) {
-      this.showingStep = !!this.items.length;
-      moduleHeading(this, this.contentEl, { title: "remoteRenameTitle", symbol: "file-pen-line", step: this.showingStep ? 1 : null, total: 2 });
-    }
-    if (!this.items.length || [...this.rowControls.keys()].some((key) => !this.items.some((item) => remoteFileKey(item) === key))) {
-      this.rows.empty();
-      this.rowControls.clear();
-    }
-    if (this.items.length && !this.rowControls.size) this.rows.empty();
-    for (const item of this.items) if (!this.rowControls.has(remoteFileKey(item))) this.renderEditableFile(this.rows, item);
-    this.matchCount.setText(this.t("renameFileCount", { count: state.totalCount }));
-    if (!this.items.length && !state.loading && !state.error) {
-      this.rows.empty();
-      this.rows.createDiv({ text: this.t("renameNoFiles"), cls: "fm-empty-state" });
-    }
-    if (state.error) (_a = this.validation) == null ? void 0 : _a.setText(state.error);
-    else if (!this.checking) (_b = this.validation) == null ? void 0 : _b.empty();
-    if (this.renderedPage !== state.pageIndex) {
-      this.list.scrollTop = 0;
-      this.renderedPage = state.pageIndex;
-    }
-    this.next.hidden = !this.items.length;
-    this.updateSelection();
-  }
-  updateSelection() {
-    var _a, _b, _c;
-    const selectedKey = this.selected && remoteFileKey(this.selected);
-    for (const [key, { row, input, radio, item }] of this.rowControls) {
-      const active = key === selectedKey;
-      row.toggleClass("is-selected", active);
-      radio.checked = active;
-      radio.disabled = !!this.checking;
-      input.disabled = !!this.checking;
-      input.readOnly = !active;
-      const value = active ? (_a = this.drafts.get(key)) != null ? _a : this.splitName(item).suggestion : this.splitName(item).suggestion;
-      if (input.value !== value) input.value = value;
-    }
-    const draft = selectedKey && ((_b = this.drafts.get(selectedKey)) == null ? void 0 : _b.trim().normalize("NFC"));
-    (_c = this.browserFooter) == null ? void 0 : _c.sync(!!this.checking);
-    this.next.disabled = this.checking || this.pages.state.loading || !this.rowControls.has(selectedKey) || !draft || draft === this.splitName(this.selected).base;
-  }
-  async precheck() {
-    var _a, _b;
-    if (this.next.disabled || this.checking) return;
-    this.checking = true;
-    const revision = ++this.revision, selected = this.selected, key = remoteFileKey(selected);
-    const { extension } = this.splitName(selected);
-    const request = { year: selected.year, month: selected.month, filename: selected.filename, newFilename: `${this.drafts.get(key).trim().normalize("NFC")}${extension}`, expectedSha256: selected.sha256 };
-    this.validation.empty();
-    const status = this.validation.createDiv({ text: this.t("renameChecking"), cls: "fm-rename-hint" });
-    this.updateSelection();
-    for (const { input } of this.rowControls.values()) input.disabled = true;
-    this.searchInput.disabled = true;
-    try {
-      const preview = await requestRemoteRename(this.plugin, request, true);
-      if (this.closed || revision !== this.revision) return;
-      const references = await scanRenameReferences(this.plugin, preview.linkMappings);
-      if (this.closed || revision !== this.revision) return;
-      this.preview = { request, preview, references };
-      this.review();
-    } catch (error) {
-      if (!this.closed && revision === this.revision) {
-        status.setText("");
-        (_a = this.rowControls.get(key)) == null ? void 0 : _a.error.setText(["NAME_CONFLICT", "NAME_RESERVED"].includes(error.code) ? this.t("renameNameTaken") : error.message);
-        const input = (_b = this.rowControls.get(key)) == null ? void 0 : _b.input;
-        input == null ? void 0 : input.setAttribute("aria-invalid", "true");
-      }
-    } finally {
-      this.checking = false;
-      if (!this.closed && revision === this.revision && !this.inReview) {
-        for (const { input } of this.rowControls.values()) input.disabled = false;
-        this.searchInput.disabled = false;
-        this.updateSelection();
-      }
-    }
-  }
-  review() {
-    this.inReview = true;
-    this.inSearch = false;
-    this.shell(2, () => this.search());
-    const { request, preview, references } = this.preview;
-    this.nameChange(this.body, preview.oldItem || this.selected, request.newFilename);
-    if (!references.documents.length) this.body.createDiv({ text: this.t("renameNoReferences"), cls: "fm-rename-hint" });
-    this.documentList(this.body, references.documents, { title: "renameAffected", state: "renameReferencesPlanned" });
-    this.aliasNotice(preview);
-    this.submit = this.button(this.footer, "renameApply", () => this.execute(), true);
-  }
-  documentList(parent, documents, { title = null, state = "referenceCount" } = {}) {
-    if (!documents.length) return;
-    if (title) parent.createDiv({ text: this.t(title, { documents: documents.length }), cls: "fm-section-title" });
-    const list = parent.createDiv({ cls: "fm-scroll-list fm-document-list" });
-    for (const doc of documents) {
-      documentRow(list, this.plugin, doc, { hoverParent: this, referenceState: state, onOpened: () => this.close() });
-    }
-  }
-  aliasNotice(data) {
-    const notice = this.body.createDiv({ cls: "fm-rename-expiry" });
-    (0, import_obsidian28.setIcon)(notice.createSpan({ cls: "fm-indicator-icon", attr: { "aria-hidden": "true" } }), "info");
-    const expiresAt = Number(data == null ? void 0 : data.aliasExpiresAt);
-    const days = Math.max(0, Math.ceil((expiresAt - Date.now()) / 864e5));
-    notice.createSpan({ text: this.t(!expiresAt ? "renameAliasFallback" : days ? "renameAliasExpiry" : "renameAliasExpired", {
-      days,
-      date: expiresAt ? new Date(expiresAt).toLocaleDateString(getEffectiveLanguage2(this.plugin.settings) === "zh" ? "zh-CN" : "en-US") : ""
-    }) });
-  }
-  recovery(error) {
-    var _a, _b;
-    this.inSearch = false;
-    this.shell();
-    this.body.createEl("p", { text: this.t("renamePending") });
-    this.body.createDiv({ text: `${this.pending.request.filename} \u2192 ${((_b = (_a = this.pending.result) == null ? void 0 : _a.item) == null ? void 0 : _b.filename) || this.pending.request.newFilename}`, cls: "fm-rename-count" });
-    if (this.pending.result) this.aliasNotice(this.pending.result);
-    if (error) this.body.createDiv({ text: error.message, cls: "fm-rename-error" });
-    const same = this.pending.serverUrl === this.plugin.getCleanServerUrl();
-    if (!same) this.body.createEl("p", { text: this.t("renameServerMismatch"), cls: "fm-rename-error" });
-    this.button(this.footer, "renameContinue", () => this.execute(this.pending), true).disabled = !same;
-  }
-  async execute(pending = null) {
-    var _a;
-    if (this.busy || !pending && !this.preview) return;
-    this.busy = true;
-    this.revision++;
-    const request = (pending == null ? void 0 : pending.request) || this.preview.request;
-    this.inSearch = false;
-    this.shell();
-    this.cancel.disabled = true;
-    const status = this.body.createDiv({ text: this.t("renameWorking"), cls: "fm-rename-count", attr: { "aria-live": "polite" } });
-    try {
-      const report = await executeRemoteRename(this.plugin, request, (progress) => {
-        if (!this.closed) status.setText(this.t("renameProgress", { current: progress.completed, total: progress.total }));
-      }, pending, (_a = this.preview) == null ? void 0 : _a.references);
-      if (this.closed) {
-        new import_obsidian28.Notice(this.t(report.complete ? "renameComplete" : "renameIncomplete"));
-        return;
-      }
-      this.result(report);
-    } catch (error) {
-      this.pending = await loadPendingRename(this.plugin).catch(() => pending);
-      if (this.closed) {
-        new import_obsidian28.Notice(error.message);
-        return;
-      }
-      if (this.pending) this.recovery(error);
-      else this.loadError(error);
-    } finally {
-      this.busy = false;
-    }
-  }
-  result(report) {
-    var _a;
-    this.pending = report.complete ? null : report.job;
-    this.shell();
-    this.cancel.setText(this.t("destBtnDone"));
-    this.cancel.addClass("mod-cta");
-    const status = this.body.createDiv({ cls: `fm-rename-status${report.complete ? "" : " is-incomplete"}`, attr: { role: "status" } });
-    (0, import_obsidian28.setIcon)(status.createSpan({ cls: "fm-rename-status-icon", attr: { "aria-hidden": "true" } }), report.complete ? "check" : "circle-alert");
-    const summary = status.createDiv();
-    summary.createDiv({ text: this.t(report.complete ? "renameComplete" : "renameIncomplete"), cls: "fm-rename-status-title" });
-    summary.createDiv({ text: report.updatedDocuments ? this.t("renameUpdated", { documents: report.updatedDocuments, references: report.updatedReferences }) : this.t(report.complete ? "renameNoReferences" : "renameNotesPending"), cls: "fm-rename-status-desc" });
-    const file = this.body.createDiv({ cls: "fm-section-box fm-rename-preview fm-rename-result-file" });
-    fileActionRow(file, this.visualItem(report.item), this.plugin, {
-      metadata: (parent) => parent.createSpan({ text: this.t("renamePreviousName", { name: report.oldFilename }) })
-    });
-    if (report.countsUncertain) this.body.createDiv({ text: this.t("renameCountsUncertain"), cls: "fm-rename-hint" });
-    this.documentList(this.body, report.documents, { title: "renameDocumentsUpdated", state: "renameReferencesUpdated" });
-    for (const failure of report.failures) this.body.createDiv({ text: `${failure.path}: ${failure.error}`, cls: "fm-rename-error" });
-    this.documentList(this.body, report.remaining, { title: "renameDocumentsRemaining", state: "renameReferencesPlanned" });
-    this.aliasNotice((_a = report.job) == null ? void 0 : _a.result);
-    if (!report.complete) {
-      this.cancel.removeClass("mod-cta");
-      this.button(this.footer, "renameContinue", () => this.execute(report.job), true);
-    }
-  }
-  onClose() {
-    var _a, _b;
-    (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
-    (_b = this.pages) == null ? void 0 : _b.clear();
-    this.closed = true;
-    this.revision++;
-    if (this.searchTimer) {
-      clearTimeout(this.searchTimer);
-      this.searchTimer = null;
-    }
-    this.contentEl.empty();
-  }
-};
 
 // src/modals/remote-trash.js
 var import_obsidian29 = require("obsidian");

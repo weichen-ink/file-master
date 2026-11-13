@@ -1,6 +1,6 @@
 {
   "name": "file-master",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "Manage attachments in Obsidian: upload, browse server files, find duplicates, and check broken links.",
   "main": "main.js",
   "scripts": {

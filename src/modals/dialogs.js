@@ -11,6 +11,7 @@ import { translateUi } from '../i18n.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 import { documentRow } from '../ui/document-list.js';
+import { RemoteRenameModal } from './remote-rename.js';
 let imageCanvasSequence = 0;
 
 /**
@@ -85,10 +86,38 @@ export class ImageLightboxModal extends Modal {
     modalChrome(this);
     const t=(key,params)=>this.plugin.t(key,params),remote=this.item.source==='remote'?this.item.rawObj:null;
     const image=IMAGE_EXTS.has(getExt(this.item.name));
-    const header=this.contentEl.createDiv({cls:'fm-asset-header'});
     modalTitle(this,this.item.name);
+    if(remote) {
+      const titleBar=modalChrome(this).title;
+      titleBar.addClass('fm-asset-title-row');
+      const renameBtn=titleBar.createEl('button',{cls:'fm-asset-rename-trigger',attr:{type:'button','aria-label':t('previewRename')}});
+      const renameIconWrap=renameBtn.createSpan({cls:'fm-copy-icon'});
+      setIcon(renameIconWrap,'pencil');
+      const renameSvg=renameIconWrap.querySelector?.('svg');
+      if(renameSvg){renameSvg.classList?.remove('svg-icon');renameSvg.style.width='13px';renameSvg.style.height='13px';renameSvg.style.strokeWidth='1.5px';}
+      renameBtn.onclick=()=>{
+        const currentItem=remote;
+        this.close();
+        openModal(new RemoteRenameModal(this.app,this.plugin,{
+          initialItem:currentItem,
+          onReturn:finalItem=>{
+            const target=finalItem || currentItem;
+            if(finalItem && finalItem.filename!==currentItem.filename) {
+              this.onActionChanged?.('renamed',{oldItem:currentItem,item:finalItem});
+            }
+            openModal(new ImageLightboxModal(this.app,this.plugin,{
+              source:'remote',
+              name:target.name || target.filename,
+              displayPath:`${target.year}/${target.month}/${target.filename}`,
+              size:target.size,
+              rawObj:target
+            },this.onActionChanged,{insertMode:this.insertMode,insertionTarget:this.insertionTarget}))
+              .catch(error=>new Notice(error.message));
+          }
+        })).catch(error=>new Notice(error.message));
+      };
+    }
     const location=this.item.displayPath?.split('/').slice(0,-1).join(' / ');
-    if(location){setIcon(header.createSpan({cls:'fm-asset-path-icon'}),'folder');header.createSpan({text:location,cls:'fm-asset-location'});}
     const layout=this.contentEl.createDiv({cls:'fm-asset-layout'});
     const canvas=layout.createDiv({cls:'fm-asset-canvas'});
     const tools=canvas.createDiv({cls:'fm-asset-tools'});
@@ -158,9 +187,10 @@ export class ImageLightboxModal extends Modal {
         timestamp.createSpan({text:created.toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'}),cls:'fm-asset-time'});
       }
     }
-    property('previewSource',t(remote?'previewSourceRemote':'previewSourceLocal'));
+    if(location)property('previewPathLabel',location);
+    if(!remote)property('previewSource',t('previewSourceLocal'));
     if(remote) {
-      const management=inspector.createDiv({cls:'fm-asset-management'});
+      const management=inspector.createDiv({cls:'fm-asset-panel fm-asset-management'});
       const protection=management.createDiv({cls:'fm-asset-section fm-asset-protection'});
       const protectionRow=protection.createDiv({cls:'fm-asset-section-heading'});
       protectionRow.createEl('h4',{text:t('previewProtection')});

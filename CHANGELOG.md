@@ -1,5 +1,13 @@
 # Changelog (file-master)
 
+## [1.1.10] - 2026-11-13
+
+### Preview dialog & gallery list polish
+- Add a direct rename button next to the remote file title in the image preview dialog, launching `RemoteRenameModal` focused on the current file and returning to the preview when done or cancelled.
+- Move the remote file path into the Properties card and remove the redundant source row for server previews.
+- Group deletion protection and danger zone inside a unified panel card with clearer protection and recycle-bin descriptions.
+- Move the locked status indicator in list view from the small thumbnail to the right-side action group alongside insert and copy.
+
 ## [1.1.9] - 2026-11-13
 
 ### Remote gallery card & list polish

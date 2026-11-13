@@ -158,5 +158,5 @@ test('Preview protection exposes its state, blocks trash while locked, and recov
   await lock.onclick();assert.equal(lock['aria-checked'],'false');assert.equal(trash.disabled,false);assert.equal(calls[0][3],false);
   f.plugin.toggleRemoteFileLock=async()=>{throw Error('offline');};await lock.onclick();
   assert.equal(remoteFile.locked,false);assert.equal(lock['aria-checked'],'false');assert.equal(lock.disabled,false);assert.equal(trash.disabled,false);
-  const text=modal.contentEl.all().map(el=>el.text);assert.ok(text.includes('原文件大小'));assert.ok(text.some(value=>value?.includes('File Master Hub')));
+  const text=modal.contentEl.all().map(el=>el.text);assert.ok(text.includes('原文件大小'));assert.ok(text.some(value=>value?.includes('回收站')));
 });
