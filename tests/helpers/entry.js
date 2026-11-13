@@ -15,7 +15,8 @@ export { registerContextMenus } from '../../src/plugin/context-menus.js';
 export { registerPluginCommands } from '../../src/plugin/lifecycle.js';
 export { exportBatchMigrateReportToRoot } from '../../src/plugin/vault-scans.js';
 export { OperationLogModal } from '../../src/modals/operation-log.js';
-export { getExcludedLocalFolderList, isLocalPathExcluded } from '../../src/plugin/vault-utils.js';
+export { getExcludedLocalFolderList, isLocalPathExcluded, getOrCreateHeicPreviewUrl, clearHeicPreviewCache } from '../../src/plugin/vault-utils.js';
+export { captureEditorTarget, insertLinkAtTarget } from '../../src/plugin/editor-target.js';
 export { filterAllowedFiles } from '../../src/plugin/server-client.js';
 export { OrphanWizardModal } from '../../src/modals/orphan-wizard.js';
 export { FileMasterSettingTab } from '../../src/settings-tab.js';
@@ -46,3 +47,6 @@ export { VaultAnalyticsModal } from '../../src/modals/vault-analytics.js';
 export { fileReferenceDocuments } from '../../src/plugin/file-references.js';
 export { documentRow } from '../../src/ui/document-list.js';
 export { fileReferenceButton } from '../../src/ui/file-action-list.js';
+
+export * from '../../src/ui/remote-file-pages.js';
+export * from '../../src/plugin/rename-reference-plan.js';

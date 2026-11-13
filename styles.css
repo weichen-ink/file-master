@@ -1000,3 +1000,7 @@
 .fm-rename .fm-document-list { margin-top: 10px; margin-bottom: 16px; }
 .fm-rename-expiry { display: flex; align-items: flex-start; gap: 8px; padding: 12px; margin-top: 16px; background: var(--background-secondary); border-radius: 10px; color: var(--text-muted); font-size: 12px; line-height: 20px; }
 .fm-rename-expiry .fm-indicator-icon { margin-top: 3px; }
+
+/* Shared progressive lists retain their scroll container and accessible retry control. */
+.fm-ui .fm-load-more { display:block; margin:12px auto; color:var(--text-muted); font-size:var(--font-ui-small); box-shadow:none; }
+.fm-ui .fm-load-more[hidden] { display:none; }

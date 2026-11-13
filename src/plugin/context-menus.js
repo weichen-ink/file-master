@@ -1,9 +1,11 @@
-import { isLocalPathExcluded, toggleLocalFolderExclusion, isExcalidrawFile } from './vault-utils.js';
+import { getOrCreateHeicPreviewUrl, isLocalPathExcluded, toggleLocalFolderExclusion, isExcalidrawFile } from './vault-utils.js';
 import { migrateSingleLocalFileToRemote, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
 import { NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from '../constants.js';
-import { convertBufferToPreviewUrl, escapeRegExp, getBaseName, getExt } from '../engine.js';
+import { escapeRegExp, getExt } from '../engine.js';
 import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
 import { Notice } from 'obsidian';
+import { createAssetLinkRewriter, findRemoteAsset } from './remote-links.js';
+import { copyText, hasOptimizedVariant } from '../ui/links.js';
 
 // The plugin owns host state; these operations receive it explicitly.
 export function registerContextMenus(plugin) {
@@ -114,10 +116,18 @@ export function registerContextMenus(plugin) {
             .setTitle(plugin.t('menuCopyWebp'))
             .setIcon('zap')
             .onClick(async () => {
-              const base = getBaseName(remoteMatch.filename);
-              const optUrl = `${plugin.getCleanServerUrl()}/pub/${remoteMatch.year}/${remoteMatch.month}/${encodeURIComponent(base)}.webp`;
-              await navigator.clipboard.writeText(optUrl);
-              new Notice(plugin.t('noticeCopiedWebp', { name: base + '.webp' }));
+              let remoteObj;
+              try {
+                const list = await plugin.fetchRemoteFileList();
+                remoteObj = findRemoteAsset(list, remoteMatch.matchedUrl, plugin.getCleanServerUrl());
+              } catch (error) {
+                new Notice(plugin.t('galleryLoadFail', { err: error.message }));
+                return;
+              }
+              if (!remoteObj) { new Notice(plugin.t('remoteFileNotFound')); return; }
+              const url = createAssetLinkRewriter([remoteObj], plugin.getCleanServerUrl())(remoteMatch.matchedUrl).text;
+              const optimized = hasOptimizedVariant(remoteObj);
+              await copyText(plugin, url, optimized ? 'noticeCopiedWebp' : 'noticeCopiedRaw', { name: remoteObj.filename });
             });
         });
 
@@ -176,7 +186,7 @@ export function extractRemoteItemFromLine(plugin, lineText) {
   );
   const m = re.exec(lineText);
   if (!m) return null;
-  let filename = m[5];
+  let filename = m[5].split(/[?#]/)[0];
   try {
     filename = decodeURIComponent(filename);
   } catch { }
@@ -276,23 +286,8 @@ export async function renderSingleHeicEmbed(plugin, embedEl, linkPath, ext) {
     return;
   }
 
-  const cacheKey = `${tfile.path}:${tfile.stat?.mtime || 0}`;
-  let previewUrl = plugin.heicPreviewCache.get(cacheKey);
-  if (!previewUrl) {
-    const buf = await plugin.app.vault.readBinary(tfile);
-    previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
-    if (previewUrl) {
-      if (plugin.heicPreviewCache.size >= 100) {
-        const oldestKey = plugin.heicPreviewCache.keys().next().value;
-        const oldestUrl = plugin.heicPreviewCache.get(oldestKey);
-        plugin.heicPreviewCache.delete(oldestKey);
-        if (oldestUrl && oldestUrl.startsWith('blob:')) {
-          try { URL.revokeObjectURL(oldestUrl); } catch { }
-        }
-      }
-      plugin.heicPreviewCache.set(cacheKey, previewUrl);
-    }
-  }
+  const previewUrl = await getOrCreateHeicPreviewUrl(plugin, tfile, ext);
+  if (!previewUrl || plugin.isUnloading) return;
 
   embedEl.empty();
   embedEl.removeClass('file-embed', 'mod-generic');

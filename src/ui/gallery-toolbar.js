@@ -45,7 +45,7 @@ export function galleryToolbar(view,parent) {
   return {dispose(){ownerDocument?.removeEventListener('click',outside);controller.abort();},sync(){
     const state=store.state;
     if(search.value!==state.searchQuery)search.value=state.searchQuery;
-    const buckets=[...new Set(state.items.map(item=>`${item.year}/${item.month}`))].sort().reverse();
+    const buckets=state.buckets?.length?state.buckets:[...new Set(state.items.map(item=>`${item.year}/${item.month}`))].sort().reverse();
     folder.sync(buckets.map(value=>({value,label:value.split('/')[1],summary:value.replace('/',' / ')})));
     type.sync([['image','galleryFilterImage'],['audio','galleryFilterAudio'],['other','galleryFilterOther']].map(([value,key])=>({value,label:t(key),summary:t(key)})));
     for(const [button,mode] of [[grid,'grid'],[list,'list']]){button.toggleClass('is-active',state.layoutMode===mode);button.setAttribute('aria-pressed',String(state.layoutMode===mode));}

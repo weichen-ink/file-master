@@ -15,7 +15,7 @@ export function assetMarkdown(name, url) {
   const destination = String(url).replace(/ /g,'%20').replace(/\(/g,'%28').replace(/\)/g,'%29');
   return IMAGE_EXTS.has(getExt(name)) ? `![${label}](${destination})` : `[${label}](${destination})`;
 }
-export async function copyText(plugin, value) {
-  try { await navigator.clipboard.writeText(value); new Notice(plugin.t('galleryCopied')); return true; }
+export async function copyText(plugin, value, successKey = 'galleryCopied', params = {}) {
+  try { await navigator.clipboard.writeText(value); new Notice(plugin.t(successKey, params)); return true; }
   catch { new Notice(plugin.t('copyFailed')); return false; }
 }

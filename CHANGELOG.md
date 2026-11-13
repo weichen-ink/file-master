@@ -1,5 +1,23 @@
 # Changelog (file-master)
 
+## [1.1.7] - 2026-11-13
+
+### Faster browsing and renaming
+- Load the latest 20 images when opening server-file renaming, then load more as you scroll.
+- Use the same progressive loading in the Hub and sidebar, with search, directory/type filters, and sorting applied across the complete server catalog.
+- Keep filename edits and selection intact while more results load, and offer retry controls when a request fails.
+- Find referencing notes during rename preview instead of scanning the vault whenever the file list opens or changes.
+- Reuse preview results when applying a rename, checking related notes and notes added or changed since preview. Recover interrupted operations without renaming the server file twice.
+
+### More reliable attachments and links
+- Validate the original note, editor, selection, and content before inserting paste/drop uploads or gallery links; preserve edits made while an upload dialog is open.
+- Use server-provided original/WebP URLs and the shared link rewriter when copying a note for publishing or copying an image link. Preserve URL parameters and fragments, honor custom prefixes and aliases, and leave unrelated links unchanged.
+- Remove hard-coded legacy WebP paths and duplicate editor-insertion logic.
+- Correct code-fence handling and remove unsafe metadata-only shortcuts when checking attachment references.
+- Share HEIC preview requests and release cached preview resources on eviction or plugin unload.
+- Add regression coverage for actual paste/drop and copy entry points, progressive loading, rename preview reuse, concurrent note edits, and recovery.
+- Validate with 162 passing plugin tests and rebuild the distributed plugin bundle.
+
 ## [1.1.6] - 2026-11-13
 
 ### A consistent file browser

@@ -4,7 +4,23 @@ const { loadPlugin } = require('./helpers/load-plugin');
 
 function menuFixture() {
   const opened = [], copied = [];
-  const loaded = loadPlugin(undefined, { onModalOpen: (modal) => opened.push(modal),
+  const loaded = loadPlugin(async (req) => {
+    if (String(req?.url || '').includes('/api/modules/image-host/list')) {
+      return {
+        status: 200,
+        json: {
+          images: [{
+            year: '2026',
+            month: '11',
+            filename: 'a.png',
+            rawUrl: 'https://example.com/raw/2026/11/a.png',
+            pubUrl: 'https://example.com/pub/2026/11/a.webp'
+          }]
+        }
+      };
+    }
+    throw new Error(`Unexpected network request: ${req?.url}`);
+  }, { onModalOpen: (modal) => opened.push(modal),
     navigator: { clipboard: { writeText: async (text) => { copied.push(text); } } } });
   const handlers = new Map();
   const plugin = new loaded.Plugin({ workspace: { on: (event, callback) => handlers.set(event, callback) } });
@@ -36,13 +52,18 @@ test('Menu Integration: Markdown actions open note modals and copy public links'
 });
 
 test('In-modal result: local image insertion preserves embed syntax and closes the modal', async () => {
-  const { IncomingFileModal } = loadPlugin();
+  const { IncomingFileModal, captureEditorTarget } = loadPlugin();
   let inserted;
-  const app = { workspace: { getActiveFile: () => null },
+  const file = { path: 'note.md', extension: 'md' };
+  const editor = { getValue: () => '', getCursor: () => ({ line: 0, ch: 0 }),
+    replaceSelection: (value) => { inserted = value; } };
+  const view = { file, editor };
+  const app = { workspace: { getActiveFile: () => file, getLeavesOfType: () => [{ view }] },
     fileManager: { getAvailablePathForAttachment: async () => 'a.png', generateMarkdownLink: () => '[[a.png]]' },
-    vault: { createBinary: async () => ({ path: 'a.png' }) } };
+    vault: { getAbstractFileByPath: () => file, createBinary: async () => ({ path: 'a.png' }) } };
+  const plugin = { app, t: key => key };
   const modal = new IncomingFileModal(app, { defaultBaseName: 'a', ext: 'png', arrayBuffer: new ArrayBuffer(1) },
-    { editor: { replaceSelection: (value) => { inserted = value; } } });
+    { plugin, editor, insertionTarget: captureEditorTarget(plugin, { editor }), activeFile: file });
   let closed = false;
   modal.close = () => { closed = true; };
   await modal.runExecution();

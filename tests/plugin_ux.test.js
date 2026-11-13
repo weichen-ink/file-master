@@ -33,19 +33,19 @@ test('Opening a modal never replaces or swallows its normal close method',async(
 
 test('Gallery requests are shared; an older response cannot replace a refreshed catalog',async()=>{
   const {GalleryStore}=setup(),a=deferred(),b=deferred();let requests=0;
-  const store=new GalleryStore({settings:{},fetchRemoteFileList:()=>++requests===1?a.promise:b.promise});
+  const store=new GalleryStore({settings:{},fetchRemoteFilePage:()=>++requests===1?a.promise:b.promise});
   const first=store.load(),shared=store.load();await tick();assert.equal(requests,1);
   const latest=store.load(true);await tick();assert.equal(requests,2);
-  b.resolve([{filename:'new'}]);await latest;a.resolve([{filename:'old'}]);await first;await shared;
+  b.resolve({items:[{filename:'new'}],totalCount:1,buckets:[]});await latest;a.resolve({items:[{filename:'old'}],totalCount:1,buckets:[]});await first;await shared;
   assert.equal(store.state.items[0].filename,'new');assert.equal(store.state.loading,false);
 });
 
 test('Gallery handles synchronous failure, failed preference save and disposed requests',async()=>{
-  const {GalleryStore}=setup(),wait=deferred();const plugin={settings:{galleryInsertFormat:'raw',insertOptimizedLinkOnUpload:false},saveSettings:async()=>{throw Error('disk');},fetchRemoteFileList(){throw Error('offline');}};
+  const {GalleryStore}=setup(),wait=deferred();const plugin={settings:{galleryInsertFormat:'raw',insertOptimizedLinkOnUpload:false},saveSettings:async()=>{throw Error('disk');},fetchRemoteFilePage(){throw Error('offline');}};
   const store=new GalleryStore(plugin);await store.load();assert.equal(store.state.error,'offline');assert.equal(store.pending,null);
   await assert.rejects(store.setInsertMode('webp'),/disk/);assert.equal(store.state.insertMode,'raw');assert.equal(plugin.settings.insertOptimizedLinkOnUpload,false);
   plugin.saveSettings=async()=>{};await store.setInsertMode('webp');assert.equal(plugin.settings.galleryInsertFormat,'webp');assert.equal(plugin.settings.insertOptimizedLinkOnUpload,false);
-  plugin.fetchRemoteFileList=()=>wait.promise;let notifications=0;store.subscribe(()=>notifications++);const request=store.load(true);await tick();store.clear();const count=notifications;wait.resolve([{filename:'late'}]);await request;assert.equal(store.state.items.length,0);assert.equal(notifications,count);
+  plugin.fetchRemoteFilePage=()=>wait.promise;let notifications=0;store.subscribe(()=>notifications++);const request=store.load(true);await tick();store.clear();const count=notifications;wait.resolve({items:[{filename:'late'}],totalCount:1,buckets:[]});await request;assert.equal(store.state.items.length,0);assert.equal(notifications,count);
 });
 
 test('First sidebar activation waits for creation and reveal, and retries failed initialization',async()=>{
@@ -118,10 +118,10 @@ test('Bilingual strings cover every literal UI key in the changed components',()
 });
 
 test('Closing the browser removes workspace subscriptions and late loads cannot render into it',async()=>{
-  const {RemoteGalleryModal}=setup(),wait=deferred(),{plugin}=editorFixture(),events=new Set();plugin.settings={};plugin.fetchRemoteFileList=()=>wait.promise;
+  const {RemoteGalleryModal}=setup(),wait=deferred(),{plugin}=editorFixture(),events=new Set();plugin.settings={};plugin.fetchRemoteFilePage=()=>wait.promise;
   plugin.app.workspace.on=(name,callback)=>{const ref={name,callback};events.add(ref);return ref;};plugin.app.workspace.offref=ref=>events.delete(ref);
   const browser=new RemoteGalleryModal(plugin.app,plugin),pending=browser.onOpen();assert.equal(events.size,2);assert.equal(plugin.galleryStore.listeners.size,1);
-  browser.onClose();assert.equal(events.size,0);assert.equal(plugin.galleryStore.listeners.size,0);wait.resolve([{filename:'late.png'}]);await pending;assert.equal(browser.contentEl.children.length,0);
+  browser.onClose();assert.equal(events.size,0);assert.equal(plugin.galleryStore.listeners.size,0);wait.resolve({items:[{filename:'late.png'}],totalCount:1,buckets:[]});await pending;assert.equal(browser.contentEl.children.length,0);
 });
 
 test('Mobile Hub keeps connection setup visible and omits the desktop docking action',()=>{
@@ -151,10 +151,10 @@ test('Hub exposes sidebar, settings and recycle bin as equal action cards',()=>{
 
 test('Trash restores once, refreshes the catalog and ignores a response after close',async()=>{
   const {RemoteTrashModal}=setup(),{plugin}=editorFixture();let restores=0,catalog=0,reads=0;
-  Object.assign(plugin,{settings:{},fetchRemoteTrash:async()=>++reads===1?[{id:'test-id',filename:'test.png',size:30,deletedAt:Date.now()}]:[],restoreRemoteTrash:async id=>{assert.equal(id,'test-id');restores++;},fetchRemoteFileList:async()=>{catalog++;return [];}});
+  Object.assign(plugin,{settings:{},fetchRemoteTrash:async()=>++reads===1?[{id:'test-id',filename:'test.png',size:30,deletedAt:Date.now()}]:[],restoreRemoteTrash:async id=>{assert.equal(id,'test-id');restores++;},fetchRemoteFilePage:async()=>{catalog++;return {items:[],totalCount:0,buckets:[]};}});
   const modal=new RemoteTrashModal(plugin.app,plugin);await modal.onOpen();const restore=modal.contentEl.all().find(el=>el.text==='remoteTrashRestore');
   await Promise.all([restore.onclick(),restore.onclick()]);assert.equal(restores,1);assert.equal(catalog,1);assert.ok(modal.contentEl.all().some(el=>el.text==='remoteTrashEmpty'));
-  const wait=deferred();plugin.fetchRemoteTrash=()=>wait.promise;const pending=modal.load();modal.onClose();wait.resolve([{filename:'late'}]);await pending;assert.equal(modal.contentEl.children.length,0);
+  const wait=deferred();plugin.fetchRemoteTrash=()=>wait.promise;const pending=modal.load();modal.onClose();wait.resolve({items:[{filename:'late'}],totalCount:1,buckets:[]});await pending;assert.equal(modal.contentEl.children.length,0);
 });
 
 test('Recycle bin client uses bearer authentication and encodes restoration ids',async()=>{

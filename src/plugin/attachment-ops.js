@@ -7,6 +7,8 @@ import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
 import { ConfirmActionModal } from '../modals/dialogs.js';
 import { migrateLocalAttachments, migrationCheckpointPath, requestWithBackoff, rewriteAttachmentPairs, runAttachmentOperation, throwIfTransferCancelled } from '../transfers.js';
 import { Notice, requestUrl } from 'obsidian';
+import { createAssetLinkRewriter } from './remote-links.js';
+import { copyText, hasOptimizedVariant } from '../ui/links.js';
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function executeDuplicateMergeSafely(plugin, groups, onComplete) {
@@ -295,7 +297,7 @@ export async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {
         month,
         filename,
         rawUrl: remoteMatch.matchedUrl,
-        pubUrl: `${plugin.getCleanServerUrl()}/pub/${year}/${month}/${getBaseName(filename)}.webp`
+        pubUrl: ''
       }
     };
 
@@ -487,7 +489,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
         month,
         filename,
         rawUrl: matchedUrl,
-        pubUrl: `${plugin.getCleanServerUrl()}/pub/${year}/${month}/${encodeURIComponent(getBaseName(filename))}.webp`
+        pubUrl: ''
       },
       targetDir: targetDir || '/',
       idealPath,
@@ -687,10 +689,15 @@ export async function copyActiveNoteForAstro(plugin, targetFile = null) {
     return;
   }
   const content = await plugin.app.vault.read(activeFile);
-  const converted = content.replace(
-    /\/[a-zA-Z0-9_-]+\/(\d{4}\/\d{2}\/[^.)\s]+)\.(png|jpg|jpeg|webp|gif|avif|heic|heif|tif|tiff|bmp|jfif)/gi,
-    '/pub/$1.webp'
-  );
-  await navigator.clipboard.writeText(converted);
-  new Notice(plugin.t('noticeAstroCopied'));
+  let converted = content;
+  if (plugin.isRemoteServerReady?.()) {
+    try {
+      const remoteList = await plugin.fetchRemoteFileList();
+      converted = createAssetLinkRewriter(remoteList.filter(hasOptimizedVariant), plugin.getCleanServerUrl())(content).text;
+    } catch (error) {
+      new Notice(plugin.t('galleryLoadFail', { err: error.message }));
+      return false;
+    }
+  }
+  return copyText(plugin, converted, 'noticeAstroCopied');
 }

@@ -406,8 +406,7 @@ export async function exportAnalyticsReportToRoot(plugin, stats) {
         }
       } else {
         const cleanServer = plugin.settings?.serverUrl ? plugin.settings.serverUrl.replace(/\/$/, '') : '';
-        const webpPath = String(item.path || '').replace(/\.[^.]+$/, '.webp');
-        const remoteUrl = item.pubUrl || (cleanServer ? `${cleanServer}/pub/${webpPath}` : '') || item.rawUrl || (cleanServer ? `${cleanServer}/raw/${item.path}` : '');
+        const remoteUrl = item.pubUrl || item.rawUrl || (cleanServer ? `${cleanServer}/raw/${item.path}` : '');
         if (item.group === 'image' && remoteUrl) {
           previewCol = `<img src="${remoteUrl}" width="80" style="max-height:80px; object-fit:contain; border-radius:4px;" />`;
         } else if (remoteUrl) {

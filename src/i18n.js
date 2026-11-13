@@ -341,6 +341,7 @@ export const UI_STRINGS = {
     noticeUploadFailed: '上传到服务器失败：{err}',
     noticeCopiedRaw: '📎 已复制原始链接: {name}',
     noticeCopiedWebp: '⚡ 已复制 WebP 优化链接: {name}',
+    remoteFileNotFound: '找不到这个服务器文件，请刷新后重试',
     noticeExclAdded: '🛡️ 已将目录 \"{path}\" 加入扫描排除名单',
     noticeExclRemoved: '🔓 已将目录 \"{path}\" 从扫描排除名单移除',
     noticeOpenMdFirst: '请先在编辑器中打开一篇笔记（Markdown、Canvas 或 Excalidraw）',
@@ -612,6 +613,7 @@ export const UI_STRINGS = {
     // 远端媒体资产库 UI
     galleryTitle: '服务器文件',
     galleryViewTitle: '文件库',
+    galleryLoadMore: '加载更多',
     galleryLoading: '正在加载服务器文件...',
     galleryLoadFail: '无法加载服务器文件：{err}',
     gallerySearchPlaceholder: '搜索文件名...',
@@ -1022,6 +1024,7 @@ export const UI_STRINGS = {
     noticeUploadFailed: 'Could not upload to server: {err}',
     noticeCopiedRaw: '📎 Copied raw original link: {name}',
     noticeCopiedWebp: '⚡ Copied optimized WebP link: {name}',
+    remoteFileNotFound: 'This server file was not found. Refresh and try again.',
     noticeExclAdded: '🛡️ Added folder \"{path}\" to scan exclusion list (ignored in scans)',
     noticeExclRemoved: '🔓 Removed folder \"{path}\" from scan exclusion list',
     noticeOpenMdFirst: 'Please open an active note (Markdown, Canvas, or Excalidraw) first.',
@@ -1293,6 +1296,7 @@ export const UI_STRINGS = {
     // Remote Asset Gallery UI
     galleryTitle: 'Server files',
     galleryViewTitle: 'Server files',
+    galleryLoadMore: 'Load more',
     galleryLoading: 'Loading server files...',
     galleryLoadFail: 'Could not load server files: {err}',
     gallerySearchPlaceholder: 'Search filenames...',

@@ -448,14 +448,39 @@ export function resolveLocalMarkdownTarget(target, docPath, vaultIndex) {
 }
 
 function maskMarkdownCodeForScanning(text) {
-  // Replace fenced code blocks (``` or ~~~) and inline code (`...`) with spaces, preserving newlines and offsets.
-  let masked = text.replace(/^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1\2[ \t]*$/gm, (block) =>
-    block.replace(/[^\n]/g, ' ')
-  );
-  masked = masked.replace(/(`+)([^`\n]|[^`\n][\s\S]*?[^`\n])\1/g, (span) =>
+  // CommonMark fenced code block state machine (supports >= opening fence length and unclosed fences to EOF)
+  // followed by inline code span masking, preserving newlines and character offsets.
+  const lines = text.split('\n');
+  let fence = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const hasCr = line.endsWith('\r');
+    const lineBody = hasCr ? line.slice(0, -1) : line;
+    const maskedLine = ' '.repeat(lineBody.length) + (hasCr ? '\r' : '');
+    if (!fence) {
+      const openMatch = lineBody.match(/^[ \t]{0,3}(`{3,}|~{3,})(.*)$/);
+      if (openMatch) {
+        const marker = openMatch[1];
+        const info = openMatch[2] || '';
+        const char = marker[0];
+        // CommonMark: backtick fence info strings cannot contain backticks
+        if (char !== '`' || !info.includes('`')) {
+          fence = { char, len: marker.length };
+          lines[i] = maskedLine;
+        }
+      }
+    } else {
+      lines[i] = maskedLine;
+      const closeMatch = lineBody.match(/^[ \t]{0,3}(`{3,}|~{3,})[ \t]*$/);
+      if (closeMatch && closeMatch[1][0] === fence.char && closeMatch[1].length >= fence.len) {
+        fence = null;
+      }
+    }
+  }
+  const withoutFences = lines.join('\n');
+  return withoutFences.replace(/(`+)([^`\n]|[^`\n][\s\S]*?[^`\n])\1/g, (span) =>
     span.replace(/[^\n]/g, ' ')
   );
-  return masked;
 }
 
 function buildLineOffsetIndex(text) {

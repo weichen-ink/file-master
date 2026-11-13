@@ -11,18 +11,13 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
     signal,
     onProgress,
     freshRead = false,
-    includeDocContents = true,
-    targetLocalPaths = null
+    includeDocContents = true
   } = scanCtx || {};
   const revision = plugin.referenceRevision || 0;
   const allFiles = plugin.app.vault.getFiles();
   const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
   const matchLocal = createLocalReferenceMatcher(allFiles, (file) => isExcalidrawFile(plugin.app, file));
   const localReferences = new Map();
-  const resolvedLinks = plugin.app.metadataCache?.resolvedLinks || {};
-  const unresolvedLinks = plugin.app.metadataCache?.unresolvedLinks || {};
-  const hasMetadataGraph = !freshRead && Object.keys(resolvedLinks).length > 0;
-  const targetSet = targetLocalPaths instanceof Set ? targetLocalPaths : null;
 
   const docContents = [];
   for (let i = 0; i < docFiles.length; i++) {
@@ -31,25 +26,6 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
     if (i % 25 === 0) {
       onProgress?.(i + 1, docFiles.length, doc.path);
       await new Promise((r) => setTimeout(r, 0));
-    }
-
-    // Lightweight candidate filtering: when scanning only specific local targets on a non-fresh read,
-    // skip Markdown files whose Obsidian metadataCache graph shows no matching resolved/unresolved links.
-    if (
-      !includeDocContents &&
-      hasMetadataGraph &&
-      targetSet &&
-      doc.extension?.toLowerCase() === 'md' &&
-      !isExcalidrawFile(plugin.app, doc) &&
-      Object.prototype.hasOwnProperty.call(resolvedLinks, doc.path)
-    ) {
-      const docResolved = resolvedLinks[doc.path] || {};
-      const docUnresolved = unresolvedLinks[doc.path] || {};
-      const hitsResolved = Object.keys(docResolved).some((p) => targetSet.has(p));
-      const hasUnresolved = Object.keys(docUnresolved).length > 0;
-      if (!hitsResolved && !hasUnresolved) {
-        continue;
-      }
     }
 
     const rawText = freshRead

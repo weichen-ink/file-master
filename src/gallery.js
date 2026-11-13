@@ -59,7 +59,7 @@ export function renderRemoteGallery(view, containerEl) {
     containerEl.removeClass('is-list');
   }
 
-  const filtered = view.filterItems();
+  const filtered = view.progressive ? view.items : view.filterItems();
 
   if (filtered.length === 0) {
     containerEl.createDiv({
@@ -70,7 +70,7 @@ export function renderRemoteGallery(view, containerEl) {
     return;
   }
 
-  const page = getRemoteGalleryPage(view, filtered);
+  const page = view.progressive ? {items:filtered,totalPages:1} : getRemoteGalleryPage(view, filtered);
   for (const item of page.items) {
     let card,thumbWrap,nameButton,actions;
     const filename=item.name || item.filename;

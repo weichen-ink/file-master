@@ -80,6 +80,10 @@ export class FileMasterPlugin extends Plugin {
     return serverClient.fetchRemoteFileList(this, options);
   }
 
+  fetchRemoteFilePage(options) {
+    return serverClient.fetchRemoteFilePage(this, options);
+  }
+
   deleteRemoteFile(year, month, filename, expectedSha256) {
     return serverClient.deleteRemoteFile(this, year, month, filename, expectedSha256);
   }

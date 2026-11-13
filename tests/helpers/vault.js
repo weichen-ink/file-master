@@ -32,6 +32,11 @@ function createVaultFixture(requestUrl, globals = {}) {
     metadataCache: { resolvedLinks: {}, getFileCache: () => ({}),
     getFirstLinkpathDest: (ref) => files.find((file) => file.path === ref || file.name === ref) }, workspace: { getLeavesOfType: () => [] } });
   plugin.settings = { language: 'en', serverUrl: 'https://example.com', deleteLocalAfterMigrate: true };
+  // Most fixtures stub the complete-list client; browsers consume its structured page equivalent.
+  plugin.fetchRemoteFilePage = async options => {
+    const items=await plugin.fetchRemoteFileList(options);
+    return {items,totalCount:items.length,buckets:[...new Set(items.map(item=>`${item.year}/${item.month}`))]};
+  };
   plugin.manifest = { dir: 'test-plugin' };
   plugin.logOperation = () => {};
   plugin.uploadBufferToServer = async (buffer, filename) => ({ filename, year: '2026', month: '11',

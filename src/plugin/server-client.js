@@ -1,6 +1,7 @@
 import { DEFAULT_SERVER_URL, IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt } from '../constants.js';
 import { applyNamingPattern, buildMultipartBuffer, compareSemver, computeSha256Hex, getBaseName, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { IncomingFileModal } from '../modals/incoming-file.js';
+import { captureEditorTarget } from './editor-target.js';
 import { requestWithBackoff, throwIfTransferCancelled } from '../transfers.js';
 import { requestUrl } from 'obsidian';
 
@@ -34,19 +35,12 @@ export function getCleanServerUrl(settings) {
 }
 
 export async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
-  let insertionRange = options?.insertionRange || null;
-  if (!insertionRange && editor) {
-    const from = editor.getCursor?.('from');
-    const to = editor.getCursor?.('to') || from;
-    if (from && typeof from.line === 'number' && typeof from.ch === 'number') {
-      insertionRange = { from: { ...from }, to: { ...to } };
-    }
-  }
+  const insertionTarget = options?.insertionTarget || captureEditorTarget(plugin, { editor, info: options?.info || null });
+  const activeFile = insertionTarget?.file || (!editor ? plugin.app.workspace.getActiveFile() : null);
   const arrayBuffer = await file.arrayBuffer();
   const ext = getExt(file.name) || (file.type.startsWith('image/') ? 'png' : 'bin');
   const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), 'Pasted_image');
   const sha256 = await computeSha256Hex(arrayBuffer);
-  const activeFile = plugin.app.workspace.getActiveFile();
   const noteName = activeFile ? activeFile.basename : 'note';
 
   let defaultBaseName = rawOriginBase;
@@ -77,7 +71,7 @@ export async function handleIncomingBrowserFile(plugin, file, editor, options = 
     plugin: plugin,
     editor,
     activeFile,
-    insertionRange
+    insertionTarget
   };
 
   new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
@@ -354,6 +348,10 @@ export async function fetchServerVersion(plugin) {
 }
 
 export async function fetchRemoteFileList(plugin, options = {}) {
+  return (await fetchRemoteFilePage(plugin, options)).items;
+}
+
+export async function fetchRemoteFilePage(plugin, options = {}) {
   const params = new URLSearchParams();
   if (options && typeof options === 'object') {
     if (options.q !== undefined && String(options.q).trim()) {
@@ -365,6 +363,8 @@ export async function fetchRemoteFileList(plugin, options = {}) {
     if (Number.isFinite(options.offset) && options.offset >= 0) {
       params.set('offset', String(options.offset));
     }
+    for (const key of ['types', 'buckets']) if (options[key]?.length) params.set(key, options[key].join(','));
+    if (options.sort) params.set('sort', options.sort);
   }
   const qs = params.toString();
   const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list${qs ? `?${qs}` : ''}`;
@@ -378,10 +378,7 @@ export async function fetchRemoteFileList(plugin, options = {}) {
     throw new Error(response.json?.error || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
   const list = (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
-  if (typeof response.json?.totalCount === 'number') {
-    Object.defineProperty(list, 'totalCount', { value: response.json.totalCount, enumerable: false });
-  }
-  return list;
+  return { items: list, totalCount: response.json.totalCount ?? list.length, buckets: response.json.buckets || [] };
 }
 
 export async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {

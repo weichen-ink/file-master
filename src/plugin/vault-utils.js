@@ -124,6 +124,71 @@ export function getAllVaultFolderPaths(app) {
   return [...folderSet].sort();
 }
 
+export function revokeBlobUrl(url) {
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    try { URL.revokeObjectURL(url); } catch { }
+  }
+}
+
+export function clearHeicPreviewCache(plugin) {
+  if (plugin?.heicPreviewPending) {
+    plugin.heicPreviewPending.clear();
+  }
+  if (!plugin?.heicPreviewCache) return;
+  for (const url of plugin.heicPreviewCache.values()) {
+    revokeBlobUrl(url);
+  }
+  plugin.heicPreviewCache.clear();
+}
+
+export async function getOrCreateHeicPreviewUrl(plugin, tfile, ext) {
+  if (!plugin || !tfile || plugin.isUnloading) return null;
+  const cacheKey = `${tfile.path}:${tfile.stat?.mtime || 0}`;
+  const existing = plugin.heicPreviewCache.get(cacheKey);
+  if (existing) return existing;
+
+  if (!plugin.heicPreviewPending) plugin.heicPreviewPending = new Map();
+  const inFlight = plugin.heicPreviewPending.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const task = (async () => {
+    const buf = await plugin.app.vault.readBinary(tfile);
+    if (plugin.isUnloading) return null;
+
+    const previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
+    if (!previewUrl) return null;
+
+    if (plugin.isUnloading) {
+      revokeBlobUrl(previewUrl);
+      return null;
+    }
+
+    const cached = plugin.heicPreviewCache.get(cacheKey);
+    if (cached) {
+      revokeBlobUrl(previewUrl);
+      return cached;
+    }
+
+    if (plugin.heicPreviewCache.size >= 100) {
+      const oldestKey = plugin.heicPreviewCache.keys().next().value;
+      const oldestUrl = plugin.heicPreviewCache.get(oldestKey);
+      plugin.heicPreviewCache.delete(oldestKey);
+      revokeBlobUrl(oldestUrl);
+    }
+    plugin.heicPreviewCache.set(cacheKey, previewUrl);
+    return previewUrl;
+  })();
+
+  plugin.heicPreviewPending.set(cacheKey, task);
+  try {
+    return await task;
+  } finally {
+    if (plugin.heicPreviewPending.get(cacheKey) === task) {
+      plugin.heicPreviewPending.delete(cacheKey);
+    }
+  }
+}
+
 export async function getItemPreviewUrl(plugin, item) {
   const ext = getExt(item.name);
   if (!IMAGE_EXTS.has(ext)) return null;
@@ -136,14 +201,7 @@ export async function getItemPreviewUrl(plugin, item) {
   if (!tfile) return null;
 
   if (NEEDS_TRANSCODE_IMAGE_EXTS.has(ext)) {
-    const cacheKey = `${tfile.path}:${tfile.stat?.mtime || 0}`;
-    let previewUrl = plugin.heicPreviewCache.get(cacheKey);
-    if (!previewUrl) {
-      const buf = await plugin.app.vault.readBinary(tfile);
-      previewUrl = await convertBufferToPreviewUrl(buf, ext, plugin);
-      plugin.heicPreviewCache.set(cacheKey, previewUrl);
-    }
-    return previewUrl;
+    return getOrCreateHeicPreviewUrl(plugin, tfile, ext);
   }
 
   return plugin.app.vault.getResourcePath(tfile);

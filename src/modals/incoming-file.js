@@ -1,5 +1,6 @@
 import { modalTitle } from '../ui/navigation.js';
-import { getItemPreviewUrl } from '../plugin/vault-utils.js';
+import { getItemPreviewUrl, revokeBlobUrl } from '../plugin/vault-utils.js';
+import { insertLinkAtTarget } from '../plugin/editor-target.js';
 import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
 import { computeSha256Hex, convertBufferToPreviewUrl, formatBytes, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { translateUi } from '../i18n.js';
@@ -7,31 +8,6 @@ import { formatFriendlyError } from './common.js';
 import { ImageLightboxModal } from './dialogs.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
-
-function insertLinkAtTarget(editor, linkText, insertionRange) {
-  const from = insertionRange?.from || editor.getCursor?.('from');
-  const to = insertionRange?.to || from || editor.getCursor?.('to');
-  const lineText = from && typeof editor.getLine === 'function' ? editor.getLine(from.line) : '';
-  const isTableOrInline = typeof lineText === 'string' && (lineText.trimStart().startsWith('|') || lineText.trim().length > 0);
-  const snippet = isTableOrInline ? linkText : `${linkText}\n`;
-
-  if (from && to && typeof editor.replaceRange === 'function') {
-    editor.replaceRange(snippet, from, to);
-    const lines = snippet.split('\n');
-    const nextCursor = {
-      line: from.line + lines.length - 1,
-      ch: lines.length === 1 ? from.ch + lines[0].length : lines[lines.length - 1].length
-    };
-    editor.setCursor?.(nextCursor);
-    if (insertionRange) {
-      insertionRange.from = { ...nextCursor };
-      insertionRange.to = { ...nextCursor };
-    }
-  } else {
-    editor.replaceSelection?.(snippet);
-  }
-  editor.focus?.();
-}
 
 /**
  * Renders a 44x44 thumbnail or icon in wizard lists (click to inspect)
@@ -137,13 +113,14 @@ export class IncomingFileModal extends Modal {
       const img = thumbWrap.createEl('img', { cls: 'fm-incoming-thumb-img' });
       convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin)
         .then((url) => {
-          if (url) {
-            if (this.previewBlobUrl && this.previewBlobUrl.startsWith('blob:')) {
-              try { URL.revokeObjectURL(this.previewBlobUrl); } catch { }
-            }
-            this.previewBlobUrl = url;
-            img.src = url;
+          if (!url) return;
+          if (this.closed) {
+            revokeBlobUrl(url);
+            return;
           }
+          revokeBlobUrl(this.previewBlobUrl);
+          this.previewBlobUrl = url;
+          img.src = url;
         })
         .catch(() => {});
     } else {
@@ -356,8 +333,12 @@ export class IncomingFileModal extends Modal {
           mdLink = `!${mdLink}`;
         }
 
-        if (editor) {
-          insertLinkAtTarget(editor, mdLink, this.options.insertionRange);
+        let inserted = false;
+        let insertionWarning = null;
+        if (editor || this.options.insertionTarget) {
+          const insertResult = insertLinkAtTarget(this.plugin, mdLink, this.options.insertionTarget);
+          inserted = insertResult.inserted;
+          insertionWarning = insertResult.reason || null;
         }
 
         if (this.progressBar) this.progressBar.style.width = '100%';
@@ -366,7 +347,8 @@ export class IncomingFileModal extends Modal {
           target: 'local',
           localPath: createdFile.path,
           mdLink,
-          inserted: !!editor
+          inserted,
+          insertionWarning
         };
         this.plugin?.logOperation?.('INFO', 'SAVE_LOCAL', `Saved attachment to vault: ${createdFile.path}`, {
           size: this.fileInfo.size,
@@ -414,8 +396,12 @@ export class IncomingFileModal extends Modal {
           finalMarkdown = `!${finalMarkdown}`;
         }
 
-        if (editor) {
-          insertLinkAtTarget(editor, finalMarkdown, this.options.insertionRange);
+        let inserted = false;
+        let insertionWarning = null;
+        if (editor || this.options.insertionTarget) {
+          const insertResult = insertLinkAtTarget(this.plugin, finalMarkdown, this.options.insertionTarget);
+          inserted = insertResult.inserted;
+          insertionWarning = insertResult.reason || null;
         }
 
         this.result = {
@@ -424,7 +410,8 @@ export class IncomingFileModal extends Modal {
           res,
           finalMarkdown,
           isInstant: !!res.isInstant,
-          inserted: !!editor
+          inserted,
+          insertionWarning
         };
         this.plugin?.logOperation?.('INFO', 'UPLOAD_REMOTE', `${res.isInstant ? 'Reused existing remote file' : 'Uploaded attachment to server'}: ${this.finalFilename}`, {
           remotePath: `${res.year}/${res.month}/${res.filename}`,
@@ -459,6 +446,12 @@ export class IncomingFileModal extends Modal {
       this.close();
       return;
     } else if (this.result?.success) {
+      if (this.result.insertionWarning) {
+        new Notice(this.result.insertionWarning);
+        this.step = 'result';
+        this.render();
+        return;
+      }
       new Notice(this.t('destInsertSuccess'));
       this.isDone = true;
       this.close();
@@ -580,10 +573,9 @@ export class IncomingFileModal extends Modal {
   }
 
   onClose() {
-    if (this.previewBlobUrl && this.previewBlobUrl.startsWith('blob:')) {
-      try { URL.revokeObjectURL(this.previewBlobUrl); } catch { }
-      this.previewBlobUrl = null;
-    }
+    this.closed = true;
+    revokeBlobUrl(this.previewBlobUrl);
+    this.previewBlobUrl = null;
     if (!this.isDone && this.callback) {
       this.callback({ target: null });
     }

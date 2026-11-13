@@ -22,13 +22,14 @@ test('Directory and type selections use OR within a group and AND between groups
 
 test('Shared browser controls synchronize filters and sort choices in both hosts', () => {
   const {galleryStore, galleryToolbar, translateUi} = loadPlugin();
-  const plugin = {settings:{}, t:(key,params)=>translateUi('zh',key,params)};
+  const plugin = {settings:{}, fetchRemoteFilePage:async()=>({items:[],totalCount:0,buckets:['2026/11','2026/10','2025/12']}), t:(key,params)=>translateUi('zh',key,params)};
   const store = galleryStore(plugin);
   store.state.items = [
     {filename:'a.png',year:'2026',month:'11'},
     {filename:'b.mp3',year:'2026',month:'10'},
     {filename:'c.pdf',year:'2025',month:'12'}
   ];
+  store.state.buckets=['2026/11','2026/10','2025/12'];
   const roots = [new Element(),new Element()];
   const toolbars = roots.map(root=>galleryToolbar({plugin,store,t:plugin.t},root));
   const unsubscribe = store.subscribe(()=>toolbars.forEach(toolbar=>toolbar.sync()));
@@ -56,5 +57,5 @@ test('Shared browser controls synchronize filters and sort choices in both hosts
   assert.equal(find(roots[1],'input','访问热度从低到高').checked, true);
   roots[0].all().filter(el=>el.tag==='button'&&el.text==='清除').forEach(el=>el.onclick());
   assert.deepEqual(store.state.selectedBuckets, []); assert.deepEqual(store.state.selectedTypes, []);
-  unsubscribe(); toolbars.forEach(toolbar=>toolbar.dispose());
+  unsubscribe(); toolbars.forEach(toolbar=>toolbar.dispose());store.clear();
 });

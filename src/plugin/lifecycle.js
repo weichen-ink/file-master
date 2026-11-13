@@ -1,6 +1,7 @@
-import { isInsertionTargetValid, refreshInsertionTarget } from './editor-target.js';
+import { trackRenameReferenceChange } from './rename-reference-plan.js';
+import { captureEditorTarget, captureInsertionTarget, insertLinkAtTarget } from './editor-target.js';
 import { loadOperationLogs } from './logging.js';
-import { isScannableDocFile, updateSidebarRibbonButton, openModalSafely, safeModifyFileContent } from './vault-utils.js';
+import { clearHeicPreviewCache, isScannableDocFile, updateSidebarRibbonButton, openModalSafely } from './vault-utils.js';
 import { checkServerCompatibility, filterAllowedFiles, handleIncomingBrowserFile } from './server-client.js';
 import { setupHeicInlinePreviewObserver, registerContextMenus } from './context-menus.js';
 import { resumePendingMigration, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
@@ -30,7 +31,8 @@ export async function onload(plugin) {
   plugin.lastActiveMarkdownView = null;
   plugin.referenceRevision = 0;
   for (const event of ['create', 'modify', 'delete', 'rename']) {
-    plugin.registerEvent(plugin.app.vault.on(event, (file) => {
+    plugin.registerEvent(plugin.app.vault.on(event, (file, oldPath) => {
+      trackRenameReferenceChange(plugin,file,oldPath);
       if (isScannableDocFile(plugin, file)) plugin.referenceRevision++;
     }));
   }
@@ -83,7 +85,7 @@ export async function onload(plugin) {
 
   // 1. Listen for clipboard paste events
   plugin.registerEvent(
-    plugin.app.workspace.on('editor-paste', async (evt, editor) => {
+    plugin.app.workspace.on('editor-paste', async (evt, editor, info) => {
       if (!plugin.settings.enableClipboardMonitor) return;
       const files = evt.clipboardData?.files;
       if (!files || files.length === 0) return;
@@ -92,16 +94,16 @@ export async function onload(plugin) {
       if (targetFiles.length === 0) return;
 
       evt.preventDefault();
-      const insertionRange = captureEditorRange(editor, null);
+      const insertionTarget = captureEditorTarget(plugin, { editor, info });
       for (const f of targetFiles) {
-        await handleIncomingBrowserFile(plugin, f, editor, { insertionRange });
+        await handleIncomingBrowserFile(plugin, f, editor, { insertionTarget });
       }
     })
   );
 
   // 2. Listen for drag-and-drop file events in editor
   plugin.registerEvent(
-    plugin.app.workspace.on('editor-drop', async (evt, editor) => {
+    plugin.app.workspace.on('editor-drop', async (evt, editor, info) => {
       if (!plugin.settings.enableClipboardMonitor) return;
       const files = evt.dataTransfer?.files;
       if (!files || files.length === 0) return;
@@ -110,9 +112,9 @@ export async function onload(plugin) {
       if (targetFiles.length === 0) return;
 
       evt.preventDefault();
-      const insertionRange = captureEditorRange(editor, evt);
+      const insertionTarget = captureEditorTarget(plugin, { editor, evt, info });
       for (const f of targetFiles) {
-        await handleIncomingBrowserFile(plugin, f, editor, { insertionRange });
+        await handleIncomingBrowserFile(plugin, f, editor, { insertionTarget });
       }
     })
   );
@@ -264,14 +266,7 @@ export function onunload(plugin) {
     clearTimeout(plugin.heicScanTimer);
     plugin.heicScanTimer = null;
   }
-  if (plugin.heicPreviewCache) {
-    for (const url of plugin.heicPreviewCache.values()) {
-      if (typeof url === 'string' && url.startsWith('blob:')) {
-        try { URL.revokeObjectURL(url); } catch { }
-      }
-    }
-    plugin.heicPreviewCache.clear();
-  }
+  clearHeicPreviewCache(plugin);
   plugin.activeTransferController?.abort();
   plugin.galleryStore?.clear();
   // Note: Do NOT detach VIEW_TYPE_REMOTE_GALLERY here, allowing Obsidian workspace layout
@@ -330,78 +325,15 @@ export async function activateGalleryView(plugin) {
   return initGalleryLeaf(plugin, true);
 }
 
-function captureEditorRange(editor, evt) {
-  if (!editor) return null;
-  if (evt && typeof evt.clientX === 'number' && typeof evt.clientY === 'number') {
-    try {
-      if (typeof editor.posAtCoords === 'function') {
-        const pos = editor.posAtCoords(evt.clientX, evt.clientY);
-        if (pos && typeof pos.line === 'number' && typeof pos.ch === 'number') {
-          return { from: { ...pos }, to: { ...pos } };
-        }
-      }
-      if (editor.cm && typeof editor.cm.posAtCoords === 'function' && typeof editor.offsetToPos === 'function') {
-        const offset = editor.cm.posAtCoords({ x: evt.clientX, y: evt.clientY });
-        if (typeof offset === 'number' && offset >= 0) {
-          const pos = editor.offsetToPos(offset);
-          if (pos && typeof pos.line === 'number' && typeof pos.ch === 'number') {
-            return { from: { ...pos }, to: { ...pos } };
-          }
-        }
-      }
-    } catch { }
-  }
-  const from = editor.getCursor?.('from');
-  const to = editor.getCursor?.('to') || from;
-  if (from && typeof from.line === 'number' && typeof from.ch === 'number') {
-    return { from: { ...from }, to: { ...to } };
-  }
-  return null;
-}
-
 export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = undefined) {
-  if (target !== undefined && !isInsertionTargetValid(plugin,target)) {new Notice(plugin.t("galleryOpenNoteFirst"));return false;}
-  let mdView = target?.view || plugin.app.workspace.getActiveViewOfType(MarkdownView);
-  if (!mdView && plugin.lastActiveMarkdownView) {
-    const leaves = plugin.app.workspace.getLeavesOfType('markdown');
-    if (leaves.some(l => l.view === plugin.lastActiveMarkdownView)) {
-      mdView = plugin.lastActiveMarkdownView;
-    }
-  }
-  if (!mdView) {
-    const leaves = plugin.app.workspace.getLeavesOfType('markdown');
-    if (leaves.length > 0) {
-      const visibleLeaf = leaves.find(l => l.view?.containerEl && l.view.containerEl.isShown?.() !== false);
-      mdView = (visibleLeaf || leaves[0]).view;
-    }
-  }
-
-  const activeFile = mdView?.file || plugin.app.workspace.getActiveFile();
-  if (!activeFile || activeFile.extension !== 'md') {
-    new Notice(plugin.t('galleryOpenNoteFirst') || 'Please open a Markdown note first');
+  const insertionTarget = target === undefined ? captureInsertionTarget(plugin) : target;
+  const result = insertLinkAtTarget(plugin, mdSnippet, insertionTarget, { appendNewlineOnEmptyLine: false });
+  if (!result.inserted) {
+    new Notice(result.reason);
     return false;
   }
-
-  if (mdView?.editor) {
-    const editor = mdView.editor;
-    if(target?.content !== undefined && target.content !== editor.getValue()) {new Notice(plugin.t('galleryTargetChanged'));return false;}
-    if(target?.from && target?.to) {
-      editor.replaceRange(mdSnippet,target.from,target.to);
-      const lines=mdSnippet.split('\n');
-      editor.setCursor({line:target.from.line+lines.length-1,ch:lines.length===1?target.from.ch+lines[0].length:lines.at(-1).length});
-    }
-    else editor.replaceSelection(mdSnippet);
-    if(target) refreshInsertionTarget(target);
-    if (mdView.leaf) {
-      plugin.app.workspace.setActiveLeaf(mdView.leaf, { focus: true });
-    }
-    editor.focus();
-    if (successNotice) new Notice(successNotice);
-    return true;
-  } else {
-    safeModifyFileContent(plugin, activeFile, (content) => content + '\n' + mdSnippet).then(() => {
-      if (successNotice) new Notice(successNotice);
-    });
-    return true;
-  }
+  const leaf = insertionTarget.view.leaf;
+  if (leaf) plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
+  if (successNotice) new Notice(successNotice);
+  return true;
 }

@@ -1,3 +1,4 @@
+import { referenceInventory, changedReferencePaths, referencePlanMatches } from './rename-reference-plan.js';
 import { computeSha256Hex } from '../engine.js';
 import { requestUrl } from 'obsidian';
 import { isDocFile, safeModifyFileContent } from './vault-utils.js';
@@ -19,30 +20,11 @@ export async function requestRemoteRename(plugin, payload, preview = false) {
 }
 export const remoteFileKey = item => `${item.year}/${item.month}/${item.filename}`;
 
-/** One pass through the vault counts distinct referencing documents for all visible assets. */
-export async function indexRenameReferences(plugin, items) {
-  const markers = new Map(), mappings = [], documents = new Map(items.map(item => [remoteFileKey(item), []]));
-  items.forEach((item, index) => {
-    const marker = `@@file-master-reference-${index}@@`;
-    markers.set(marker, remoteFileKey(item));
-    const urls = new Set([item.rawUrl, item.pubUrl, ...(item.referenceUrls || [])]);
-    for (const from of urls) if (from) mappings.push({from, to:marker});
-  });
-  let seen = new Set();
-  const rewrite = createRenameRewriter(mappings, plugin.getCleanServerUrl(), marker => seen.add(markers.get(marker)));
-  let checked = 0;
-  for (const file of plugin.app.vault.getFiles().filter(file => isDocFile(plugin.app, file))) {
-    seen = new Set();
-    try { rewrite(await plugin.app.vault.read(file)); }
-    catch (error) { throw new Error(`${file.path}: ${error.message || error}`); }
-    for (const key of seen) documents.get(key).push(file.path);
-    if (++checked % 20 === 0) await new Promise(resolve => setTimeout(resolve, 0));
-  }
-  return documents;
-}
-export async function scanRenameReferences(plugin, mappings, { tolerant = false } = {}) {
+export async function scanRenameReferences(plugin, mappings, { tolerant = false, paths = null } = {}) {
+  const inventory=referenceInventory(plugin);
   const rewrite=createRenameRewriter(mappings,plugin.getCleanServerUrl()),documents=[],failures=[];
-  for(const file of plugin.app.vault.getFiles().filter(file=>isDocFile(plugin.app,file))) {
+  let checked=0;
+  for(const file of plugin.app.vault.getFiles().filter(file=>isDocFile(plugin.app,file) && (!paths || paths.has(file.path)))) {
     try {
       const current=await plugin.app.vault.read(file),result=rewrite(current);
       if(result.count)documents.push({path:file.path,references:result.count});
@@ -50,8 +32,9 @@ export async function scanRenameReferences(plugin, mappings, { tolerant = false 
       if (!tolerant) throw new Error(`${file.path}: ${error.message || error}`);
       failures.push({path:file.path,error:error.message || String(error)});
     }
+    if (++checked % 20 === 0) await new Promise(resolve=>setTimeout(resolve,0));
   }
-  return {documents,failures,references:documents.reduce((sum,doc)=>sum+(doc.references||0),0)};
+  return {documents,failures,references:documents.reduce((sum,doc)=>sum+(doc.references||0),0),inventory,mappings};
 }
 export async function loadPendingRename(plugin) {
   const adapter=plugin.app.vault.adapter,path=renameCheckpointPath(plugin);
@@ -61,9 +44,9 @@ export async function loadPendingRename(plugin) {
   return job;
 }
 const saveJob=(plugin,job)=>plugin.app.vault.adapter.write(renameCheckpointPath(plugin),JSON.stringify(job));
-export async function executeRemoteRename(plugin, request, onProgress = null, pending = null) {
+export async function executeRemoteRename(plugin, request, onProgress = null, pending = null, previewPlan = null) {
   return runAttachmentOperation(plugin,async signal=>{
-    const job=pending || {version:1,serverUrl:plugin.getCleanServerUrl(),operationId:`rename-${Date.now()}-${Math.random().toString(36).slice(2,14)}`,request,documents:{},result:null};
+    const job=pending || {version:1,serverUrl:plugin.getCleanServerUrl(),operationId:`rename-${Date.now()}-${Math.random().toString(36).slice(2,14)}`,request,documents:{},result:null,referencePlan:previewPlan};
     if(job.serverUrl!==plugin.getCleanServerUrl())throw new Error(plugin.t('renameServerMismatch'));
     const existing=await loadPendingRename(plugin);
     if(existing&&existing.operationId!==job.operationId)throw new Error(plugin.t('renamePendingFirst'));
@@ -80,8 +63,17 @@ export async function executeRemoteRename(plugin, request, onProgress = null, pe
       galleryStore(plugin).load(true);
     }
     const rewrite=createRenameRewriter(job.result.linkMappings,plugin.getCleanServerUrl());
-    const files=plugin.app.vault.getFiles().filter(file=>isDocFile(plugin.app,file));
-    const currentPaths = new Set(files.map(file => file.path));
+    // Reuse preview discovery. After a restart or a mapping change, discover once again.
+    if (!referencePlanMatches(plugin,job.referencePlan,job.result.linkMappings)) {
+      job.referencePlan=await scanRenameReferences(plugin,job.result.linkMappings,{tolerant:true});
+      await saveJob(plugin,job);
+    }
+    const baseline=referenceInventory(plugin),plan=job.referencePlan;
+    const candidates=new Set([...plan.documents.map(doc=>doc.path),...plan.failures.map(doc=>doc.path),
+      ...Object.keys(job.documents),...changedReferencePaths(plugin,plan.inventory,baseline)]);
+    const allFiles=plugin.app.vault.getFiles().filter(file=>isDocFile(plugin.app,file));
+    const files=allFiles.filter(file=>candidates.has(file.path));
+    const currentPaths = new Set(allFiles.map(file => file.path));
     for (const [path, doc] of Object.entries(job.documents)) { if (doc.status === 'failed' && !currentPaths.has(path)) delete job.documents[path]; }
     const textHash = text => computeSha256Hex(new TextEncoder().encode(text));
     for (let index = 0; index < files.length; index++) {
@@ -124,8 +116,9 @@ export async function executeRemoteRename(plugin, request, onProgress = null, pe
       onProgress?.({completed:index+1,total:files.length,path:file.path});
       if (index % 20 === 0) await new Promise(resolve => setTimeout(resolve, 0));
     }
-    // Read again: concurrent edits can introduce references after an earlier document was processed.
-    const remaining=await scanRenameReferences(plugin,job.result.linkMappings,{tolerant:true});
+    // Only recheck candidates and notes changed while applying the rename.
+    const validationPaths=new Set([...candidates,...changedReferencePaths(plugin,baseline)]);
+    const remaining=await scanRenameReferences(plugin,job.result.linkMappings,{tolerant:true,paths:validationPaths});
     for (const failure of remaining.failures) job.documents[failure.path] = {...job.documents[failure.path],status:'failed',error:failure.error};
     await saveJob(plugin,job);
     const failures=Object.entries(job.documents).filter(([,doc])=>doc.status==='failed').map(([path,doc])=>({path,error:doc.error}));

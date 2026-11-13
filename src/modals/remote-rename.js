@@ -2,19 +2,21 @@ import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal } from '../ui/modal.js';
 import { moduleHeading } from '../ui/navigation.js';
 import { returnToHub } from './common.js';
-import { fileActionRow, fileReferenceButton, fileSizeBadge } from '../ui/file-action-list.js';
+import { fileActionRow, fileSizeBadge } from '../ui/file-action-list.js';
+import { RemoteFilePages, scrollLoader } from '../ui/remote-file-pages.js';
 import { documentRow } from '../ui/document-list.js';
 import { getEffectiveLanguage } from '../plugin/logging.js';
-import { requestRemoteRename, scanRenameReferences, indexRenameReferences, remoteFileKey, executeRemoteRename, loadPendingRename } from '../plugin/remote-rename.js';
+import { requestRemoteRename, scanRenameReferences, remoteFileKey, executeRemoteRename, loadPendingRename } from '../plugin/remote-rename.js';
 
 /** Edit in the file list, validate on Next, then review before committing. */
 export class RemoteRenameModal extends FileMasterModal {
   constructor(app, plugin) {
     super(app);
-    this.plugin=plugin; this.revision=0; this.page=0; this.query=''; this.drafts=new Map();
+    this.plugin=plugin; this.revision=0; this.query=''; this.drafts=new Map();
   }
   t(key, params) { return this.plugin.t(key, params); }
   async onOpen() {
+    this.unsubscribe?.();this.pages?.clear();
     this.closed=false;
     this.modalEl.addClass('fm-ui','fm-rename-dialog');
     this.contentEl.addClass('fm-wizard-modal','fm-rename');
@@ -24,19 +26,18 @@ export class RemoteRenameModal extends FileMasterModal {
       this.pending=await loadPendingRename(this.plugin);
       if (this.closed) return;
       if (this.pending) return this.recovery();
-      this.fetchSeq=0;
-      const initialItems=await this.plugin.fetchRemoteFileList({ limit: 20, offset: 0, q: this.query.trim() });
-      if (this.closed) return;
-      this.serverPaged=typeof initialItems?.totalCount==='number';
-      this.totalCount=this.serverPaged?initialItems.totalCount:initialItems.length;
-      this.items=initialItems;
+      this.pages=new RemoteFilePages(this.plugin,{types:['image'],sort:'time_desc'});
+      this.items=[];
+      this.unsubscribe=this.pages.subscribe(state=>{
+        this.items=state.items;
+        if (!this.closed && !this.inReview && !this.busy) this.renderList();
+      });
       this.search();
-      try { this.referenceDocuments=await indexRenameReferences(this.plugin,this.items); }
-      catch { this.referenceCountError=true; }
-      if (!this.closed) this.updateCounts();
+      await this.pages.load();
     } catch (error) { if (!this.closed) this.loadError(error); }
   }
   shell(step,back=null) {
+    this.stopLoading?.();
     this.contentEl.empty();
     moduleHeading(this,this.contentEl,{title:'remoteRenameTitle',symbol:'file-pen-line',step,total:2});
     this.body=this.contentEl.createDiv({cls:'fm-rename-body'});
@@ -98,7 +99,6 @@ export class RemoteRenameModal extends FileMasterModal {
     input.addEventListener('compositionstart', () => { isComposing = true; });
     input.addEventListener('compositionend', () => { isComposing = false; lastCompositionEndAt = Date.now(); });
     input.onkeydown=event=>{if (event.key==='Enter'&&!this.next.disabled) {if (event.isComposing||event.keyCode===229||isComposing||(Date.now()-lastCompositionEndAt<80)) return; event.preventDefault();this.precheck();}};
-    this.countElements.set(key,fileReferenceButton(slots.actions,this.visualItem(item),this.plugin,null,()=>this.close()));
   }
   nameChange(parent,item,newFilename,oldFilename=item.filename) {
     const box=parent.createDiv({cls:'fm-section-box fm-rename-preview'});
@@ -114,79 +114,62 @@ export class RemoteRenameModal extends FileMasterModal {
   }
   search() {
     this.revision++; this.inReview=false;
-    this.shell(this.items.length?1:null);
+    this.showingStep=!!this.items.length;
+    this.shell(this.showingStep?1:null);
     this.body.createEl('p',{text:this.t('renameStep1Desc'),cls:'fm-module-summary'});
     const toolbar=this.body.createDiv({cls:'fm-toolbar-row'});
     this.searchInput=toolbar.createEl('input',{type:'search',value:this.query,cls:'fm-gallery-search',attr:{placeholder:this.t('renameSearch'),'aria-label':this.t('renameSearch')}});
     this.matchCount=toolbar.createSpan({cls:'fm-file-row-meta'});
     this.list=this.body.createDiv({cls:'fm-scroll-list fm-file-action-list'});
-    this.pagination=this.body.createDiv({cls:'fm-gallery-pagination'});
+    this.rows=this.list.createDiv();
+    this.more=this.list.createEl('button',{cls:'fm-load-more',attr:{type:'button'}});
+    this.stopLoading=scrollLoader(this.list,this.more,()=>{if (!this.checking) return this.pages.state.loaded?this.pages.loadMore():this.pages.load(true);});
+    this.rowControls=new Map();
     this.validation=this.body.createDiv({cls:'fm-rename-validation',attr:{'aria-live':'polite'}});
     this.next=this.button(this.footer,'renameNextPreview',()=>this.precheck(),true);
-    this.next.hidden=!this.items.length;
     this.searchInput.oninput=()=>{
-      this.query=this.searchInput.value;this.page=0;
-      if (this.serverPaged) {
-        if (this.searchTimer) clearTimeout(this.searchTimer);
-        this.searchTimer=setTimeout(()=>{ this.searchTimer=null; this.reloadRemotePage(); }, 220);
-      } else {
-        this.renderList();
-      }
+      this.query=this.searchInput.value;
+      clearTimeout(this.searchTimer);
+      this.searchTimer=setTimeout(()=>{ this.searchTimer=null; this.reloadRemotePage(); },220);
     };
     this.renderList();
   }
   async reloadRemotePage() {
     if (this.closed || this.checking) return;
-    const seq=++this.fetchSeq;
-    try {
-      const items=await this.plugin.fetchRemoteFileList({ limit: 20, offset: this.page*20, q: this.query.trim() });
-      if (this.closed || seq!==this.fetchSeq) return;
-      this.totalCount=typeof items?.totalCount==='number'?items.totalCount:items.length;
-      this.items=items;
-      this.renderList();
-      this.referenceCountError=false;
-      this.referenceDocuments=await indexRenameReferences(this.plugin,this.items);
-      if (!this.closed && seq===this.fetchSeq) this.updateCounts();
-    } catch (error) {
-      if (!this.closed && seq===this.fetchSeq) {
-        this.validation?.setText?.(error.message);
-      }
-    }
+    this.list.scrollTop=0;
+    return this.pages.setQuery({q:this.query.trim(),types:['image'],sort:'time_desc'});
   }
   renderList() {
-    this.list.empty(); this.pagination.empty();
-    this.rowControls=new Map(); this.countElements=new Map();
-    const items=this.serverPaged
-      ? this.items
-      : this.items.filter(item=>item.filename.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase()));
-    const totalCount=this.serverPaged?this.totalCount:items.length;
-    this.matchCount.setText(this.t('renameFileCount',{count:totalCount}));
-    const pages=Math.max(1,Math.ceil(totalCount/20));
-    this.page=Math.min(this.page,pages-1);
-    if (!items.length) this.list.createDiv({text:this.t('renameNoFiles'),cls:'fm-empty-state'});
-    const visibleItems=this.serverPaged?items:items.slice(this.page*20,this.page*20+20);
-    for (const item of visibleItems) this.renderEditableFile(this.list,item);
-    if (pages>1) {
-      this.button(this.pagination,'pagePrevious',()=>{if (!this.checking) {this.page--; if (this.serverPaged) this.reloadRemotePage(); else this.renderList();}}).disabled=this.page===0;
-      this.pagination.createSpan({text:this.t('pageCount',{current:this.page+1,total:pages})});
-      this.button(this.pagination,'pageNext',()=>{if (!this.checking) {this.page++; if (this.serverPaged) this.reloadRemotePage(); else this.renderList();}}).disabled=this.page===pages-1;
+    const state=this.pages.state;
+    if (this.showingStep!==!!this.items.length) {
+      this.showingStep=!!this.items.length;
+      moduleHeading(this,this.contentEl,{title:'remoteRenameTitle',symbol:'file-pen-line',step:this.showingStep?1:null,total:2});
     }
-    this.updateSelection(); this.updateCounts();
-  }
-  updateCounts() {
-    for (const [key,control] of this.countElements || []) {
-      control.update(this.referenceDocuments ? this.referenceDocuments.get(key) || [] : null,this.referenceCountError);
+    // Appending a batch keeps existing input nodes, focus and edits intact.
+    if (!this.items.length || [...this.rowControls.keys()].some(key=>!this.items.some(item=>remoteFileKey(item)===key))) {
+      this.rows.empty();this.rowControls.clear();
     }
+    if (this.items.length && !this.rowControls.size) this.rows.empty();
+    for (const item of this.items) if (!this.rowControls.has(remoteFileKey(item))) this.renderEditableFile(this.rows,item);
+    this.matchCount.setText(this.t('renameFileCount',{count:state.totalCount}));
+    if (!this.items.length && !state.loading && !state.error) {this.rows.empty();this.rows.createDiv({text:this.t('renameNoFiles'),cls:'fm-empty-state'});}
+    this.more.hidden=!state.hasMore && !state.error && !state.loading;
+    this.more.disabled=state.loading || this.checking;
+    this.more.setText(this.t(state.error?'previewRetry':state.loading?'galleryLoading':'galleryLoadMore'));
+    if (state.error) this.validation?.setText(state.error);
+    this.next.hidden=!this.items.length;
+    this.updateSelection();
   }
   updateSelection() {
     const selectedKey=this.selected && remoteFileKey(this.selected);
     for (const [key,{row,input,radio,item}] of this.rowControls) {
       const active=key===selectedKey;
-      row.toggleClass('is-selected',active);radio.checked=active;input.readOnly=!active;
+      row.toggleClass('is-selected',active);radio.checked=active;radio.disabled=!!this.checking;input.disabled=!!this.checking;input.readOnly=!active;
       const value=active?(this.drafts.get(key) ?? this.splitName(item).suggestion):this.splitName(item).suggestion;
       if (input.value!==value) input.value=value;
     }
     const draft=selectedKey && this.drafts.get(selectedKey)?.trim().normalize('NFC');
+    if(this.more)this.more.disabled=!!this.checking || this.pages.state.loading;
     this.next.disabled=this.checking || !this.rowControls.has(selectedKey) || !draft || draft===this.splitName(this.selected).base;
   }
   async precheck() {
@@ -270,7 +253,7 @@ export class RemoteRenameModal extends FileMasterModal {
     try {
       const report=await executeRemoteRename(this.plugin,request,progress=>{
         if (!this.closed) status.setText(this.t('renameProgress',{current:progress.completed,total:progress.total}));
-      },pending);
+      },pending,this.preview?.references);
       if (this.closed) { new Notice(this.t(report.complete?'renameComplete':'renameIncomplete')); return; }
       this.result(report);
     } catch (error) {
@@ -298,5 +281,5 @@ export class RemoteRenameModal extends FileMasterModal {
     this.aliasNotice(report.job?.result);
     if (!report.complete) {this.cancel.removeClass('mod-cta');this.button(this.footer,'renameContinue',()=>this.execute(report.job),true);}
   }
-  onClose() { this.closed=true; this.revision++; if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer=null; } this.contentEl.empty(); }
+  onClose() { this.stopLoading?.();this.unsubscribe?.();this.pages?.clear();this.closed=true; this.revision++; if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer=null; } this.contentEl.empty(); }
 }

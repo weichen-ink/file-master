@@ -1,5 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {createVaultFixture,bytes}=require('./helpers/vault');
+const {loadPlugin}=require('./helpers/load-plugin');
 
 test('Obsidian documents share classification and Bases are excluded from default orphan cleanup',async()=>{
   const f=createVaultFixture();
@@ -55,4 +56,191 @@ test('A remote attachment changed during confirmation is retained before any not
   let deletes=0;f.plugin.deleteRemoteFile=async()=>{deletes++;};
   await f.attachmentOps.executeDuplicateMergeSafely(f.plugin,[{sha256:sha,items:[local,remote],keepId:local.id}]);
   assert.equal(deletes,0);assert.equal(f.contents.get('note.md'),'![](https://example.com/raw/2026/11/remote.png)');
+});
+
+test('Broken-link scanner ignores CommonMark longer-closing and unclosed fenced code blocks', () => {
+  const { scanNoteContentForBrokenLinks } = loadPlugin();
+  const vaultIndex = { paths: new Set(['note.md']), names: new Set(['note.md']), basenames: new Set(['note']) };
+  const longerFenceDoc = '```\n[[missing-1]]\n````\n';
+  assert.deepEqual(scanNoteContentForBrokenLinks('note.md', longerFenceDoc, vaultIndex), []);
+
+  const unclosedFenceDoc = '~~~\n[[missing-2]]\n';
+  assert.deepEqual(scanNoteContentForBrokenLinks('note.md', unclosedFenceDoc, vaultIndex), []);
+
+  const outsideDoc = '```\n[[missing-1]]\n```\n[[real-missing]]\n';
+  const issues = scanNoteContentForBrokenLinks('note.md', outsideDoc, vaultIndex);
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].target, 'real-missing');
+  assert.equal(issues[0].line, 4);
+});
+
+test('IncomingFileModal refuses to insert into a different or modified note and preserves saved attachment', async () => {
+  const { IncomingFileModal } = loadPlugin();
+  let currentContent = 'note B text';
+  let replaced = false;
+  const noteA = { path: 'a.md', extension: 'md', basename: 'a' };
+  const noteB = { path: 'b.md', extension: 'md', basename: 'b' };
+  const view = { file: noteB, editor: { getValue: () => currentContent } };
+  const app = {
+    vault: {
+      getAbstractFileByPath: (p) => (p === 'a.md' ? noteA : noteB),
+      createBinary: async (p) => ({ path: p, name: 'pic.png', extension: 'png' })
+    },
+    workspace: {
+      getLeavesOfType: () => [{ view }],
+      getActiveFile: () => noteB
+    },
+    fileManager: {
+      getAvailablePathForAttachment: async (name) => `attachments/${name}`,
+      generateMarkdownLink: (f) => `![[${f.path}]]`
+    }
+  };
+  const editor = {
+    getValue: () => currentContent,
+    getCursor: () => ({ line: 0, ch: 0 }),
+    getLine: () => currentContent,
+    replaceRange: () => { replaced = true; },
+    replaceSelection: () => { replaced = true; }
+  };
+  const modal = new IncomingFileModal(
+    app,
+    { defaultBaseName: 'pic', ext: 'png', arrayBuffer: new ArrayBuffer(4), size: 4 },
+    {
+      plugin: { app, t: (k) => k },
+      fixedLocation: 'local',
+      askLocation: false,
+      editor,
+      activeFile: noteA,
+      insertionTarget: { view, file: noteA, from: { line: 0, ch: 0 }, to: { line: 0, ch: 0 }, content: 'note A text' }
+    }
+  );
+  modal.finalFilename = 'pic.png';
+  modal.targetLocation = 'local';
+  modal.render = () => {};
+  await modal.runExecution();
+
+  assert.equal(replaced, false);
+  assert.equal(modal.result.success, true);
+  assert.equal(modal.result.inserted, false);
+  assert.ok(modal.result.insertionWarning);
+});
+
+test('Broken-link scanner handles CRLF fenced code blocks identically to LF', () => {
+  const { scanNoteContentForBrokenLinks } = loadPlugin();
+  const vaultIndex = { paths: new Set(['note.md']), names: new Set(['note.md']), basenames: new Set(['note']) };
+  const crlfDoc = '```\r\n[[inside]]\r\n```\r\n[[outside]]\r\n';
+  const issues = scanNoteContentForBrokenLinks('note.md', crlfDoc, vaultIndex);
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].target, 'outside');
+  assert.equal(issues[0].line, 4);
+});
+
+test('captureEditorTarget binds to the event editor view and insertLinkAtTarget rejects pane reuse with identical text', () => {
+  const { captureEditorTarget, insertLinkAtTarget } = loadPlugin();
+  const noteA = { path: 'A.md', extension: 'md', basename: 'A' };
+  const noteB = { path: 'B.md', extension: 'md', basename: 'B' };
+  const noteC = { path: 'C.md', extension: 'md', basename: 'C' };
+  let replaced = false;
+  const editorA = { getValue: () => 'A text', getCursor: () => ({ line: 0, ch: 0 }), replaceRange: () => { replaced = true; } };
+  const editorB = { getValue: () => 'shared text', getCursor: () => ({ line: 0, ch: 0 }), getLine: () => 'shared text', replaceRange: () => { replaced = true; } };
+  const viewA = { file: noteA, editor: editorA };
+  const viewB = { file: noteB, editor: editorB };
+  const plugin = {
+    t: (k) => k,
+    app: {
+      vault: { getAbstractFileByPath: (p) => ({ 'A.md': noteA, 'B.md': noteB, 'C.md': noteC }[p] || null) },
+      workspace: {
+        getActiveViewOfType: () => viewA,
+        getLeavesOfType: () => [{ view: viewA }, { view: viewB }],
+        getActiveFile: () => noteA
+      }
+    }
+  };
+
+  // Active pane is A, but event fires in editorB: target must bind to viewB / noteB, never noteA.
+  const target = captureEditorTarget(plugin, { editor: editorB });
+  assert.equal(target.view, viewB);
+  assert.equal(target.file, noteB);
+
+  // Now viewB is reused to display noteC with identical text: insertion must be rejected.
+  viewB.file = noteC;
+  const res = insertLinkAtTarget(plugin, '![[asset.png]]', target);
+  assert.equal(res.inserted, false);
+  assert.equal(replaced, false);
+
+  // Unverified view:null target must also be rejected.
+  const nullViewRes = insertLinkAtTarget(plugin, '![[asset.png]]', { view: null, file: noteA, editor: editorA, content: 'A text' });
+  assert.equal(nullViewRes.inserted, false);
+  assert.equal(replaced, false);
+});
+
+test('getOrCreateHeicPreviewUrl deduplicates concurrent requests and revokes all generated blob URLs on clear', async () => {
+  let blobSeq = 0;
+  const revoked = [];
+  const { getOrCreateHeicPreviewUrl, clearHeicPreviewCache } = loadPlugin(
+    async () => ({ status: 200, arrayBuffer: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]).buffer }),
+    {
+      URL: {
+        createObjectURL: () => `blob:fixture-${blobSeq++}`,
+        revokeObjectURL: (u) => revoked.push(u)
+      },
+      Blob: class { constructor(parts) { this.parts = parts; } }
+    }
+  );
+  let reads = 0;
+  const tfile = { path: 'pic.heic', stat: { mtime: 100 } };
+  const plugin = {
+    isUnloading: false,
+    heicPreviewCache: new Map(),
+    settings: { serverUrl: 'https://example.com', apiToken: 'tok' },
+    isRemoteServerReady: () => true,
+    getCleanServerUrl: () => 'https://example.com',
+    app: {
+      vault: {
+        readBinary: async () => {
+          reads++;
+          await new Promise((r) => setTimeout(r, 10));
+          return new Uint8Array([0x00, 0x00, 0x00, 0x18]).buffer;
+        }
+      }
+    }
+  };
+
+  const [u1, u2] = await Promise.all([
+    getOrCreateHeicPreviewUrl(plugin, tfile, 'heic'),
+    getOrCreateHeicPreviewUrl(plugin, tfile, 'heic')
+  ]);
+  assert.equal(reads, 1);
+  assert.equal(blobSeq, 1);
+  assert.equal(u1, 'blob:fixture-0');
+  assert.equal(u2, 'blob:fixture-0');
+
+  clearHeicPreviewCache(plugin);
+  assert.deepEqual(revoked, ['blob:fixture-0']);
+});
+
+test('RemoteRenameModal reveals Next button when recovering from empty list to non-empty search results', async () => {
+  const { RemoteRenameModal, RemoteFilePages } = loadPlugin();
+  let remoteItems = [];
+  const plugin = {
+    t: (k) => k,
+    fetchRemoteFilePage: async () => ({items:[...remoteItems],totalCount:remoteItems.length,buckets:[]}),
+    app: {
+      vault: { getFiles: () => [] },
+      loadLocalStorage: () => null,
+      saveLocalStorage: () => {}
+    }
+  };
+  const modal = new RemoteRenameModal(plugin.app, plugin);
+  modal.items = [];
+  modal.pages=new RemoteFilePages(plugin);
+  modal.pages.subscribe(state=>{modal.items=state.items;modal.renderList();});
+  modal.totalCount = 0;
+  modal.fetchSeq = 0;
+  modal.search();
+  assert.equal(modal.next.hidden, true);
+
+  remoteItems = [{ year: '2026', month: '11', filename: 'photo.png', size: 123 }];
+  await modal.reloadRemotePage();
+  assert.equal(modal.next.hidden, false);
 });

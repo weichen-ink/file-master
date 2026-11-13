@@ -119,7 +119,7 @@ test('Hub rename workflow uses the shared heading and footer, validates referenc
   row.input.value='new';row.input.oninput();
   assert.equal(modal.next.disabled,false);
   await tick();
-  assert.ok(modal.list.all().some(el=>el.text==='1 reference(s)'));
+  assert.ok(!modal.list.all().some(el=>el.className==='fm-file-ref-button'));
   assert.ok(!modal.list.all().some(el=>String(el.text).includes('2026/11')));
   await modal.next.onclick();
   assert.equal(modal.preview.references.references,1);
@@ -132,7 +132,7 @@ test('Hub rename workflow uses the shared heading and footer, validates referenc
 });
 
 
-test('Reference counts count each note once and include legacy aliases and supported document types',async()=>{
+test('Preview discovery includes legacy aliases and supported document types',async()=>{
   const f=createVaultFixture();
   const legacy=base+'/private/2026/11/before-last-rename.png';
   const other={...item,filename:'other.png',rawUrl:base+'/private/2026/11/other.png',pubUrl:base+'/optimized/2026/11/other.webp'};
@@ -140,8 +140,9 @@ test('Reference counts count each note once and include legacy aliases and suppo
   f.add('two.canvas',JSON.stringify({nodes:[{url:legacy}]}));
   f.add('three.excalidraw',`${other.rawUrl} ${other.pubUrl}`);
   f.add('foreign.md',`https://foreign.example/private/2026/11/new.png`);
-  const counts=await f.indexRenameReferences(f.plugin,[{...item,referenceUrls:[legacy]},other]);
-  assert.deepEqual(counts.get(f.remoteFileKey(item)),['one.md','two.canvas']);assert.deepEqual(counts.get(f.remoteFileKey(other)),['three.excalidraw']);
+  const plan=await f.scanRenameReferences(f.plugin,[...new Set([item.rawUrl,item.pubUrl,legacy])].map(from=>({from,to:other.rawUrl})));
+  assert.deepEqual(plan.documents.map(doc=>doc.path),['one.md','two.canvas']);
+  assert.equal(plan.references,5);
 });
 
 test('First-step name conflict stays in the editable list, and only Next triggers validation',async()=>{
@@ -201,7 +202,7 @@ test('Attachment workflows share file rows, distinct-note controls, and native s
   }
 });
 
-test('Rename uses one selectable editor, locked extension and shared reference inspection',async()=>{
+test('Rename uses one selectable editor, locked extension without a premature reference scan',async()=>{
   const opened=[];
   const f=createVaultFixture(undefined,{onModalOpen:modal=>opened.push(modal)});
   const old={...item,filename:'old.png',rawUrl:mappings[0].from};
@@ -215,11 +216,7 @@ test('Rename uses one selectable editor, locked extension and shared reference i
   rows[1].radio.onchange();assert.equal(rows[0].input.readOnly,true);assert.equal(rows[0].input.value,'old');
   assert.equal(modal.next.disabled,true);
   rows[0].input.onfocus();assert.equal(rows[0].input.value,'edited');assert.equal(rows[0].radio.checked,true);
-  const references=modal.countElements.get(f.remoteFileKey(old));
-  await tick();
-  assert.ok(references.button.all().some(el=>el.text==='2 reference(s)'));
-  references.button.onclick({preventDefault(){},stopPropagation(){}});
-  assert.deepEqual(opened.at(-1).refNotePaths,[{path:'note.md',references:2}]);
+  assert.ok(!modal.list.all().some(el=>el.className==='fm-file-ref-button'));
   assert.ok(modal.list.all().some(el=>el.className==='fm-file-extension'&&el.text==='.png'));
   modal.onClose();
 });
