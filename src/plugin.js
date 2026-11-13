@@ -76,8 +76,8 @@ export class FileMasterPlugin extends Plugin {
 
   restoreRemoteTrash(id) { return serverClient.restoreRemoteTrash(this,id); }
 
-  fetchRemoteFileList() {
-    return serverClient.fetchRemoteFileList(this);
+  fetchRemoteFileList(options) {
+    return serverClient.fetchRemoteFileList(this, options);
   }
 
   deleteRemoteFile(year, month, filename, expectedSha256) {

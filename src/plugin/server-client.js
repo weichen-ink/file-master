@@ -353,8 +353,21 @@ export async function fetchServerVersion(plugin) {
   return null;
 }
 
-export async function fetchRemoteFileList(plugin) {
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list`;
+export async function fetchRemoteFileList(plugin, options = {}) {
+  const params = new URLSearchParams();
+  if (options && typeof options === 'object') {
+    if (options.q !== undefined && String(options.q).trim()) {
+      params.set('q', String(options.q).trim());
+    }
+    if (Number.isFinite(options.limit) && options.limit > 0) {
+      params.set('limit', String(options.limit));
+    }
+    if (Number.isFinite(options.offset) && options.offset >= 0) {
+      params.set('offset', String(options.offset));
+    }
+  }
+  const qs = params.toString();
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list${qs ? `?${qs}` : ''}`;
   const response = await requestUrl({
     url,
     method: 'GET',
@@ -364,7 +377,11 @@ export async function fetchRemoteFileList(plugin) {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(response.json?.error || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
-  return (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
+  const list = (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
+  if (typeof response.json?.totalCount === 'number') {
+    Object.defineProperty(list, 'totalCount', { value: response.json.totalCount, enumerable: false });
+  }
+  return list;
 }
 
 export async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {

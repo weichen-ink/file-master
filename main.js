@@ -5179,9 +5179,22 @@ async function checkServerCompatibility(plugin) {
     return plugin.lastServerCompatStatus;
   }
 }
-async function fetchRemoteFileList(plugin) {
-  var _a;
-  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list`;
+async function fetchRemoteFileList(plugin, options = {}) {
+  var _a, _b;
+  const params = new URLSearchParams();
+  if (options && typeof options === "object") {
+    if (options.q !== void 0 && String(options.q).trim()) {
+      params.set("q", String(options.q).trim());
+    }
+    if (Number.isFinite(options.limit) && options.limit > 0) {
+      params.set("limit", String(options.limit));
+    }
+    if (Number.isFinite(options.offset) && options.offset >= 0) {
+      params.set("offset", String(options.offset));
+    }
+  }
+  const qs = params.toString();
+  const url = `${plugin.getCleanServerUrl()}/api/modules/image-host/list${qs ? `?${qs}` : ""}`;
   const response = await (0, import_obsidian14.requestUrl)({
     url,
     method: "GET",
@@ -5191,7 +5204,11 @@ async function fetchRemoteFileList(plugin) {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(((_a = response.json) == null ? void 0 : _a.error) || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
-  return (response.json.images || []).map((item) => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
+  const list = (response.json.images || []).map((item) => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
+  if (typeof ((_b = response.json) == null ? void 0 : _b.totalCount) === "number") {
+    Object.defineProperty(list, "totalCount", { value: response.json.totalCount, enumerable: false });
+  }
+  return list;
 }
 async function deleteRemoteFile(plugin, year, month, filename, expectedSha256) {
   var _a;
@@ -8616,8 +8633,12 @@ var RemoteRenameModal = class extends FileMasterModal {
       this.pending = await loadPendingRename(this.plugin);
       if (this.closed) return;
       if (this.pending) return this.recovery();
-      this.items = await this.plugin.fetchRemoteFileList();
+      this.fetchSeq = 0;
+      const initialItems = await this.plugin.fetchRemoteFileList({ limit: 20, offset: 0, q: this.query.trim() });
       if (this.closed) return;
+      this.serverPaged = typeof (initialItems == null ? void 0 : initialItems.totalCount) === "number";
+      this.totalCount = this.serverPaged ? initialItems.totalCount : initialItems.length;
+      this.items = initialItems;
       this.search();
       try {
         this.referenceDocuments = await indexRenameReferences(this.plugin, this.items);
@@ -8737,33 +8758,64 @@ var RemoteRenameModal = class extends FileMasterModal {
     this.searchInput.oninput = () => {
       this.query = this.searchInput.value;
       this.page = 0;
-      this.renderList();
+      if (this.serverPaged) {
+        if (this.searchTimer) clearTimeout(this.searchTimer);
+        this.searchTimer = setTimeout(() => {
+          this.searchTimer = null;
+          this.reloadRemotePage();
+        }, 220);
+      } else {
+        this.renderList();
+      }
     };
     this.renderList();
+  }
+  async reloadRemotePage() {
+    var _a, _b;
+    if (this.closed || this.checking) return;
+    const seq = ++this.fetchSeq;
+    try {
+      const items = await this.plugin.fetchRemoteFileList({ limit: 20, offset: this.page * 20, q: this.query.trim() });
+      if (this.closed || seq !== this.fetchSeq) return;
+      this.totalCount = typeof (items == null ? void 0 : items.totalCount) === "number" ? items.totalCount : items.length;
+      this.items = items;
+      this.renderList();
+      this.referenceCountError = false;
+      this.referenceDocuments = await indexRenameReferences(this.plugin, this.items);
+      if (!this.closed && seq === this.fetchSeq) this.updateCounts();
+    } catch (error) {
+      if (!this.closed && seq === this.fetchSeq) {
+        (_b = (_a = this.validation) == null ? void 0 : _a.setText) == null ? void 0 : _b.call(_a, error.message);
+      }
+    }
   }
   renderList() {
     this.list.empty();
     this.pagination.empty();
     this.rowControls = /* @__PURE__ */ new Map();
     this.countElements = /* @__PURE__ */ new Map();
-    const items = this.items.filter((item) => item.filename.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase()));
-    this.matchCount.setText(this.t("renameFileCount", { count: items.length }));
-    const pages = Math.max(1, Math.ceil(items.length / 20));
+    const items = this.serverPaged ? this.items : this.items.filter((item) => item.filename.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase()));
+    const totalCount = this.serverPaged ? this.totalCount : items.length;
+    this.matchCount.setText(this.t("renameFileCount", { count: totalCount }));
+    const pages = Math.max(1, Math.ceil(totalCount / 20));
     this.page = Math.min(this.page, pages - 1);
     if (!items.length) this.list.createDiv({ text: this.t("renameNoFiles"), cls: "fm-empty-state" });
-    for (const item of items.slice(this.page * 20, this.page * 20 + 20)) this.renderEditableFile(this.list, item);
+    const visibleItems = this.serverPaged ? items : items.slice(this.page * 20, this.page * 20 + 20);
+    for (const item of visibleItems) this.renderEditableFile(this.list, item);
     if (pages > 1) {
       this.button(this.pagination, "pagePrevious", () => {
         if (!this.checking) {
           this.page--;
-          this.renderList();
+          if (this.serverPaged) this.reloadRemotePage();
+          else this.renderList();
         }
       }).disabled = this.page === 0;
       this.pagination.createSpan({ text: this.t("pageCount", { current: this.page + 1, total: pages }) });
       this.button(this.pagination, "pageNext", () => {
         if (!this.checking) {
           this.page++;
-          this.renderList();
+          if (this.serverPaged) this.reloadRemotePage();
+          else this.renderList();
         }
       }).disabled = this.page === pages - 1;
     }
@@ -8920,6 +8972,10 @@ var RemoteRenameModal = class extends FileMasterModal {
   onClose() {
     this.closed = true;
     this.revision++;
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
     this.contentEl.empty();
   }
 };
@@ -10734,8 +10790,8 @@ var FileMasterPlugin = class extends import_obsidian34.Plugin {
   restoreRemoteTrash(id) {
     return restoreRemoteTrash(this, id);
   }
-  fetchRemoteFileList() {
-    return fetchRemoteFileList(this);
+  fetchRemoteFileList(options) {
+    return fetchRemoteFileList(this, options);
   }
   deleteRemoteFile(year, month, filename, expectedSha256) {
     return deleteRemoteFile(this, year, month, filename, expectedSha256);

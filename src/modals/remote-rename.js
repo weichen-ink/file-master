@@ -24,8 +24,12 @@ export class RemoteRenameModal extends FileMasterModal {
       this.pending=await loadPendingRename(this.plugin);
       if (this.closed) return;
       if (this.pending) return this.recovery();
-      this.items=await this.plugin.fetchRemoteFileList();
+      this.fetchSeq=0;
+      const initialItems=await this.plugin.fetchRemoteFileList({ limit: 20, offset: 0, q: this.query.trim() });
       if (this.closed) return;
+      this.serverPaged=typeof initialItems?.totalCount==='number';
+      this.totalCount=this.serverPaged?initialItems.totalCount:initialItems.length;
+      this.items=initialItems;
       this.search();
       try { this.referenceDocuments=await indexRenameReferences(this.plugin,this.items); }
       catch { this.referenceCountError=true; }
@@ -120,22 +124,52 @@ export class RemoteRenameModal extends FileMasterModal {
     this.validation=this.body.createDiv({cls:'fm-rename-validation',attr:{'aria-live':'polite'}});
     this.next=this.button(this.footer,'renameNextPreview',()=>this.precheck(),true);
     this.next.hidden=!this.items.length;
-    this.searchInput.oninput=()=>{this.query=this.searchInput.value;this.page=0;this.renderList();};
+    this.searchInput.oninput=()=>{
+      this.query=this.searchInput.value;this.page=0;
+      if (this.serverPaged) {
+        if (this.searchTimer) clearTimeout(this.searchTimer);
+        this.searchTimer=setTimeout(()=>{ this.searchTimer=null; this.reloadRemotePage(); }, 220);
+      } else {
+        this.renderList();
+      }
+    };
     this.renderList();
+  }
+  async reloadRemotePage() {
+    if (this.closed || this.checking) return;
+    const seq=++this.fetchSeq;
+    try {
+      const items=await this.plugin.fetchRemoteFileList({ limit: 20, offset: this.page*20, q: this.query.trim() });
+      if (this.closed || seq!==this.fetchSeq) return;
+      this.totalCount=typeof items?.totalCount==='number'?items.totalCount:items.length;
+      this.items=items;
+      this.renderList();
+      this.referenceCountError=false;
+      this.referenceDocuments=await indexRenameReferences(this.plugin,this.items);
+      if (!this.closed && seq===this.fetchSeq) this.updateCounts();
+    } catch (error) {
+      if (!this.closed && seq===this.fetchSeq) {
+        this.validation?.setText?.(error.message);
+      }
+    }
   }
   renderList() {
     this.list.empty(); this.pagination.empty();
     this.rowControls=new Map(); this.countElements=new Map();
-    const items=this.items.filter(item=>item.filename.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase()));
-    this.matchCount.setText(this.t('renameFileCount',{count:items.length}));
-    const pages=Math.max(1,Math.ceil(items.length/20));
+    const items=this.serverPaged
+      ? this.items
+      : this.items.filter(item=>item.filename.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase()));
+    const totalCount=this.serverPaged?this.totalCount:items.length;
+    this.matchCount.setText(this.t('renameFileCount',{count:totalCount}));
+    const pages=Math.max(1,Math.ceil(totalCount/20));
     this.page=Math.min(this.page,pages-1);
     if (!items.length) this.list.createDiv({text:this.t('renameNoFiles'),cls:'fm-empty-state'});
-    for (const item of items.slice(this.page*20,this.page*20+20)) this.renderEditableFile(this.list,item);
+    const visibleItems=this.serverPaged?items:items.slice(this.page*20,this.page*20+20);
+    for (const item of visibleItems) this.renderEditableFile(this.list,item);
     if (pages>1) {
-      this.button(this.pagination,'pagePrevious',()=>{if (!this.checking) {this.page--;this.renderList();}}).disabled=this.page===0;
+      this.button(this.pagination,'pagePrevious',()=>{if (!this.checking) {this.page--; if (this.serverPaged) this.reloadRemotePage(); else this.renderList();}}).disabled=this.page===0;
       this.pagination.createSpan({text:this.t('pageCount',{current:this.page+1,total:pages})});
-      this.button(this.pagination,'pageNext',()=>{if (!this.checking) {this.page++;this.renderList();}}).disabled=this.page===pages-1;
+      this.button(this.pagination,'pageNext',()=>{if (!this.checking) {this.page++; if (this.serverPaged) this.reloadRemotePage(); else this.renderList();}}).disabled=this.page===pages-1;
     }
     this.updateSelection(); this.updateCounts();
   }
@@ -264,5 +298,5 @@ export class RemoteRenameModal extends FileMasterModal {
     this.aliasNotice(report.job?.result);
     if (!report.complete) {this.cancel.removeClass('mod-cta');this.button(this.footer,'renameContinue',()=>this.execute(report.job),true);}
   }
-  onClose() { this.closed=true; this.revision++; this.contentEl.empty(); }
+  onClose() { this.closed=true; this.revision++; if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer=null; } this.contentEl.empty(); }
 }
