@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.1.9] - 2026-11-13
+
+### Remote gallery card & list polish
+- Display file size and hits count with a subtle dot separator and eye icon in both grid cards and list rows.
+- Refine filename and metadata typography, spacing, and card hover feedback so thumbnails stay the primary focus.
+- Move insert and copy action buttons onto the top-right corner of grid card thumbnails with frosted-glass styling, while keeping list row actions right-aligned and optically flush.
+
 ## [1.1.8] - 2026-11-13
 
 ### Correct pagination with older servers
