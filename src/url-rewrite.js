@@ -1,5 +1,10 @@
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const decode = value => {try{return decodeURI(value);}catch{return value;}};
+const lineAtOffset = (source, offset) => {
+  let line = 1;
+  for (let i = 0; i < offset; i++) if (source.charCodeAt(i) === 10) line++;
+  return line;
+};
 /** Exact URL bases only: preserve queries, fragments, alt text, and unrelated hosts or longer filenames. */
 export function createUrlRewriter(mappings, serverUrl = '', onMatch = null) {
   const replacements=new Map();
@@ -30,7 +35,7 @@ export function createUrlRewriter(mappings, serverUrl = '', onMatch = null) {
       if(before&&!/[\s\[\(<"'=:|]/.test(before))return match;
       if(after&&!/[?#\s\)\]}>"'\\|]/.test(after))return match;
       const replacement = replacements.get(match);
-      count++;onMatch?.(replacement.reference);return replacement.text;
+      count++;onMatch?.(replacement.reference,{match,offset,line:lineAtOffset(source,offset)});return replacement.text;
     });
     return {text,count};
   };

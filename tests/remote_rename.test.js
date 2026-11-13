@@ -254,40 +254,44 @@ test('Upload preview shows inline size without duplicating the extension or file
   assert.ok(badge.all().some(el=>el.text==='1 reference(s) in other notes'));
 });
 
-test('Rename preview and results can open affected documents using the shared document action',async()=>{
-  const opened=[];
+test('Rename preview and results hover-preview affected documents without closing the modal',async()=>{
+  const hovered=[];
   class TFile {static [Symbol.hasInstance](file){return !!file?.path;}}
   const f=createVaultFixture(async()=>({status:200,json:response}),{host:{TFile}});
-  f.add('note.md',mappings[0].from);
-  f.plugin.app.workspace.getLeaf=()=>({openFile:async file=>opened.push(file.path)});
+  f.add('note.md',`intro\n${mappings[0].from}`);
+  f.plugin.app.workspace.getLeaf=()=>{throw new Error('Preview must not open a leaf');};
+  f.plugin.app.workspace.trigger=(name,payload)=>{if(name==='hover-link')hovered.push(payload);};
   f.plugin.fetchRemoteFileList=async()=>[{...item,filename:'old.png'}];
   const modal=new f.RemoteRenameModal(f.plugin.app,f.plugin);await modal.onOpen();
   const row=[...modal.rowControls.values()][0];row.input.value='new';row.input.oninput();await modal.precheck();
   let closed=0;modal.close=()=>{closed++;};
-  await modal.body.all().find(el=>el.className==='fm-document-open').onclick();
-  assert.deepEqual(opened,['note.md']);assert.equal(closed,1);
+  modal.body.all().find(el=>el.className==='fm-document-preview').dispatch('mouseenter');
+  assert.equal(closed,0);assert.equal(hovered[0].linktext,'note.md');assert.deepEqual(hovered[0].state,{scroll:1});
   await modal.execute();
-  await modal.body.all().find(el=>el.className==='fm-document-open').onclick();
-  assert.deepEqual(opened,['note.md','note.md']);
+  modal.body.all().find(el=>el.className==='fm-document-preview').dispatch('mouseenter');
+  assert.equal(hovered.length,2);assert.equal(hovered[1].linktext,'note.md');
   modal.onClose();
 });
 
-test('Health result filters update one list and document navigation retains the line number',async()=>{
+test('Health result filters update one list and grouped link previews retain line numbers',async()=>{
+  const hovered=[];
   class TFile {static [Symbol.hasInstance](file){return !!file?.path;}}
   const f=createVaultFixture(undefined,{host:{TFile}});
   f.add('note.md','line1\nline2\nline3');
-  let cursor;
-  f.plugin.app.workspace.getLeaf=()=>({openFile:async()=>{},view:{editor:{setCursor:value=>{cursor=value;},scrollIntoView(){}}}});
+  f.plugin.app.workspace.getLeaf=()=>{throw new Error('Preview must not open a leaf');};
+  f.plugin.app.workspace.trigger=(name,payload)=>{if(name==='hover-link')hovered.push(payload);};
   const modal=new f.HealthCheckModal(f.plugin.app,f.plugin);
   modal.step=2;modal.totalDocsScanned=3;modal.issues=[{category:'wikilink',type:'wikilink',sourcePath:'note.md',target:'missing',line:3},{category:'remote',sourcePath:'note.md',target:'https://example.com/missing',line:2}];
   modal.render();
   const filter=modal.contentEl.all().find(el=>el.className==='fm-control-select');
   const list=modal.contentEl.all().find(el=>el.className==='fm-scroll-list fm-document-list');
+  assert.equal(list.children.length,1);
+  assert.equal(list.all().filter(el=>el.className==='fm-document-preview').length,2);
   filter.value='wikilink';filter.onchange();
   assert.equal(list.children.length,1);
   filter.value='remote';filter.onchange();
   assert.equal(list.children.length,1);
   assert.equal(modal.contentEl.all().filter(el=>el.className==='fm-scroll-list fm-document-list').length,1);
-  await list.all().find(el=>el.className==='fm-document-open').onclick();
-  assert.deepEqual(cursor,{line:1,ch:0});
+  list.all().find(el=>el.className==='fm-document-preview').dispatch('mouseenter');
+  assert.deepEqual(hovered[0].state,{scroll:1});
 });

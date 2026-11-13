@@ -241,7 +241,7 @@ export class RemoteRenameModal extends FileMasterModal {
     if (title) parent.createDiv({text:this.t(title,{documents:documents.length}),cls:'fm-section-title'});
     const list=parent.createDiv({cls:'fm-scroll-list fm-document-list'});
     for (const doc of documents) {
-      documentRow(list,this.plugin,doc,{hoverParent:this,referenceState:state,onOpened:()=>this.close()});
+      documentRow(list,this.plugin,doc,{hoverParent:this,referenceState:state});
     }
   }
   aliasNotice(data) {

@@ -7,6 +7,7 @@
 - Move the remote file path into the Properties card and remove the redundant source row for server previews.
 - Group deletion protection and danger zone inside a unified panel card with clearer protection and recycle-bin descriptions.
 - Move the locked status indicator in list view from the small thumbnail to the right-side action group alongside insert and copy.
+- Unify note reference, rename preview, and health-check lists into a two-level note and per-link hover-preview component without closing the active modal.
 
 ## [1.1.9] - 2026-11-13
 

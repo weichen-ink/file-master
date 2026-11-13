@@ -150,21 +150,15 @@ export class HealthCheckModal extends Modal {
       return;
     }
 
-    for (const item of filtered) {
+    const grouped=new Map();
+    for(const item of filtered) {
       const tag=item.category==='wikilink'?(item.type==='wikilink-embed'?'healthTagWikiEmbed':'healthTagDanglingNote'):item.category==='local'?(item.type==='local-embed'?'healthTagMissingImage':'healthTagMissingFile'):'healthTagRemote404';
-      documentRow(listEl,this.plugin,{path:item.sourcePath,line:item.line},{
-        hoverParent:this,
-        location:item.line?t('healthLine',{line:item.line}):null,
-        openLabel:t('healthOpenSource'),
-        onOpened:()=>this.close(),
-        renderDetails:parent=>{
-          const issue=parent.createDiv({cls:'fm-health-issue'});
-          issue.createSpan({text:t(tag),cls:'fm-health-issue-label'});
-          issue.createEl('code',{text:item.target,cls:'fm-health-target'});
-          const status=item.reason?.match(/HTTP (\d{3})/);
-          if(status)issue.createSpan({text:`HTTP ${status[1]}`,cls:'fm-document-location'});
-        }
-      });
+      const status=item.reason?.match(/HTTP (\d{3})/);
+      if(!grouped.has(item.sourcePath))grouped.set(item.sourcePath,[]);
+      grouped.get(item.sourcePath).push({line:item.line,target:item.target,tag:t(tag),status:status?`HTTP ${status[1]}`:null});
+    }
+    for(const [path,links] of grouped.entries()) {
+      documentRow(listEl,this.plugin,{path,links},{hoverParent:this});
     }
   }
 

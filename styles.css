@@ -3434,15 +3434,16 @@
 }
 
 .fm-ui button.fm-file-protect,
-.fm-ui button.fm-document-open {
+.fm-ui button.fm-document-preview {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 30px;
-  padding: 4px 8px;
+  min-height: 28px;
+  padding: 4px 10px;
   font-size: 12px;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .fm-ui button.fm-file-protect[aria-pressed='true'] {
@@ -3471,11 +3472,52 @@
 }
 
 .fm-list-item.fm-document-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px 6px;
+}
+
+.fm-document-header {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 12px 6px;
+}
+
+.fm-document-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 30px;
+  padding-left: 12px;
+  border-left: 2px solid var(--background-modifier-border);
+}
+
+.fm-document-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+}
+
+.fm-document-link-info {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.fm-document-link-target {
+  display: inline;
+  margin: 0;
+  color: var(--text-normal);
+  overflow-wrap: anywhere;
 }
 
 .fm-document-icon {
@@ -3621,25 +3663,29 @@
     grid-column: 3;
   }
 
-  .fm-list-item.fm-document-row {
+  .fm-document-header {
     grid-template-columns: 18px minmax(0, 1fr);
     gap: 6px 10px;
   }
 
-  .fm-document-row .fm-document-icon {
+  .fm-document-header .fm-document-icon {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .fm-document-row .fm-document-content {
+  .fm-document-header .fm-document-content {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .fm-document-row .fm-document-actions {
+  .fm-document-header .fm-document-actions {
     grid-column: 2;
     grid-row: 2;
     justify-content: flex-start;
+  }
+
+  .fm-document-links {
+    margin-left: 14px;
   }
 }
 

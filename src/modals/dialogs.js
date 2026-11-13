@@ -294,7 +294,7 @@ export class NoteRefsModal extends Modal {
       contentEl.createEl('p',{text:t('notePreviewHint'),cls:'fm-inline-hint'});
       const listEl = contentEl.createDiv({ cls: 'fm-scroll-list fm-document-list' });
       for (const notePath of this.refNotePaths) {
-        documentRow(listEl,this.plugin || {app:this.app,t},typeof notePath==='string'?{path:notePath}:notePath,{hoverParent:this,onOpened:()=>{this.close();this.onJump?.();}});
+        documentRow(listEl,this.plugin || {app:this.app,t},typeof notePath==='string'?{path:notePath}:notePath,{hoverParent:this});
       }
     }
 

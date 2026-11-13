@@ -22,12 +22,16 @@ export const remoteFileKey = item => `${item.year}/${item.month}/${item.filename
 
 export async function scanRenameReferences(plugin, mappings, { tolerant = false, paths = null } = {}) {
   const inventory=referenceInventory(plugin);
-  const rewrite=createRenameRewriter(mappings,plugin.getCleanServerUrl()),documents=[],failures=[];
+  let currentLinks=[];
+  const rewrite=createRenameRewriter(mappings,plugin.getCleanServerUrl(),(_ref,info)=>{
+    currentLinks.push({line:info.line,target:info.match});
+  }),documents=[],failures=[];
   let checked=0;
   for(const file of plugin.app.vault.getFiles().filter(file=>isDocFile(plugin.app,file) && (!paths || paths.has(file.path)))) {
     try {
+      currentLinks=[];
       const current=await plugin.app.vault.read(file),result=rewrite(current);
-      if(result.count)documents.push({path:file.path,references:result.count});
+      if(result.count)documents.push({path:file.path,references:result.count,links:currentLinks});
     } catch (error) {
       if (!tolerant) throw new Error(`${file.path}: ${error.message || error}`);
       failures.push({path:file.path,error:error.message || String(error)});

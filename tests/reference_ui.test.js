@@ -41,9 +41,9 @@ test('Hover previews in shared note rows never navigate or dismiss the current w
   f.plugin.app.workspace.trigger=(name,payload)=>events.push({name,payload});
   f.plugin.app.workspace.getLeaf=()=>{throw new Error('Hover must not navigate');};
   const owner={hoverPopover:null};
-  const {content,open}=f.documentRow(new Element(),f.plugin,{path:'notes/Example.md',references:2,line:9},{hoverParent:owner,onOpened:()=>closed++});
+  const {content,preview}=f.documentRow(new Element(),f.plugin,{path:'notes/Example.md',references:2,line:9},{hoverParent:owner});
   const name=content.children[0],event={clientX:10,clientY:20};
-  name.dispatch('mouseenter',event);open.dispatch('mouseenter',event);
+  name.dispatch('mouseenter',event);preview.dispatch('mouseenter',event);
   assert.equal(closed,0);assert.equal(events.length,2);
   const hoverEl=new Element();events[0].payload.hoverParent.hoverPopover={hoverEl};
   assert.ok(hoverEl.className.includes('fm-note-hover'));
@@ -99,17 +99,17 @@ test('Rename review and completion have different states and show the server ret
   modal.step=2;modal.issues=[{category:'wikilink',type:'wikilink',sourcePath:'未命名 1.md',target:'测试',line:3},{category:'remote',sourcePath:'旅行.md',target:'https://example.com/photo.png',line:5,reason:'Remote resource returned HTTP 404'}];
   modal.render();const text=modal.contentEl.all().map(el=>el.text);
   assert.ok(!text.includes('所在笔记：'));
-  for(const expected of ['未命名 1.md','第 3 行','找不到笔记：','测试','打开所在笔记','无法访问链接：','HTTP 404']) assert.ok(text.includes(expected),expected);
+  for(const expected of ['未命名 1.md','第 3 行','找不到笔记：','测试','预览','无法访问链接：','HTTP 404']) assert.ok(text.includes(expected),expected);
 });
 
 test('Reference dialogs explain hover previews, and unlocated notes do not receive an invented line',()=>{
   const f=createVaultFixture();f.plugin.settings.language='zh';const events=[];
   f.plugin.app.workspace.trigger=(name,payload)=>events.push(payload);
   const modal=new f.NoteRefsModal(f.plugin.app,'image.png',[{path:'note.md',references:2}],null,f.plugin);modal.onOpen();
-  assert.ok(modal.contentEl.all().some(el=>el.text==='悬浮在笔记名上可预览内容。'));
+  assert.ok(modal.contentEl.all().some(el=>el.text==='悬浮在笔记名或预览按钮上可预览内容。'));
   modal.contentEl.all().find(el=>el.className.includes('fm-document-name')).dispatch('mouseenter');
   assert.equal(events[0].state,undefined);
-  const row=f.documentRow(new Element(),f.plugin,{path:'drawing.canvas',line:5});row.open.dispatch('mouseenter');
+  const row=f.documentRow(new Element(),f.plugin,{path:'drawing.canvas',line:5});row.preview.dispatch('mouseenter');
   assert.equal(events[1].state,undefined);
 });
 
@@ -159,4 +159,19 @@ test('Preview protection exposes its state, blocks trash while locked, and recov
   f.plugin.toggleRemoteFileLock=async()=>{throw Error('offline');};await lock.onclick();
   assert.equal(remoteFile.locked,false);assert.equal(lock['aria-checked'],'false');assert.equal(lock.disabled,false);assert.equal(trash.disabled,false);
   const text=modal.contentEl.all().map(el=>el.text);assert.ok(text.includes('原文件大小'));assert.ok(text.some(value=>value?.includes('回收站')));
+});
+
+test('Shared documentRow renders Level-1 note and Level-2 link preview buttons with per-line hover state',async()=>{
+  const f=createVaultFixture();f.plugin.settings.language='zh';const events=[];
+  f.plugin.app.workspace.trigger=(name,payload)=>events.push({name,payload});
+  f.add('guide.md',`line 1\n![a](${remote.rawUrl})\nline 3\n![b](${remote.pubUrl})`);
+  const plan=await f.scanRenameReferences(f.plugin,[{from:remote.rawUrl,to:'https://example.com/new.png'},{from:remote.pubUrl,to:'https://example.com/p/new.png'}]);
+  assert.equal(plan.documents.length,1);
+  assert.deepEqual(plan.documents[0].links,[{line:2,target:remote.rawUrl},{line:4,target:remote.pubUrl}]);
+  const {row,linksEl}=f.documentRow(new Element(),f.plugin,plan.documents[0],{referenceState:'renameReferencesPlanned'});
+  const buttons=linksEl.all().filter(el=>el.className==='fm-document-preview');
+  assert.equal(buttons.length,2);
+  buttons[0].dispatch('mouseenter');buttons[1].dispatch('mouseenter');
+  assert.deepEqual(events.map(e=>e.payload.state),[{scroll:1},{scroll:3}]);
+  assert.ok(row.all().some(el=>el.text==='guide.md'));
 });
