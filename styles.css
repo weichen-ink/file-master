@@ -970,7 +970,7 @@
 .fm-rename .fm-toolbar-row { gap: 12px; }
 .fm-rename .fm-gallery-search { flex: 1 1 180px; }
 .fm-rename .fm-file-row.is-selected { background: var(--fm-soft); border-radius: 8px; }
-.fm-ui input.fm-rename-name-input { flex: 0 1 30ch; width: 30ch; max-width: 100%; min-width: 0; height: 32px; padding: 4px 8px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-primary); color: var(--text-normal); box-shadow: none; font-size: 13px; font-weight: 500; }
+.fm-ui input.fm-rename-name-input { flex: 1 1 200px; width: auto; max-width: 100%; min-width: 120px; height: 32px; padding: 4px 10px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-primary); color: var(--text-normal); box-shadow: none; font-size: 13px; font-weight: 500; }
 .fm-ui input.fm-rename-name-input:read-only { text-overflow: ellipsis; cursor: text; }
 .fm-ui input.fm-rename-name-input:focus { border-color: var(--fm-brand); outline: none; }
 .fm-rename-preview .fm-file-row { border: 0; padding: 0; }
