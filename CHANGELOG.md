@@ -1,6 +1,6 @@
 # Changelog (file-master)
 
-## [1.1.10] - 2026-11-13
+## [1.2.0] - 2026-11-13
 
 ### Preview dialog & gallery list polish
 - Add a direct rename button next to the remote file title in the image preview dialog, launching `RemoteRenameModal` focused on the current file and returning to the preview when done or cancelled.
