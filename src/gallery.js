@@ -8,8 +8,6 @@ import { isInsertionTargetValid } from './plugin/editor-target.js';
 import { Notice, setIcon } from 'obsidian';
 import { fileActionRow, fileSizeBadge } from './ui/file-action-list.js';
 
-export const REMOTE_GALLERY_PAGE_SIZE = 60;
-
 export function filterRemoteGallery(view) {
   const filtered = view.items.filter((item) => {
     if (view.selectedBuckets?.length && !view.selectedBuckets.includes(`${item.year}/${item.month}`)) return false;
@@ -42,15 +40,6 @@ export function filterRemoteGallery(view) {
   return filtered;
 }
 
-export function getRemoteGalleryPage(view, filtered) {
-  const key = JSON.stringify([view.selectedBuckets || [],view.selectedTypes || [],view.selectedSort || 'time_desc',view.searchQuery]);
-  if (key !== view.galleryFilterKey) { view.galleryPage = 0; view.galleryFilterKey = key; }
-  const totalPages = Math.max(1, Math.ceil(filtered.length / REMOTE_GALLERY_PAGE_SIZE));
-  view.galleryPage = Math.min(Math.max(0, view.galleryPage || 0), totalPages - 1);
-  return { current: view.galleryPage, totalPages,
-    items: filtered.slice(view.galleryPage * REMOTE_GALLERY_PAGE_SIZE, (view.galleryPage + 1) * REMOTE_GALLERY_PAGE_SIZE) };
-}
-
 export function renderRemoteGallery(view, containerEl) {
   containerEl.empty();
   if (view.layoutMode === 'list') {
@@ -59,7 +48,7 @@ export function renderRemoteGallery(view, containerEl) {
     containerEl.removeClass('is-list');
   }
 
-  const filtered = view.progressive ? view.items : view.filterItems();
+  const filtered = view.serverPaged ? view.items : view.filterItems();
 
   if (filtered.length === 0) {
     containerEl.createDiv({
@@ -70,8 +59,7 @@ export function renderRemoteGallery(view, containerEl) {
     return;
   }
 
-  const page = view.progressive ? {items:filtered,totalPages:1} : getRemoteGalleryPage(view, filtered);
-  for (const item of page.items) {
+  for (const item of filtered) {
     let card,thumbWrap,nameButton,actions;
     const filename=item.name || item.filename;
     const createName=parent=>parent.createEl('button',{cls:'fm-gallery-name',text:filename,attr:{type:'button','aria-label':filename}});
@@ -177,14 +165,4 @@ export function renderRemoteGallery(view, containerEl) {
     setIcon(copyBtn,'copy');copyBtn.onclick=()=>copyText(view.plugin,insertTargetUrl);
   }
 
-  if (page.totalPages > 1) {
-    const pager = containerEl.createDiv({ cls: 'fm-gallery-pagination' });
-    const previous = pager.createEl('button', { text: view.t('pagePrevious') });
-    previous.disabled = page.current === 0;
-    previous.onclick = () => { view.galleryPage--; view.store ? view.store.emit() : view.renderGrid(containerEl); };
-    pager.createSpan({ text: view.t('pageCount', { current: page.current + 1, total: page.totalPages }) });
-    const next = pager.createEl('button', { text: view.t('pageNext') });
-    next.disabled = page.current + 1 === page.totalPages;
-    next.onclick = () => { view.galleryPage++; view.store ? view.store.emit() : view.renderGrid(containerEl); };
-  }
 }

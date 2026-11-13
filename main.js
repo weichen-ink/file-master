@@ -1713,7 +1713,7 @@ var UI_STRINGS = {
     // 远端媒体资产库 UI
     galleryTitle: "\u670D\u52A1\u5668\u6587\u4EF6",
     galleryViewTitle: "\u6587\u4EF6\u5E93",
-    galleryLoadMore: "\u52A0\u8F7D\u66F4\u591A",
+    galleryPaginationLabel: "\u6587\u4EF6\u5217\u8868\u7FFB\u9875",
     galleryLoading: "\u6B63\u5728\u52A0\u8F7D\u670D\u52A1\u5668\u6587\u4EF6...",
     galleryLoadFail: "\u65E0\u6CD5\u52A0\u8F7D\u670D\u52A1\u5668\u6587\u4EF6\uFF1A{err}",
     gallerySearchPlaceholder: "\u641C\u7D22\u6587\u4EF6\u540D...",
@@ -2368,7 +2368,7 @@ var UI_STRINGS = {
     // Remote Asset Gallery UI
     galleryTitle: "Server files",
     galleryViewTitle: "Server files",
-    galleryLoadMore: "Load more",
+    galleryPaginationLabel: "File list pagination",
     galleryLoading: "Loading server files...",
     galleryLoadFail: "Could not load server files: {err}",
     gallerySearchPlaceholder: "Search filenames...",
@@ -2944,14 +2944,14 @@ function galleryToolbar(view, parent) {
   const toolbar = parent.createDiv({ cls: "fm-browser-toolbar" });
   const searchRow = toolbar.createDiv({ cls: "fm-browser-search-row" });
   const search = searchRow.createEl("input", { type: "search", cls: "fm-gallery-search", attr: { placeholder: t2("gallerySearchPlaceholder"), "aria-label": t2("gallerySearchPlaceholder") } });
-  search.oninput = () => store.patch({ searchQuery: search.value.toLowerCase(), galleryPage: 0 });
+  search.oninput = () => store.patch({ searchQuery: search.value.toLowerCase() });
   iconButton(searchRow, plugin, "galleryBtnRefresh", "refresh-cw", () => store.load(true));
   const viewModes = searchRow.createDiv({ cls: "fm-view-controls", attr: { role: "group", "aria-label": t2("galleryLayoutLabel") } });
   const grid = iconButton(viewModes, plugin, "galleryLayoutGrid", "layout-grid", () => store.patch({ layoutMode: "grid" }));
   const list = iconButton(viewModes, plugin, "galleryLayoutList", "list", () => store.patch({ layoutMode: "list" }));
   const filters = toolbar.createDiv({ cls: "fm-browser-filters" });
-  const folder = galleryFilter(filters, { t: t2, labelKey: "galleryFolderLabel", allKey: "galleryAllFolders", summaryKey: "gallerySelectedFolders", tree: true, selected: () => store.state.selectedBuckets, change: (values) => store.patch({ selectedBuckets: values, galleryPage: 0 }) });
-  const type = galleryFilter(filters, { t: t2, labelKey: "galleryTypeLabel", allKey: "galleryAllTypes", summaryKey: "gallerySelectedTypes", selected: () => store.state.selectedTypes, change: (values) => store.patch({ selectedTypes: values, galleryPage: 0 }) });
+  const folder = galleryFilter(filters, { t: t2, labelKey: "galleryFolderLabel", allKey: "galleryAllFolders", summaryKey: "gallerySelectedFolders", tree: true, selected: () => store.state.selectedBuckets, change: (values) => store.patch({ selectedBuckets: values }) });
+  const type = galleryFilter(filters, { t: t2, labelKey: "galleryTypeLabel", allKey: "galleryAllTypes", summaryKey: "gallerySelectedTypes", selected: () => store.state.selectedTypes, change: (values) => store.patch({ selectedTypes: values }) });
   const sort = galleryPopover(filters, { t: t2, labelKey: "gallerySortLabel" });
   sort.body.setAttribute("role", "radiogroup");
   sort.body.setAttribute("aria-label", t2("gallerySortLabel"));
@@ -2963,7 +2963,7 @@ function galleryToolbar(view, parent) {
     label.createSpan({ text: t2(sortKeys[index]) });
     input.onchange = () => {
       if (!input.checked) return;
-      store.patch({ selectedSort: value, galleryPage: 0 });
+      store.patch({ selectedSort: value });
       sort.root.open = false;
       sort.trigger.focus();
     };
@@ -5372,8 +5372,7 @@ var RemoteFilePages = class {
     this.listeners = /* @__PURE__ */ new Set();
     this.revision = 0;
     this.pending = null;
-    this.nextOffset = 0;
-    this.state = { items: [], buckets: [], totalCount: 0, loaded: false, loading: false, error: null, hasMore: false };
+    this.state = { items: [], buckets: [], totalCount: 0, pageIndex: 0, loaded: false, loading: false, error: null };
   }
   subscribe(fn) {
     this.listeners.add(fn);
@@ -5386,39 +5385,47 @@ var RemoteFilePages = class {
     Object.assign(this.state, values);
     this.emit();
   }
+  get pageCount() {
+    return Math.max(1, Math.ceil(this.state.totalCount / REMOTE_FILE_BATCH_SIZE));
+  }
   load(force = false) {
     if (this.pending && !force) return this.pending;
     if (this.state.loaded && !force) return Promise.resolve();
     this.revision++;
-    this.nextOffset = 0;
-    this.patch({ items: [], loaded: false, hasMore: false, error: null });
-    return this.request(false);
+    this.patch({ items: [], pageIndex: 0, loaded: false, error: null });
+    return this.request(0);
   }
-  loadMore() {
+  goToPage(index) {
     if (this.pending) return this.pending;
-    if (!this.state.hasMore) return Promise.resolve();
-    return this.request(true);
+    const page = Math.min(this.pageCount - 1, Math.max(0, Math.trunc(index) || 0));
+    if (page === this.state.pageIndex && this.state.loaded && !this.state.error) return Promise.resolve();
+    return this.request(page);
   }
-  request(append) {
-    const revision = this.revision, offset = append ? this.nextOffset : 0, query = { ...this.query };
+  retry() {
+    var _a;
+    return this.pending || this.request((_a = this.failedPage) != null ? _a : this.state.pageIndex);
+  }
+  request(index) {
+    const revision = this.revision, query = { ...this.query };
     this.patch({ loading: true, error: null });
     const pending = Promise.resolve().then(async () => {
       try {
-        const page = await this.plugin.fetchRemoteFilePage({ ...query, limit: REMOTE_FILE_BATCH_SIZE, offset });
+        let pageIndex = index;
+        let page = await this.plugin.fetchRemoteFilePage({ ...query, limit: REMOTE_FILE_BATCH_SIZE, offset: pageIndex * REMOTE_FILE_BATCH_SIZE });
         if (revision !== this.revision) return;
-        const known = new Map((append ? this.state.items : []).map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
-        this.nextOffset = offset + page.items.length;
-        page.items.forEach((item) => known.set(`${item.year}/${item.month}/${item.filename}`, item));
-        this.patch({
-          items: [...known.values()],
-          totalCount: page.totalCount,
-          buckets: page.buckets,
-          loaded: true,
-          loading: false,
-          hasMore: page.items.length > 0 && offset + page.items.length < page.totalCount
-        });
+        const last = Math.max(0, Math.ceil(page.totalCount / REMOTE_FILE_BATCH_SIZE) - 1);
+        if (pageIndex > last) {
+          pageIndex = last;
+          page = await this.plugin.fetchRemoteFilePage({ ...query, limit: REMOTE_FILE_BATCH_SIZE, offset: pageIndex * REMOTE_FILE_BATCH_SIZE });
+          if (revision !== this.revision) return;
+        }
+        this.failedPage = null;
+        this.patch({ items: page.items, buckets: page.buckets, totalCount: page.totalCount, pageIndex, loaded: true, loading: false, error: null });
       } catch (error) {
-        if (revision === this.revision) this.patch({ loading: false, error: error.message || String(error) });
+        if (revision === this.revision) {
+          this.failedPage = index;
+          this.patch({ loading: false, error: error.message || String(error) });
+        }
       } finally {
         if (this.pending === pending) this.pending = null;
       }
@@ -5433,25 +5440,17 @@ var RemoteFilePages = class {
   clear() {
     this.revision++;
     this.pending = null;
+    this.failedPage = null;
     this.listeners.clear();
-    Object.assign(this.state, { items: [], buckets: [], loaded: false, loading: false, error: null, hasMore: false, totalCount: 0 });
-    this.nextOffset = 0;
+    Object.assign(this.state, { items: [], buckets: [], totalCount: 0, pageIndex: 0, loaded: false, loading: false, error: null });
   }
 };
-function scrollLoader(root, control, load) {
-  const observer = typeof IntersectionObserver === "function" ? new IntersectionObserver((entries) => {
-    if (entries.some((entry) => entry.isIntersecting) && !control.hidden && !control.disabled) load();
-  }, { root, rootMargin: "0px 0px 100px 0px" }) : null;
-  observer == null ? void 0 : observer.observe(control);
-  control.onclick = load;
-  return () => observer == null ? void 0 : observer.disconnect();
-}
 
 // src/ui/gallery-store.js
 var GalleryStore = class extends RemoteFilePages {
   constructor(plugin) {
     super(plugin, { sort: "time_desc" });
-    this.state = { ...this.state, searchQuery: "", selectedBuckets: [], selectedTypes: [], selectedSort: "time_desc", layoutMode: "list", galleryPage: 0, galleryFilterKey: "", insertMode: plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload ? "webp" : "raw") };
+    this.state = { ...this.state, searchQuery: "", selectedBuckets: [], selectedTypes: [], selectedSort: "time_desc", layoutMode: "list", insertMode: plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload ? "webp" : "raw") };
     this.formatRevision = 0;
   }
   patch(values) {
@@ -7563,7 +7562,6 @@ var OrphanWizardModal = class extends FileMasterModal {
 
 // src/gallery.js
 var import_obsidian23 = require("obsidian");
-var REMOTE_GALLERY_PAGE_SIZE = 60;
 function filterRemoteGallery(view) {
   const filtered = view.items.filter((item) => {
     var _a, _b;
@@ -7594,20 +7592,6 @@ function filterRemoteGallery(view) {
   });
   return filtered;
 }
-function getRemoteGalleryPage(view, filtered) {
-  const key = JSON.stringify([view.selectedBuckets || [], view.selectedTypes || [], view.selectedSort || "time_desc", view.searchQuery]);
-  if (key !== view.galleryFilterKey) {
-    view.galleryPage = 0;
-    view.galleryFilterKey = key;
-  }
-  const totalPages = Math.max(1, Math.ceil(filtered.length / REMOTE_GALLERY_PAGE_SIZE));
-  view.galleryPage = Math.min(Math.max(0, view.galleryPage || 0), totalPages - 1);
-  return {
-    current: view.galleryPage,
-    totalPages,
-    items: filtered.slice(view.galleryPage * REMOTE_GALLERY_PAGE_SIZE, (view.galleryPage + 1) * REMOTE_GALLERY_PAGE_SIZE)
-  };
-}
 function renderRemoteGallery(view, containerEl) {
   containerEl.empty();
   if (view.layoutMode === "list") {
@@ -7615,7 +7599,7 @@ function renderRemoteGallery(view, containerEl) {
   } else {
     containerEl.removeClass("is-list");
   }
-  const filtered = view.progressive ? view.items : view.filterItems();
+  const filtered = view.serverPaged ? view.items : view.filterItems();
   if (filtered.length === 0) {
     containerEl.createDiv({
       cls: "fm-section-box",
@@ -7624,8 +7608,7 @@ function renderRemoteGallery(view, containerEl) {
     });
     return;
   }
-  const page = view.progressive ? { items: filtered, totalPages: 1 } : getRemoteGalleryPage(view, filtered);
-  for (const item of page.items) {
+  for (const item of filtered) {
     let card, thumbWrap, nameButton, actions;
     const filename = item.name || item.filename;
     const createName = (parent) => parent.createEl("button", { cls: "fm-gallery-name", text: filename, attr: { type: "button", "aria-label": filename } });
@@ -7730,22 +7713,36 @@ function renderRemoteGallery(view, containerEl) {
     (0, import_obsidian23.setIcon)(copyBtn, "copy");
     copyBtn.onclick = () => copyText(view.plugin, insertTargetUrl);
   }
-  if (page.totalPages > 1) {
-    const pager = containerEl.createDiv({ cls: "fm-gallery-pagination" });
-    const previous = pager.createEl("button", { text: view.t("pagePrevious") });
-    previous.disabled = page.current === 0;
-    previous.onclick = () => {
-      view.galleryPage--;
-      view.store ? view.store.emit() : view.renderGrid(containerEl);
-    };
-    pager.createSpan({ text: view.t("pageCount", { current: page.current + 1, total: page.totalPages }) });
-    const next = pager.createEl("button", { text: view.t("pageNext") });
-    next.disabled = page.current + 1 === page.totalPages;
-    next.onclick = () => {
-      view.galleryPage++;
-      view.store ? view.store.emit() : view.renderGrid(containerEl);
-    };
-  }
+}
+
+// src/ui/file-browser-footer.js
+function fileBrowserFooter(parent, plugin, source) {
+  const root = parent.createDiv({ cls: "fm-browser-footer" });
+  const pagination = root.createEl("nav", { cls: "fm-browser-pagination", attr: { "aria-label": plugin.t("galleryPaginationLabel") } });
+  const previous = pagination.createEl("button", { text: plugin.t("pagePrevious"), attr: { type: "button" } });
+  const count = pagination.createSpan({ cls: "fm-browser-page-count", attr: { "aria-live": "polite" } });
+  const next = pagination.createEl("button", { text: plugin.t("pageNext"), attr: { type: "button" } });
+  const actions = root.createDiv({ cls: "fm-btn-row" });
+  const retry = pagination.createEl("button", { text: plugin.t("previewRetry"), attr: { type: "button" } });
+  let busy = false;
+  const change = (index) => {
+    if (!busy && !source.state.loading) return source.goToPage(index);
+  };
+  previous.onclick = () => change(source.state.pageIndex - 1);
+  next.onclick = () => change(source.state.pageIndex + 1);
+  retry.onclick = () => {
+    if (!busy) return source.retry();
+  };
+  return { root, actions, pagination, previous, next, count, sync(disabled = false) {
+    busy = disabled;
+    const state = source.state, total = source.pageCount;
+    pagination.hidden = total <= 1 && !state.error;
+    previous.disabled = busy || state.loading || state.pageIndex === 0;
+    next.disabled = busy || state.loading || state.pageIndex >= total - 1;
+    retry.hidden = !state.error;
+    retry.disabled = busy || state.loading;
+    count.setText(plugin.t("pageCount", { current: state.pageIndex + 1, total }));
+  } };
 }
 
 // src/modals/remote-gallery.js
@@ -7756,7 +7753,7 @@ function openBrowser(host) {
   host.store = galleryStore(host.plugin);
   host.insertionTarget = captureInsertionTarget(host.plugin);
   host.browserEvents = new AbortController();
-  host.progressive = true;
+  host.serverPaged = true;
   const updateTarget = () => {
     const target = captureInsertionTarget(host.plugin);
     if (target) host.insertionTarget = target;
@@ -7769,50 +7766,39 @@ function openBrowser(host) {
   if (host instanceof FileMasterModal) moduleHeading(host, host.contentEl, { title: "actRemoteGalleryTitle", symbol: "images" });
   const toolbar = host.toolbar = galleryToolbar(host, host.contentEl), status = host.contentEl.createDiv({ cls: "fm-browser-status", attr: { "aria-live": "polite" } });
   const results = host.contentEl.createDiv({ cls: "fm-browser-results" }), grid = results.createDiv({ cls: "fm-gallery-grid" });
-  const more = results.createEl("button", { cls: "fm-load-more", attr: { type: "button" } });
-  host.stopLoading = scrollLoader(results, more, () => host.store.state.loaded ? host.store.loadMore() : host.store.load(true));
+  const footer = host.browserFooter = fileBrowserFooter(host.contentEl, host.plugin, host.store);
+  if (host instanceof FileMasterModal) footer.actions.createEl("button", { text: host.t("btnCancel") }).onclick = () => host.fromHub ? host.returnToHub() : host.close();
   host.render = () => {
     const state = host.store.state;
     toolbar.sync();
     status.empty();
-    if (host.browserRevision !== host.store.revision) {
+    if (host.browserRevision !== `${host.store.revision}:${state.pageIndex}`) {
       results.scrollTop = 0;
-      host.browserRevision = host.store.revision;
+      host.browserRevision = `${host.store.revision}:${state.pageIndex}`;
     }
     if (state.loading) status.createSpan({ text: host.t("galleryLoading") });
-    more.hidden = !state.hasMore && !state.error;
-    more.disabled = state.loading;
-    more.setText(host.t(state.error ? "previewRetry" : state.loading ? "galleryLoading" : "galleryLoadMore"));
-    if (state.error) {
-      status.createSpan({ text: host.t("galleryLoadFail", { err: state.error }) });
-      const retry = status.createEl("button", { text: host.t("galleryBtnRefresh") });
-      retry.onclick = () => host.store.state.loaded ? host.store.loadMore() : host.store.load(true);
-    }
+    footer.sync();
+    if (state.error) status.createSpan({ text: host.t("galleryLoadFail", { err: state.error }) });
     if (!state.loaded && !state.items.length) {
       grid.empty();
     } else host.renderGrid(grid);
   };
-  if (host.fromHub) {
-    const footer = host.contentEl.createDiv({ cls: "fm-btn-row" });
-    footer.createEl("button", { text: host.t("btnCancel") }).onclick = () => host.returnToHub();
-  }
   host.unsubscribe = host.store.subscribe(host.render);
   host.render();
   return host.store.load();
 }
 function closeBrowser(host) {
-  var _a, _b, _c, _d, _e;
-  (_a = host.stopLoading) == null ? void 0 : _a.call(host);
-  (_b = host.toolbar) == null ? void 0 : _b.dispose();
-  (_c = host.workspaceEvents) == null ? void 0 : _c.forEach((ref) => host.app.workspace.offref(ref));
+  var _a, _b, _c, _d;
+  (_a = host.toolbar) == null ? void 0 : _a.dispose();
+  (_b = host.workspaceEvents) == null ? void 0 : _b.forEach((ref) => host.app.workspace.offref(ref));
   host.workspaceEvents = [];
-  (_d = host.browserEvents) == null ? void 0 : _d.abort();
-  (_e = host.unsubscribe) == null ? void 0 : _e.call(host);
+  (_c = host.browserEvents) == null ? void 0 : _c.abort();
+  (_d = host.unsubscribe) == null ? void 0 : _d.call(host);
   host.unsubscribe = null;
   host.contentEl.empty();
 }
 function bindState(host) {
-  for (const key of ["items", "searchQuery", "selectedBuckets", "selectedTypes", "selectedSort", "layoutMode", "insertMode", "galleryPage", "galleryFilterKey"]) Object.defineProperty(host, key, { get: () => host.store.state[key], set: (value) => {
+  for (const key of ["items", "searchQuery", "selectedBuckets", "selectedTypes", "selectedSort", "layoutMode", "insertMode"]) Object.defineProperty(host, key, { get: () => host.store.state[key], set: (value) => {
     host.store.state[key] = value;
   }, configurable: true });
 }
@@ -8759,6 +8745,7 @@ var RemoteRenameModal = class extends FileMasterModal {
     (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
     (_b = this.pages) == null ? void 0 : _b.clear();
     this.closed = false;
+    this.inSearch = false;
     this.modalEl.addClass("fm-ui", "fm-rename-dialog");
     this.contentEl.addClass("fm-wizard-modal", "fm-rename");
     this.shell();
@@ -8781,11 +8768,11 @@ var RemoteRenameModal = class extends FileMasterModal {
   }
   shell(step, back = null) {
     var _a;
-    (_a = this.stopLoading) == null ? void 0 : _a.call(this);
     this.contentEl.empty();
     moduleHeading(this, this.contentEl, { title: "remoteRenameTitle", symbol: "file-pen-line", step, total: 2 });
     this.body = this.contentEl.createDiv({ cls: "fm-rename-body" });
-    this.footer = this.contentEl.createDiv({ cls: "fm-btn-row" });
+    this.browserFooter = step === 1 || this.inSearch ? fileBrowserFooter(this.contentEl, this.plugin, this.pages) : null;
+    this.footer = ((_a = this.browserFooter) == null ? void 0 : _a.actions) || this.contentEl.createDiv({ cls: "fm-btn-row" });
     this.cancel = this.button(this.footer, back ? "btnBack" : "btnCancel", back || (() => returnToHub(this)));
   }
   button(parent, key, handler, primary = false) {
@@ -8794,6 +8781,7 @@ var RemoteRenameModal = class extends FileMasterModal {
     return button;
   }
   loadError(error) {
+    this.inSearch = false;
     this.shell();
     this.body.createEl("p", { text: error.message, cls: "fm-rename-error" });
     this.button(this.footer, "previewRetry", () => this.onOpen());
@@ -8875,6 +8863,7 @@ var RemoteRenameModal = class extends FileMasterModal {
   search() {
     this.revision++;
     this.inReview = false;
+    this.inSearch = true;
     this.showingStep = !!this.items.length;
     this.shell(this.showingStep ? 1 : null);
     this.body.createEl("p", { text: this.t("renameStep1Desc"), cls: "fm-module-summary" });
@@ -8883,10 +8872,6 @@ var RemoteRenameModal = class extends FileMasterModal {
     this.matchCount = toolbar.createSpan({ cls: "fm-file-row-meta" });
     this.list = this.body.createDiv({ cls: "fm-scroll-list fm-file-action-list" });
     this.rows = this.list.createDiv();
-    this.more = this.list.createEl("button", { cls: "fm-load-more", attr: { type: "button" } });
-    this.stopLoading = scrollLoader(this.list, this.more, () => {
-      if (!this.checking) return this.pages.state.loaded ? this.pages.loadMore() : this.pages.load(true);
-    });
     this.rowControls = /* @__PURE__ */ new Map();
     this.validation = this.body.createDiv({ cls: "fm-rename-validation", attr: { "aria-live": "polite" } });
     this.next = this.button(this.footer, "renameNextPreview", () => this.precheck(), true);
@@ -8906,7 +8891,7 @@ var RemoteRenameModal = class extends FileMasterModal {
     return this.pages.setQuery({ q: this.query.trim(), types: ["image"], sort: "time_desc" });
   }
   renderList() {
-    var _a;
+    var _a, _b;
     const state = this.pages.state;
     if (this.showingStep !== !!this.items.length) {
       this.showingStep = !!this.items.length;
@@ -8923,15 +8908,17 @@ var RemoteRenameModal = class extends FileMasterModal {
       this.rows.empty();
       this.rows.createDiv({ text: this.t("renameNoFiles"), cls: "fm-empty-state" });
     }
-    this.more.hidden = !state.hasMore && !state.error && !state.loading;
-    this.more.disabled = state.loading || this.checking;
-    this.more.setText(this.t(state.error ? "previewRetry" : state.loading ? "galleryLoading" : "galleryLoadMore"));
     if (state.error) (_a = this.validation) == null ? void 0 : _a.setText(state.error);
+    else if (!this.checking) (_b = this.validation) == null ? void 0 : _b.empty();
+    if (this.renderedPage !== state.pageIndex) {
+      this.list.scrollTop = 0;
+      this.renderedPage = state.pageIndex;
+    }
     this.next.hidden = !this.items.length;
     this.updateSelection();
   }
   updateSelection() {
-    var _a, _b;
+    var _a, _b, _c;
     const selectedKey = this.selected && remoteFileKey(this.selected);
     for (const [key, { row, input, radio, item }] of this.rowControls) {
       const active = key === selectedKey;
@@ -8944,8 +8931,8 @@ var RemoteRenameModal = class extends FileMasterModal {
       if (input.value !== value) input.value = value;
     }
     const draft = selectedKey && ((_b = this.drafts.get(selectedKey)) == null ? void 0 : _b.trim().normalize("NFC"));
-    if (this.more) this.more.disabled = !!this.checking || this.pages.state.loading;
-    this.next.disabled = this.checking || !this.rowControls.has(selectedKey) || !draft || draft === this.splitName(this.selected).base;
+    (_c = this.browserFooter) == null ? void 0 : _c.sync(!!this.checking);
+    this.next.disabled = this.checking || this.pages.state.loading || !this.rowControls.has(selectedKey) || !draft || draft === this.splitName(this.selected).base;
   }
   async precheck() {
     var _a, _b;
@@ -8984,6 +8971,7 @@ var RemoteRenameModal = class extends FileMasterModal {
   }
   review() {
     this.inReview = true;
+    this.inSearch = false;
     this.shell(2, () => this.search());
     const { request, preview, references } = this.preview;
     this.nameChange(this.body, preview.oldItem || this.selected, request.newFilename);
@@ -9012,6 +9000,7 @@ var RemoteRenameModal = class extends FileMasterModal {
   }
   recovery(error) {
     var _a, _b;
+    this.inSearch = false;
     this.shell();
     this.body.createEl("p", { text: this.t("renamePending") });
     this.body.createDiv({ text: `${this.pending.request.filename} \u2192 ${((_b = (_a = this.pending.result) == null ? void 0 : _a.item) == null ? void 0 : _b.filename) || this.pending.request.newFilename}`, cls: "fm-rename-count" });
@@ -9027,6 +9016,7 @@ var RemoteRenameModal = class extends FileMasterModal {
     this.busy = true;
     this.revision++;
     const request = (pending == null ? void 0 : pending.request) || this.preview.request;
+    this.inSearch = false;
     this.shell();
     this.cancel.disabled = true;
     const status = this.body.createDiv({ text: this.t("renameWorking"), cls: "fm-rename-count", attr: { "aria-live": "polite" } });
@@ -9077,10 +9067,9 @@ var RemoteRenameModal = class extends FileMasterModal {
     }
   }
   onClose() {
-    var _a, _b, _c;
-    (_a = this.stopLoading) == null ? void 0 : _a.call(this);
-    (_b = this.unsubscribe) == null ? void 0 : _b.call(this);
-    (_c = this.pages) == null ? void 0 : _c.clear();
+    var _a, _b;
+    (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
+    (_b = this.pages) == null ? void 0 : _b.clear();
     this.closed = true;
     this.revision++;
     if (this.searchTimer) {

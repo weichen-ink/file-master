@@ -163,13 +163,10 @@ test('Reference index handles encoded/CJK/emoji paths, boundaries and duplicate 
   assert.ok(match(decodeURIComponent('![[assets/%E4%B8%AD%E6%96%87%20%E5%9B%BE%E7%89%87.png]]')).has('assets/中文 图片.png'));
 });
 
-test('Gallery pagination bounds rendering and resets when filters change', () => {
-  const { getRemoteGalleryPage } = loadPlugin();
-  const view = { selectedBuckets: [], selectedTypes: [], searchQuery: '' };
-  const items = Array.from({ length: 1000 }, (_, id) => ({ id }));
-  assert.equal(getRemoteGalleryPage(view, items).items.length, 60);
-  view.galleryPage = 16;
-  assert.equal(getRemoteGalleryPage(view, items).items.length, 40);
-  view.searchQuery = 'changed';
-  assert.equal(getRemoteGalleryPage(view, items).current, 0);
+test('Server paging bounds each request and resets when the query changes',async()=>{
+  const {RemoteFilePages}=loadPlugin(),calls=[];
+  const pages=new RemoteFilePages({fetchRemoteFilePage:async query=>{calls.push(query);return {items:Array.from({length:20},(_,i)=>({filename:`image-${query.offset+i}.png`})),totalCount:1000,buckets:[]};}});
+  await pages.load();await pages.goToPage(49);
+  assert.equal(pages.state.items.length,20);assert.equal(calls.at(-1).offset,980);
+  await pages.setQuery({q:'image'});assert.equal(pages.state.pageIndex,0);assert.equal(calls.at(-1).offset,0);
 });

@@ -15,14 +15,14 @@ export function galleryToolbar(view,parent) {
   const toolbar=parent.createDiv({cls:'fm-browser-toolbar'});
   const searchRow=toolbar.createDiv({cls:'fm-browser-search-row'});
   const search=searchRow.createEl('input',{type:'search',cls:'fm-gallery-search',attr:{placeholder:t('gallerySearchPlaceholder'),'aria-label':t('gallerySearchPlaceholder')}});
-  search.oninput=()=>store.patch({searchQuery:search.value.toLowerCase(),galleryPage:0});
+  search.oninput=()=>store.patch({searchQuery:search.value.toLowerCase()});
   iconButton(searchRow,plugin,'galleryBtnRefresh','refresh-cw',()=>store.load(true));
   const viewModes=searchRow.createDiv({cls:'fm-view-controls',attr:{role:'group','aria-label':t('galleryLayoutLabel')}});
   const grid=iconButton(viewModes,plugin,'galleryLayoutGrid','layout-grid',()=>store.patch({layoutMode:'grid'}));
   const list=iconButton(viewModes,plugin,'galleryLayoutList','list',()=>store.patch({layoutMode:'list'}));
   const filters=toolbar.createDiv({cls:'fm-browser-filters'});
-  const folder=galleryFilter(filters,{t,labelKey:'galleryFolderLabel',allKey:'galleryAllFolders',summaryKey:'gallerySelectedFolders',tree:true,selected:()=>store.state.selectedBuckets,change:values=>store.patch({selectedBuckets:values,galleryPage:0})});
-  const type=galleryFilter(filters,{t,labelKey:'galleryTypeLabel',allKey:'galleryAllTypes',summaryKey:'gallerySelectedTypes',selected:()=>store.state.selectedTypes,change:values=>store.patch({selectedTypes:values,galleryPage:0})});
+  const folder=galleryFilter(filters,{t,labelKey:'galleryFolderLabel',allKey:'galleryAllFolders',summaryKey:'gallerySelectedFolders',tree:true,selected:()=>store.state.selectedBuckets,change:values=>store.patch({selectedBuckets:values})});
+  const type=galleryFilter(filters,{t,labelKey:'galleryTypeLabel',allKey:'galleryAllTypes',summaryKey:'gallerySelectedTypes',selected:()=>store.state.selectedTypes,change:values=>store.patch({selectedTypes:values})});
   const sort=galleryPopover(filters,{t,labelKey:'gallerySortLabel'});
   sort.body.setAttribute('role','radiogroup');sort.body.setAttribute('aria-label',t('gallerySortLabel'));
   const radioName=`fm-gallery-sort-${++sortSequence}`;
@@ -33,7 +33,7 @@ export function galleryToolbar(view,parent) {
     label.createSpan({text:t(sortKeys[index])});
     input.onchange=()=>{
       if(!input.checked)return;
-      store.patch({selectedSort:value,galleryPage:0});sort.root.open=false;sort.trigger.focus();
+      store.patch({selectedSort:value});sort.root.open=false;sort.trigger.focus();
     };
     return input;
   });

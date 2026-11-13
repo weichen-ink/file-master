@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createVaultFixture}=require('./helpers/vault');
 const {loadPlugin}=require('./helpers/load-plugin');
+const {Element}=require('./helpers/ui');
 const tick=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const image=n=>({filename:`image-${n}.png`,year:'2026',month:'11',size:n,rawUrl:`https://example.com/raw/2026/11/image-${n}.png`});
@@ -15,49 +16,71 @@ function fixture(){
   return f;
 }
 
-test('Rename opens with the latest 20 images, appends on scroll without scanning notes or replacing edits',async()=>{
-  const f=fixture(),calls=[],observers=[];
-  // Use an actual observer callback to exercise the scroll entry point.
-  class Observer {constructor(fn,options){this.fn=fn;this.options=options;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}}
-  const api=loadPlugin(undefined,{IntersectionObserver:Observer});
+test('Rename keeps pagination outside the list, loads 20 images per page and preserves drafts without scanning notes',async()=>{
+  const f=fixture(),calls=[];
   f.add('unrelated.md','unrelated');let reads=0;f.plugin.app.vault.read=async()=>{reads++;return '';};
   f.plugin.fetchRemoteFilePage=async options=>{
     calls.push(options);return {items:Array.from({length:20},(_,i)=>image(options.offset+i)),totalCount:60,buckets:['2026/11']};
   };
-  const modal=new api.RemoteRenameModal(f.plugin.app,f.plugin);await modal.onOpen();
+  const modal=new f.RemoteRenameModal(f.plugin.app,f.plugin);await modal.onOpen();
   assert.deepEqual(calls[0],{types:['image'],sort:'time_desc',limit:20,offset:0});
   assert.equal(modal.rowControls.size,20);assert.equal(reads,0);
+  assert.equal(modal.browserFooter.root.parentElement,modal.contentEl);
+  assert.ok(!modal.list.all().includes(modal.browserFooter.pagination));
+  assert.equal(modal.cancel.parentElement,modal.browserFooter.actions);
+  assert.equal(modal.next.parentElement,modal.browserFooter.actions);
   const first=modal.rowControls.values().next().value;first.input.onfocus();first.input.value='draft';first.input.oninput();
-  observers[0].fn([{isIntersecting:true}]);await tick();
-  assert.equal(calls[1].offset,20);assert.equal(modal.rowControls.size,40);assert.equal(reads,0);
-  assert.equal(modal.rowControls.values().next().value.input,first.input);assert.equal(first.input.value,'draft');
+  await modal.browserFooter.next.onclick();
+  assert.equal(calls[1].offset,20);assert.equal(modal.rowControls.size,20);assert.equal(reads,0);
+  assert.equal(modal.pages.state.pageIndex,1);assert.equal(modal.list.scrollTop,0);
+  await modal.browserFooter.previous.onclick();
+  assert.equal(modal.rowControls.values().next().value.input.value,'draft');
   modal.query='other';await modal.reloadRemotePage();
-  assert.equal(calls[2].offset,0);assert.equal(calls[2].q,'other');assert.equal(reads,0);
-  modal.onClose();assert.ok(observers.every(observer=>observer.disconnected));
+  assert.equal(calls.at(-1).offset,0);assert.equal(calls.at(-1).q,'other');assert.equal(reads,0);
+  modal.onClose();
 });
 
-test('Shared page loader rejects stale responses, deduplicates, advances raw offsets, and retries failed batches',async()=>{
+test('Shared page loader rejects stale responses, shares navigation requests, and retries the failed page',async()=>{
   const {RemoteFilePages}=loadPlugin(),a=deferred(),b=deferred(),calls=[];
   const plugin={fetchRemoteFilePage:options=>{calls.push(options);return calls.length===1?a.promise:b.promise;}};
   const pages=new RemoteFilePages(plugin),first=pages.load();await tick();
   const second=pages.setQuery({q:'new'});await tick();
-  b.resolve({items:[image(9)],totalCount:5,buckets:[]});await second;
-  a.resolve({items:[image(0)],totalCount:5,buckets:[]});await first;
+  b.resolve({items:[image(9)],totalCount:65,buckets:[]});await second;
+  a.resolve({items:[image(0)],totalCount:65,buckets:[]});await first;
   assert.equal(pages.state.items[0].filename,image(9).filename);
-  let fail=true;plugin.fetchRemoteFilePage=async options=>{calls.push(options);if(fail)throw Error('offline');return {items:[image(9),image(10)],totalCount:5,buckets:[]};};
-  await pages.loadMore();assert.equal(pages.state.items.length,1);assert.equal(pages.state.error,'offline');
-  fail=false;await Promise.all([pages.loadMore(),pages.loadMore()]);assert.equal(calls.length,4);assert.equal(pages.state.items.length,2);
-  await pages.loadMore();assert.equal(calls.at(-1).offset,3);
+  let fail=true;plugin.fetchRemoteFilePage=async options=>{calls.push(options);if(fail)throw Error('offline');return {items:[image(options.offset)],totalCount:65,buckets:[]};};
+  await pages.goToPage(1);assert.equal(pages.state.pageIndex,0);assert.equal(pages.state.error,'offline');
+  fail=false;await Promise.all([pages.retry(),pages.retry()]);assert.equal(calls.length,4);assert.equal(pages.state.pageIndex,1);
+  assert.equal(pages.state.items.length,1);assert.equal(calls.at(-1).offset,20);
+  await pages.goToPage(2);assert.equal(calls.at(-1).offset,40);
 });
 
-test('Hub and sidebar store send global filters and sorting to the same 20-item loader',async()=>{
-  const {GalleryStore}=loadPlugin(),calls=[];
-  const store=new GalleryStore({settings:{},fetchRemoteFilePage:async options=>{calls.push(options);return {items:[image(options.offset)],totalCount:45,buckets:['2025/01','2026/11']};}});
-  await store.load();await store.loadMore();assert.equal(calls[0].limit,20);assert.equal(calls[1].offset,1);
-  store.patch({selectedBuckets:['2025/01'],selectedTypes:['image'],selectedSort:'hits_asc'});await store.pending;
+test('Hub and sidebar use one footer outside results and send global filters to the 20-item loader',async()=>{
+  const f=fixture(),calls=[];
+  f.plugin.app.workspace.on=()=>({});f.plugin.app.workspace.offref=()=>{};
+  f.plugin.fetchRemoteFilePage=async options=>{calls.push(options);return {items:[image(options.offset)],totalCount:45,buckets:['2025/01','2026/11']};};
+  const hub=new f.RemoteGalleryModal(f.plugin.app,f.plugin);hub.fromHub=true;hub.returnToHub=()=>{};await hub.onOpen();
+  const sidebar=new f.RemoteGalleryView({},f.plugin);sidebar.app=f.plugin.app;sidebar.contentEl=new Element();await sidebar.onOpen();
+  assert.equal(hub.store,sidebar.store);
+  for(const host of [hub,sidebar]){
+    const results=host.contentEl.querySelector('.fm-browser-results');
+    assert.ok(!results.all().includes(host.browserFooter.root));
+    assert.equal(host.browserFooter.root.parentElement,host.contentEl);
+    assert.equal(results.querySelector('.fm-gallery-pagination'),undefined);
+  }
+  await hub.browserFooter.next.onclick();assert.equal(calls.at(-1).offset,20);
+  assert.equal(sidebar.store.state.pageIndex,1);
+  hub.store.patch({selectedBuckets:['2025/01'],selectedTypes:['image'],selectedSort:'hits_asc'});await hub.store.pending;
   assert.deepEqual(calls.at(-1),{q:'',buckets:['2025/01'],types:['image'],sort:'hits_asc',limit:20,offset:0});
-  const count=calls.length;store.patch({layoutMode:'grid'});assert.equal(calls.length,count);
-  assert.deepEqual(store.state.buckets,['2025/01','2026/11']);store.clear();
+  const count=calls.length;hub.store.patch({layoutMode:'grid'});assert.equal(calls.length,count);
+  assert.deepEqual(hub.store.state.buckets,['2025/01','2026/11']);hub.onClose();sidebar.onClose();hub.store.clear();
+});
+
+test('Deleting files from a later page clamps to the last existing page',async()=>{
+  const {RemoteFilePages}=loadPlugin(),calls=[];
+  const pages=new RemoteFilePages({fetchRemoteFilePage:async options=>{calls.push(options);return {items:[image(options.offset)],totalCount:calls.length===1?65:21,buckets:[]};}});
+  await pages.load();await pages.goToPage(3);
+  assert.equal(calls[1].offset,60);assert.equal(calls[2].offset,20);assert.equal(pages.state.pageIndex,1);assert.equal(pages.pageCount,2);
 });
 
 test('Commit reuses preview discovery and never rereads unchanged unrelated notes',async()=>{

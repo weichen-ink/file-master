@@ -4,7 +4,7 @@ const {loadPlugin} = require('./helpers/load-plugin');
 const {Element} = require('./helpers/ui');
 
 test('Directory and type selections use OR within a group and AND between groups', () => {
-  const {filterRemoteGallery, getRemoteGalleryPage} = loadPlugin();
+  const {filterRemoteGallery} = loadPlugin();
   const view = {items: [
     {filename:'a.png', year:'2026', month:'11'},
     {filename:'b.mp3', year:'2026', month:'10'},
@@ -12,9 +12,7 @@ test('Directory and type selections use OR within a group and AND between groups
     {filename:'d.png', year:'2025', month:'12'}
   ], selectedBuckets:['2026/11','2026/10'], selectedTypes:['image','audio'], searchQuery:'', selectedSort:'name_asc'};
   assert.deepEqual(filterRemoteGallery(view).map(item=>item.filename), ['a.png','b.mp3']);
-  getRemoteGalleryPage(view, view.items); view.galleryPage = 3;
   view.selectedBuckets = ['2025/12'];
-  assert.equal(getRemoteGalleryPage(view, view.items).current, 0);
   assert.deepEqual(filterRemoteGallery(view).map(item=>item.filename), ['d.png']);
   view.selectedBuckets = []; view.selectedTypes = [];
   assert.equal(filterRemoteGallery(view).length, 4);

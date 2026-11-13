@@ -50,3 +50,5 @@ export { fileReferenceButton } from '../../src/ui/file-action-list.js';
 
 export * from '../../src/ui/remote-file-pages.js';
 export * from '../../src/plugin/rename-reference-plan.js';
+
+export * from '../../src/ui/file-browser-footer.js';

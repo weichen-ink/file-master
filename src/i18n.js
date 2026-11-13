@@ -613,7 +613,7 @@ export const UI_STRINGS = {
     // 远端媒体资产库 UI
     galleryTitle: '服务器文件',
     galleryViewTitle: '文件库',
-    galleryLoadMore: '加载更多',
+    galleryPaginationLabel: '文件列表翻页',
     galleryLoading: '正在加载服务器文件...',
     galleryLoadFail: '无法加载服务器文件：{err}',
     gallerySearchPlaceholder: '搜索文件名...',
@@ -1296,7 +1296,7 @@ export const UI_STRINGS = {
     // Remote Asset Gallery UI
     galleryTitle: 'Server files',
     galleryViewTitle: 'Server files',
-    galleryLoadMore: 'Load more',
+    galleryPaginationLabel: 'File list pagination',
     galleryLoading: 'Loading server files...',
     galleryLoadFail: 'Could not load server files: {err}',
     gallerySearchPlaceholder: 'Search filenames...',

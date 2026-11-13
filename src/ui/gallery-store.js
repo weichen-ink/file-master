@@ -3,7 +3,7 @@ import { RemoteFilePages } from './remote-file-pages.js';
 export class GalleryStore extends RemoteFilePages {
   constructor(plugin) {
     super(plugin,{sort:'time_desc'});
-    this.state={...this.state,searchQuery:'',selectedBuckets:[],selectedTypes:[],selectedSort:'time_desc',layoutMode:'list',galleryPage:0,galleryFilterKey:'',insertMode:plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload?'webp':'raw')};
+    this.state={...this.state,searchQuery:'',selectedBuckets:[],selectedTypes:[],selectedSort:'time_desc',layoutMode:'list',insertMode:plugin.settings.galleryInsertFormat || (plugin.settings.insertOptimizedLinkOnUpload?'webp':'raw')};
     this.formatRevision=0;
   }
   patch(values) {

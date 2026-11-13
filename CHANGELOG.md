@@ -3,9 +3,10 @@
 ## [1.1.7] - 2026-11-13
 
 ### Faster browsing and renaming
-- Load the latest 20 images when opening server-file renaming, then load more as you scroll.
-- Use the same progressive loading in the Hub and sidebar, with search, directory/type filters, and sorting applied across the complete server catalog.
-- Keep filename edits and selection intact while more results load, and offer retry controls when a request fails.
+- Load the latest 20 images when opening server-file renaming, then request only the selected page.
+- Share server pagination between the Hub and sidebar, with search, directory/type filters, and sorting applied across the complete server catalog.
+- Put pagination outside the scrolling file list, beside Cancel and Preview changes; wrap the footer on narrow screens.
+- Preserve filename drafts when changing pages and offer retry controls when a request fails.
 - Find referencing notes during rename preview instead of scanning the vault whenever the file list opens or changes.
 - Reuse preview results when applying a rename, checking related notes and notes added or changed since preview. Recover interrupted operations without renaming the server file twice.
 
@@ -15,8 +16,8 @@
 - Remove hard-coded legacy WebP paths and duplicate editor-insertion logic.
 - Correct code-fence handling and remove unsafe metadata-only shortcuts when checking attachment references.
 - Share HEIC preview requests and release cached preview resources on eviction or plugin unload.
-- Add regression coverage for actual paste/drop and copy entry points, progressive loading, rename preview reuse, concurrent note edits, and recovery.
-- Validate with 162 passing plugin tests and rebuild the distributed plugin bundle.
+- Add regression coverage for actual paste/drop and copy entry points, server pagination, rename preview reuse, concurrent note edits, and recovery.
+- Validate with 163 passing plugin tests, check wide/narrow layouts in an isolated browser, and rebuild/package the distributed plugin.
 
 ## [1.1.6] - 2026-11-13
 

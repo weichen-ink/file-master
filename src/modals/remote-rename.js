@@ -3,7 +3,8 @@ import { FileMasterModal } from '../ui/modal.js';
 import { moduleHeading } from '../ui/navigation.js';
 import { returnToHub } from './common.js';
 import { fileActionRow, fileSizeBadge } from '../ui/file-action-list.js';
-import { RemoteFilePages, scrollLoader } from '../ui/remote-file-pages.js';
+import { fileBrowserFooter } from '../ui/file-browser-footer.js';
+import { RemoteFilePages } from '../ui/remote-file-pages.js';
 import { documentRow } from '../ui/document-list.js';
 import { getEffectiveLanguage } from '../plugin/logging.js';
 import { requestRemoteRename, scanRenameReferences, remoteFileKey, executeRemoteRename, loadPendingRename } from '../plugin/remote-rename.js';
@@ -17,7 +18,7 @@ export class RemoteRenameModal extends FileMasterModal {
   t(key, params) { return this.plugin.t(key, params); }
   async onOpen() {
     this.unsubscribe?.();this.pages?.clear();
-    this.closed=false;
+    this.closed=false;this.inSearch=false;
     this.modalEl.addClass('fm-ui','fm-rename-dialog');
     this.contentEl.addClass('fm-wizard-modal','fm-rename');
     this.shell();
@@ -37,11 +38,11 @@ export class RemoteRenameModal extends FileMasterModal {
     } catch (error) { if (!this.closed) this.loadError(error); }
   }
   shell(step,back=null) {
-    this.stopLoading?.();
     this.contentEl.empty();
     moduleHeading(this,this.contentEl,{title:'remoteRenameTitle',symbol:'file-pen-line',step,total:2});
     this.body=this.contentEl.createDiv({cls:'fm-rename-body'});
-    this.footer=this.contentEl.createDiv({cls:'fm-btn-row'});
+    this.browserFooter=step===1 || this.inSearch ? fileBrowserFooter(this.contentEl,this.plugin,this.pages) : null;
+    this.footer=this.browserFooter?.actions || this.contentEl.createDiv({cls:'fm-btn-row'});
     this.cancel=this.button(this.footer,back?'btnBack':'btnCancel',back || (()=>returnToHub(this)));
   }
   button(parent,key,handler,primary=false) {
@@ -50,7 +51,7 @@ export class RemoteRenameModal extends FileMasterModal {
     return button;
   }
   loadError(error) {
-    this.shell();
+    this.inSearch=false;this.shell();
     this.body.createEl('p',{text:error.message,cls:'fm-rename-error'});
     this.button(this.footer,'previewRetry',()=>this.onOpen());
   }
@@ -113,7 +114,7 @@ export class RemoteRenameModal extends FileMasterModal {
     });
   }
   search() {
-    this.revision++; this.inReview=false;
+    this.revision++; this.inReview=false;this.inSearch=true;
     this.showingStep=!!this.items.length;
     this.shell(this.showingStep?1:null);
     this.body.createEl('p',{text:this.t('renameStep1Desc'),cls:'fm-module-summary'});
@@ -122,8 +123,6 @@ export class RemoteRenameModal extends FileMasterModal {
     this.matchCount=toolbar.createSpan({cls:'fm-file-row-meta'});
     this.list=this.body.createDiv({cls:'fm-scroll-list fm-file-action-list'});
     this.rows=this.list.createDiv();
-    this.more=this.list.createEl('button',{cls:'fm-load-more',attr:{type:'button'}});
-    this.stopLoading=scrollLoader(this.list,this.more,()=>{if (!this.checking) return this.pages.state.loaded?this.pages.loadMore():this.pages.load(true);});
     this.rowControls=new Map();
     this.validation=this.body.createDiv({cls:'fm-rename-validation',attr:{'aria-live':'polite'}});
     this.next=this.button(this.footer,'renameNextPreview',()=>this.precheck(),true);
@@ -145,7 +144,7 @@ export class RemoteRenameModal extends FileMasterModal {
       this.showingStep=!!this.items.length;
       moduleHeading(this,this.contentEl,{title:'remoteRenameTitle',symbol:'file-pen-line',step:this.showingStep?1:null,total:2});
     }
-    // Appending a batch keeps existing input nodes, focus and edits intact.
+    // Keep drafts across pages and preserve input focus while the current page is loading.
     if (!this.items.length || [...this.rowControls.keys()].some(key=>!this.items.some(item=>remoteFileKey(item)===key))) {
       this.rows.empty();this.rowControls.clear();
     }
@@ -153,10 +152,9 @@ export class RemoteRenameModal extends FileMasterModal {
     for (const item of this.items) if (!this.rowControls.has(remoteFileKey(item))) this.renderEditableFile(this.rows,item);
     this.matchCount.setText(this.t('renameFileCount',{count:state.totalCount}));
     if (!this.items.length && !state.loading && !state.error) {this.rows.empty();this.rows.createDiv({text:this.t('renameNoFiles'),cls:'fm-empty-state'});}
-    this.more.hidden=!state.hasMore && !state.error && !state.loading;
-    this.more.disabled=state.loading || this.checking;
-    this.more.setText(this.t(state.error?'previewRetry':state.loading?'galleryLoading':'galleryLoadMore'));
     if (state.error) this.validation?.setText(state.error);
+    else if (!this.checking) this.validation?.empty();
+    if (this.renderedPage!==state.pageIndex) {this.list.scrollTop=0;this.renderedPage=state.pageIndex;}
     this.next.hidden=!this.items.length;
     this.updateSelection();
   }
@@ -169,8 +167,8 @@ export class RemoteRenameModal extends FileMasterModal {
       if (input.value!==value) input.value=value;
     }
     const draft=selectedKey && this.drafts.get(selectedKey)?.trim().normalize('NFC');
-    if(this.more)this.more.disabled=!!this.checking || this.pages.state.loading;
-    this.next.disabled=this.checking || !this.rowControls.has(selectedKey) || !draft || draft===this.splitName(this.selected).base;
+    this.browserFooter?.sync(!!this.checking);
+    this.next.disabled=this.checking || this.pages.state.loading || !this.rowControls.has(selectedKey) || !draft || draft===this.splitName(this.selected).base;
   }
   async precheck() {
     if (this.next.disabled || this.checking) return;
@@ -208,7 +206,7 @@ export class RemoteRenameModal extends FileMasterModal {
     }
   }
   review() {
-    this.inReview=true;
+    this.inReview=true;this.inSearch=false;
     this.shell(2,()=>this.search());
     const {request,preview,references}=this.preview;
     this.nameChange(this.body,preview.oldItem || this.selected,request.newFilename);
@@ -235,7 +233,7 @@ export class RemoteRenameModal extends FileMasterModal {
     })});
   }
   recovery(error) {
-    this.shell();
+    this.inSearch=false;this.shell();
     this.body.createEl('p',{text:this.t('renamePending')});
     this.body.createDiv({text:`${this.pending.request.filename} → ${this.pending.result?.item?.filename || this.pending.request.newFilename}`,cls:'fm-rename-count'});
     if (this.pending.result) this.aliasNotice(this.pending.result);
@@ -248,7 +246,7 @@ export class RemoteRenameModal extends FileMasterModal {
     if (this.busy || (!pending&&!this.preview)) return;
     this.busy=true; this.revision++;
     const request=pending?.request || this.preview.request;
-    this.shell(); this.cancel.disabled=true;
+    this.inSearch=false;this.shell(); this.cancel.disabled=true;
     const status=this.body.createDiv({text:this.t('renameWorking'),cls:'fm-rename-count',attr:{'aria-live':'polite'}});
     try {
       const report=await executeRemoteRename(this.plugin,request,progress=>{
@@ -281,5 +279,5 @@ export class RemoteRenameModal extends FileMasterModal {
     this.aliasNotice(report.job?.result);
     if (!report.complete) {this.cancel.removeClass('mod-cta');this.button(this.footer,'renameContinue',()=>this.execute(report.job),true);}
   }
-  onClose() { this.stopLoading?.();this.unsubscribe?.();this.pages?.clear();this.closed=true; this.revision++; if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer=null; } this.contentEl.empty(); }
+  onClose() {this.unsubscribe?.();this.pages?.clear();this.closed=true; this.revision++; if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer=null; } this.contentEl.empty(); }
 }

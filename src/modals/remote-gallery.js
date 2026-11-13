@@ -1,6 +1,6 @@
 import { VIEW_TYPE_REMOTE_GALLERY } from '../constants.js';
 import { filterRemoteGallery, renderRemoteGallery } from '../gallery.js';
-import { scrollLoader } from '../ui/remote-file-pages.js';
+import { fileBrowserFooter } from '../ui/file-browser-footer.js';
 import { galleryStore } from '../ui/gallery-store.js';
 import { galleryToolbar } from '../ui/gallery-toolbar.js';
 import { modalChrome, moduleHeading } from '../ui/navigation.js';
@@ -13,7 +13,7 @@ function openBrowser(host) {
   host.contentEl.empty();host.contentEl.addClass('fm-ui', 'fm-browser');
   host.store=galleryStore(host.plugin);
   host.insertionTarget=captureInsertionTarget(host.plugin);
-  host.browserEvents=new AbortController();host.progressive=true;
+  host.browserEvents=new AbortController();host.serverPaged=true;
   const updateTarget=()=>{
     const target=captureInsertionTarget(host.plugin);
     if(target)host.insertionTarget=target;
@@ -24,24 +24,23 @@ function openBrowser(host) {
   if(host instanceof Modal)moduleHeading(host,host.contentEl,{title:'actRemoteGalleryTitle',symbol:'images'});
   const toolbar=host.toolbar=galleryToolbar(host,host.contentEl),status=host.contentEl.createDiv({cls:'fm-browser-status',attr:{'aria-live':'polite'}});
   const results=host.contentEl.createDiv({cls:'fm-browser-results'}),grid=results.createDiv({cls:'fm-gallery-grid'});
-  const more=results.createEl('button',{cls:'fm-load-more',attr:{type:'button'}});
-  host.stopLoading=scrollLoader(results,more,()=>host.store.state.loaded ? host.store.loadMore() : host.store.load(true));
+  const footer=host.browserFooter=fileBrowserFooter(host.contentEl,host.plugin,host.store);
+  if(host instanceof Modal)footer.actions.createEl('button',{text:host.t('btnCancel')}).onclick=()=>host.fromHub?host.returnToHub():host.close();
   host.render=()=>{
     const state=host.store.state;toolbar.sync();status.empty();
-    if (host.browserRevision!==host.store.revision) {results.scrollTop=0;host.browserRevision=host.store.revision;}
+    if (host.browserRevision!==`${host.store.revision}:${state.pageIndex}`) {results.scrollTop=0;host.browserRevision=`${host.store.revision}:${state.pageIndex}`;}
     if(state.loading)status.createSpan({text:host.t('galleryLoading')});
-    more.hidden=!state.hasMore && !state.error;more.disabled=state.loading;more.setText(host.t(state.error?'previewRetry':state.loading?'galleryLoading':'galleryLoadMore'));
-    if(state.error){status.createSpan({text:host.t('galleryLoadFail',{err:state.error})});const retry=status.createEl('button',{text:host.t('galleryBtnRefresh')});retry.onclick=()=>host.store.state.loaded?host.store.loadMore():host.store.load(true);}
+    footer.sync();
+    if(state.error)status.createSpan({text:host.t('galleryLoadFail',{err:state.error})});
     if(!state.loaded && !state.items.length){grid.empty();}else host.renderGrid(grid);
   };
-  if(host.fromHub){const footer=host.contentEl.createDiv({cls:'fm-btn-row'});footer.createEl('button',{text:host.t('btnCancel')}).onclick=()=>host.returnToHub();}
   host.unsubscribe=host.store.subscribe(host.render);host.render();
   return host.store.load();
 }
-function closeBrowser(host){host.stopLoading?.();host.toolbar?.dispose();host.workspaceEvents?.forEach(ref=>host.app.workspace.offref(ref));host.workspaceEvents=[];host.browserEvents?.abort();host.unsubscribe?.();host.unsubscribe=null;host.contentEl.empty();}
+function closeBrowser(host){host.toolbar?.dispose();host.workspaceEvents?.forEach(ref=>host.app.workspace.offref(ref));host.workspaceEvents=[];host.browserEvents?.abort();host.unsubscribe?.();host.unsubscribe=null;host.contentEl.empty();}
 function bindState(host){
   // The renderer's existing query interface is backed by one shared store.
-  for(const key of ['items','searchQuery','selectedBuckets','selectedTypes','selectedSort','layoutMode','insertMode','galleryPage','galleryFilterKey'])Object.defineProperty(host,key,{get:()=>host.store.state[key],set:value=>{host.store.state[key]=value;},configurable:true});
+  for(const key of ['items','searchQuery','selectedBuckets','selectedTypes','selectedSort','layoutMode','insertMode'])Object.defineProperty(host,key,{get:()=>host.store.state[key],set:value=>{host.store.state[key]=value;},configurable:true});
 }
 export class RemoteGalleryModal extends Modal {
   constructor(app,plugin){super(app);this.plugin=plugin;this.store=galleryStore(plugin);bindState(this);}
