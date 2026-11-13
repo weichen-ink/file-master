@@ -4601,8 +4601,20 @@ var IncomingFileModal = class extends FileMasterModal {
       this.render();
       this.runExecution();
     };
+    let isComposing = false;
+    let lastCompositionEndAt = 0;
+    nameInput.addEventListener("compositionstart", () => {
+      isComposing = true;
+    });
+    nameInput.addEventListener("compositionend", () => {
+      isComposing = false;
+      lastCompositionEndAt = Date.now();
+    });
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        if (e.isComposing || e.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) {
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         triggerExecute();
@@ -4610,6 +4622,9 @@ var IncomingFileModal = class extends FileMasterModal {
     });
     contentEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        if (e.isComposing || e.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) {
+          return;
+        }
         const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
         if (tag === "textarea" || tag === "button" || tag === "input") return;
         e.preventDefault();
@@ -8676,8 +8691,18 @@ var RemoteRenameModal = class extends FileMasterModal {
       error.empty();
       this.updateSelection();
     };
+    let isComposing = false;
+    let lastCompositionEndAt = 0;
+    input.addEventListener("compositionstart", () => {
+      isComposing = true;
+    });
+    input.addEventListener("compositionend", () => {
+      isComposing = false;
+      lastCompositionEndAt = Date.now();
+    });
     input.onkeydown = (event) => {
       if (event.key === "Enter" && !this.next.disabled) {
+        if (event.isComposing || event.keyCode === 229 || isComposing || Date.now() - lastCompositionEndAt < 80) return;
         event.preventDefault();
         this.precheck();
       }

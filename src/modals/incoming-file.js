@@ -265,8 +265,21 @@ export class IncomingFileModal extends Modal {
       this.runExecution();
     };
 
+    let isComposing = false;
+    let lastCompositionEndAt = 0;
+    nameInput.addEventListener('compositionstart', () => {
+      isComposing = true;
+    });
+    nameInput.addEventListener('compositionend', () => {
+      isComposing = false;
+      lastCompositionEndAt = Date.now();
+    });
+
     nameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
+        if (e.isComposing || e.keyCode === 229 || isComposing || (Date.now() - lastCompositionEndAt < 80)) {
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         triggerExecute();
@@ -275,6 +288,9 @@ export class IncomingFileModal extends Modal {
 
     contentEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
+        if (e.isComposing || e.keyCode === 229 || isComposing || (Date.now() - lastCompositionEndAt < 80)) {
+          return;
+        }
         const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
         if (tag === 'textarea' || tag === 'button' || tag === 'input') return;
         e.preventDefault();

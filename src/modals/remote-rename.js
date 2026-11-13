@@ -89,7 +89,11 @@ export class RemoteRenameModal extends FileMasterModal {
       this.drafts.set(key,input.value);this.selected=item;this.preview=null;
       this.validation.empty();input.setAttribute('aria-invalid','false');error.empty();this.updateSelection();
     };
-    input.onkeydown=event=>{if (event.key==='Enter'&&!this.next.disabled) {event.preventDefault();this.precheck();}};
+    let isComposing = false;
+    let lastCompositionEndAt = 0;
+    input.addEventListener('compositionstart', () => { isComposing = true; });
+    input.addEventListener('compositionend', () => { isComposing = false; lastCompositionEndAt = Date.now(); });
+    input.onkeydown=event=>{if (event.key==='Enter'&&!this.next.disabled) {if (event.isComposing||event.keyCode===229||isComposing||(Date.now()-lastCompositionEndAt<80)) return; event.preventDefault();this.precheck();}};
     this.countElements.set(key,fileReferenceButton(slots.actions,this.visualItem(item),this.plugin,null,()=>this.close()));
   }
   nameChange(parent,item,newFilename,oldFilename=item.filename) {
