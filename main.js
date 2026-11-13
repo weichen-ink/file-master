@@ -1742,6 +1742,7 @@ var UI_STRINGS = {
     gallerySortNameDesc: "\u6587\u4EF6\u540D Z-A",
     gallerySortHitsDesc: "\u8BBF\u95EE\u70ED\u5EA6\u4ECE\u9AD8\u5230\u4F4E",
     gallerySortHitsAsc: "\u8BBF\u95EE\u70ED\u5EA6\u4ECE\u4F4E\u5230\u9AD8",
+    galleryHits: "\u70ED\u5EA6",
     galleryStats: "{count} \u4E2A\u6587\u4EF6 \xB7 \u5171 {size}",
     galleryEmpty: "\u6CA1\u6709\u7B26\u5408\u6761\u4EF6\u7684\u6587\u4EF6",
     galleryBtnRefresh: "\u5237\u65B0",
@@ -2397,6 +2398,7 @@ var UI_STRINGS = {
     gallerySortNameDesc: "Filename: Z to A",
     gallerySortHitsDesc: "Hits: Most viewed",
     gallerySortHitsAsc: "Hits: Least viewed",
+    galleryHits: "Hits",
     galleryStats: "{count} files \xB7 {size} total",
     galleryEmpty: "No matching files",
     galleryBtnRefresh: "Refresh",
@@ -7606,6 +7608,22 @@ var OrphanWizardModal = class extends FileMasterModal {
 
 // src/gallery.js
 var import_obsidian23 = require("obsidian");
+function renderGalleryMeta(parent, item, view) {
+  const meta = parent.createDiv({ cls: "fm-gallery-meta" });
+  const hasSize = typeof item.size === "number";
+  if (hasSize) {
+    meta.createSpan({ cls: "fm-meta-item", text: formatBytes(item.size) });
+    meta.createSpan({ cls: "fm-meta-sep", attr: { "aria-hidden": "true" } });
+  }
+  const hits = item.hits || 0;
+  const hitsEl = meta.createSpan({
+    cls: "fm-meta-item",
+    attr: { title: `${view.t("galleryHits")}: ${hits}` }
+  });
+  const iconEl = hitsEl.createSpan({ cls: "fm-meta-icon", attr: { "aria-hidden": "true" } });
+  (0, import_obsidian23.setIcon)(iconEl, "eye");
+  hitsEl.createSpan({ text: String(hits) });
+}
 function filterRemoteGallery(view) {
   return queryRemoteFiles(view.items, {
     buckets: view.selectedBuckets,
@@ -7642,7 +7660,7 @@ function renderRemoteGallery(view, containerEl) {
         renderName: (parent) => {
           parent.addClass("fm-gallery-details");
           nameButton = createName(parent);
-          fileSizeBadge(parent, item.size);
+          renderGalleryMeta(parent, item, view);
         }
       });
       card = slots.row;
@@ -7708,8 +7726,8 @@ function renderRemoteGallery(view, containerEl) {
       const info = card.createDiv({ cls: "fm-gallery-info" });
       const details = info.createDiv({ cls: "fm-gallery-details" });
       nameButton = createName(details);
-      fileSizeBadge(details, item.size);
-      actions = info.createDiv();
+      renderGalleryMeta(details, item, view);
+      actions = card.createDiv();
     }
     nameButton.onclick = openPreview;
     actions.addClass("fm-gallery-actions");

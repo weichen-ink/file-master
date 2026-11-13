@@ -1,13 +1,30 @@
 import { queryRemoteFiles } from './remote-file-query.js';
 import { insertMarkdownToActiveEditor } from './plugin/lifecycle.js';
 import { IMAGE_EXTS } from './constants.js';
-import { getExt } from './engine.js';
+import { formatBytes, getExt } from './engine.js';
 import { ImageLightboxModal } from './modals/dialogs.js';
 import { assetUrl, assetMarkdown, hasOptimizedVariant, copyText } from './ui/links.js';
 import { openModal } from './ui/navigation.js';
 import { isInsertionTargetValid } from './plugin/editor-target.js';
 import { Notice, setIcon } from 'obsidian';
-import { fileActionRow, fileSizeBadge } from './ui/file-action-list.js';
+import { fileActionRow } from './ui/file-action-list.js';
+
+function renderGalleryMeta(parent, item, view) {
+  const meta = parent.createDiv({ cls: 'fm-gallery-meta' });
+  const hasSize = typeof item.size === 'number';
+  if (hasSize) {
+    meta.createSpan({ cls: 'fm-meta-item', text: formatBytes(item.size) });
+    meta.createSpan({ cls: 'fm-meta-sep', attr: { 'aria-hidden': 'true' } });
+  }
+  const hits = item.hits || 0;
+  const hitsEl = meta.createSpan({
+    cls: 'fm-meta-item',
+    attr: { title: `${view.t('galleryHits')}: ${hits}` }
+  });
+  const iconEl = hitsEl.createSpan({ cls: 'fm-meta-icon', attr: { 'aria-hidden': 'true' } });
+  setIcon(iconEl, 'eye');
+  hitsEl.createSpan({ text: String(hits) });
+}
 
 export function filterRemoteGallery(view) {
   return queryRemoteFiles(view.items, {
@@ -44,7 +61,7 @@ export function renderRemoteGallery(view, containerEl) {
     if(view.layoutMode==='list') {
       const slots=fileActionRow(containerEl,{name:filename,size:item.size},view.plugin,{
         renderPreview:parent=>{thumbWrap=parent.createDiv({cls:'fm-gallery-thumb-wrap'});},
-        renderName:parent=>{parent.addClass('fm-gallery-details');nameButton=createName(parent);fileSizeBadge(parent,item.size);}
+        renderName:parent=>{parent.addClass('fm-gallery-details');nameButton=createName(parent);renderGalleryMeta(parent,item,view);}
       });
       card=slots.row;card.addClass('fm-gallery-list-row');actions=slots.actions;
     } else {
@@ -112,8 +129,8 @@ export function renderRemoteGallery(view, containerEl) {
       const info=card.createDiv({cls:'fm-gallery-info'});
       const details=info.createDiv({cls:'fm-gallery-details'});
       nameButton=createName(details);
-      fileSizeBadge(details,item.size);
-      actions=info.createDiv();
+      renderGalleryMeta(details,item,view);
+      actions=card.createDiv();
     }
     nameButton.onclick=openPreview;
     actions.addClass('fm-gallery-actions');
