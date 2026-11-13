@@ -164,7 +164,7 @@ export class FileMasterSettingTab extends PluginSettingTab {
     this.createNativeHeading(section, this.plugin.t('settingsInfoGroup'), '🏷️');
     const footer = section.createDiv({ cls: 'fm-settings-about-footer' });
     const top = footer.createDiv({ cls: 'fm-settings-about-title' });
-    top.createSpan({ text: '✨ File Master' });
+    top.createSpan({ text: 'File Master ✨' });
     top.createSpan({ cls: 'fm-settings-about-version', text: `v${version}` });
 
     const links = footer.createDiv({ cls: 'fm-settings-about-links' });

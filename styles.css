@@ -2771,37 +2771,43 @@ button.fm-hub-status.is-offline:hover {
 }
 
 .fm-settings-about-footer {
-  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--background-secondary) 60%, transparent);
   color: var(--text-muted);
   font-size: var(--font-ui-smaller);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .fm-settings-about-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 500;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--text-normal);
-  margin-bottom: 4px;
 }
 
 .fm-settings-about-version {
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: var(--background-secondary);
   color: var(--text-muted);
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .fm-settings-about-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  line-height: 1.6;
 }
 
 .fm-settings-about-links a {

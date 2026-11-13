@@ -8746,7 +8746,7 @@ var FileMasterSettingTab = class extends import_obsidian27.PluginSettingTab {
     this.createNativeHeading(section, this.plugin.t("settingsInfoGroup"), "\u{1F3F7}\uFE0F");
     const footer = section.createDiv({ cls: "fm-settings-about-footer" });
     const top = footer.createDiv({ cls: "fm-settings-about-title" });
-    top.createSpan({ text: "\u2728 File Master" });
+    top.createSpan({ text: "File Master \u2728" });
     top.createSpan({ cls: "fm-settings-about-version", text: `v${version}` });
     const links = footer.createDiv({ cls: "fm-settings-about-links" });
     links.createEl("a", { text: author, href: authorUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
