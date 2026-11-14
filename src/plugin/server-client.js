@@ -414,6 +414,18 @@ export async function fetchRemoteTrash(plugin) {
   if(response.status<200||response.status>=300)throw new Error(response.json?.error || `HTTP ${response.status}`);
   return response.json.items || [];
 }
+export async function fetchRemoteTrashPreviewUrl(plugin, id, { thumbnail = false } = {}) {
+  const query = thumbnail ? '?thumbnail=1' : '';
+  const response = await requestUrl({
+    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/preview${query}`,
+    method: 'GET',
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status < 200 || response.status >= 300 || !response.arrayBuffer) return null;
+  const contentType = response.headers?.['content-type'] || response.headers?.['Content-Type'] || 'image/webp';
+  return URL.createObjectURL(new Blob([response.arrayBuffer], { type: contentType }));
+}
 export async function restoreRemoteTrash(plugin,id) {
   const response=await requestUrl({url:`${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`,method:'POST',headers:{Authorization:`Bearer ${plugin.settings.apiToken}`},throw:false});
   if(response.status<200||response.status>=300)throw new Error(response.json?.error || `HTTP ${response.status}`);
@@ -427,6 +439,80 @@ export async function permanentlyDeleteRemoteTrash(plugin, id) {
     headers: {Authorization: `Bearer ${plugin.settings.apiToken}`},
     throw: false
   });
+  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
+  return response.json;
+}
+
+export async function restoreRemoteTrashBatch(plugin, ids) {
+  const uniqueIds = [...new Set((ids || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!uniqueIds.length) return { restored: [], failed: [] };
+  const response = await requestUrl({
+    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/batch/restore`,
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${plugin.settings.apiToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ids: uniqueIds }),
+    throw: false
+  });
+  if (response.status === 404) {
+    const restored = [];
+    const failed = [];
+    for (const id of uniqueIds) {
+      try {
+        const res = await restoreRemoteTrash(plugin, id);
+        restored.push({ id, ...res });
+      } catch (error) {
+        failed.push({ id, error: error.message });
+      }
+    }
+    return { restored, failed };
+  }
+  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
+  return response.json;
+}
+
+export async function deleteRemoteTrashBatch(plugin, ids) {
+  const uniqueIds = [...new Set((ids || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!uniqueIds.length) return { deleted: [], failed: [] };
+  const response = await requestUrl({
+    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/batch/delete`,
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${plugin.settings.apiToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ids: uniqueIds }),
+    throw: false
+  });
+  if (response.status === 404) {
+    const deleted = [];
+    const failed = [];
+    for (const id of uniqueIds) {
+      try {
+        await permanentlyDeleteRemoteTrash(plugin, id);
+        deleted.push({ id });
+      } catch (error) {
+        failed.push({ id, error: error.message });
+      }
+    }
+    return { deleted, failed };
+  }
+  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
+  return response.json;
+}
+
+export async function emptyRemoteTrash(plugin, fallbackIds = []) {
+  const response = await requestUrl({
+    url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/empty`,
+    method: 'POST',
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
+    throw: false
+  });
+  if (response.status === 404) {
+    return deleteRemoteTrashBatch(plugin, fallbackIds);
+  }
   if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
   return response.json;
 }

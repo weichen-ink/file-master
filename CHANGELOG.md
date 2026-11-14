@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.2.3] - 2026-11-14
+
+### Remote Trash batch actions, thumbnails & unified file-row metadata
+- Add constant multi-select with `Shift+click` range selection, batch restore, batch delete, and empty-trash actions (with automatic 404 fallback for older servers).
+- Refactor `RemoteTrashModal` onto the shared `fileActionRow` component with authenticated server thumbnails and `ImageLightboxModal` full-size preview.
+- Unify secondary metadata across all Hub file lists (`fileMetaItem` with clean wireframe icons + concise text).
+
 ## [1.2.2] - 2026-11-13
 
 ### Single-page settings & responsive layout

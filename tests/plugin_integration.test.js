@@ -130,3 +130,48 @@ test('Upgrade restoration reuses the existing gallery and removes duplicate tabs
   assert.equal(leaves.length, 2);
   assert.equal(await loaded.initGalleryLeaf(plugin), null);
 });
+
+test('RemoteTrashModal renders multi-select checkboxes by default and runs batch restore with 404 fallback', async () => {
+  const requests = [];
+  const loaded = loadPlugin(
+    async (opts) => {
+      requests.push({ method: opts.method, url: opts.url, body: opts.body });
+      if (opts.url.endsWith('/trash/batch/restore')) return { status: 404, json: {} };
+      if (opts.url.includes('/restore')) return { status: 200, json: { restored: true } };
+      return { status: 200, json: {} };
+    },
+    { host: { Setting, setIcon() {} } }
+  );
+  const plugin = new loaded.Plugin({});
+  plugin.settings = { language: 'en', serverUrl: 'https://files.example.com', apiToken: 'secret' };
+  const items = [
+    { id: 'id-1', filename: 'a.png', size: 100, deletedAt: 1700000000000 },
+    { id: 'id-2', filename: 'b.png', size: 200, deletedAt: 1700000001000 }
+  ];
+  plugin.fetchRemoteTrash = async () => items.slice();
+
+  const modal = new loaded.RemoteTrashModal({}, plugin);
+  modal.modalEl = new Element();
+  modal.contentEl = new Element();
+  await modal.onOpen();
+
+  const rows = modal.contentEl.all().filter((el) => el.className.includes('fm-file-row') && el.className.includes('has-selection'));
+  assert.equal(rows.length, 2);
+  assert.equal(rows.every((row) => row.all().some((el) => el.className.includes('fm-file-row-preview'))), true);
+  const checks = rows.map((row) => row.all().find((el) => el.tag === 'input')).filter(Boolean);
+  assert.equal(checks.length, 2);
+  assert.equal(checks.every((el) => !el.checked), true);
+
+  checks[0].checked = true;
+  checks[0].onclick({});
+  checks[1].checked = true;
+  checks[1].onclick({});
+
+  const batchRestoreBtn = modal.contentEl.all().find((el) => el.tag === 'button' && String(el.text || '').startsWith(plugin.t('remoteTrashBatchRestore')));
+  assert.ok(batchRestoreBtn);
+  items.length = 0;
+  await batchRestoreBtn.onclick();
+
+  assert.equal(requests.filter((r) => r.url.endsWith('/trash/batch/restore')).length, 1);
+  assert.equal(requests.filter((r) => r.url.includes('/trash/id-1/restore') || r.url.includes('/trash/id-2/restore')).length, 2);
+});

@@ -193,6 +193,14 @@ export async function getItemPreviewUrl(plugin, item) {
   const ext = getExt(item.name);
   if (!IMAGE_EXTS.has(ext)) return null;
 
+  if (typeof item.loadThumbUrl === 'function') {
+    return item.loadThumbUrl();
+  }
+
+  if (typeof item.loadPreviewUrl === 'function') {
+    return item.loadPreviewUrl();
+  }
+
   if (item.source === 'remote') {
     return item.rawObj?.rawUrl || null;
   }

@@ -3,7 +3,7 @@ import { scanDuplicateGroups, exportDuplicateReportToRoot } from '../plugin/vaul
 import { executeDuplicateMergeSafely } from '../plugin/attachment-ops.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, renderScanEmpty, returnToHub, renderExcludedFoldersHint } from './common.js';
-import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
+import { fileActionRow, fileMetadata, fileMetaItem, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -229,8 +229,8 @@ export class DuplicateWizardModal extends Modal {
             radio.onchange=()=>{grp.keepId=item.id;this.render();};
           },
           metadata:parent=>{
-            parent.createSpan({text:isKeep?t('dupTagKeep'):item.locked?t('dupTagProtected'):t('dupTagRemove'),cls:isKeep?'fm-file-keep':''});
-            parent.createSpan({text:item.source==='local'?t('analyticsBadgeLocal'):t('analyticsBadgeRemote')});
+            fileMetaItem(parent,isKeep?'check-circle':item.locked?'lock':'trash-2',isKeep?t('dupTagKeep'):item.locked?t('dupTagProtected'):t('dupTagRemove'),{cls:isKeep?'fm-file-keep':''});
+            fileMetaItem(parent,item.source==='local'?'hard-drive':'cloud',t(item.source==='local'?'analyticsBadgeLocal':'analyticsBadgeRemote'));
             fileMetadata(parent,item,{path:item.displayPath});
           }
         });

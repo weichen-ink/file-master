@@ -4,7 +4,7 @@ import { formatBytes } from '../engine.js';
 import { returnToHub } from './common.js';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 import { Notice, setIcon } from 'obsidian';
-import { fileActionRow, fileReferenceButton } from '../ui/file-action-list.js';
+import { fileActionRow, fileMetadata, fileMetaItem, fileReferenceButton } from '../ui/file-action-list.js';
 
 /**
  * Vault Storage & Asset Analytics Dashboard Modal
@@ -236,7 +236,10 @@ export class VaultAnalyticsModal extends Modal {
 
         for (const item of filtered) {
           const {actions} = fileActionRow(listEl,item,this.plugin,{
-            metadata:parent=>parent.createSpan({text:t(item.source==='local'?'analyticsBadgeLocal':'analyticsBadgeRemote')})
+            metadata:parent=>{
+              fileMetaItem(parent,item.source==='local'?'hard-drive':'cloud',t(item.source==='local'?'analyticsBadgeLocal':'analyticsBadgeRemote'));
+              if(item.displayPath||item.path)fileMetadata(parent,item,{path:item.displayPath||item.path});
+            }
           });
           const references=fileReferenceButton(actions,item,this.plugin,item.referenceDocuments,()=>this.close());
           if(!item.referenceDocuments)references.update(null,true);

@@ -1,3 +1,4 @@
+import { setIcon } from 'obsidian';
 import { renderItemVisualThumb } from '../modals/incoming-file.js';
 import { NoteRefsModal } from '../modals/dialogs.js';
 import { formatBytes } from '../engine.js';
@@ -8,11 +9,24 @@ export function fileSizeBadge(parent,size) {
   if(typeof size==='number')return parent.createSpan({text:formatBytes(size),cls:'fm-file-size'});
 }
 
+export function fileMetaItem(parent, iconName, text, { cls = '', title = '' } = {}) {
+  const item = parent.createSpan({
+    cls: cls ? `fm-meta-item ${cls}` : 'fm-meta-item',
+    ...(title ? { attr: { title } } : {})
+  });
+  if (iconName) {
+    const iconEl = item.createSpan({ cls: 'fm-meta-icon', attr: { 'aria-hidden': 'true' } });
+    setIcon(iconEl, iconName);
+  }
+  item.createSpan({ text: String(text) });
+  return item;
+}
+
 /** Only a distinct directory adds location; the filename is never repeated below itself. */
 export function fileMetadata(parent,item,{path=null}={}) {
   parent.addClass('fm-file-row-meta');
   const directory=path?.includes('/') ? path.slice(0,path.lastIndexOf('/')) : '';
-  if(directory) parent.createSpan({text:directory,cls:'fm-file-location'});
+  if(directory) fileMetaItem(parent, 'folder', directory, { cls: 'fm-file-location' });
 }
 
 /** Shared file row for attachment wizards: selection, preview, name, details, actions. */

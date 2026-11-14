@@ -2,7 +2,7 @@ import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal } from '../ui/modal.js';
 import { moduleHeading } from '../ui/navigation.js';
 import { returnToHub } from './common.js';
-import { fileActionRow, fileSizeBadge } from '../ui/file-action-list.js';
+import { fileActionRow, fileMetaItem, fileSizeBadge } from '../ui/file-action-list.js';
 import { fileBrowserFooter } from '../ui/file-browser-footer.js';
 import { RemoteFilePages } from '../ui/remote-file-pages.js';
 import { documentRow } from '../ui/document-list.js';
@@ -292,7 +292,7 @@ export class RemoteRenameModal extends FileMasterModal {
     summary.createDiv({text:report.updatedDocuments?this.t('renameUpdated',{documents:report.updatedDocuments,references:report.updatedReferences}):this.t(report.complete?'renameNoReferences':'renameNotesPending'),cls:'fm-rename-status-desc'});
     const file=this.body.createDiv({cls:'fm-section-box fm-rename-preview fm-rename-result-file'});
     fileActionRow(file,this.visualItem(report.item),this.plugin,{
-      metadata:parent=>parent.createSpan({text:this.t('renamePreviousName',{name:report.oldFilename})})
+      metadata:parent=>fileMetaItem(parent,'history',this.t('renamePreviousName',{name:report.oldFilename}))
     });
     if (report.countsUncertain) this.body.createDiv({text:this.t('renameCountsUncertain'),cls:'fm-rename-hint'});
     this.documentList(this.body,report.documents,{title:'renameDocumentsUpdated',state:'renameReferencesUpdated'});

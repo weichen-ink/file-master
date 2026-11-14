@@ -188,7 +188,7 @@ export class ImageLightboxModal extends Modal {
       }
     }
     if(location)property('previewPathLabel',location);
-    if(!remote)property('previewSource',t('previewSourceLocal'));
+    if(!remote && this.item.source !== 'trash')property('previewSource',t('previewSourceLocal'));
     if(remote) {
       const management=inspector.createDiv({cls:'fm-asset-panel fm-asset-management'});
       const protection=management.createDiv({cls:'fm-asset-section fm-asset-protection'});
@@ -244,8 +244,11 @@ export class ImageLightboxModal extends Modal {
     };
     try {
       const remote=this.item.source==='remote'?this.item.rawObj:null;
-      const url=remote?assetUrl(remote,this.variant):await getItemPreviewUrl(this.plugin,this.item);
-      if(!current())return;if(!url){failed();return;}
+      const url=typeof this.item.loadPreviewUrl==='function'?await this.item.loadPreviewUrl():remote?assetUrl(remote,this.variant):await getItemPreviewUrl(this.plugin,this.item);
+      if(!current()){if(url&&url.startsWith('blob:')&&typeof this.item.loadPreviewUrl==='function')URL.revokeObjectURL(url);return;}
+      if(!url){failed();return;}
+      if(this._ownedBlobUrl){URL.revokeObjectURL(this._ownedBlobUrl);this._ownedBlobUrl=null;}
+      if(url.startsWith('blob:')&&typeof this.item.loadPreviewUrl==='function')this._ownedBlobUrl=url;
       const img=this.stage.createEl('img',{cls:'fm-viewport-image',attr:{alt:this.item.name,draggable:'false'}});
       img.addEventListener('load',()=>{
         if(!current())return;
@@ -259,6 +262,7 @@ export class ImageLightboxModal extends Modal {
   onClose() {
     this.closed=true;this.generation++;
     this.imageEvents?.abort();this.viewport?.dispose();this.viewport=null;
+    if(this._ownedBlobUrl){URL.revokeObjectURL(this._ownedBlobUrl);this._ownedBlobUrl=null;}
     this.contentEl.empty();
   }
 }

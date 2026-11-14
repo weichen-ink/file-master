@@ -71,10 +71,17 @@ export class FileMasterPlugin extends Plugin {
   }
 
   fetchRemoteTrash() { return serverClient.fetchRemoteTrash(this); }
+  fetchRemoteTrashPreviewUrl(id, options) { return serverClient.fetchRemoteTrashPreviewUrl(this, id, options); }
 
   permanentlyDeleteRemoteTrash(id) { return serverClient.permanentlyDeleteRemoteTrash(this,id); }
 
   restoreRemoteTrash(id) { return serverClient.restoreRemoteTrash(this,id); }
+
+  restoreRemoteTrashBatch(ids) { return serverClient.restoreRemoteTrashBatch(this, ids); }
+
+  deleteRemoteTrashBatch(ids) { return serverClient.deleteRemoteTrashBatch(this, ids); }
+
+  emptyRemoteTrash(fallbackIds = []) { return serverClient.emptyRemoteTrash(this, fallbackIds); }
 
   fetchRemoteFileList(options) {
     return serverClient.fetchRemoteFileList(this, options);

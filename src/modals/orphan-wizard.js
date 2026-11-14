@@ -2,7 +2,7 @@ import { moduleHeading } from "../ui/navigation.js";
 import { scanUnusedFiles, exportOrphanReportToRoot, cleanSelectedOrphans } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, renderScanEmpty, returnToHub, renderExcludedFoldersHint } from './common.js';
-import { fileActionRow, fileMetadata } from '../ui/file-action-list.js';
+import { fileActionRow, fileMetadata, fileMetaItem } from '../ui/file-action-list.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -160,7 +160,7 @@ export class OrphanWizardModal extends Modal {
           checkbox.onchange=()=>{item.selected=checkbox.checked;};
         },
         metadata:parent=>{
-          parent.createSpan({text:item.source==='local'?t('analyticsBadgeLocal'):t('analyticsBadgeRemote')});
+          fileMetaItem(parent,item.source==='local'?'hard-drive':'cloud',t(item.source==='local'?'analyticsBadgeLocal':'analyticsBadgeRemote'));
           fileMetadata(parent,item,{path:item.displayPath});
         }
       });
