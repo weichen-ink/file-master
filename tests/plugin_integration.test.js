@@ -175,3 +175,28 @@ test('RemoteTrashModal renders multi-select checkboxes by default and runs batch
   assert.equal(requests.filter((r) => r.url.endsWith('/trash/batch/restore')).length, 1);
   assert.equal(requests.filter((r) => r.url.includes('/trash/id-1/restore') || r.url.includes('/trash/id-2/restore')).length, 2);
 });
+
+test('indexRemoteReferences matches renamed referenceUrls aliases so active aliases are not treated as orphans', async () => {
+  const { scans } = loadPlugin();
+  const item = {
+    year: '2026',
+    month: '11',
+    filename: 'renamed.png',
+    rawUrl: 'https://files.example.com/raw/2026/11/renamed.png',
+    pubUrl: 'https://files.example.com/pub/2026/11/renamed.webp',
+    referenceUrls: [
+      'https://files.example.com/raw/2026/11/original%20name.png',
+      'https://files.example.com/pub/2026/11/original%20name.webp'
+    ]
+  };
+  const snapshot = {
+    serverUrl: 'http://192.168.1.5:3210',
+    docContents: [
+      { path: 'note.md', rawText: '![old](https://files.example.com/raw/2026/11/original%20name.png)' },
+      { path: 'api-note.md', rawText: '![api](http://192.168.1.5:3210/raw/2026/11/original%20name.png)' },
+      { path: 'foreign.md', rawText: '![other](https://other-host.example/raw/2026/11/original%20name.png)' }
+    ]
+  };
+  await scans.indexRemoteReferences([item], snapshot);
+  assert.deepEqual(scans.findReferencingNotesForRemoteItem(item, snapshot), ['note.md', 'api-note.md']);
+});

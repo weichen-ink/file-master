@@ -1,5 +1,6 @@
 import { queryRemoteFiles } from '../remote-file-query.js';
-import { DEFAULT_SERVER_URL, IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt } from '../constants.js';
+import { DEFAULT_SERVER_URL, IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt, isSupportedRemoteExtension } from '../constants.js';
+export { isSupportedRemoteExtension };
 import { applyNamingPattern, buildMultipartBuffer, compareSemver, computeSha256Hex, getBaseName, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { IncomingFileModal } from '../modals/incoming-file.js';
 import { captureEditorTarget } from './editor-target.js';
@@ -38,8 +39,13 @@ export function getCleanServerUrl(settings) {
 export async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
   const insertionTarget = options?.insertionTarget || captureEditorTarget(plugin, { editor, info: options?.info || null });
   const activeFile = insertionTarget?.file || (!editor ? plugin.app.workspace.getActiveFile() : null);
-  const arrayBuffer = await file.arrayBuffer();
   const ext = getExt(file.name) || (file.type.startsWith('image/') ? 'png' : 'bin');
+  const effectiveName = getExt(file.name) ? file.name : `${file.name || 'file'}.${ext}`;
+  if (plugin.settings.saveLocationMode === 'remote' && plugin.isRemoteServerReady()
+    && !isSupportedRemoteExtension(effectiveName, plugin.lastServerCompatStatus)) {
+    throw new Error(`Unsupported remote file extension: .${ext}`);
+  }
+  const arrayBuffer = await file.arrayBuffer();
   const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), 'Pasted_image');
   const sha256 = await computeSha256Hex(arrayBuffer);
   const noteName = activeFile ? activeFile.basename : 'note';
@@ -99,6 +105,8 @@ export async function probeRemoteSha256(plugin, sha256) {
   return null;
 }
 
+export const SUPPORTED_SERVER_API_VERSION = 1;
+
 export async function uploadBufferToServer(plugin,
   arrayBuffer,
   filename,
@@ -107,6 +115,10 @@ export async function uploadBufferToServer(plugin,
 ) {
   const opts = options || {};
   throwIfTransferCancelled(opts.signal);
+  if (!isSupportedRemoteExtension(filename, plugin.lastServerCompatStatus)) {
+    const ext = String(filename || '').includes('.') ? filename.slice(filename.lastIndexOf('.')).toLowerCase() : '(none)';
+    throw new Error(`Unsupported remote file extension: ${ext}`);
+  }
   const fullSha256 = await computeSha256Hex(arrayBuffer);
   // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
   if (!opts.skipProbe) {
@@ -211,6 +223,24 @@ export async function checkServerCompatibility(plugin) {
     const verData = verRes.json || {};
     const serverVer = verData.version || '0.1.0';
     const minPluginReq = verData.minPluginVersion || '0.1.0';
+    const supportedExtensions = Array.isArray(verData.supportedExtensions)
+      ? verData.supportedExtensions.map((e) => String(e).toLowerCase())
+      : null;
+
+    if (verData.apiVersion !== undefined && Number(verData.apiVersion) !== SUPPORTED_SERVER_API_VERSION) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: 'api_incompatible',
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        apiVersion: verData.apiVersion,
+        supportedApiVersion: SUPPORTED_SERVER_API_VERSION,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
 
     // 1. Check if plugin is too old for server
     if (compareSemver(pluginVer, minPluginReq) < 0) {
@@ -261,7 +291,7 @@ export async function checkServerCompatibility(plugin) {
     let listRes;
     try {
       listRes = await requestUrl({
-        url: `${serverUrl}/api/modules/image-host/list`,
+        url: `${serverUrl}/api/modules/image-host/list?limit=1`,
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
         throw: false
@@ -306,7 +336,9 @@ export async function checkServerCompatibility(plugin) {
       return plugin.lastServerCompatStatus;
     }
 
-    assetCount = (listRes.json?.images || []).length;
+    assetCount = Number.isInteger(listRes.json?.totalCount)
+      ? listRes.json.totalCount
+      : (listRes.json?.images || []).length;
 
     plugin.lastServerCompatStatus = {
       ok: true,
@@ -314,6 +346,7 @@ export async function checkServerCompatibility(plugin) {
       serverVersion: serverVer,
       pluginVersion: pluginVer,
       apiVersion: verData.apiVersion || 1,
+      supportedExtensions,
       assetCount,
       features: verData.features || {}
     };

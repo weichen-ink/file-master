@@ -4,6 +4,8 @@
 
 [简体中文](README.zh-CN.md) · **English** · [Server (file-master-server)](https://github.com/weichen-ink/file-master-server) · [Changelog](CHANGELOG.md)
 
+![File Master Hub](docs/images/hub-en.png)
+
 ---
 
 ## Why File Master?

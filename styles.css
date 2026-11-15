@@ -372,12 +372,12 @@
 .fm-hub-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 9px;
+  gap: 5px;
+  padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
-  line-height: 16px;
+  line-height: 14px;
   border: 1px solid transparent;
 }
 
@@ -389,14 +389,31 @@
 button.fm-hub-status.is-offline {
   height: auto;
   min-height: 0;
-  background: color-mix(in srgb, var(--color-orange, #d97706) 12%, transparent);
+  padding: 2px 8px;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--color-orange, #d97706) 8%, transparent);
   color: var(--color-orange, #b45309);
-  border-color: color-mix(in srgb, var(--color-orange, #d97706) 24%, transparent);
+  border-color: color-mix(in srgb, var(--color-orange, #d97706) 18%, transparent);
   cursor: pointer;
 }
 
 button.fm-hub-status.is-offline:hover {
-  background: color-mix(in srgb, var(--color-orange, #d97706) 18%, transparent);
+  background: color-mix(in srgb, var(--color-orange, #d97706) 14%, transparent);
+}
+
+button.fm-hub-status.is-failed {
+  height: auto;
+  min-height: 0;
+  padding: 2px 8px;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--color-red, #dc2626) 14%, transparent);
+  color: var(--color-red, #b91c1c);
+  border-color: color-mix(in srgb, var(--color-red, #dc2626) 32%, transparent);
+  cursor: pointer;
+}
+
+button.fm-hub-status.is-failed:hover {
+  background: color-mix(in srgb, var(--color-red, #dc2626) 22%, transparent);
 }
 
 .fm-hub-status-dot {

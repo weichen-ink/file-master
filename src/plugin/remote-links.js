@@ -4,6 +4,27 @@ import { assetUrl } from '../ui/links.js';
 const referenceUrls = item => [...new Set([item.rawUrl, item.pubUrl, ...(item.referenceUrls || [])])].filter(Boolean);
 const decoded = value => { try { return decodeURI(value); } catch { return value; } };
 
+export function remoteCandidateUrls(item, serverUrl = '') {
+  let apiOrigin = '';
+  try { apiOrigin = new URL(serverUrl).origin; } catch {}
+  const out = new Set();
+  for (const value of referenceUrls(item)) {
+    out.add(value);
+    out.add(encodeURI(value));
+    out.add(decoded(value));
+    try {
+      const parsed = new URL(value);
+      if (apiOrigin && parsed.origin !== apiOrigin) {
+        const apiUrl = `${apiOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+        out.add(apiUrl);
+        out.add(encodeURI(apiUrl));
+        out.add(decoded(apiUrl));
+      }
+    } catch {}
+  }
+  return [...out].filter(Boolean);
+}
+
 /** Use server metadata for both public URLs and the same paths reached through the API origin. */
 export function findRemoteAsset(items, reference, serverUrl = '') {
   let source, apiOrigin;

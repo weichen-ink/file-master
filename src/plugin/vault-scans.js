@@ -1,4 +1,5 @@
 import { isScannableDocFile, isExcalidrawFile, isLocalPathExcluded } from './vault-utils.js';
+import { remoteCandidateUrls } from './remote-links.js';
 import { computeSha256Hex, formatBytes, formatDateYMD, formatDateTimestamp, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
 import { ConfirmActionModal } from '../modals/dialogs.js';
 import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, stripRemoteReferenceText } from '../references.js';
@@ -64,6 +65,7 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
 
   return {
     docContents, localReferences, revision, signal,
+    serverUrl: plugin?.getCleanServerUrl?.() || '',
     stable: revision === (plugin.referenceRevision || 0)
   };
 }
@@ -72,12 +74,14 @@ export function isReferenceSnapshotCurrent(plugin, snapshot) {
   return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
 }
 
-export async function indexRemoteReferences(items, snapshot) {
+export async function indexRemoteReferences(items, snapshot, serverUrl = '') {
+  const effectiveServerUrl = serverUrl || snapshot.serverUrl || '';
   const patterns = [];
   for (const item of items) {
     const id = `${item.year}/${item.month}/${item.filename}`;
     const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
-    for (const value of new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+    const candidates = [id, encodeURI(id), legacy, encodeURI(legacy), ...remoteCandidateUrls(item, effectiveServerUrl)];
+    for (const value of new Set(candidates)) {
       if (value) patterns.push({ value, id });
     }
   }

@@ -2,6 +2,7 @@ import { indexRemoteReferences, findReferencingNotesForLocalFile, findReferencin
 import { safeModifyFileContent } from './plugin/vault-utils.js';
 import { getLogFilePath } from './plugin/logging.js';
 import { computeSha256Hex, getExt } from './engine.js';
+import { isSupportedRemoteExtension } from './constants.js';
 
 export function throwIfTransferCancelled(signal) {
   if (signal?.aborted) throw Object.assign(new Error('TRANSFER_CANCELLED'), { name: 'AbortError' });
@@ -164,6 +165,9 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
 
     const fileStart = Date.now();
     try {
+      if (!isSupportedRemoteExtension(tfile.name, plugin.lastServerCompatStatus)) {
+        throw new Error(`Unsupported remote file extension: .${tfile.extension?.toLowerCase() || '(none)'}`);
+      }
       const bytes = await plugin.app.vault.readBinary(tfile);
       const remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', { signal: options.signal });
       const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1000);

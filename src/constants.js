@@ -119,6 +119,14 @@ export const OTHER_EXTS = new Set([
   'xlsx',
   'ppt',
   'pptx',
+  'wps',
+  'wpt',
+  'et',
+  'ett',
+  'dps',
+  'dpt',
+  'ofd',
+  'caj',
   'csv',
   'tsv',
   'rtf',
@@ -147,6 +155,13 @@ export const OTHER_EXTS = new Set([
   'cdr',
   'dwg',
   'dxf',
+  'dwf',
+  'rvt',
+  'rfa',
+  'stp',
+  'step',
+  'igs',
+  'iges',
   'stl',
   'obj',
   'fbx',
@@ -156,6 +171,7 @@ export const OTHER_EXTS = new Set([
   'xmind',
   'mm',
   'drawio',
+  'eddx',
   'vsdx',
   'json',
   'yaml',
@@ -193,4 +209,17 @@ export const ALL_ATTACHMENT_EXTS = new Set([...IMAGE_EXTS, ...AUDIO_EXTS, ...OTH
 export function isAttachmentExt(ext) {
   const e = String(ext || '').toLowerCase();
   return Boolean(e) && !OBSIDIAN_NOTE_EXTS.has(e);
+}
+
+export function isSupportedRemoteExtension(filename, compatStatus = null) {
+  const name = String(filename || '').trim();
+  const dotIdx = name.lastIndexOf('.');
+  if (dotIdx <= 0 || dotIdx === name.length - 1) return false;
+  const ext = name.slice(dotIdx).toLowerCase();
+  const list = compatStatus?.supportedExtensions;
+  if (Array.isArray(list) && list.length > 0) {
+    return list.includes(ext);
+  }
+  const bareExt = ext.slice(1);
+  return ALL_ATTACHMENT_EXTS.has(bareExt) || (OBSIDIAN_NOTE_EXTS.has(bareExt) && bareExt !== 'base');
 }

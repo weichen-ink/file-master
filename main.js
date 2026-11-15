@@ -115,6 +115,14 @@ var OTHER_EXTS = /* @__PURE__ */ new Set([
   "xlsx",
   "ppt",
   "pptx",
+  "wps",
+  "wpt",
+  "et",
+  "ett",
+  "dps",
+  "dpt",
+  "ofd",
+  "caj",
   "csv",
   "tsv",
   "rtf",
@@ -143,6 +151,13 @@ var OTHER_EXTS = /* @__PURE__ */ new Set([
   "cdr",
   "dwg",
   "dxf",
+  "dwf",
+  "rvt",
+  "rfa",
+  "stp",
+  "step",
+  "igs",
+  "iges",
   "stl",
   "obj",
   "fbx",
@@ -152,6 +167,7 @@ var OTHER_EXTS = /* @__PURE__ */ new Set([
   "xmind",
   "mm",
   "drawio",
+  "eddx",
   "vsdx",
   "json",
   "yaml",
@@ -187,6 +203,18 @@ var ALL_ATTACHMENT_EXTS = /* @__PURE__ */ new Set([...IMAGE_EXTS, ...AUDIO_EXTS,
 function isAttachmentExt(ext) {
   const e = String(ext || "").toLowerCase();
   return Boolean(e) && !OBSIDIAN_NOTE_EXTS.has(e);
+}
+function isSupportedRemoteExtension(filename, compatStatus = null) {
+  const name = String(filename || "").trim();
+  const dotIdx = name.lastIndexOf(".");
+  if (dotIdx <= 0 || dotIdx === name.length - 1) return false;
+  const ext = name.slice(dotIdx).toLowerCase();
+  const list = compatStatus == null ? void 0 : compatStatus.supportedExtensions;
+  if (Array.isArray(list) && list.length > 0) {
+    return list.includes(ext);
+  }
+  const bareExt = ext.slice(1);
+  return ALL_ATTACHMENT_EXTS.has(bareExt) || OBSIDIAN_NOTE_EXTS.has(bareExt) && bareExt !== "base";
 }
 
 // src/engine.js
@@ -1211,7 +1239,9 @@ var UI_STRINGS = {
     hubOpenNote: "\u5148\u6253\u5F00\u4E00\u7BC7\u7B14\u8BB0",
     hubNoOpenNote: "\u672A\u6253\u5F00\u7B14\u8BB0",
     hubStatusOnline: "\u5DF2\u8FDE\u63A5",
-    hubStatusOffline: "\u672A\u8FDE\u63A5",
+    hubStatusOffline: "\u670D\u52A1\u5668\u8FDE\u63A5\u5931\u8D25\uFF0C\u70B9\u51FB\u91CD\u8BD5",
+    hubStatusConnecting: "\u8FDE\u63A5\u4E2D...",
+    hubStatusFailedSettings: "\u91CD\u8BD5\u5931\u8D25\uFF0C\u70B9\u51FB\u8FDB\u5165\u63D2\u4EF6\u8BBE\u7F6E",
     hubConnect: "\u8FDE\u63A5\u670D\u52A1\u5668",
     hubConnectHelp: "\u8BBE\u7F6E\u670D\u52A1\u5668\u5730\u5740\u4E0E\u8BBF\u95EE\u4EE4\u724C",
     hubDockGallery: "\u5728\u4FA7\u680F\u6D4F\u89C8\u670D\u52A1\u5668\u6587\u4EF6",
@@ -1525,6 +1555,7 @@ var UI_STRINGS = {
     compatStatusOk: "\u5DF2\u8FDE\u63A5 \xB7 \u670D\u52A1\u5668 v{serverVer} \xB7 {count} \u4E2A\u6587\u4EF6",
     compatStatusServerOld: "\u670D\u52A1\u5668\u7248\u672C\u8F83\u65E7\uFF1Av{serverVer}\uFF1B\u63D2\u4EF6\u9700\u8981 v{minServerVer} \u6216\u66F4\u65B0\u7248\u672C\u3002\u8BF7\u5728\u670D\u52A1\u5668\u63A7\u5236\u53F0\u66F4\u65B0\u3002",
     compatStatusPluginOld: "\u63D2\u4EF6 v{currentVer} \u9700\u8981\u66F4\u65B0\uFF0C\u8BF7\u5B89\u88C5 v{minPluginVer} \u6216\u66F4\u65B0\u7248\u672C\u3002",
+    compatStatusApiIncompatible: "\u670D\u52A1\u7AEF API \u534F\u8BAE\u7248\u672C\u4E0D\u517C\u5BB9\uFF08\u670D\u52A1\u7AEF v{apiVer}\uFF0C\u63D2\u4EF6\u4EC5\u652F\u6301 v{supportedVer}\uFF09\uFF0C\u8BF7\u540C\u6B65\u5347\u7EA7\u63D2\u4EF6\u6216\u670D\u52A1\u7AEF\u3002",
     compatStatusAuthFail: "\u4EE4\u724C\u65E0\u6548\uFF0C\u8BF7\u4ECE\u670D\u52A1\u7AEF\u91CD\u65B0\u590D\u5236\u5E76\u6D4B\u8BD5\u8FDE\u63A5\u3002",
     compatStatusTokenMissing: "\u8BF7\u5148\u586B\u5199\u670D\u52A1\u7AEF\u7684\u4E0A\u4F20 API \u4EE4\u724C\u3002",
     compatStatusServerError: "\u670D\u52A1\u5668\u54CD\u5E94\u5F02\u5E38\uFF08{code}\uFF09\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002",
@@ -1898,7 +1929,9 @@ var UI_STRINGS = {
     hubOpenNote: "Open a note first",
     hubNoOpenNote: "No note open",
     hubStatusOnline: "Connected",
-    hubStatusOffline: "Offline",
+    hubStatusOffline: "Server connection failed, click to retry",
+    hubStatusConnecting: "Connecting...",
+    hubStatusFailedSettings: "Retry failed, click to open settings",
     hubConnect: "Connect to server",
     hubConnectHelp: "Set up the server address and access token",
     hubDockGallery: "Browse server files in sidebar",
@@ -2212,6 +2245,7 @@ var UI_STRINGS = {
     compatStatusOk: "Connected \xB7 Server v{serverVer} \xB7 {count} files",
     compatStatusServerOld: "Server v{serverVer} is too old. The plugin needs v{minServerVer} or later. Update it in the server console.",
     compatStatusPluginOld: "Update plugin v{currentVer} to v{minPluginVer} or later.",
+    compatStatusApiIncompatible: "Incompatible server API version (server v{apiVer}, plugin supports v{supportedVer}). Upgrade the plugin or server.",
     compatStatusAuthFail: "Invalid token. Copy it from the server and test again.",
     compatStatusTokenMissing: "Enter the upload API token from your server first.",
     compatStatusServerError: "Server error ({code}). Try again later.",
@@ -3440,9 +3474,128 @@ function addReference(index, target, source) {
 // src/plugin/remote-rename.js
 var import_obsidian12 = require("obsidian");
 
+// src/url-rewrite.js
+var escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+var decode = (value) => {
+  try {
+    return decodeURI(value);
+  } catch (e) {
+    return value;
+  }
+};
+var lineAtOffset = (source, offset) => {
+  let line = 1;
+  for (let i = 0; i < offset; i++) if (source.charCodeAt(i) === 10) line++;
+  return line;
+};
+function createUrlRewriter(mappings, serverUrl = "", onMatch = null) {
+  const replacements = /* @__PURE__ */ new Map();
+  const add = (from, to, reference = to) => {
+    if (!from || !to || from === to) return;
+    for (const [a, b] of [[from, to], [decode(from), decode(to)]]) {
+      replacements.set(a, { text: b, reference });
+      replacements.set(encodeURI(decode(a)), { text: encodeURI(decode(b)), reference });
+      replacements.set(a.replace(/\//g, "\\/"), { text: b.replace(/\//g, "\\/"), reference });
+    }
+  };
+  for (const { from, to } of mappings || []) {
+    add(from, to);
+    try {
+      const oldUrl = new URL(from);
+      let newUrl;
+      try {
+        newUrl = new URL(to);
+      } catch (e) {
+      }
+      add(oldUrl.pathname, (newUrl == null ? void 0 : newUrl.pathname) || to, to);
+      if (serverUrl) {
+        const origin = new URL(serverUrl).origin;
+        add(origin + oldUrl.pathname, newUrl ? origin + newUrl.pathname : to, to);
+      }
+    } catch (e) {
+    }
+  }
+  const keys = [...replacements.keys()].sort((a, b) => b.length - a.length);
+  if (!keys.length) return (text) => ({ text, count: 0 });
+  const regex = new RegExp(keys.map(escape).join("|"), "g");
+  return (input) => {
+    let count = 0;
+    const text = String(input).replace(regex, (match, offset, source) => {
+      const before = source[offset - 1], after = source[offset + match.length];
+      if (before && !/[\s\[\(<"'=:|]/.test(before)) return match;
+      if (after && !/[?#\s\)\]}>"'\\|]/.test(after)) return match;
+      const replacement = replacements.get(match);
+      count++;
+      onMatch == null ? void 0 : onMatch(replacement.reference, { match, offset, line: lineAtOffset(source, offset) });
+      return replacement.text;
+    });
+    return { text, count };
+  };
+}
+
+// src/plugin/remote-links.js
+var referenceUrls = (item) => [.../* @__PURE__ */ new Set([item.rawUrl, item.pubUrl, ...item.referenceUrls || []])].filter(Boolean);
+var decoded = (value) => {
+  try {
+    return decodeURI(value);
+  } catch (e) {
+    return value;
+  }
+};
+function remoteCandidateUrls(item, serverUrl = "") {
+  let apiOrigin = "";
+  try {
+    apiOrigin = new URL(serverUrl).origin;
+  } catch (e) {
+  }
+  const out = /* @__PURE__ */ new Set();
+  for (const value of referenceUrls(item)) {
+    out.add(value);
+    out.add(encodeURI(value));
+    out.add(decoded(value));
+    try {
+      const parsed = new URL(value);
+      if (apiOrigin && parsed.origin !== apiOrigin) {
+        const apiUrl = `${apiOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+        out.add(apiUrl);
+        out.add(encodeURI(apiUrl));
+        out.add(decoded(apiUrl));
+      }
+    } catch (e) {
+    }
+  }
+  return [...out].filter(Boolean);
+}
+function findRemoteAsset(items, reference, serverUrl = "") {
+  let source, apiOrigin;
+  try {
+    source = new URL(reference);
+  } catch (e) {
+    return null;
+  }
+  try {
+    apiOrigin = new URL(serverUrl).origin;
+  } catch (e) {
+  }
+  return items.find((item) => referenceUrls(item).some((value) => {
+    let candidate;
+    try {
+      candidate = new URL(value);
+    } catch (e) {
+      return false;
+    }
+    return decoded(source.pathname) === decoded(candidate.pathname) && (source.origin === candidate.origin || source.origin === apiOrigin);
+  })) || null;
+}
+function createAssetLinkRewriter(items, serverUrl = "", mode = "webp") {
+  const mappings = items.flatMap((item) => referenceUrls(item).map((from) => ({ from, to: assetUrl(item, mode) })));
+  return createUrlRewriter(mappings, serverUrl);
+}
+
 // src/plugin/vault-scans.js
 var import_obsidian11 = require("obsidian");
 async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
+  var _a;
   const {
     signal,
     onProgress,
@@ -3498,19 +3651,22 @@ async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
     localReferences,
     revision,
     signal,
+    serverUrl: ((_a = plugin == null ? void 0 : plugin.getCleanServerUrl) == null ? void 0 : _a.call(plugin)) || "",
     stable: revision === (plugin.referenceRevision || 0)
   };
 }
 function isReferenceSnapshotCurrent(plugin, snapshot) {
   return snapshot.stable && snapshot.revision === (plugin.referenceRevision || 0);
 }
-async function indexRemoteReferences(items, snapshot) {
+async function indexRemoteReferences(items, snapshot, serverUrl = "") {
   var _a;
+  const effectiveServerUrl = serverUrl || snapshot.serverUrl || "";
   const patterns = [];
   for (const item of items) {
     const id = `${item.year}/${item.month}/${item.filename}`;
     const legacy = `${item.year}/${item.month}/${getBaseName(item.filename)}.webp`;
-    for (const value of /* @__PURE__ */ new Set([id, encodeURI(id), legacy, encodeURI(legacy), item.rawUrl, item.pubUrl])) {
+    const candidates = [id, encodeURI(id), legacy, encodeURI(legacy), ...remoteCandidateUrls(item, effectiveServerUrl)];
+    for (const value of new Set(candidates)) {
       if (value) patterns.push({ value, id });
     }
   }
@@ -4096,7 +4252,7 @@ function formatEta(seconds) {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
   await saveMigrationCheckpoint(plugin, items, options);
   const uploaded = [], failures = [], retryItems = [];
   const batchStart = Date.now();
@@ -4130,6 +4286,9 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
     });
     const fileStart = Date.now();
     try {
+      if (!isSupportedRemoteExtension(tfile.name, plugin.lastServerCompatStatus)) {
+        throw new Error(`Unsupported remote file extension: .${((_c = tfile.extension) == null ? void 0 : _c.toLowerCase()) || "(none)"}`);
+      }
       const bytes = await plugin.app.vault.readBinary(tfile);
       const remote = await plugin.uploadBufferToServer(bytes, tfile.name, "application/octet-stream", { signal: options.signal });
       const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1e3);
@@ -4160,20 +4319,20 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
         retryItems.push(...items.slice(i + 1));
         break;
       }
-      failures.push({ name: tfile.name, path: tfile.path, size: ((_c = tfile.stat) == null ? void 0 : _c.size) || 0, error: err.message || String(err) });
+      failures.push({ name: tfile.name, path: tfile.path, size: ((_d = tfile.stat) == null ? void 0 : _d.size) || 0, error: err.message || String(err) });
       plugin.logOperation("ERROR", "BATCH_UPLOAD", `Failed to upload ${tfile.path}`, { error: err.message });
     }
   }
   for (let i = uploaded.length - 1; i >= 0; i--) {
     const pair = uploaded[i];
-    if (pair.sourceVersion.mtime !== ((_d = pair.tfile.stat) == null ? void 0 : _d.mtime) || pair.sourceVersion.size !== ((_e = pair.tfile.stat) == null ? void 0 : _e.size)) {
+    if (pair.sourceVersion.mtime !== ((_e = pair.tfile.stat) == null ? void 0 : _e.mtime) || pair.sourceVersion.size !== ((_f = pair.tfile.stat) == null ? void 0 : _f.size)) {
       if (await computeSha256Hex(await plugin.app.vault.readBinary(pair.tfile)) !== pair.sourceSha) {
         uploaded.splice(i, 1);
         retryItems.push(pair.entry);
         failures.push({
           name: pair.tfile.name,
           path: pair.tfile.path,
-          size: ((_f = pair.tfile.stat) == null ? void 0 : _f.size) || 0,
+          size: ((_g = pair.tfile.stat) == null ? void 0 : _g.size) || 0,
           error: plugin.t("transferSourceChanged")
         });
       }
@@ -4196,7 +4355,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
       ext: keepItem.ext,
       displayPath: keepItem.displayPath,
       localPath: tfile.path,
-      size: ((_g = tfile.stat) == null ? void 0 : _g.size) || 0,
+      size: ((_h = tfile.stat) == null ? void 0 : _h.size) || 0,
       locked: Boolean(remote.locked),
       rawObj: remote,
       rawUrl: remote.rawUrl,
@@ -4207,7 +4366,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
       keptForOtherRefPaths: remaining,
       syncedOtherNotes: syncedPaths.length,
       syncedOtherNotePaths: syncedPaths,
-      refNotesCount: ((_h = pair.entry.refNotes) == null ? void 0 : _h.length) || 0
+      refNotesCount: ((_i = pair.entry.refNotes) == null ? void 0 : _i.length) || 0
     };
     if (postSnapshot && !remaining.length) {
       try {
@@ -4236,7 +4395,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
     failures,
     trashFailures,
     retryItems,
-    cancelled: Boolean((_i = options.signal) == null ? void 0 : _i.aborted),
+    cancelled: Boolean((_j = options.signal) == null ? void 0 : _j.aborted),
     totalBytes: processedItems.reduce((sum, item) => sum + item.size, 0)
   };
   plugin.logOperation("INFO", "BATCH_UPLOAD", `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
@@ -4377,65 +4536,6 @@ var GalleryStore = class extends RemoteFilePages {
 };
 function galleryStore(plugin) {
   return plugin.galleryStore || (plugin.galleryStore = new GalleryStore(plugin));
-}
-
-// src/url-rewrite.js
-var escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-var decode = (value) => {
-  try {
-    return decodeURI(value);
-  } catch (e) {
-    return value;
-  }
-};
-var lineAtOffset = (source, offset) => {
-  let line = 1;
-  for (let i = 0; i < offset; i++) if (source.charCodeAt(i) === 10) line++;
-  return line;
-};
-function createUrlRewriter(mappings, serverUrl = "", onMatch = null) {
-  const replacements = /* @__PURE__ */ new Map();
-  const add = (from, to, reference = to) => {
-    if (!from || !to || from === to) return;
-    for (const [a, b] of [[from, to], [decode(from), decode(to)]]) {
-      replacements.set(a, { text: b, reference });
-      replacements.set(encodeURI(decode(a)), { text: encodeURI(decode(b)), reference });
-      replacements.set(a.replace(/\//g, "\\/"), { text: b.replace(/\//g, "\\/"), reference });
-    }
-  };
-  for (const { from, to } of mappings || []) {
-    add(from, to);
-    try {
-      const oldUrl = new URL(from);
-      let newUrl;
-      try {
-        newUrl = new URL(to);
-      } catch (e) {
-      }
-      add(oldUrl.pathname, (newUrl == null ? void 0 : newUrl.pathname) || to, to);
-      if (serverUrl) {
-        const origin = new URL(serverUrl).origin;
-        add(origin + oldUrl.pathname, newUrl ? origin + newUrl.pathname : to, to);
-      }
-    } catch (e) {
-    }
-  }
-  const keys = [...replacements.keys()].sort((a, b) => b.length - a.length);
-  if (!keys.length) return (text) => ({ text, count: 0 });
-  const regex = new RegExp(keys.map(escape).join("|"), "g");
-  return (input) => {
-    let count = 0;
-    const text = String(input).replace(regex, (match, offset, source) => {
-      const before = source[offset - 1], after = source[offset + match.length];
-      if (before && !/[\s\[\(<"'=:|]/.test(before)) return match;
-      if (after && !/[?#\s\)\]}>"'\\|]/.test(after)) return match;
-      const replacement = replacements.get(match);
-      count++;
-      onMatch == null ? void 0 : onMatch(replacement.reference, { match, offset, line: lineAtOffset(source, offset) });
-      return replacement.text;
-    });
-    return { text, count };
-  };
 }
 
 // src/plugin/remote-rename.js
@@ -5999,8 +6099,12 @@ function getCleanServerUrl(settings) {
 async function handleIncomingBrowserFile(plugin, file, editor, options = {}) {
   const insertionTarget = (options == null ? void 0 : options.insertionTarget) || captureEditorTarget(plugin, { editor, info: (options == null ? void 0 : options.info) || null });
   const activeFile = (insertionTarget == null ? void 0 : insertionTarget.file) || (!editor ? plugin.app.workspace.getActiveFile() : null);
-  const arrayBuffer = await file.arrayBuffer();
   const ext = getExt(file.name) || (file.type.startsWith("image/") ? "png" : "bin");
+  const effectiveName = getExt(file.name) ? file.name : `${file.name || "file"}.${ext}`;
+  if (plugin.settings.saveLocationMode === "remote" && plugin.isRemoteServerReady() && !isSupportedRemoteExtension(effectiveName, plugin.lastServerCompatStatus)) {
+    throw new Error(`Unsupported remote file extension: .${ext}`);
+  }
+  const arrayBuffer = await file.arrayBuffer();
   const rawOriginBase = sanitizeCleanBaseName(getBaseName(file.name), "Pasted_image");
   const sha256 = await computeSha256Hex(arrayBuffer);
   const noteName = activeFile ? activeFile.basename : "note";
@@ -6053,10 +6157,15 @@ async function probeRemoteSha256(plugin, sha256) {
   }
   return null;
 }
+var SUPPORTED_SERVER_API_VERSION = 1;
 async function uploadBufferToServer(plugin, arrayBuffer, filename, mimeType = "application/octet-stream", options = {}) {
   var _a;
   const opts = options || {};
   throwIfTransferCancelled(opts.signal);
+  if (!isSupportedRemoteExtension(filename, plugin.lastServerCompatStatus)) {
+    const ext = String(filename || "").includes(".") ? filename.slice(filename.lastIndexOf(".")).toLowerCase() : "(none)";
+    throw new Error(`Unsupported remote file extension: ${ext}`);
+  }
   const fullSha256 = await computeSha256Hex(arrayBuffer);
   if (!opts.skipProbe) {
     try {
@@ -6109,7 +6218,7 @@ async function toggleRemoteFileLock(plugin, year, month, filename, locked = true
   return response.json;
 }
 async function checkServerCompatibility(plugin) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
   if (!((_a = plugin.settings) == null ? void 0 : _a.enableRemoteServer)) {
     plugin.lastServerCompatStatus = null;
     if (plugin.settings) {
@@ -6152,6 +6261,21 @@ async function checkServerCompatibility(plugin) {
     const verData = verRes.json || {};
     const serverVer = verData.version || "0.1.0";
     const minPluginReq = verData.minPluginVersion || "0.1.0";
+    const supportedExtensions = Array.isArray(verData.supportedExtensions) ? verData.supportedExtensions.map((e) => String(e).toLowerCase()) : null;
+    if (verData.apiVersion !== void 0 && Number(verData.apiVersion) !== SUPPORTED_SERVER_API_VERSION) {
+      plugin.lastServerCompatStatus = {
+        ok: false,
+        status: "api_incompatible",
+        serverVersion: serverVer,
+        pluginVersion: pluginVer,
+        apiVersion: verData.apiVersion,
+        supportedApiVersion: SUPPORTED_SERVER_API_VERSION,
+        features: verData.features || {}
+      };
+      plugin.settings.serverVerified = false;
+      await plugin.saveSettings();
+      return plugin.lastServerCompatStatus;
+    }
     if (compareSemver(pluginVer, minPluginReq) < 0) {
       plugin.lastServerCompatStatus = {
         ok: false,
@@ -6195,7 +6319,7 @@ async function checkServerCompatibility(plugin) {
     let listRes;
     try {
       listRes = await (0, import_obsidian17.requestUrl)({
-        url: `${serverUrl}/api/modules/image-host/list`,
+        url: `${serverUrl}/api/modules/image-host/list?limit=1`,
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
         throw: false
@@ -6237,13 +6361,14 @@ async function checkServerCompatibility(plugin) {
       await plugin.saveSettings();
       return plugin.lastServerCompatStatus;
     }
-    assetCount = (((_c = listRes.json) == null ? void 0 : _c.images) || []).length;
+    assetCount = Number.isInteger((_c = listRes.json) == null ? void 0 : _c.totalCount) ? listRes.json.totalCount : (((_d = listRes.json) == null ? void 0 : _d.images) || []).length;
     plugin.lastServerCompatStatus = {
       ok: true,
       status: "compatible",
       serverVersion: serverVer,
       pluginVersion: pluginVer,
       apiVersion: verData.apiVersion || 1,
+      supportedExtensions,
       assetCount,
       features: verData.features || {}
     };
@@ -6753,43 +6878,6 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
 
 // src/plugin/context-menus.js
 var import_obsidian19 = require("obsidian");
-
-// src/plugin/remote-links.js
-var referenceUrls = (item) => [.../* @__PURE__ */ new Set([item.rawUrl, item.pubUrl, ...item.referenceUrls || []])].filter(Boolean);
-var decoded = (value) => {
-  try {
-    return decodeURI(value);
-  } catch (e) {
-    return value;
-  }
-};
-function findRemoteAsset(items, reference, serverUrl = "") {
-  let source, apiOrigin;
-  try {
-    source = new URL(reference);
-  } catch (e) {
-    return null;
-  }
-  try {
-    apiOrigin = new URL(serverUrl).origin;
-  } catch (e) {
-  }
-  return items.find((item) => referenceUrls(item).some((value) => {
-    let candidate;
-    try {
-      candidate = new URL(value);
-    } catch (e) {
-      return false;
-    }
-    return decoded(source.pathname) === decoded(candidate.pathname) && (source.origin === candidate.origin || source.origin === apiOrigin);
-  })) || null;
-}
-function createAssetLinkRewriter(items, serverUrl = "", mode = "webp") {
-  const mappings = items.flatMap((item) => referenceUrls(item).map((from) => ({ from, to: assetUrl(item, mode) })));
-  return createUrlRewriter(mappings, serverUrl);
-}
-
-// src/plugin/context-menus.js
 function registerContextMenus(plugin) {
   plugin.registerEvent(
     plugin.app.workspace.on("file-menu", (menu, abstractFile) => {
@@ -9297,6 +9385,7 @@ function onLanguageChange(plugin) {
   }
 }
 function getCompatibilityMessage(plugin, compat) {
+  var _a, _b;
   if (!compat) return plugin.t(plugin.settings.serverVerified ? "serverVerifiedBadge" : "serverUnverifiedHint");
   switch (compat.status) {
     case "compatible":
@@ -9305,6 +9394,8 @@ function getCompatibilityMessage(plugin, compat) {
       return plugin.t("compatStatusServerOld", { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
     case "plugin_outdated":
       return plugin.t("compatStatusPluginOld", { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
+    case "api_incompatible":
+      return plugin.t("compatStatusApiIncompatible", { apiVer: (_a = compat.apiVersion) != null ? _a : "?", supportedVer: (_b = compat.supportedApiVersion) != null ? _b : 1 });
     case "auth_failed":
       return plugin.t("compatStatusAuthFail");
     case "token_missing":
@@ -10334,7 +10425,8 @@ var FileMasterHubModal = class extends FileMasterModal {
     super(app);
     this.plugin = plugin;
   }
-  onOpen() {
+  onOpen(options = {}) {
+    var _a, _b, _c;
     this.contentEl.empty();
     this.modalEl.addClass("fm-ui", "fm-hub-dialog");
     const home = this.contentEl.createDiv({ cls: "fm-hub-content" });
@@ -10346,9 +10438,9 @@ var FileMasterHubModal = class extends FileMasterModal {
     header.createEl("h2", { text: t2("hubTitle") });
     header.createSpan({ text: "v" + displayVersion(this.plugin.manifest.version), cls: "fm-hub-version" });
     const remote = Boolean(this.plugin.isRemoteServerReady());
-    const statusEl = remote ? header.createSpan({ cls: "fm-hub-status is-online" }) : header.createEl("button", { cls: "fm-hub-status is-offline", attr: { type: "button" } });
-    statusEl.createSpan({ cls: "fm-hub-status-dot", attr: { "aria-hidden": "true" } });
-    statusEl.createSpan({ text: t2(remote ? "hubStatusOnline" : "hubStatusOffline") });
+    const hasServerConfig = Boolean(
+      ((_a = this.plugin.settings) == null ? void 0 : _a.enableRemoteServer) && String(((_b = this.plugin.settings) == null ? void 0 : _b.serverUrl) || "").trim() && String(((_c = this.plugin.settings) == null ? void 0 : _c.apiToken) || "").trim()
+    );
     const file = this.app.workspace.getActiveFile();
     const supported = Boolean(file && isDocFile2(this.app, file));
     const show = (modal) => this.navigator.show(modal);
@@ -10357,7 +10449,58 @@ var FileMasterHubModal = class extends FileMasterModal {
       await this.app.setting.open();
       await this.app.setting.openTabById(this.plugin.manifest.id);
     });
-    if (!remote) statusEl.onclick = settings;
+    if (remote || hasServerConfig) {
+      const statusEl = remote ? header.createSpan({ cls: "fm-hub-status is-online" }) : header.createEl("button", { cls: "fm-hub-status is-offline", attr: { type: "button" } });
+      statusEl.createSpan({ cls: "fm-hub-status-dot", attr: { "aria-hidden": "true" } });
+      const statusTextEl = statusEl.createSpan({ text: t2(remote ? "hubStatusOnline" : "hubStatusOffline") });
+      if (!remote) {
+        let retryFailed = false;
+        statusEl.onclick = async (event) => {
+          event.preventDefault();
+          if (retryFailed) {
+            await settings();
+            return;
+          }
+          if (statusEl.disabled) return;
+          statusEl.disabled = true;
+          statusTextEl.textContent = t2("hubStatusConnecting");
+          try {
+            const compat = await checkServerCompatibility(this.plugin);
+            if (compat == null ? void 0 : compat.ok) {
+              new import_obsidian32.Notice(getCompatibilityMessage(this.plugin, compat));
+              if (this.contentEl.isConnected) this.onOpen({ skipHandshake: true });
+              return;
+            }
+            retryFailed = true;
+            if (statusEl.isConnected) {
+              statusEl.disabled = false;
+              statusEl.classList.remove("is-offline");
+              statusEl.classList.add("is-failed");
+              statusTextEl.textContent = t2("hubStatusFailedSettings");
+              statusEl.title = getCompatibilityMessage(this.plugin, compat);
+            }
+          } catch (err) {
+            retryFailed = true;
+            if (statusEl.isConnected) {
+              statusEl.disabled = false;
+              statusEl.classList.remove("is-offline");
+              statusEl.classList.add("is-failed");
+              statusTextEl.textContent = t2("hubStatusFailedSettings");
+              statusEl.title = err.message || String(err);
+            }
+          }
+        };
+      }
+    }
+    if (hasServerConfig && !(options == null ? void 0 : options.skipHandshake)) {
+      checkServerCompatibility(this.plugin).then(() => {
+        if (!this.contentEl.isConnected) return;
+        if (Boolean(this.plugin.isRemoteServerReady()) !== remote) {
+          this.onOpen({ skipHandshake: true });
+        }
+      }).catch(() => {
+      });
+    }
     const noteAction = (mode) => {
       if (!file || this.app.vault.getAbstractFileByPath(file.path) !== file) throw new Error(t2("noticeOpenMdFirst"));
       return show(new ActiveNoteActionModal(this.app, this.plugin, file, mode, { fromHub: true }));
@@ -10402,6 +10545,47 @@ var FileMasterHubModal = class extends FileMasterModal {
         }
       };
     };
+    (async () => {
+      const tasks = [];
+      if (this.plugin.activeTransferController) {
+        tasks.push({ icon: "loader", title: this.plugin.settings.language === "en" ? "Transfer in progress" : "\u6B63\u5728\u6267\u884C\u4F20\u8F93\u4EFB\u52A1", run: null });
+      }
+      try {
+        if (remote && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))) {
+          tasks.push({ icon: "rotate-ccw", title: this.plugin.settings.language === "en" ? "Resume pending upload" : "\u6062\u590D\u672A\u5B8C\u6210\u7684\u4E0A\u4F20\u4EFB\u52A1", run: () => this.navigator.leave(() => resumePendingMigration(this.plugin)) });
+        }
+      } catch (e) {
+      }
+      try {
+        if (remote && await loadPendingRename(this.plugin)) {
+          tasks.push({ icon: "file-pen-line", title: this.plugin.settings.language === "en" ? "Resume pending rename" : "\u6062\u590D\u672A\u5B8C\u6210\u7684\u8FDC\u7A0B\u6539\u540D", run: () => show(new RemoteRenameModal(this.app, this.plugin)) });
+        }
+      } catch (e) {
+      }
+      if (!tasks.length || !this.contentEl.isConnected) return;
+      const group = home.createDiv({ cls: "fm-hub-section fm-hub-task-section" });
+      if (home.firstChild && home.firstChild !== group) home.insertBefore(group, home.firstChild);
+      const list = group.createDiv({ cls: "fm-hub-list" });
+      for (const task of tasks) {
+        const row = list.createEl("button", { cls: "fm-hub-card", attr: { type: "button" } });
+        (0, import_obsidian32.setIcon)(row.createSpan({ cls: "fm-hub-card-icon" }), task.icon);
+        const text = row.createSpan({ cls: "fm-hub-card-text" });
+        text.createSpan({ text: task.title, cls: "fm-hub-card-title" });
+        if (task.run) {
+          row.onclick = async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            try {
+              await task.run();
+            } catch (err) {
+              new import_obsidian32.Notice(err.message || String(err));
+            }
+          };
+        } else {
+          row.disabled = true;
+        }
+      }
+    })();
     for (const section of sections) {
       const group = home.createDiv({ cls: "fm-hub-section" }), title = group.createDiv({ cls: "fm-hub-section-heading" });
       title.createEl("h3", { text: t2(section.title) });

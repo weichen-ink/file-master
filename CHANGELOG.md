@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.2.4] - 2026-11-15
+
+### Reliability, Format Support & Hub Connection UX
+- Index renamed `referenceUrls` across both public and API origins so active remote aliases are never misclassified as orphans.
+- Enforce API version compatibility checks and preflight extension checks using server-advertised capabilities, expanding support for WPS (`.wps`/`.et`/`.dps`), `.ofd`, `.caj`, `.jfif`, Adobe (`.psd`/`.ai`/`.eps`), and Autodesk/CAD (`.dwg`/`.dxf`/`.rvt`/`.stp`) formats.
+- Surface pending upload/rename recovery tasks in Hub, auto-handshake on Hub open when remote server is configured, and support two-step retry-to-settings status pill UX.
+
 ## [1.2.3] - 2026-11-14
 
 ### Remote Trash batch actions, thumbnails & unified file-row metadata

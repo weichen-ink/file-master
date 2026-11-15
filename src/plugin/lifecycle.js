@@ -249,6 +249,7 @@ export function getCompatibilityMessage(plugin, compat) {
     case 'compatible': return plugin.t('compatStatusOk', { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
     case 'server_outdated': return plugin.t('compatStatusServerOld', { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
     case 'plugin_outdated': return plugin.t('compatStatusPluginOld', { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
+    case 'api_incompatible': return plugin.t('compatStatusApiIncompatible', { apiVer: compat.apiVersion ?? '?', supportedVer: compat.supportedApiVersion ?? 1 });
     case 'auth_failed': return plugin.t('compatStatusAuthFail');
     case 'token_missing': return plugin.t('compatStatusTokenMissing');
     case 'server_error': return plugin.t('compatStatusServerError', { code: compat.statusCode || '' });

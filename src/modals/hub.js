@@ -1,7 +1,10 @@
 import { displayVersion } from '../constants.js';
-import { initGalleryLeaf } from '../plugin/lifecycle.js';
+import { getCompatibilityMessage, initGalleryLeaf } from '../plugin/lifecycle.js';
+import { checkServerCompatibility } from '../plugin/server-client.js';
 import { isDocFile } from '../plugin/vault-utils.js';
-import { copyActiveNoteForAstro } from '../plugin/attachment-ops.js';
+import { copyActiveNoteForAstro, resumePendingMigration } from '../plugin/attachment-ops.js';
+import { loadPendingRename } from '../plugin/remote-rename.js';
+import { migrationCheckpointPath } from '../transfers.js';
 import { BatchMigrateWizardModal } from './batch-migrate-wizard.js';
 import { DuplicateWizardModal } from './duplicate-wizard.js';
 import { HealthCheckModal } from './health-check.js';
@@ -17,7 +20,7 @@ import { FileMasterModal as Modal } from '../ui/modal.js';
 
 export class FileMasterHubModal extends Modal {
   constructor(app, plugin) { super(app); this.plugin = plugin; }
-  onOpen() {
+  onOpen(options = {}) {
     this.contentEl.empty();
     this.modalEl.addClass('fm-ui', 'fm-hub-dialog');
     const home=this.contentEl.createDiv({cls:'fm-hub-content'});
@@ -29,11 +32,11 @@ export class FileMasterHubModal extends Modal {
     header.createEl('h2',{text:t('hubTitle')});
     header.createSpan({text:'v'+displayVersion(this.plugin.manifest.version),cls:'fm-hub-version'});
     const remote=Boolean(this.plugin.isRemoteServerReady());
-    const statusEl=remote
-      ? header.createSpan({cls:'fm-hub-status is-online'})
-      : header.createEl('button',{cls:'fm-hub-status is-offline',attr:{type:'button'}});
-    statusEl.createSpan({cls:'fm-hub-status-dot',attr:{'aria-hidden':'true'}});
-    statusEl.createSpan({text:t(remote?'hubStatusOnline':'hubStatusOffline')});
+    const hasServerConfig=Boolean(
+      this.plugin.settings?.enableRemoteServer
+      && String(this.plugin.settings?.serverUrl||'').trim()
+      && String(this.plugin.settings?.apiToken||'').trim()
+    );
     const file=this.app.workspace.getActiveFile();
     const supported=Boolean(file&&isDocFile(this.app,file));
     const show=modal=>this.navigator.show(modal);
@@ -42,7 +45,59 @@ export class FileMasterHubModal extends Modal {
       await this.app.setting.open();
       await this.app.setting.openTabById(this.plugin.manifest.id);
     });
-    if(!remote) statusEl.onclick=settings;
+    if(remote || hasServerConfig){
+      const statusEl=remote
+        ? header.createSpan({cls:'fm-hub-status is-online'})
+        : header.createEl('button',{cls:'fm-hub-status is-offline',attr:{type:'button'}});
+      statusEl.createSpan({cls:'fm-hub-status-dot',attr:{'aria-hidden':'true'}});
+      const statusTextEl=statusEl.createSpan({text:t(remote?'hubStatusOnline':'hubStatusOffline')});
+      if(!remote){
+        let retryFailed=false;
+        statusEl.onclick=async event=>{
+          event.preventDefault();
+          if(retryFailed){
+            await settings();
+            return;
+          }
+          if(statusEl.disabled)return;
+          statusEl.disabled=true;
+          statusTextEl.textContent=t('hubStatusConnecting');
+          try{
+            const compat=await checkServerCompatibility(this.plugin);
+            if(compat?.ok){
+              new Notice(getCompatibilityMessage(this.plugin,compat));
+              if(this.contentEl.isConnected)this.onOpen({skipHandshake:true});
+              return;
+            }
+            retryFailed=true;
+            if(statusEl.isConnected){
+              statusEl.disabled=false;
+              statusEl.classList.remove('is-offline');
+              statusEl.classList.add('is-failed');
+              statusTextEl.textContent=t('hubStatusFailedSettings');
+              statusEl.title=getCompatibilityMessage(this.plugin,compat);
+            }
+          }catch(err){
+            retryFailed=true;
+            if(statusEl.isConnected){
+              statusEl.disabled=false;
+              statusEl.classList.remove('is-offline');
+              statusEl.classList.add('is-failed');
+              statusTextEl.textContent=t('hubStatusFailedSettings');
+              statusEl.title=err.message||String(err);
+            }
+          }
+        };
+      }
+    }
+    if(hasServerConfig && !options?.skipHandshake){
+      checkServerCompatibility(this.plugin).then(()=>{
+        if(!this.contentEl.isConnected)return;
+        if(Boolean(this.plugin.isRemoteServerReady())!==remote){
+          this.onOpen({skipHandshake:true});
+        }
+      }).catch(()=>{});
+    }
     const noteAction=mode=>{
       if (!file || this.app.vault.getAbstractFileByPath(file.path)!==file) throw new Error(t('noticeOpenMdFirst'));
       return show(new ActiveNoteActionModal(this.app,this.plugin,file,mode,{fromHub:true}));
@@ -77,6 +132,37 @@ export class FileMasterHubModal extends Modal {
       try{await action.run();}catch(error){new Notice(error.message||String(error));}
       finally{if(button.isConnected)button.disabled=false;}
     };};
+    (async()=>{
+      const tasks=[];
+      if(this.plugin.activeTransferController){
+        tasks.push({icon:'loader',title:this.plugin.settings.language==='en'?'Transfer in progress':'正在执行传输任务',run:null});
+      }
+      try{
+        if(remote && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))){
+          tasks.push({icon:'rotate-ccw',title:this.plugin.settings.language==='en'?'Resume pending upload':'恢复未完成的上传任务',run:()=>this.navigator.leave(()=>resumePendingMigration(this.plugin))});
+        }
+      }catch{}
+      try{
+        if(remote && await loadPendingRename(this.plugin)){
+          tasks.push({icon:'file-pen-line',title:this.plugin.settings.language==='en'?'Resume pending rename':'恢复未完成的远程改名',run:()=>show(new RemoteRenameModal(this.app,this.plugin))});
+        }
+      }catch{}
+      if(!tasks.length || !this.contentEl.isConnected)return;
+      const group=home.createDiv({cls:'fm-hub-section fm-hub-task-section'});
+      if(home.firstChild && home.firstChild !== group) home.insertBefore(group, home.firstChild);
+      const list=group.createDiv({cls:'fm-hub-list'});
+      for(const task of tasks){
+        const row=list.createEl('button',{cls:'fm-hub-card',attr:{type:'button'}});
+        setIcon(row.createSpan({cls:'fm-hub-card-icon'}),task.icon);
+        const text=row.createSpan({cls:'fm-hub-card-text'});
+        text.createSpan({text:task.title,cls:'fm-hub-card-title'});
+        if(task.run){
+          row.onclick=async event=>{event.preventDefault();event.stopPropagation();try{await task.run();}catch(err){new Notice(err.message||String(err));}};
+        }else{
+          row.disabled=true;
+        }
+      }
+    })();
     for(const section of sections){
       const group=home.createDiv({cls:'fm-hub-section'}),title=group.createDiv({cls:'fm-hub-section-heading'});
       title.createEl('h3',{text:t(section.title)});

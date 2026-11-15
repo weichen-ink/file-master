@@ -136,3 +136,49 @@ test('Upload checkpoint recovery uses existing files and rejects switching to an
   f.journal.set(f.migrationCheckpointPath(f.plugin), JSON.stringify(checkpoint));
   await assert.rejects(f.attachmentOps.resumePendingMigration(f.plugin), /server|服务器/i);
 });
+
+test('Compatibility rejects unknown apiVersion and preflight blocks unsupported remote extensions', async () => {
+  const loaded = loadPlugin(() => ({ status: 200, json: { version: '2.0.0', minPluginVersion: '1.1', apiVersion: 2 } }));
+  const plugin = new loaded.Plugin({}); plugin.manifest = { version: '1.2.3' };
+  plugin.settings = { enableRemoteServer: true, serverUrl: 'https://example.com', apiToken: 'tok' };
+  let saved; plugin.saveData = async (s) => { saved = { ...s }; };
+  const res = await loaded.serverClient.checkServerCompatibility(plugin);
+  assert.equal(res.ok, false);
+  assert.equal(res.status, 'api_incompatible');
+  assert.equal(saved.serverVerified, false);
+
+  assert.equal(loaded.serverClient.isSupportedRemoteExtension('page.html'), false);
+  for (const name of ['photo.png', 'photo.jfif', 'report.wps', 'invoice.ofd', 'design.psd', 'plan.dwg']) {
+    assert.equal(loaded.serverClient.isSupportedRemoteExtension(name), true, name);
+  }
+  await assert.rejects(
+    loaded.serverClient.uploadBufferToServer(plugin, new Uint8Array([1, 2, 3]).buffer, 'page.html'),
+    /Unsupported remote file extension/
+  );
+
+  const opened = [];
+  const modalLoaded = loadPlugin(() => ({ status: 200, json: {} }), { onModalOpen: (m) => opened.push(m) });
+  const modalPlugin = new modalLoaded.Plugin({});
+  modalPlugin.settings = { enableRemoteServer: true, serverVerified: true, saveLocationMode: 'remote', namingMode: 'keep', serverUrl: 'https://example.com', apiToken: 'tok' };
+  modalPlugin.lastServerCompatStatus = { ok: true, supportedExtensions: ['.png'] };
+  modalPlugin.app = { workspace: { getActiveFile: () => null }, vault: { getAbstractFileByPath: () => null } };
+  await modalLoaded.serverClient.handleIncomingBrowserFile(modalPlugin, {
+    name: 'image',
+    type: 'image/png',
+    size: 3,
+    arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer
+  });
+  assert.equal(opened.length, 1);
+
+  let readCalled = false;
+  await assert.rejects(
+    modalLoaded.serverClient.handleIncomingBrowserFile(modalPlugin, {
+      name: 'page',
+      type: 'text/html',
+      size: 3,
+      arrayBuffer: async () => { readCalled = true; return new Uint8Array([1, 2, 3]).buffer; }
+    }),
+    /Unsupported remote file extension/
+  );
+  assert.equal(readCalled, false);
+});
