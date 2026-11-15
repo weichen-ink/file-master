@@ -48,7 +48,7 @@ export class FileMasterHubModal extends Modal {
       return show(new ActiveNoteActionModal(this.app,this.plugin,file,mode,{fromHub:true}));
     };
     const sections=[
-      {title:'catActiveNote',context:supported?file.name:t('hubOpenNote'),actions:[
+      {title:supported?'catActiveNote':'catActiveNoteIdle',context:supported?file.name:t('hubNoOpenNote'),actions:[
         {icon:'upload',title:'actNoteUpTitle',disabled:!remote||!supported,run:()=>noteAction('migrate')},
         {icon:'download',title:'actNoteDownTitle',disabled:!remote||!supported,run:()=>noteAction('download')},
         {icon:'copy',title:'actNoteAstroTitle',disabled:!remote||!supported,run:()=>copyActiveNoteForAstro(this.plugin,file)}
@@ -83,7 +83,7 @@ export class FileMasterHubModal extends Modal {
       if(section.context){
         const ctxEl=title.createSpan({cls:`fm-hub-context${supported?' is-active':''}`});
         if(supported) setIcon(ctxEl.createSpan({cls:'fm-hub-context-icon',attr:{'aria-hidden':'true'}}),'file-text');
-        ctxEl.createSpan({text:section.context});
+        ctxEl.createSpan({text:section.context,cls:'fm-hub-context-text',...(supported?{attr:{title:file.path}}:{})});
       }
       const list=group.createDiv({cls:'fm-hub-list'});
       for(const action of section.actions.filter(action=>!action.hidden)){

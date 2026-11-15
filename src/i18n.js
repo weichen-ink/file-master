@@ -87,6 +87,7 @@ export const UI_STRINGS = {
     hubBack: '返回',
     hubSettingsUnavailable: '无法打开插件设置',
     hubOpenNote: '先打开一篇笔记',
+    hubNoOpenNote: '未打开笔记',
     hubStatusOnline: '已连接',
     hubStatusOffline: '未连接',
     hubConnect: '连接服务器',
@@ -138,6 +139,7 @@ export const UI_STRINGS = {
     catFiles: '远程服务器',
     catGovernance: '仓库管理',
     catActiveNote: '当前文件',
+    catActiveNoteIdle: '笔记操作',
     catSettings: '设置',
 
     // 向导项
@@ -800,6 +802,7 @@ export const UI_STRINGS = {
     hubBack: 'Back',
     hubSettingsUnavailable: 'Plugin settings are unavailable',
     hubOpenNote: 'Open a note first',
+    hubNoOpenNote: 'No note open',
     hubStatusOnline: 'Connected',
     hubStatusOffline: 'Offline',
     hubConnect: 'Connect to server',
@@ -851,6 +854,7 @@ export const UI_STRINGS = {
     catGovernance: 'Vault management',
     catFiles: 'Remote server',
     catActiveNote: 'Current file',
+    catActiveNoteIdle: 'Note actions',
     catSettings: 'Settings',
 
     // Wizards

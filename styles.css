@@ -424,6 +424,7 @@ button.fm-hub-status.is-offline:hover {
 .fm-hub-section-heading::after {
   content: "";
   flex: 1;
+  min-width: 24px;
   height: 1px;
   background: var(--background-modifier-border);
   opacity: 0.7;
@@ -442,15 +443,20 @@ button.fm-hub-status.is-offline:hover {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: 240px;
+  flex: 0 1 auto;
+  min-width: 0;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
   color: var(--text-muted);
   background: var(--background-secondary);
-  white-space: nowrap;
+}
+
+.fm-hub-context-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fm-hub-context.is-active {

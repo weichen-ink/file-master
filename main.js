@@ -1209,6 +1209,7 @@ var UI_STRINGS = {
     hubBack: "\u8FD4\u56DE",
     hubSettingsUnavailable: "\u65E0\u6CD5\u6253\u5F00\u63D2\u4EF6\u8BBE\u7F6E",
     hubOpenNote: "\u5148\u6253\u5F00\u4E00\u7BC7\u7B14\u8BB0",
+    hubNoOpenNote: "\u672A\u6253\u5F00\u7B14\u8BB0",
     hubStatusOnline: "\u5DF2\u8FDE\u63A5",
     hubStatusOffline: "\u672A\u8FDE\u63A5",
     hubConnect: "\u8FDE\u63A5\u670D\u52A1\u5668",
@@ -1260,6 +1261,7 @@ var UI_STRINGS = {
     catFiles: "\u8FDC\u7A0B\u670D\u52A1\u5668",
     catGovernance: "\u4ED3\u5E93\u7BA1\u7406",
     catActiveNote: "\u5F53\u524D\u6587\u4EF6",
+    catActiveNoteIdle: "\u7B14\u8BB0\u64CD\u4F5C",
     catSettings: "\u8BBE\u7F6E",
     // 向导项
     actHealthTitle: "\u68C0\u67E5\u5931\u6548\u94FE\u63A5",
@@ -1894,6 +1896,7 @@ var UI_STRINGS = {
     hubBack: "Back",
     hubSettingsUnavailable: "Plugin settings are unavailable",
     hubOpenNote: "Open a note first",
+    hubNoOpenNote: "No note open",
     hubStatusOnline: "Connected",
     hubStatusOffline: "Offline",
     hubConnect: "Connect to server",
@@ -1945,6 +1948,7 @@ var UI_STRINGS = {
     catGovernance: "Vault management",
     catFiles: "Remote server",
     catActiveNote: "Current file",
+    catActiveNoteIdle: "Note actions",
     catSettings: "Settings",
     // Wizards
     actHealthTitle: "Check broken links",
@@ -10359,7 +10363,7 @@ var FileMasterHubModal = class extends FileMasterModal {
       return show(new ActiveNoteActionModal(this.app, this.plugin, file, mode, { fromHub: true }));
     };
     const sections = [
-      { title: "catActiveNote", context: supported ? file.name : t2("hubOpenNote"), actions: [
+      { title: supported ? "catActiveNote" : "catActiveNoteIdle", context: supported ? file.name : t2("hubNoOpenNote"), actions: [
         { icon: "upload", title: "actNoteUpTitle", disabled: !remote || !supported, run: () => noteAction("migrate") },
         { icon: "download", title: "actNoteDownTitle", disabled: !remote || !supported, run: () => noteAction("download") },
         { icon: "copy", title: "actNoteAstroTitle", disabled: !remote || !supported, run: () => copyActiveNoteForAstro(this.plugin, file) }
@@ -10404,7 +10408,7 @@ var FileMasterHubModal = class extends FileMasterModal {
       if (section.context) {
         const ctxEl = title.createSpan({ cls: `fm-hub-context${supported ? " is-active" : ""}` });
         if (supported) (0, import_obsidian32.setIcon)(ctxEl.createSpan({ cls: "fm-hub-context-icon", attr: { "aria-hidden": "true" } }), "file-text");
-        ctxEl.createSpan({ text: section.context });
+        ctxEl.createSpan({ text: section.context, cls: "fm-hub-context-text", ...supported ? { attr: { title: file.path } } : {} });
       }
       const list = group.createDiv({ cls: "fm-hub-list" });
       for (const action of section.actions.filter((action2) => !action2.hidden)) {
