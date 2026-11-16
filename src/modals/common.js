@@ -98,6 +98,42 @@ export function createScanProgressWidget(contentEl, plugin) {
 }
 
 /** Only configured exclusions merit a reminder; both scan wizards use this row. */
+export function renderUploadConflictBox(container, plugin, items, currentStrategy, onChange) {
+  const conflicts = (items || []).filter((i) => i.hasConflict);
+  if (conflicts.length === 0) return null;
+  const t = (k, p) => plugin.t(k, p);
+  const box = container.createDiv({
+    cls: 'fm-section-box',
+    attr: { style: 'margin-top: 8px; display: flex; flex-direction: column; gap: 8px;' }
+  });
+  box.createDiv({
+    text: t('uploadBatchConflictTitle', { count: conflicts.length }),
+    cls: 'fm-section-title',
+    attr: { style: 'color: var(--text-warning); margin-bottom: 2px;' }
+  });
+  const strategies = [
+    { value: 'rename', label: t('uploadBatchOptRename') },
+    { value: 'reuse', label: t('uploadBatchOptReuse') },
+    { value: 'replace', label: t('uploadBatchOptReplace') },
+    { value: 'skip', label: t('uploadBatchOptSkip') }
+  ];
+  for (const st of strategies) {
+    const lbl = box.createEl('label', {
+      cls: 'fm-check-row',
+      attr: { style: 'margin: 0; cursor: pointer;' }
+    });
+    const radio = lbl.createEl('input', {
+      type: 'radio',
+      attr: { name: 'fm-up-conflict-strategy', value: st.value }
+    });
+    radio.checked = currentStrategy === st.value;
+    radio.onchange = () => {
+      if (radio.checked) onChange(st.value);
+    };
+    lbl.createSpan({ text: st.label });
+  }
+  return box;
+}
 export function renderExcludedFoldersHint(contentEl, plugin) {
   const folders=getExcludedLocalFolderList(plugin.settings);
   if(!folders.length)return;

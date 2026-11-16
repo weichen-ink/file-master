@@ -3,7 +3,7 @@ import { getAllVaultFolderPaths } from '../plugin/vault-utils.js';
 import { scanLocalAttachmentsForBatchMigrate } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
+import { createScanProgressWidget, renderScanEmpty, renderUploadConflictBox, returnToHub } from './common.js';
 import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
@@ -24,7 +24,8 @@ export class BatchMigrateWizardModal extends Modal {
       typeImage: true,
       typeAudio: true,
       typeOther: true,
-      deleteLocalAfter: plugin.settings.deleteLocalAfterMigrate
+      deleteLocalAfter: plugin.settings.deleteLocalAfterMigrate,
+      conflictStrategy: 'rename'
     };
     this.items = [];
   }
@@ -173,6 +174,10 @@ export class BatchMigrateWizardModal extends Modal {
       });
       fileReferenceButton(actions,item,this.plugin,item.refNotes,()=>this.close());
     }
+
+    renderUploadConflictBox(contentEl, this.plugin, this.items, this.options.conflictStrategy, (val) => {
+      this.options.conflictStrategy = val;
+    });
 
     const progressBox = contentEl.createDiv({ attr: { style: 'display:none; margin-bottom:12px;' } });
     const progressHeader = progressBox.createDiv({ attr: { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;' } });

@@ -200,6 +200,10 @@ export async function resumePendingMigration(plugin) {
   if (!items.length) { new Notice(plugin.t('transferNothingPending')); return; }
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
   modal.options = { ...modal.options, ...checkpoint.options };
+  if (checkpoint.options?.conflictStrategy) {
+    modal.conflictStrategy = checkpoint.options.conflictStrategy;
+  }
+  await annotateLocalUploadConflicts(plugin, items);
   modal.items = items;
   modal.step = 2;
   modal.open();
@@ -554,6 +558,47 @@ export async function downloadActiveNoteRemoteAttachments(plugin, targetFile = n
   }
 }
 
+async function readLocalFileSha256(plugin, tfile, cache = null) {
+  if (!tfile || Array.isArray(tfile.children)) return null;
+  if (cache?.has(tfile.path)) return cache.get(tfile.path);
+  try {
+    const buf = await plugin.app.vault.readBinary(tfile);
+    const h = await computeSha256Hex(buf);
+    cache?.set(tfile.path, h);
+    return h;
+  } catch {
+    return null;
+  }
+}
+
+async function annotateLocalUploadConflicts(plugin, list) {
+  if (!plugin?.isRemoteServerReady?.() || typeof plugin.checkUploadConflicts !== 'function' || list.length === 0) {
+    return list;
+  }
+  const localHashCache = new Map();
+  const chunkSize = 50;
+  for (let i = 0; i < list.length; i += chunkSize) {
+    const chunk = list.slice(i, i + chunkSize);
+    const payload = [];
+    for (const item of chunk) {
+      payload.push({
+        filename: item.name,
+        sha256: await readLocalFileSha256(plugin, item.rawObj || item.tfile, localHashCache)
+      });
+    }
+    const results = await plugin.checkUploadConflicts(payload);
+    for (let j = 0; j < chunk.length; j++) {
+      const res = results[j];
+      if (res?.status === 'conflict' && res.conflict) {
+        chunk[j].hasConflict = true;
+        chunk[j].conflict = res.conflict;
+        chunk[j].conflictType = res.code || res.conflict.code || 'NAME_CONFLICT';
+      }
+    }
+  }
+  return list;
+}
+
 export async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanCtx = {}) {
   const { signal, onProgress } = scanCtx || {};
   const snapshot = await plugin.buildVaultReferenceSnapshot({ signal, onProgress });
@@ -600,6 +645,7 @@ export async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanC
     });
   }
 
+  await annotateLocalUploadConflicts(plugin, list);
   return list;
 }
 
@@ -636,7 +682,7 @@ export async function scanActiveNoteLocalAttachments(plugin, activeFile) {
 
   const snapshot = await plugin.buildVaultReferenceSnapshot();
 
-  return Array.from(localFilesMap.values()).map((tf) => {
+  const items = Array.from(localFilesMap.values()).map((tf) => {
     const refNotes = findReferencingNotesForLocalFile(tf, snapshot);
     const otherRefNotes = refNotes.filter((p) => p !== activeFile.path);
     return {
@@ -654,6 +700,7 @@ export async function scanActiveNoteLocalAttachments(plugin, activeFile) {
       locked: false
     };
   });
+  return annotateLocalUploadConflicts(plugin, items);
 }
 
 export async function executeMigrateNoteDirect(plugin, activeFile, onProgress = null, options = {}) {

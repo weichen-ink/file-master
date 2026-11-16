@@ -66,6 +66,10 @@ export class FileMasterPlugin extends Plugin {
     return serverClient.uploadBufferToServer(this, arrayBuffer, filename, mimeType, options);
   }
 
+  checkUploadConflicts(items) {
+    return serverClient.checkUploadConflicts(this, items);
+  }
+
   toggleRemoteFileLock(year, month, filename, locked = true) {
     return serverClient.toggleRemoteFileLock(this, year, month, filename, locked);
   }

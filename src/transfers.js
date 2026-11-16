@@ -112,7 +112,7 @@ export async function saveMigrationCheckpoint(plugin, items, options) {
     return;
   }
   await adapter.write(path, JSON.stringify({ version: 1, serverUrl: plugin.getCleanServerUrl(),
-    options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null },
+    options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null, conflictStrategy: options.conflictStrategy || null },
     items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) })) }));
 }
 
@@ -168,12 +168,45 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
       if (!isSupportedRemoteExtension(tfile.name, plugin.lastServerCompatStatus)) {
         throw new Error(`Unsupported remote file extension: .${tfile.extension?.toLowerCase() || '(none)'}`);
       }
-      const bytes = await plugin.app.vault.readBinary(tfile);
-      const remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', { signal: options.signal });
-      const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1000);
-      const fileSpeed = (bytes.byteLength || fileSize) / fileDurationSec;
-      lastSpeed = remote.isInstant ? (plugin.t('instantUploadBadge') || '⚡ Instant') : formatSpeed(fileSpeed);
-      transferredBytes += (bytes.byteLength || fileSize);
+      const strategy = options.conflictStrategy || '';
+      if (entry.hasConflict && strategy === 'skip') {
+        continue;
+      }
+      let remote;
+      if (entry.hasConflict && strategy === 'reuse' && entry.conflict?.rawUrl) {
+        remote = Object.assign({}, entry.conflict, { reusedExisting: true });
+        lastSpeed = plugin.t('uploadReusedBadge');
+        transferredBytes += fileSize;
+      } else {
+        if (entry.hasConflict && strategy === 'replace') {
+          if (entry.conflict?.locked) throw new Error(plugin.t('uploadConflictLockedHint'));
+          if (entry.conflict?.code === 'NAME_RESERVED') throw new Error(plugin.t('uploadConflictReservedHint'));
+        }
+        const bytes = await plugin.app.vault.readBinary(tfile);
+        const uploadOpts = { signal: options.signal };
+        if (entry.hasConflict && ['replace', 'rename'].includes(strategy)) {
+          uploadOpts.conflictStrategy = strategy;
+          if (strategy === 'replace' && entry.conflict) {
+            uploadOpts.conflictTargetYear = entry.conflict.year || '';
+            uploadOpts.conflictTargetMonth = entry.conflict.month || '';
+            uploadOpts.conflictTargetFilename = entry.conflict.filename || '';
+            uploadOpts.conflictTargetSha256 = entry.conflict.sha256 || '';
+          }
+        }
+        try {
+          remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', uploadOpts);
+        } catch (uploadErr) {
+          if (uploadErr?.status === 409 && strategy === 'rename' && uploadOpts.conflictStrategy !== 'rename') {
+            remote = await plugin.uploadBufferToServer(bytes, tfile.name, 'application/octet-stream', { ...uploadOpts, conflictStrategy: 'rename' });
+          } else {
+            throw uploadErr;
+          }
+        }
+        const fileDurationSec = Math.max(0.05, (Date.now() - fileStart) / 1000);
+        const fileSpeed = (bytes.byteLength || fileSize) / fileDurationSec;
+        lastSpeed = remote.isInstant ? (plugin.t('instantUploadBadge') || '⚡ Instant') : formatSpeed(fileSpeed);
+        transferredBytes += (bytes.byteLength || fileSize);
+      }
 
       if (entry.locked && !remote.locked) {
         await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);

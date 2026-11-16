@@ -1,11 +1,13 @@
 import { modalTitle } from '../ui/navigation.js';
 import { getItemPreviewUrl, revokeBlobUrl } from '../plugin/vault-utils.js';
+import { checkUploadConflicts } from '../plugin/server-client.js';
 import { insertLinkAtTarget } from '../plugin/editor-target.js';
 import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
 import { computeSha256Hex, convertBufferToPreviewUrl, formatBytes, getExt, sanitizeCleanBaseName } from '../engine.js';
 import { translateUi } from '../i18n.js';
 import { formatFriendlyError } from './common.js';
 import { ImageLightboxModal } from './dialogs.js';
+import { fileMetaItem } from '../ui/file-action-list.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -71,6 +73,8 @@ export class IncomingFileModal extends Modal {
     }
     this.finalFilename = `${fileInfo.defaultBaseName}.${fileInfo.ext}`;
     this.step = 'input';
+    this.conflict = null;
+    this.conflictStrategy = null;
     this.result = null;
     this.isDone = false;
     this.isExecuting = false;
@@ -92,6 +96,8 @@ export class IncomingFileModal extends Modal {
 
     if (this.step === 'input') {
       this.renderInputStep();
+    } else if (this.step === 'conflict') {
+      this.renderConflictStep();
     } else if (this.step === 'executing') {
       this.renderExecutingStep();
     } else if (this.step === 'result') {
@@ -103,14 +109,15 @@ export class IncomingFileModal extends Modal {
     const { contentEl } = this;
 
     // 1. Clean Title Header
-    modalTitle(this, this.t('destTitle'));
+    modalTitle(this, this.t('destTitle'), 'paperclip');
 
-    // 2. Asset Card (Thumbnail + Integrated Input + Size)
-    const card = contentEl.createDiv({ cls: 'fm-incoming-card' });
-    const thumbWrap = card.createDiv({ cls: 'fm-incoming-thumb-wrap' });
+    // A stable preview card sits beside the editable fields.
+    const layout = contentEl.createDiv({ cls: 'fm-incoming-layout' });
+    const card = layout.createDiv({ cls: 'fm-gallery-card fm-incoming-card' });
+    const thumbWrap = card.createDiv({ cls: 'fm-gallery-thumb-wrap fm-incoming-thumb-wrap' });
 
     if (IMAGE_EXTS.has(this.fileInfo.ext)) {
-      const img = thumbWrap.createEl('img', { cls: 'fm-incoming-thumb-img' });
+      const img = thumbWrap.createEl('img', { cls: 'fm-gallery-thumb fm-incoming-thumb-img', attr: { alt: this.finalFilename } });
       convertBufferToPreviewUrl(this.fileInfo.arrayBuffer, this.fileInfo.ext, this.plugin)
         .then((url) => {
           if (!url) return;
@@ -122,30 +129,33 @@ export class IncomingFileModal extends Modal {
           this.previewBlobUrl = url;
           img.src = url;
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       const ext = this.fileInfo.ext;
       const icon = ext === 'md' ? '📝' : AUDIO_EXTS.has(ext) ? '🎵' : ['mp4', 'webm', 'mov', 'mkv'].includes(ext) ? '🎬' : ext === 'pdf' ? '📄' : '📦';
+      thumbWrap.addClass('fm-gallery-placeholder');
       thumbWrap.createSpan({ text: icon, attr: { style: 'font-size: 24px;' } });
     }
 
-    const editCol = card.createDiv({ cls: 'fm-incoming-edit-col' });
+    const assetInfo = card.createDiv({ cls: 'fm-gallery-info fm-incoming-asset-info' });
+    assetInfo.createDiv({ cls: 'fm-incoming-asset-name', text: this.finalFilename });
+    const subMeta = assetInfo.createDiv({ cls: 'fm-gallery-meta fm-incoming-sub-meta' });
+    fileMetaItem(subMeta, 'hard-drive', formatBytes(this.fileInfo.size));
+    const formEl = layout.createDiv({ cls: 'fm-incoming-form' });
+    const editCol = formEl.createDiv({ cls: 'fm-incoming-edit-col' });
+    editCol.createEl('label', { text: this.t('destFilenameLabel'), cls: 'fm-incoming-label', attr: { for: 'fm-incoming-filename' } });
     const inputRow = editCol.createDiv({ cls: 'fm-incoming-input-row' });
     const nameInput = inputRow.createEl('input', {
       type: 'text',
       value: this.fileInfo.defaultBaseName,
       cls: 'fm-incoming-name-input',
       attr: {
+        id: 'fm-incoming-filename',
         placeholder: this.t('destFilenameHint'),
         spellcheck: 'false'
       }
     });
     inputRow.createSpan({ text: `.${this.fileInfo.ext}`, cls: 'fm-incoming-ext-badge' });
-    editCol.createDiv({
-      cls: 'fm-incoming-sub-meta',
-      text: formatBytes(this.fileInfo.size)
-    });
-
     // 3. Location Selection
     const isRemoteReady = Boolean(
       this.plugin?.settings?.enableRemoteServer &&
@@ -168,19 +178,21 @@ export class IncomingFileModal extends Modal {
       this.targetLocation = (!isRemoteReady || userPref === 'local') ? 'local' : 'remote';
     }
 
-    contentEl.createDiv({
-      cls: 'fm-section-title',
+    formEl.createDiv({
+      cls: 'fm-incoming-label',
       text: this.t('destDestTitle'),
-      attr: { style: 'margin-top: 14px; margin-bottom: 8px;' }
+      attr: { id: 'fm-incoming-destination' }
     });
 
-    const grid = contentEl.createDiv({ cls: 'fm-incoming-dest-grid' });
+    const grid = formEl.createDiv({ cls: 'fm-incoming-dest-grid', attr: { role: 'radiogroup', 'aria-labelledby': 'fm-incoming-destination' } });
 
     // Local Option Card
-    const localCard = grid.createDiv({
+    const localCard = grid.createEl('button', {
+      attr: { type: 'button', role: 'radio', 'aria-checked': String(this.targetLocation === 'local') },
       cls: `fm-incoming-dest-card ${this.targetLocation === 'local' ? 'is-selected' : ''}`
     });
     const localTitle = localCard.createDiv({ cls: 'fm-incoming-dest-card-title' });
+    setIcon(localTitle.createSpan({ cls: 'fm-incoming-option-icon', attr: { 'aria-hidden': 'true' } }), 'hard-drive');
     localTitle.createSpan({ text: this.t('destSaveLocal') });
     const localCheck = localCard.createSpan({ cls: 'fm-incoming-dest-card-check' });
     setIcon(localCheck, 'check');
@@ -189,10 +201,12 @@ export class IncomingFileModal extends Modal {
     let remoteCard = null;
     let remoteCheck = null;
     if (isRemoteReady) {
-      remoteCard = grid.createDiv({
+      remoteCard = grid.createEl('button', {
+        attr: { type: 'button', role: 'radio', 'aria-checked': String(this.targetLocation === 'remote') },
         cls: `fm-incoming-dest-card ${this.targetLocation === 'remote' ? 'is-selected' : ''}`
       });
       const remoteTitle = remoteCard.createDiv({ cls: 'fm-incoming-dest-card-title' });
+      setIcon(remoteTitle.createSpan({ cls: 'fm-incoming-option-icon', attr: { 'aria-hidden': 'true' } }), 'cloud');
       remoteTitle.createSpan({ text: this.t('destSaveRemote') });
       remoteCheck = remoteCard.createSpan({ cls: 'fm-incoming-dest-card-check' });
       setIcon(remoteCheck, 'check');
@@ -200,6 +214,10 @@ export class IncomingFileModal extends Modal {
 
     const updateSelection = (loc) => {
       this.targetLocation = loc;
+      localCard.setAttribute('aria-checked', String(loc === 'local'));
+      localCard.setAttribute('tabindex', loc === 'local' ? '0' : '-1');
+      remoteCard?.setAttribute('tabindex', loc === 'remote' ? '0' : '-1');
+      remoteCard?.setAttribute('aria-checked', String(loc === 'remote'));
       if (loc === 'local') {
         localCard.addClass('is-selected');
         if (remoteCard) remoteCard.removeClass('is-selected');
@@ -209,14 +227,27 @@ export class IncomingFileModal extends Modal {
       }
     };
 
+    updateSelection(this.targetLocation);
     if (isAskMode) {
       localCard.onclick = () => updateSelection('local');
       if (remoteCard) {
         remoteCard.onclick = () => updateSelection('remote');
       }
+      const cards = [localCard, remoteCard].filter(Boolean);
+      cards.forEach((card, index) => {
+        card.onkeydown = event => {
+          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? cards.length - 1
+            : (index + (['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1) + cards.length) % cards.length;
+          updateSelection(next === 0 ? 'local' : 'remote');
+          cards[next].focus();
+        };
+      });
     } else {
+      localCard.disabled = true;
       localCard.style.cursor = 'default';
-      if (remoteCard) remoteCard.style.cursor = 'default';
+      if (remoteCard) { remoteCard.disabled = true; remoteCard.style.cursor = 'default'; }
       let hintText = '';
       if (isRemoteFallback) {
         hintText = this.t('destFixedRemoteFallbackHint');
@@ -225,7 +256,7 @@ export class IncomingFileModal extends Modal {
       } else {
         hintText = this.t('destFixedRemoteHint');
       }
-      contentEl.createDiv({
+      formEl.createDiv({
         cls: 'fm-incoming-fixed-hint',
         text: hintText,
         attr: { style: 'font-size: 11px; color: var(--text-muted); margin-top: 6px;' }
@@ -276,7 +307,7 @@ export class IncomingFileModal extends Modal {
     });
 
     // 4. Action Buttons (Cancel & Insert)
-    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row', attr: { style: 'margin-top: 18px;' } });
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
     const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
     cancelBtn.onclick = () => {
       this.isDone = true;
@@ -286,6 +317,449 @@ export class IncomingFileModal extends Modal {
 
     const insertBtn = btnRow.createEl('button', { text: this.t('btnInsert') || '插入', cls: 'mod-cta' });
     insertBtn.onclick = () => triggerExecute();
+  }
+
+  renderConflictStep() {
+    const { contentEl } = this;
+    const conflict = this.conflict || {};
+    modalTitle(this, this.t('uploadConflictTitle'), 'alert-triangle');
+
+    const localThumbUrl = this.previewObjectUrl || (IMAGE_EXTS.has(this.fileInfo.ext)
+      ? (() => {
+        this.previewObjectUrl = URL.createObjectURL(new Blob([this.fileInfo.arrayBuffer], { type: this.fileInfo.mimeType || 'image/png' }));
+        return this.previewObjectUrl;
+      })()
+      : '');
+
+    const localPreviewItem = {
+      source: 'local',
+      name: this.finalFilename,
+      filename: this.finalFilename,
+      ext: this.fileInfo.ext,
+      size: this.fileInfo.size,
+      rawObj: null,
+      loadPreviewUrl: localThumbUrl
+        ? async () => URL.createObjectURL(new Blob([this.fileInfo.arrayBuffer], { type: this.fileInfo.mimeType || 'image/png' }))
+        : null
+    };
+    const remotePreviewItem = {
+      source: 'remote',
+      name: conflict.filename || this.finalFilename,
+      filename: conflict.filename || this.finalFilename,
+      ext: getExt(conflict.filename || this.finalFilename),
+      size: conflict.size || 0,
+      year: conflict.year,
+      month: conflict.month,
+      locked: Boolean(conflict.locked),
+      rawObj: conflict
+    };
+
+    const compare = contentEl.createDiv({ cls: 'fm-conflict-compare' });
+    const renderCard = (item, label, previewUrl) => {
+      const column = compare.createDiv({ cls: 'fm-conflict-column' });
+      column.createDiv({ cls: 'fm-incoming-label', text: label });
+      const card = column.createDiv({ cls: 'fm-gallery-card fm-conflict-file-card' });
+      const preview = card.createDiv({ cls: 'fm-gallery-thumb-wrap fm-conflict-preview' });
+      if (previewUrl && IMAGE_EXTS.has(item.ext)) {
+        const image = preview.createEl('img', {
+          cls: 'fm-gallery-thumb fm-conflict-preview-img',
+          attr: { src: previewUrl, alt: item.name, title: this.t('thumbEnlargeTooltip') }
+        });
+        image.onclick = () => new ImageLightboxModal(this.app, this.plugin, item).open();
+      } else {
+        preview.addClass('fm-gallery-placeholder');
+        setIcon(preview.createSpan({ cls: 'fm-conflict-preview-empty' }), 'file');
+      }
+      const info = card.createDiv({ cls: 'fm-gallery-info fm-conflict-file-info' });
+      info.createDiv({ cls: 'fm-conflict-file-name', text: item.name, attr: { title: item.name } });
+      const meta = info.createDiv({ cls: 'fm-gallery-meta fm-conflict-file-meta' });
+      fileMetaItem(meta, 'hard-drive', formatBytes(item.size));
+      if (item.year && item.month) {
+        meta.createSpan({ cls: 'fm-meta-sep', attr: { 'aria-hidden': 'true' } });
+        fileMetaItem(meta, 'folder', `${item.year}/${item.month}`, { cls: 'fm-file-location' });
+      }
+      if (item.locked) {
+        meta.createSpan({ cls: 'fm-meta-sep', attr: { 'aria-hidden': 'true' } });
+        fileMetaItem(meta, 'lock', this.t('activeNoteBtnLockOn'));
+      }
+    };
+    renderCard(localPreviewItem, this.t('uploadConflictLocal'), localThumbUrl);
+    renderCard(remotePreviewItem, this.t('uploadConflictRemote'), conflict.rawUrl);
+
+    const activeConflict = conflict;
+    const extSuffix = `.${this.fileInfo.ext}`;
+    const initialBase = this.finalFilename.replace(/\.[^.]+$/, '');
+    const normalizeBase = (v) => String(v || '').trim().replace(/[\s_]+/g, '_').toLowerCase();
+    const resolution = contentEl.createDiv({ cls: 'fm-conflict-resolution' });
+
+    const getOptions = (targetConflict) => {
+      const list = [
+        {
+          id: 'rename',
+          title: this.t('uploadConflictBtnRename'),
+          desc: this.t('uploadConflictDescRename'),
+          run: null
+        }
+      ];
+      if (targetConflict.rawUrl) {
+        list.push({
+          id: 'reuse',
+          title: this.t('uploadConflictBtnUseRemote'),
+          desc: this.t('uploadConflictDescUseRemote'),
+          run: () => {
+            const activeFile = this.options.activeFile || this.app.workspace.getActiveFile();
+            const sourcePath = activeFile ? activeFile.path : '';
+            this.finalizeRemoteResult(Object.assign({}, activeConflict, { reusedExisting: true }), this.options.editor, sourcePath);
+            this.completeExecution();
+          }
+        });
+      }
+      {
+        list.push({
+          id: 'replace',
+          unavailable: targetConflict.code !== 'NAME_CONFLICT' || targetConflict.locked,
+          reason: this.t(targetConflict.locked ? 'uploadConflictLockedHint' : 'uploadConflictReservedHint'),
+          title: this.t('uploadConflictBtnReplace'),
+          desc: this.t('uploadConflictDescReplace'),
+          danger: true,
+          run: () => {
+            if (this.isExecuting || targetConflict.locked || targetConflict.code !== 'NAME_CONFLICT') return;
+            this.isExecuting = true;
+            this.finalFilename = targetConflict.filename || this.finalFilename;
+            this.conflictTarget = targetConflict;
+            this.conflictStrategy = 'replace';
+            this.step = 'executing';
+            this.render();
+            this.runExecution();
+          }
+        });
+      }
+      list.push({
+        id: 'local',
+        title: this.t('uploadConflictBtnSaveLocal'),
+        desc: this.t('uploadConflictDescSaveLocal'),
+        run: () => {
+          if (this.isExecuting) return;
+          this.isExecuting = true;
+          this.targetLocation = 'local';
+          this.conflict = null;
+          this.conflictStrategy = null;
+          this.step = 'executing';
+          this.render();
+          this.runExecution();
+        }
+      });
+      return list;
+    };
+
+    resolution.createDiv({
+      cls: 'fm-incoming-label',
+      text: this.t('uploadConflictActionTitle'),
+      attr: { id: 'fm-conflict-actions-title' }
+    });
+    let options = getOptions(activeConflict);
+    let selectedId = options[0].id;
+    const grid = resolution.createDiv({ cls: 'fm-incoming-dest-grid fm-conflict-options', attr: { role: 'radiogroup', 'aria-labelledby': 'fm-conflict-actions-title' } });
+    const descHint = resolution.createDiv({
+      text: options[0].desc, cls: 'fm-conflict-option-hint', attr: { role: 'status' }
+    });
+
+    const renameWrap = resolution.createDiv({
+      cls: 'fm-conflict-rename'
+    });
+    renameWrap.createEl('label', { cls: 'fm-incoming-label', text: this.t('uploadConflictNewFilenameLabel'), attr: { for: 'fm-conflict-filename' } });
+    const renameRow = renameWrap.createDiv({ cls: 'fm-incoming-input-row' });
+    const renameInput = renameRow.createEl('input', {
+      type: 'text',
+      value: initialBase,
+      cls: 'fm-incoming-name-input',
+      attr: {
+        id: 'fm-conflict-filename',
+        placeholder: this.t('destFilenameHint'),
+        spellcheck: 'false'
+      }
+    });
+    renameRow.createSpan({ text: extSuffix, cls: 'fm-incoming-ext-badge' });
+    const renameFeedback = renameWrap.createDiv({
+      cls: 'fm-conflict-feedback'
+    });
+
+    const cardMap = new Map();
+    let checkTimer = null;
+    let checkSeq = 0;
+    let lastCheckedName = '';
+    let lastCheckedItem = null;
+
+    const buildTargetName = () => {
+      const cleanBase = sanitizeCleanBaseName(renameInput.value, '');
+      return cleanBase ? `${cleanBase}${extSuffix}` : '';
+    };
+
+    const setConfirmEnabled = (enabled) => {
+      confirmBtn.disabled = !enabled;
+    };
+
+    const renderOptionCards = () => {
+      grid.empty();
+      cardMap.clear();
+      for (const opt of options) {
+        const card = grid.createDiv({
+          cls: `fm-incoming-dest-card${opt.danger ? ' is-danger' : ''}${opt.id === selectedId ? ' is-selected' : ''}`,
+          attr: { tabindex: opt.id === selectedId ? '0' : '-1', role: 'radio', 'aria-checked': String(opt.id === selectedId), 'aria-disabled': String(Boolean(opt.unavailable)), title: opt.unavailable ? opt.reason : '' }
+        });
+        const titleEl = card.createDiv({ cls: 'fm-incoming-dest-card-title' });
+        titleEl.createSpan({ text: opt.title });
+        const checkEl = card.createSpan({ cls: 'fm-incoming-dest-card-check' });
+        setIcon(checkEl, 'check');
+        card.onclick = () => { selectOption(opt.id); card.focus(); };
+        card.onkeydown = (e) => {
+          const navigation = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
+          if (navigation.includes(e.key)) {
+            e.preventDefault();
+            const index = options.findIndex(o => o.id === selectedId);
+            const next = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1
+              : (index + (['ArrowLeft', 'ArrowUp'].includes(e.key) ? -1 : 1) + options.length) % options.length;
+            selectOption(options[next].id);
+            cardMap.get(options[next].id)?.focus();
+          } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectOption(opt.id);
+          }
+        };
+        cardMap.set(opt.id, card);
+      }
+    };
+
+    const syncConfirmState = () => {
+      const opt = options.find((o) => o.id === selectedId);
+      if (opt) {
+        confirmBtn.textContent = opt.title;
+        confirmBtn.toggleClass('mod-warning', Boolean(opt.danger));
+      }
+      if (selectedId !== 'rename') {
+        setConfirmEnabled(true);
+        return;
+      }
+      const raw = String(renameInput.value || '').trim();
+      const targetName = buildTargetName();
+      const changed = Boolean(raw) && Boolean(targetName) && normalizeBase(raw) !== normalizeBase(initialBase);
+      if (!changed) {
+        setConfirmEnabled(false);
+        return;
+      }
+      if (lastCheckedName === targetName && lastCheckedItem?.status === 'conflict') {
+        setConfirmEnabled(false);
+        return;
+      }
+      setConfirmEnabled(true);
+    };
+
+    const selectOption = (id) => {
+      const choice = options.find(o => o.id === id);
+      if (choice?.unavailable) { descHint.textContent = choice.reason; return; }
+      selectedId = id;
+      for (const [optId, el] of cardMap.entries()) {
+        const isSel = optId === id;
+        el.toggleClass('is-selected', isSel);
+        el.setAttribute('aria-checked', String(isSel));
+        el.setAttribute('tabindex', isSel ? '0' : '-1');
+      }
+      const opt = options.find((o) => o.id === id);
+      if (opt) descHint.textContent = opt.desc;
+      renameWrap.style.display = id === 'rename' ? '' : 'none';
+      syncConfirmState();
+      if (id === 'rename') {
+        renameInput.focus();
+      }
+    };
+
+    const showRenameConflict = (targetName) => {
+      // Keep both comparison cards and the confirmed overwrite identity unchanged.
+      renameFeedback.empty();
+      renameFeedback.createSpan({ text: this.t('uploadConflictRenameExists', { name: targetName }), cls: 'fm-conflict-name-error' });
+      renameInput.setAttribute('aria-invalid', 'true');
+      syncConfirmState();
+    };
+
+    renameInput.addEventListener('input', () => {
+      if (checkTimer) {
+        clearTimeout(checkTimer);
+        checkTimer = null;
+      }
+      const raw = String(renameInput.value || '').trim();
+      const targetName = buildTargetName();
+      const changed = Boolean(raw) && Boolean(targetName) && normalizeBase(raw) !== normalizeBase(initialBase);
+      renameFeedback.empty();
+      renameInput.setAttribute('aria-invalid', 'false');
+      if (!changed) {
+        lastCheckedName = '';
+        lastCheckedItem = null;
+        syncConfirmState();
+        return;
+      }
+      if (lastCheckedName === targetName && lastCheckedItem?.status === 'conflict') {
+        showRenameConflict(targetName);
+        return;
+      }
+      syncConfirmState();
+      const seq = ++checkSeq;
+      checkTimer = setTimeout(async () => {
+        if (this.closed || seq !== checkSeq) return;
+        renameFeedback.empty();
+        renameFeedback.createSpan({
+          text: this.t('uploadConflictChecking'),
+          attr: { style: 'color: var(--text-muted);' }
+        });
+        const results = await checkUploadConflicts(this.plugin, [{ filename: targetName }]);
+        if (this.closed || seq !== checkSeq || buildTargetName() !== targetName) return;
+        const item = results[0] || { status: 'unavailable' };
+        lastCheckedName = targetName;
+        lastCheckedItem = item;
+        if (item.status === 'conflict' && item.conflict) {
+          showRenameConflict(targetName);
+        } else if (item.status === 'ok' || item.status === 'instant') {
+          renameFeedback.empty();
+          renameFeedback.createSpan({
+            text: this.t('uploadConflictRenameAvailable'),
+            attr: { style: 'color: var(--text-success, #16a34a);' }
+          });
+          syncConfirmState();
+        } else {
+          renameFeedback.empty();
+          renameFeedback.createSpan({
+            text: this.t('uploadConflictCheckUnavailable'),
+            attr: { style: 'color: var(--text-muted);' }
+          });
+          syncConfirmState();
+        }
+      }, 220);
+    });
+
+    const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const cancelBtn = btnRow.createEl('button', { text: this.t('btnCancel') });
+    cancelBtn.onclick = () => {
+      if (checkTimer) clearTimeout(checkTimer);
+      this.isDone = true;
+      this.close();
+      if (this.callback) this.callback({ target: null });
+    };
+    const confirmBtn = btnRow.createEl('button', { cls: 'mod-cta', text: this.t('btnConfirm') || 'Confirm' });
+    confirmBtn.onclick = async () => {
+      if (selectedId !== 'rename') {
+        const opt = options.find((o) => o.id === selectedId);
+        if (opt && !opt.unavailable && opt.run) opt.run();
+        return;
+      }
+      const targetName = buildTargetName();
+      if (!targetName || confirmBtn.disabled) return;
+      if (lastCheckedName !== targetName) {
+        setConfirmEnabled(false);
+        renameFeedback.empty();
+        renameFeedback.createSpan({
+          text: this.t('uploadConflictChecking'),
+          attr: { style: 'color: var(--text-muted);' }
+        });
+        const results = await checkUploadConflicts(this.plugin, [{ filename: targetName }]);
+        if (this.closed) return;
+        // A pending name check must not submit an action the user has since changed.
+        if (selectedId !== 'rename' || buildTargetName() !== targetName) {
+          syncConfirmState();
+          return;
+        }
+        const item = results[0] || { status: 'unavailable' };
+        lastCheckedName = targetName;
+        lastCheckedItem = item;
+        if (item.status === 'conflict' && item.conflict) {
+          showRenameConflict(targetName);
+          renameInput.focus();
+          renameInput.select();
+          return;
+        }
+      }
+      if (this.isExecuting) return;
+      this.finalFilename = targetName;
+      this.conflict = null;
+      this.conflictStrategy = null;
+      this.isExecuting = true;
+      this.step = 'executing';
+      this.render();
+      this.runExecution();
+    };
+
+    renderOptionCards();
+    syncConfirmState();
+  }
+
+  finalizeRemoteResult(res, editor, sourcePath) {
+    this.finalFilename = res.filename || this.finalFilename;
+    const useOpt =
+      this.plugin.settings.insertOptimizedLinkOnUpload &&
+      res.optimizationEnabled !== false &&
+      res.category === 'image' &&
+      res.pubUrl;
+    let finalMarkdown = useOpt
+      ? `![](${res.pubUrl})`
+      : (res.markdown || `[${this.finalFilename}](${res.rawUrl})`);
+
+    if (IMAGE_EXTS.has(this.fileInfo.ext) && !finalMarkdown.startsWith('!')) {
+      finalMarkdown = `!${finalMarkdown}`;
+    }
+
+    let inserted = false;
+    let insertionWarning = null;
+    if (editor || this.options.insertionTarget) {
+      const insertResult = insertLinkAtTarget(this.plugin, finalMarkdown, this.options.insertionTarget);
+      inserted = insertResult.inserted;
+      insertionWarning = insertResult.reason || null;
+    }
+
+    this.result = {
+      success: true,
+      target: 'remote',
+      res,
+      finalMarkdown,
+      isInstant: !!res.isInstant,
+      reusedExisting: !!res.reusedExisting,
+      inserted,
+      insertionWarning
+    };
+    this.plugin?.logOperation?.('INFO', 'UPLOAD_REMOTE', `${res.reusedExisting ? 'Selected server version' : res.isInstant ? 'Reused identical remote content' : 'Uploaded attachment to server'}: ${this.finalFilename}`, {
+      remotePath: `${res.year}/${res.month}/${res.filename}`,
+      isInstant: !!res.isInstant,
+      reusedExisting: !!res.reusedExisting,
+      size: this.fileInfo.size,
+      note: sourcePath || null
+    });
+  }
+
+  completeExecution() {
+    if (this.callback) {
+      this.callback({ target: this.targetLocation, finalFilename: this.finalFilename, result: this.result });
+    }
+    if (this.result?.success && this.result?.inserted) {
+      const noticeMsg = this.result.target === 'remote'
+        ? (this.plugin ? this.plugin.t('noticeUploadedRemote', { name: this.finalFilename }) : `已上传到服务器并插入链接：${this.finalFilename}`)
+        : this.t('destInsertSuccess');
+      new Notice(noticeMsg);
+      this.isDone = true;
+      this.close();
+      return;
+    }
+    if (this.result?.success) {
+      if (this.result.insertionWarning) {
+        new Notice(this.result.insertionWarning);
+        this.step = 'result';
+        this.render();
+        return;
+      }
+      new Notice(this.t('destInsertSuccess'));
+      this.isDone = true;
+      this.close();
+      return;
+    }
+    new Notice(`❌ ${this.result?.error || 'Insert failed'}`);
+    this.isDone = true;
+    this.close();
   }
 
   renderExecutingStep() {
@@ -363,7 +837,7 @@ export class IncomingFileModal extends Modal {
         let res = null;
 
         // 1. Probe remote server
-        const probed = await this.plugin.probeRemoteSha256(sha256);
+        const probed = this.conflictStrategy === 'replace' ? null : await this.plugin.probeRemoteSha256(sha256);
         if (probed && probed.exists) {
           res = Object.assign({}, probed, { isInstant: true });
           if (this.progressBar) this.progressBar.style.width = '100%';
@@ -373,55 +847,32 @@ export class IncomingFileModal extends Modal {
           if (this.progressBar) this.progressBar.style.width = '55%';
           if (this.statusLabel) this.statusLabel.setText(this.t('destUploadingRemote'));
 
+          const uploadOpts = { skipProbe: true, conflictStrategy: this.conflictStrategy || undefined };
+          if (this.conflictStrategy === 'replace' && this.conflictTarget) {
+            uploadOpts.conflictTargetYear = this.conflictTarget.year || '';
+            uploadOpts.conflictTargetMonth = this.conflictTarget.month || '';
+            uploadOpts.conflictTargetFilename = this.conflictTarget.filename || '';
+            uploadOpts.conflictTargetSha256 = this.conflictTarget.sha256 || '';
+          }
           res = await this.plugin.uploadBufferToServer(
             this.fileInfo.arrayBuffer,
             this.finalFilename,
             this.fileInfo.mimeType || 'application/octet-stream',
-            { skipProbe: true }
+            uploadOpts
           );
           if (this.progressBar) this.progressBar.style.width = '100%';
         }
 
-        const useOpt =
-          this.plugin.settings.insertOptimizedLinkOnUpload &&
-          res.optimizationEnabled !== false &&
-          res.category === 'image' &&
-          res.pubUrl;
-        let finalMarkdown = useOpt
-          ? `![](${res.pubUrl})`
-          : (res.markdown || `[${this.finalFilename}](${res.rawUrl})`);
-
-        // Prepend exclamation mark for image previews if not already present
-        if (IMAGE_EXTS.has(this.fileInfo.ext) && !finalMarkdown.startsWith('!')) {
-          finalMarkdown = `!${finalMarkdown}`;
-        }
-
-        let inserted = false;
-        let insertionWarning = null;
-        if (editor || this.options.insertionTarget) {
-          const insertResult = insertLinkAtTarget(this.plugin, finalMarkdown, this.options.insertionTarget);
-          inserted = insertResult.inserted;
-          insertionWarning = insertResult.reason || null;
-        }
-
-        this.result = {
-          success: true,
-          target: 'remote',
-          res,
-          finalMarkdown,
-          isInstant: !!res.isInstant,
-          inserted,
-          insertionWarning
-        };
-        this.plugin?.logOperation?.('INFO', 'UPLOAD_REMOTE', `${res.isInstant ? 'Reused existing remote file' : 'Uploaded attachment to server'}: ${this.finalFilename}`, {
-          remotePath: `${res.year}/${res.month}/${res.filename}`,
-          isInstant: !!res.isInstant,
-          size: this.fileInfo.size,
-          note: sourcePath || null
-        });
+        this.finalizeRemoteResult(res, editor, sourcePath);
       }
     } catch (err) {
       this.isExecuting = false;
+      if (err?.status === 409 && err?.conflict) {
+        this.conflict = err.conflict;
+        this.step = 'conflict';
+        this.render();
+        return;
+      }
       this.result = {
         success: false,
         error: err.message || String(err)
@@ -432,36 +883,7 @@ export class IncomingFileModal extends Modal {
       });
     }
 
-    if (this.callback) {
-      this.callback({ target: this.targetLocation, finalFilename: this.finalFilename, result: this.result });
-    }
-
-    // Auto close modal if inserted directly into active note editor
-    if (this.result?.success && this.result?.inserted) {
-      const noticeMsg = this.result.target === 'remote'
-        ? (this.plugin ? this.plugin.t('noticeUploadedRemote', { name: this.finalFilename }) : `已上传到服务器并插入链接：${this.finalFilename}`)
-        : this.t('destInsertSuccess');
-      new Notice(noticeMsg);
-      this.isDone = true;
-      this.close();
-      return;
-    } else if (this.result?.success) {
-      if (this.result.insertionWarning) {
-        new Notice(this.result.insertionWarning);
-        this.step = 'result';
-        this.render();
-        return;
-      }
-      new Notice(this.t('destInsertSuccess'));
-      this.isDone = true;
-      this.close();
-      return;
-    } else {
-      new Notice(`❌ ${this.result?.error || 'Insert failed'}`);
-      this.isDone = true;
-      this.close();
-      return;
-    }
+    this.completeExecution();
   }
 
   renderResultStep() {
@@ -490,13 +912,14 @@ export class IncomingFileModal extends Modal {
       });
       banner.createDiv({
         cls: 'fm-result-banner-title',
-        text: isInstant ? this.t('destInstantBadge') : this.t('destSuccessBadge')
+        text: this.result.reusedExisting ? this.t('uploadReusedBadge') : isInstant ? this.t('destInstantBadge') : this.t('destSuccessBadge')
       });
-      if(isInstant)banner.createDiv({cls:'fm-result-banner-desc',text:this.t('destInstantDesc')});
+      if (this.result.reusedExisting) banner.createDiv({ cls: 'fm-result-banner-desc', text: this.t('uploadReusedDesc') });
+      if (isInstant) banner.createDiv({ cls: 'fm-result-banner-desc', text: this.t('destInstantDesc') });
 
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
-        text: `📄 ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
+        text: `📄 ${this.finalFilename}  |  ${formatBytes(this.result.reusedExisting ? this.result.res.size : this.fileInfo.size)}`,
         attr: { style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);' }
       });
 
@@ -534,7 +957,7 @@ export class IncomingFileModal extends Modal {
 
       const detailsBox = contentEl.createDiv({ cls: 'fm-section-box' });
       detailsBox.createDiv({
-        text: `📄 ${this.finalFilename}  |  ${formatBytes(this.fileInfo.size)}`,
+        text: `📄 ${this.finalFilename}  |  ${formatBytes(this.result.reusedExisting ? this.result.res.size : this.fileInfo.size)}`,
         attr: { style: 'font-weight: 600; margin-bottom: 12px; color: var(--text-normal);' }
       });
 
@@ -575,7 +998,9 @@ export class IncomingFileModal extends Modal {
   onClose() {
     this.closed = true;
     revokeBlobUrl(this.previewBlobUrl);
+    revokeBlobUrl(this.previewObjectUrl);
     this.previewBlobUrl = null;
+    this.previewObjectUrl = null;
     if (!this.isDone && this.callback) {
       this.callback({ target: null });
     }

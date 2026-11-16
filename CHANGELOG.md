@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.2.5] - 2026-11-16
+
+### Upload Conflict Resolution, Target Verification & Modal Polish
+- Forward confirmed overwrite target headers (`X-Conflict-Target-Year/Month/Filename/Sha256`) from both `IncomingFileModal` and batch migration (`transfers.js`), bypassing SHA-256 deduplication on explicit overwrite.
+- Guard async rename availability checks against stale confirmations when the user edits the filename or switches actions before the check completes.
+- Polish `IncomingFileModal` and conflict resolution dialogs: compact left preview card, aligned destination/filename widths, uncropped equal-height comparison cards, unified `hard-drive`/`folder`/`lock` metadata with dot separators, and consistent hover animations.
+
 ## [1.2.4] - 2026-11-15
 
 ### Reliability, Format Support & Hub Connection UX

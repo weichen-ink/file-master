@@ -121,7 +121,7 @@ export async function uploadBufferToServer(plugin,
   }
   const fullSha256 = await computeSha256Hex(arrayBuffer);
   // 1. Instant Upload Probe via local SHA-256 calculation (0 network payload)
-  if (!opts.skipProbe) {
+  if (!opts.skipProbe && !['replace', 'overwrite'].includes(opts.conflictStrategy)) {
     try {
       const probed = await plugin.probeRemoteSha256(fullSha256);
       if (probed && probed.exists && probed.sha256 === fullSha256) {
@@ -140,6 +140,13 @@ export async function uploadBufferToServer(plugin,
     'X-File-Name': encodeURIComponent(filename),
     'Content-Type': `multipart/form-data; boundary=${boundary}`
   };
+  if (opts.conflictStrategy) {
+    headers['X-Conflict-Strategy'] = String(opts.conflictStrategy);
+  }
+  if (opts.conflictTargetYear) headers['X-Conflict-Target-Year'] = String(opts.conflictTargetYear);
+  if (opts.conflictTargetMonth) headers['X-Conflict-Target-Month'] = String(opts.conflictTargetMonth);
+  if (opts.conflictTargetFilename) headers['X-Conflict-Target-Filename'] = encodeURIComponent(String(opts.conflictTargetFilename));
+  if (opts.conflictTargetSha256) headers['X-Conflict-Target-Sha256'] = String(opts.conflictTargetSha256);
 
   const response = await requestWithBackoff(() => requestUrl({
     url,
@@ -150,13 +157,39 @@ export async function uploadBufferToServer(plugin,
   }), { signal: opts.signal });
 
   if (response.status < 200 || response.status >= 300) {
-    const errMsg = response.json?.error || `HTTP ${response.status}`;
-    throw new Error(errMsg);
+    const errMsg = response.json?.code === 'CONFLICT_TARGET_CHANGED'
+      ? plugin.t('uploadConflictTargetChanged') : response.json?.error || `HTTP ${response.status}`;
+    const err = new Error(errMsg);
+    err.status = response.status;
+    err.code = response.json?.code || null;
+    err.conflict = response.json?.conflict || null;
+    throw err;
   }
 
   const result = response.json;
   if (!result.sha256 || result.sha256 !== fullSha256) throw new Error(plugin.t('transferIntegrityFailed'));
   return result;
+}
+
+export async function checkUploadConflicts(plugin, items) {
+  if (!plugin.isRemoteServerReady() || !Array.isArray(items) || items.length === 0) return [];
+  const url = `${plugin.getCleanServerUrl()}/api/image/upload-check`;
+  try {
+    const response = await requestUrl({
+      url,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${plugin.settings.apiToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ items }),
+      throw: false
+    });
+    if (response.status >= 200 && response.status < 300 && Array.isArray(response.json?.results)) {
+      return response.json.results;
+    }
+  } catch { }
+  return [];
 }
 
 export async function toggleRemoteFileLock(plugin, year, month, filename, locked = true) {
@@ -411,7 +444,7 @@ export async function fetchRemoteFilePage(plugin, options = {}) {
   if (response.status < 200 || response.status >= 300) {
     throw new Error(response.json?.error || `Unable to fetch remote asset list (HTTP ${response.status})`);
   }
-  const list = (response.json.images || []).map(item => ({...item, optimizationEnabled:response.json.optimizationEnabled !== false}));
+  const list = (response.json.images || []).map(item => ({ ...item, optimizationEnabled: response.json.optimizationEnabled !== false }));
   // Older servers ignore paging parameters and return the complete catalog.
   // Normalize that response here so every browser receives the requested page.
   const paged = Number.isFinite(options.limit) && options.limit > 0;
@@ -433,7 +466,7 @@ export async function deleteRemoteFile(plugin, year, month, filename, expectedSh
   const response = await requestUrl({
     url,
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...(expectedSha256 ? {'If-Match': `"${expectedSha256}"`} : {}) },
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}`, ...(expectedSha256 ? { 'If-Match': `"${expectedSha256}"` } : {}) },
     throw: false
   });
   if (response.status < 200 || response.status >= 300) {
@@ -443,8 +476,8 @@ export async function deleteRemoteFile(plugin, year, month, filename, expectedSh
 }
 
 export async function fetchRemoteTrash(plugin) {
-  const response=await requestUrl({url:`${plugin.getCleanServerUrl()}/api/modules/image-host/trash`,method:'GET',headers:{Authorization:`Bearer ${plugin.settings.apiToken}`},throw:false});
-  if(response.status<200||response.status>=300)throw new Error(response.json?.error || `HTTP ${response.status}`);
+  const response = await requestUrl({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash`, method: 'GET', headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
+  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
   return response.json.items || [];
 }
 export async function fetchRemoteTrashPreviewUrl(plugin, id, { thumbnail = false } = {}) {
@@ -459,9 +492,9 @@ export async function fetchRemoteTrashPreviewUrl(plugin, id, { thumbnail = false
   const contentType = response.headers?.['content-type'] || response.headers?.['Content-Type'] || 'image/webp';
   return URL.createObjectURL(new Blob([response.arrayBuffer], { type: contentType }));
 }
-export async function restoreRemoteTrash(plugin,id) {
-  const response=await requestUrl({url:`${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`,method:'POST',headers:{Authorization:`Bearer ${plugin.settings.apiToken}`},throw:false});
-  if(response.status<200||response.status>=300)throw new Error(response.json?.error || `HTTP ${response.status}`);
+export async function restoreRemoteTrash(plugin, id) {
+  const response = await requestUrl({ url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}/restore`, method: 'POST', headers: { Authorization: `Bearer ${plugin.settings.apiToken}` }, throw: false });
+  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);
   return response.json;
 }
 
@@ -469,7 +502,7 @@ export async function permanentlyDeleteRemoteTrash(plugin, id) {
   const response = await requestUrl({
     url: `${plugin.getCleanServerUrl()}/api/modules/image-host/trash/${encodeURIComponent(id)}`,
     method: 'DELETE',
-    headers: {Authorization: `Bearer ${plugin.settings.apiToken}`},
+    headers: { Authorization: `Bearer ${plugin.settings.apiToken}` },
     throw: false
   });
   if (response.status < 200 || response.status >= 300) throw new Error(response.json?.error || `HTTP ${response.status}`);

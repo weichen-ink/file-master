@@ -2,7 +2,7 @@ import { moduleHeading } from "../ui/navigation.js";
 import { scanActiveNoteLocalAttachments, scanActiveNoteRemoteAttachments } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { formatBytes } from '../engine.js';
-import { formatFriendlyError, returnToHub } from './common.js';
+import { formatFriendlyError, renderUploadConflictBox, returnToHub } from './common.js';
 import { NoteRefsModal } from './dialogs.js';
 import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice, setIcon } from 'obsidian';
@@ -24,6 +24,7 @@ export class ActiveNoteActionModal extends Modal {
     this.deleteLocalAfter = Boolean(plugin?.settings?.deleteLocalAfterMigrate);
     this.syncOtherNotes = true;
     this.conflictStrategy = 'reuse'; // 'reuse' | 'rename' | 'overwrite'
+    this.uploadConflictStrategy = 'rename'; // 'rename' | 'reuse' | 'replace' | 'skip'
     this.hadConflictStep = false;
     this.result = null;
   }
@@ -285,6 +286,10 @@ export class ActiveNoteActionModal extends Modal {
 
       this.renderFileChoices(listEl,updateRunBtnLabel,true);
       contentEl.createDiv({text:this.t('activeNoteLockExplain'),cls:'fm-inline-hint'});
+
+      renderUploadConflictBox(contentEl, this.plugin, this.items, this.uploadConflictStrategy, (val) => {
+        this.uploadConflictStrategy = val;
+      });
 
       const otherRefNotesAll = this.getUniqueOtherRefNotes(false);
       const optBox = contentEl.createDiv({
@@ -554,6 +559,7 @@ export class ActiveNoteActionModal extends Modal {
             items: selectedItems || this.items.filter((i) => i.selected),
             deleteLocalAfter: this.deleteLocalAfter,
             syncOtherNotes: this.syncOtherNotes,
+            conflictStrategy: this.uploadConflictStrategy,
             signal: this.transferController.signal,
             returnDetails: true
           }

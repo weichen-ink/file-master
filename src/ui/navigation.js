@@ -126,9 +126,14 @@ export class HubNavigator {
 }
 
 /** Plain dialog titles share the same heading row as functional modules. */
-export function modalTitle(modal, text) {
+export function modalTitle(modal, text, symbol = '') {
   const target=modalChrome(modal).title;
   target.empty();
+  if (symbol) {
+    const row = target.createDiv({cls:'fm-module-heading'});
+    setIcon(row.createSpan({cls:'fm-module-heading-icon'}), symbol);
+    return row.createEl('h3',{text,cls:'fm-module-heading-title'});
+  }
   return target.createEl('h3',{text,cls:'fm-module-heading-title'});
 }
 
