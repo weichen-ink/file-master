@@ -35,6 +35,7 @@ export * from '../../src/ui/image-viewport.js';
 export * from '../../src/ui/links.js';
 export * from '../../src/plugin/editor-target.js';
 export { initGalleryLeaf, insertMarkdownToActiveEditor } from '../../src/plugin/lifecycle.js';
+export { refreshRemoteImageCache } from '../../src/plugin/vault-utils.js';
 export { NoteRefsModal, ImageLightboxModal } from '../../src/modals/dialogs.js';
 
 export { RemoteTrashModal } from '../../src/modals/remote-trash.js';

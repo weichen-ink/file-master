@@ -1,7 +1,7 @@
 import { displayVersion } from '../constants.js';
 import { getCompatibilityMessage, initGalleryLeaf } from '../plugin/lifecycle.js';
 import { checkServerCompatibility } from '../plugin/server-client.js';
-import { isDocFile } from '../plugin/vault-utils.js';
+import { isDocFile, refreshRemoteImageCache } from '../plugin/vault-utils.js';
 import { copyActiveNoteForAstro, resumePendingMigration } from '../plugin/attachment-ops.js';
 import { loadPendingRename } from '../plugin/remote-rename.js';
 import { migrationCheckpointPath } from '../transfers.js';
@@ -122,6 +122,10 @@ export class FileMasterHubModal extends Modal {
       ]:[{icon:'plug',title:'hubConnect',run:settings}]},
       {title:'catPreferences',actions:[
         {icon:'trash-2',title:'remoteTrashTitle',disabled:!remote,run:()=>show(new RemoteTrashModal(this.app,this.plugin))},
+        {icon:'refresh-cw',title:'actRefreshCacheTitle',disabled:!remote,run:async()=>{
+          const res = await refreshRemoteImageCache(this.plugin);
+          new Notice(t('noticeCacheRefreshed', { count: res.refreshedUrls }));
+        }},
         {icon:'settings',title:'actOpenSettingsTitle',run:settings}
       ]}
     ];

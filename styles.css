@@ -1464,7 +1464,7 @@ button.fm-hub-status.is-failed:hover {
   white-space: nowrap;
 }
 
-.fm-gallery-meta .fm-meta-sep {
+:is(.fm-gallery-meta, .fm-file-row-meta) .fm-meta-sep {
   width: 2.5px;
   height: 2.5px;
   border-radius: 999px;
@@ -3545,6 +3545,13 @@ button.fm-hub-status.is-failed:hover {
   align-items: center;
   gap: 12px;
   padding: 12px 6px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.fm-list-item.fm-file-row:not(.is-selected):hover,
+.fm-list-item.fm-file-row:not(.is-selected):focus-within {
+  background: var(--background-secondary);
 }
 
 .fm-list-item.fm-file-row.has-selection {
@@ -3589,6 +3596,12 @@ button.fm-hub-status.is-failed:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.fm-list-item.fm-file-row:hover .fm-file-row-name-text,
+.fm-list-item.fm-file-row:focus-within .fm-file-row-name-text {
+  color: var(--fm-brand);
 }
 
 .fm-file-row-meta {
@@ -4019,6 +4032,16 @@ button.fm-hub-status.is-failed:hover {
   padding: 0;
 }
 
+.fm-rename-preview .fm-file-row:hover,
+.fm-rename-preview .fm-file-row:focus-within {
+  background: transparent;
+}
+
+.fm-rename-preview .fm-file-row:hover .fm-file-row-name-text,
+.fm-rename-preview .fm-file-row:focus-within .fm-file-row-name-text {
+  color: inherit;
+}
+
 .fm-rename-names {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -4072,9 +4095,119 @@ button.fm-hub-status.is-failed:hover {
   gap: 2px;
 }
 
+.fm-analytics-bar {
+  display: flex;
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  gap: 2px;
+}
+.fm-analytics-bar-seg {
+  height: 100%;
+  min-width: 4px;
+}
+.fm-analytics-bar-seg.is-local { background: var(--text-accent); }
+.fm-analytics-bar-seg.is-remote { background: #10b981; }
+.fm-analytics-bar-seg.is-cache { background: #8b5cf6; }
+.fm-analytics-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.fm-analytics-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.fm-analytics-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.fm-analytics-legend-dot.is-local { background: var(--text-accent); }
+.fm-analytics-legend-dot.is-remote { background: #10b981; }
+.fm-analytics-legend-dot.is-cache { background: #8b5cf6; }
+
+.fm-analytics-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.fm-analytics-insight-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.fm-analytics-status-pill {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.fm-analytics-status-pill.is-action {
+  background: color-mix(in srgb, var(--color-orange, #d97706) 12%, transparent);
+  color: var(--color-orange, #b45309);
+}
+.fm-analytics-status-pill.is-good {
+  background: color-mix(in srgb, var(--color-green, #16a34a) 12%, transparent);
+  color: var(--color-green, #15803d);
+}
+.fm-analytics-insight-text {
+  flex: 1;
+  min-width: 0;
+}
+.fm-analytics-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fm-ui .fm-analytics-filter-group button[aria-pressed='true'] {
+  background: var(--fm-soft);
+  color: var(--fm-brand);
+  font-weight: 600;
+}
 .fm-analytics-files {
   margin-top: 12px;
-  max-height: min(360px, 40dvh);
+}
+.fm-analytics-files .fm-list-item.fm-file-row:not(.is-selected):hover,
+.fm-analytics-files .fm-list-item.fm-file-row:not(.is-selected):focus-within {
+  background: var(--background-primary);
+}
+.fm-analytics-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--fm-border) 65%, transparent);
+}
+.fm-analytics-page-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.fm-analytics-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .fm-document-name.internal-link {

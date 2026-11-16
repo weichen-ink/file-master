@@ -1,4 +1,4 @@
-import { getOrCreateHeicPreviewUrl, isLocalPathExcluded, toggleLocalFolderExclusion, isExcalidrawFile } from './vault-utils.js';
+import { getOrCreateHeicPreviewUrl, isLocalPathExcluded, toggleLocalFolderExclusion, isExcalidrawFile, refreshRemoteImageCache } from './vault-utils.js';
 import { migrateSingleLocalFileToRemote, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
 import { NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { escapeRegExp, getExt } from '../engine.js';
@@ -86,6 +86,16 @@ export function registerContextMenus(plugin) {
             .setIcon('external-link')
             .onClick(() => {
               return copyActiveNoteForAstro(plugin, abstractFile);
+            });
+        });
+
+        menu.addItem((item) => {
+          item
+            .setTitle(plugin.t('menuActiveNoteRefreshCache'))
+            .setIcon('refresh-cw')
+            .onClick(async () => {
+              const res = await refreshRemoteImageCache(plugin);
+              new Notice(plugin.t('noticeCacheRefreshed', { count: res.refreshedUrls }));
             });
         });
       }

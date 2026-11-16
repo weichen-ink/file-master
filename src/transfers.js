@@ -1,5 +1,5 @@
 import { indexRemoteReferences, findReferencingNotesForLocalFile, findReferencingNotesForRemoteItem } from './plugin/vault-scans.js';
-import { safeModifyFileContent } from './plugin/vault-utils.js';
+import { safeModifyFileContent, refreshRemoteImageCache } from './plugin/vault-utils.js';
 import { getLogFilePath } from './plugin/logging.js';
 import { computeSha256Hex, getExt } from './engine.js';
 import { isSupportedRemoteExtension } from './constants.js';
@@ -133,6 +133,7 @@ export function formatEta(seconds) {
 export async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
   await saveMigrationCheckpoint(plugin, items, options);
   const uploaded = [], failures = [], retryItems = [];
+  const replacedUrls = new Set();
   const batchStart = Date.now();
   let transferredBytes = 0;
   let lastSpeed = '';
@@ -212,6 +213,10 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
         await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
         remote.locked = true;
       }
+      if (strategy === 'replace' && remote?.replaced) {
+        if (remote.rawUrl) replacedUrls.add(remote.rawUrl);
+        if (remote.pubUrl) replacedUrls.add(remote.pubUrl);
+      }
       uploaded.push({ entry, tfile, sourceVersion, sourceSha: remote.sha256,
         removeItem: { source: 'local', name: tfile.name, ext: tfile.extension.toLowerCase(), displayPath: tfile.path, rawObj: tfile },
         keepItem: { source: 'remote', name: remote.filename, ext: getExt(remote.filename),
@@ -278,5 +283,8 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
   plugin.logOperation('INFO', 'BATCH_UPLOAD', `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
     failures: failures.length, unfinished: retryItems.length, cancelled: summary.cancelled
   });
+  if (replacedUrls.size > 0) {
+    refreshRemoteImageCache(plugin, [...replacedUrls]).catch(() => { });
+  }
   return summary;
 }

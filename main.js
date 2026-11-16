@@ -1316,6 +1316,8 @@ var UI_STRINGS = {
     actNoteAstroTitle: "\u590D\u5236\u5F53\u524D\u7B14\u8BB0\u5168\u6587\uFF08\u66FF\u6362\u4E3A WebP \u94FE\u63A5\uFF09",
     actNoteAstroDesc: "\u590D\u5236\u5F53\u524D\u7B14\u8BB0\u7684\u5185\u5BB9\uFF0C\u5E76\u5C06\u5176\u4E2D\u7684\u539F\u56FE\u94FE\u63A5\u66FF\u6362\u4E3A\u516C\u5F00\u7684 WebP \u94FE\u63A5\u3002",
     actOpenSettingsTitle: "\u63D2\u4EF6\u8BBE\u7F6E",
+    actRefreshCacheTitle: "\u5237\u65B0\u672C\u5730\u7F13\u5B58",
+    noticeCacheRefreshed: "\u5DF2\u5237\u65B0\u672C\u5730\u7F51\u7EDC\u56FE\u7247\u7F13\u5B58\uFF08{count} \u9879\uFF09",
     actOpenSettingsDesc: "\u8BBE\u7F6E\u8BED\u8A00\u3001\u670D\u52A1\u5668\u8FDE\u63A5\u3001\u9644\u4EF6\u4E0A\u4F20\u548C\u626B\u63CF\u6392\u9664\u76EE\u5F55\u3002",
     // 扫描控制与通用步骤
     stepOf: "\u7B2C {current} / {total} \u6B65",
@@ -1471,18 +1473,31 @@ var UI_STRINGS = {
     analyticsInsightsTitle: "\u8D44\u4EA7\u5065\u5EB7\u4E0E\u4F18\u5316\u5EFA\u8BAE",
     analyticsInsightStorageLocal: "\u672C\u5730\u5B58\u50A8\u5360\u6BD4\u504F\u9AD8\uFF08**{pct}%**\uFF09\uFF0C\u5B58\u5728\u8D85\u5927\u5355\u6587\u4EF6\uFF0C\u5EFA\u8BAE\u6309\u9700\u8FC1\u79FB\u81F3\u670D\u52A1\u5668\u91CA\u653E\u672C\u5730\u4E0E\u540C\u6B65\u7A7A\u95F4\u3002",
     analyticsInsightStorageRemote: "\u4E91\u7AEF\u6258\u7BA1\u5360\u6BD4\u4E3B\u5BFC\uFF08**{pct}%**\uFF09\uFF0C\u6709\u6548\u51CF\u8F7B\u672C\u5730\u77E5\u8BC6\u5E93\u53CA\u79FB\u52A8\u7AEF\u591A\u8BBE\u5907\u540C\u6B65\u8D1F\u62C5\u3002",
-    analyticsInsightCacheReady: "\u4E91\u7AEF WebP \u884D\u751F\u7F13\u5B58 **100% \u5C31\u7EEA**\uFF0C\u5DF2\u4E3A\u79FB\u52A8\u7AEF\u4E0E\u5BA2\u6237\u7AEF\u63D0\u4F9B\u8F7B\u91CF\u5316\u52A0\u8F7D\u52A0\u901F\u3002",
+    analyticsInsightCacheReady: "\u5DF2\u4E3A **{cached}/{total}** \u9879\u4E91\u7AEF\u8D44\u6E90\u751F\u6210 WebP \u7F13\u5B58\uFF08**{pct}%**\uFF0C\u4F53\u79EF **{cache}**\uFF09\u3002",
     analyticsInsightLockedSafe: "\u5DF2\u6709 **{count} \u9879** \u4E91\u7AEF\u5173\u952E\u8D44\u4EA7\u5F00\u542F\u9632\u5220\u4FDD\u62A4\u9501\u5B9A\uFF0C\u9632\u6B62\u610F\u5916\u5220\u9664\u3002",
+    analyticsInsightUnreferencedTop: "\u5927\u4F53\u79EF\u9644\u4EF6\u4E2D\u6709 **{count} \u4E2A**\u5F53\u524D\u4E3A **0 \u5904\u5F15\u7528**\uFF0C\u5408\u8BA1\u5360\u7528 **{size}**\uFF0C\u5EFA\u8BAE\u6392\u67E5\u6E05\u7406\u3002",
+    analyticsInsightLocalOffload: "\u672C\u5730\u4ECD\u6709 **{count} \u4E2A**\u9644\u4EF6\uFF08\u5171 **{size}**\uFF09\uFF0C\u8FC1\u79FB\u81F3\u670D\u52A1\u5668\u53EF\u51CF\u8F7B\u672C\u5730\u4E0E\u79FB\u52A8\u7AEF\u540C\u6B65\u4F53\u79EF\u3002",
+    analyticsInsightAllHealthy: "\u5B58\u50A8\u4E0E\u5F15\u7528\u72B6\u6001\u826F\u597D\uFF0C\u5F53\u524D\u5927\u4F53\u79EF\u9644\u4EF6\u5747\u5DF2\u88AB\u7B14\u8BB0\u5F15\u7528\u3002",
+    analyticsActionOrphan: "\u5B64\u513F\u6E05\u7406",
+    analyticsActionMigrate: "\u6279\u91CF\u4E0A\u4E91",
+    analyticsActionDuplicate: "\u67E5\u91CD\u6E05\u7406",
+    analyticsStatusAction: "\u5EFA\u8BAE\u5904\u7406",
+    analyticsStatusGood: "\u72B6\u6001\u826F\u597D",
+    analyticsBarLocal: "\u672C\u5730\u9644\u4EF6",
+    analyticsBarRemote: "\u670D\u52A1\u5668\u539F\u6587\u4EF6",
     instantUploadBadge: "\u26A1 \u79D2\u4F20",
-    analyticsTopLargest: "\u4F53\u79EF\u6700\u5927\u7684 10 \u4E2A\u9644\u4EF6",
+    analyticsTopLargest: "\u5927\u4F53\u79EF\u9644\u4EF6\u6392\u884C\uFF08\u5171 {count} \u4E2A\uFF09",
+    analyticsPageInfo: "\u7B2C {page} / {pages} \u9875",
+    analyticsPrevPage: "\u4E0A\u4E00\u9875",
+    analyticsNextPage: "\u4E0B\u4E00\u9875",
     analyticsFilterAll: "\u5168\u90E8",
-    analyticsFilterLocal: "\u{1F4BB} \u672C\u5730",
-    analyticsFilterRemote: "\u2601\uFE0F \u8FDC\u7A0B",
+    analyticsFilterLocal: "\u672C\u5730",
+    analyticsFilterRemote: "\u8FDC\u7A0B",
     analyticsFilterEmpty: "\u5F53\u524D\u7B5B\u9009\u4E0B\u6CA1\u6709\u9644\u4EF6",
     analyticsCopiedName: "\u5DF2\u590D\u5236\u6587\u4EF6\u540D\uFF1A{name}",
     analyticsClickToCopy: "\u590D\u5236\u6587\u4EF6\u540D",
-    analyticsBadgeLocal: "\u{1F4BB} \u672C\u5730",
-    analyticsBadgeRemote: "\u2601\uFE0F \u8FDC\u7A0B",
+    analyticsBadgeLocal: "\u672C\u5730",
+    analyticsBadgeRemote: "\u8FDC\u7A0B",
     analyticsFail: "\u83B7\u53D6\u77E5\u8BC6\u5E93\u7EDF\u8BA1\u62A5\u544A\u5931\u8D25\uFF1A{err}",
     analyticsExportReport: "\u5BFC\u51FA\u77E5\u8BC6\u5E93\u62A5\u544A\uFF08.md\uFF09",
     // 弹窗与通用通知
@@ -1618,6 +1633,7 @@ var UI_STRINGS = {
     menuActiveNoteMigrate: "File Master\uFF1A\u4E0A\u4F20\u5F53\u524D\u7B14\u8BB0\u7684\u9644\u4EF6",
     menuActiveNoteDownload: "File Master\uFF1A\u4E0B\u8F7D\u5F53\u524D\u7B14\u8BB0\u7684\u670D\u52A1\u5668\u9644\u4EF6",
     menuActiveNoteAstro: "File Master\uFF1A\u590D\u5236\u5F53\u524D\u7B14\u8BB0\u5E76\u4F7F\u7528 WebP \u94FE\u63A5",
+    menuActiveNoteRefreshCache: "File Master\uFF1A\u5237\u65B0\u672C\u5730\u56FE\u7247\u7F13\u5B58",
     // 命令面板命令
     cmdOpenHub: "\u6253\u5F00 File Master Hub",
     cmdScanHealth: "\u68C0\u67E5\u5931\u6548\u94FE\u63A5",
@@ -2036,6 +2052,8 @@ var UI_STRINGS = {
     actNoteAstroTitle: "Copy full note (replace images with WebP links)",
     actNoteAstroDesc: "Copy this note with original image links replaced by public WebP links.",
     actOpenSettingsTitle: "Plugin settings",
+    actRefreshCacheTitle: "Refresh local cache",
+    noticeCacheRefreshed: "Refreshed local network image cache ({count} item(s))",
     actOpenSettingsDesc: "Set the language, server connection, uploads, and excluded folders.",
     // Scan Control & Common Steps
     stepOf: "Step {current} of {total}",
@@ -2191,18 +2209,31 @@ var UI_STRINGS = {
     analyticsInsightsTitle: "Health & optimization insights",
     analyticsInsightStorageLocal: "Local storage is high (**{pct}%**); consider offloading large files to the server.",
     analyticsInsightStorageRemote: "Cloud-primary storage (**{pct}%**), reducing local footprint and mobile sync traffic.",
-    analyticsInsightCacheReady: "WebP cache **100% ready**, optimizing client loading bandwidth.",
+    analyticsInsightCacheReady: "WebP cache generated for **{cached}/{total}** server assets (**{pct}%**, **{cache}**).",
     analyticsInsightLockedSafe: "**{count}** server assets are locked with delete protection.",
+    analyticsInsightUnreferencedTop: "**{count}** top-largest attachments have **0 references** (**{size}** total); consider cleaning up.",
+    analyticsInsightLocalOffload: "**{count}** local attachments remain (**{size}**); migrating them lightens mobile sync.",
+    analyticsInsightAllHealthy: "Storage and references look healthy; all top-largest attachments are referenced.",
+    analyticsActionOrphan: "Clean orphans",
+    analyticsActionMigrate: "Migrate to server",
+    analyticsActionDuplicate: "Find duplicates",
+    analyticsStatusAction: "Action needed",
+    analyticsStatusGood: "Healthy",
+    analyticsBarLocal: "Local",
+    analyticsBarRemote: "Server raw",
     instantUploadBadge: "\u26A1 Instant",
-    analyticsTopLargest: "10 largest attachments",
+    analyticsTopLargest: "Largest attachments ({count})",
+    analyticsPageInfo: "Page {page} / {pages}",
+    analyticsPrevPage: "Previous",
+    analyticsNextPage: "Next",
     analyticsFilterAll: "All",
-    analyticsFilterLocal: "\u{1F4BB} Local",
-    analyticsFilterRemote: "\u2601\uFE0F Remote",
+    analyticsFilterLocal: "Local",
+    analyticsFilterRemote: "Remote",
     analyticsFilterEmpty: "No attachments under current filter",
     analyticsCopiedName: "Copied file name: {name}",
     analyticsClickToCopy: "Copy filename",
-    analyticsBadgeLocal: "\u{1F4BB} Local",
-    analyticsBadgeRemote: "\u2601\uFE0F Remote",
+    analyticsBadgeLocal: "Local",
+    analyticsBadgeRemote: "Remote",
     analyticsFail: "Failed to compute vault analytics: {err}",
     analyticsExportReport: "Export vault report (.md)",
     // Confirm Dialogs and Notices
@@ -2338,6 +2369,7 @@ var UI_STRINGS = {
     menuActiveNoteMigrate: "File Master: Upload attachments in this note",
     menuActiveNoteDownload: "File Master: Download server files in this note",
     menuActiveNoteAstro: "File Master: Copy this note with WebP links",
+    menuActiveNoteRefreshCache: "File Master: Refresh local image cache",
     // Command Palette
     cmdOpenHub: "Open File Master Hub",
     cmdScanHealth: "Check broken links",
@@ -4356,6 +4388,7 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
   await saveMigrationCheckpoint(plugin, items, options);
   const uploaded = [], failures = [], retryItems = [];
+  const replacedUrls = /* @__PURE__ */ new Set();
   const batchStart = Date.now();
   let transferredBytes = 0;
   let lastSpeed = "";
@@ -4432,6 +4465,10 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
       if (entry.locked && !remote.locked) {
         await plugin.toggleRemoteFileLock(remote.year, remote.month, remote.filename, true);
         remote.locked = true;
+      }
+      if (strategy === "replace" && (remote == null ? void 0 : remote.replaced)) {
+        if (remote.rawUrl) replacedUrls.add(remote.rawUrl);
+        if (remote.pubUrl) replacedUrls.add(remote.pubUrl);
       }
       uploaded.push({
         entry,
@@ -4537,6 +4574,10 @@ async function migrateLocalAttachments(plugin, items, options = {}, onProgress =
     unfinished: retryItems.length,
     cancelled: summary.cancelled
   });
+  if (replacedUrls.size > 0) {
+    refreshRemoteImageCache(plugin, [...replacedUrls]).catch(() => {
+    });
+  }
   return summary;
 }
 
@@ -6485,6 +6526,10 @@ var IncomingFileModal = class extends FileMasterModal {
           if (this.progressBar) this.progressBar.style.width = "100%";
         }
         this.finalizeRemoteResult(res, editor, sourcePath);
+        if (this.conflictStrategy === "replace" && res) {
+          refreshRemoteImageCache(this.plugin, [res.rawUrl, res.pubUrl].filter(Boolean)).catch(() => {
+          });
+        }
       }
     } catch (err) {
       this.isExecuting = false;
@@ -7511,6 +7556,12 @@ function registerContextMenus(plugin) {
         menu.addItem((item) => {
           item.setTitle(plugin.t("menuActiveNoteAstro")).setIcon("external-link").onClick(() => {
             return copyActiveNoteForAstro(plugin, abstractFile);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle(plugin.t("menuActiveNoteRefreshCache")).setIcon("refresh-cw").onClick(async () => {
+            const res = await refreshRemoteImageCache(plugin);
+            new import_obsidian19.Notice(plugin.t("noticeCacheRefreshed", { count: res.refreshedUrls }));
           });
         });
       }
@@ -9202,6 +9253,7 @@ var VaultAnalyticsModal = class extends FileMasterModal {
     }
   }
   renderDashboard(contentEl) {
+    var _a, _b, _c, _d;
     const t2 = (k, p) => this.plugin.t(k, p);
     const s = this.stats;
     const noteCount = s.noteCount + s.canvasCount;
@@ -9262,8 +9314,20 @@ var VaultAnalyticsModal = class extends FileMasterModal {
     );
     const storageBox = contentEl.createDiv({ cls: "fm-section-box" });
     storageBox.createDiv({ text: t2("analyticsStorageComparison"), cls: "fm-section-title" });
+    const barTrack = storageBox.createDiv({ cls: "fm-analytics-bar" });
+    const barSegments = [
+      { cls: "is-local", bytes: s.local.totalBytes, label: t2("analyticsBarLocal"), pct: localPct },
+      { cls: "is-remote", bytes: s.remote.rawBytes, label: t2("analyticsBarRemote"), pct: remotePct }
+    ].filter((seg) => seg.bytes > 0);
+    for (const seg of barSegments) {
+      const pct = Math.max(2, seg.bytes / totalCombinedBytes * 100);
+      barTrack.createDiv({
+        cls: `fm-analytics-bar-seg ${seg.cls}`,
+        attr: { style: `width: ${pct.toFixed(2)}%;`, title: `${seg.label}: ${formatBytes(seg.bytes)} (${seg.pct}%)` }
+      });
+    }
     const summaryRow = storageBox.createDiv({
-      attr: { style: "display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;" }
+      attr: { style: "display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;" }
     });
     const localCard = summaryRow.createDiv({
       attr: { style: "padding: 12px; border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border);" }
@@ -9295,19 +9359,23 @@ var VaultAnalyticsModal = class extends FileMasterModal {
       }),
       attr: { style: "font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;" }
     });
+    const allTop = s.topLargestAttachments || [];
     const insightsBox = contentEl.createDiv({ cls: "fm-section-box" });
     insightsBox.createDiv({ text: t2("analyticsInsightsTitle"), cls: "fm-section-title" });
-    const insightsList = insightsBox.createDiv({
-      attr: { style: "display: flex; flex-direction: column; gap: 6px; margin-top: 8px;" }
-    });
-    const addInsightItem = (icon, message, accentColor = "#10b981") => {
-      const itemEl = insightsList.createDiv({
-        attr: {
-          style: "display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.5; color: var(--text-muted); padding: 2px 0;"
-        }
+    const insightsList = insightsBox.createDiv({ cls: "fm-analytics-insights" });
+    const openActionModal = (ModalClass) => {
+      this.close();
+      openModalSafely(new ModalClass(this.app, this.plugin));
+    };
+    const addInsightItem = (statusKind, message, action = null) => {
+      const isAction = statusKind === "action";
+      const accentColor = isAction ? "var(--color-orange, #d97706)" : "#10b981";
+      const itemEl = insightsList.createDiv({ cls: "fm-analytics-insight-row" });
+      itemEl.createSpan({
+        cls: `fm-analytics-status-pill ${isAction ? "is-action" : "is-good"}`,
+        text: t2(isAction ? "analyticsStatusAction" : "analyticsStatusGood")
       });
-      itemEl.createSpan({ text: icon, attr: { style: "flex-shrink: 0; font-size: 13px; margin-top: 1px;" } });
-      const textSpan = itemEl.createSpan({ attr: { style: "flex: 1;" } });
+      const textSpan = itemEl.createSpan({ cls: "fm-analytics-insight-text" });
       const parts = String(message || "").split(/(\*\*[^*]+\*\*)/g);
       for (const part of parts) {
         if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
@@ -9319,51 +9387,98 @@ var VaultAnalyticsModal = class extends FileMasterModal {
           textSpan.createSpan({ text: part });
         }
       }
+      if (action) {
+        const btn = itemEl.createEl("button", {
+          text: action.label,
+          cls: "fm-mini-btn",
+          attr: { type: "button" }
+        });
+        btn.onclick = action.run;
+      }
     };
-    if (localPct >= 70 && s.local.totalBytes > 10 * 1024 * 1024) {
-      addInsightItem("\u{1F4E6}", t2("analyticsInsightStorageLocal", { pct: localPct }), "var(--text-accent)");
-    } else if (remotePct >= 50) {
-      addInsightItem("\u2601\uFE0F", t2("analyticsInsightStorageRemote", { pct: remotePct }), "#10b981");
+    const unreferencedTop = allTop.filter((item) => Array.isArray(item.referenceDocuments) && item.referenceDocuments.length === 0);
+    if (unreferencedTop.length > 0) {
+      const wastedBytes = unreferencedTop.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
+      addInsightItem(
+        "action",
+        t2("analyticsInsightUnreferencedTop", { count: unreferencedTop.length, size: formatBytes(wastedBytes) }),
+        { label: t2("analyticsActionOrphan"), run: () => openActionModal(OrphanWizardModal) }
+      );
     }
-    if (cacheCov > 0) {
-      addInsightItem("\u26A1", t2("analyticsInsightCacheReady"), "#10b981");
+    if (s.local.totalCount > 0 && s.local.totalBytes > 0) {
+      const isRemoteReady = Boolean(((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.enableRemoteServer) && ((_d = (_c = this.plugin) == null ? void 0 : _c.isRemoteServerReady) == null ? void 0 : _d.call(_c)));
+      addInsightItem(
+        "action",
+        t2("analyticsInsightLocalOffload", { count: s.local.totalCount, size: formatBytes(s.local.totalBytes) }),
+        isRemoteReady ? { label: t2("analyticsActionMigrate"), run: () => openActionModal(BatchMigrateWizardModal) } : null
+      );
+    } else if (remotePct >= 50) {
+      addInsightItem("good", t2("analyticsInsightStorageRemote", { pct: remotePct }));
+    }
+    if (s.remote.totalCount > 0) {
+      addInsightItem(
+        "good",
+        t2("analyticsInsightCacheReady", {
+          cached: s.remote.cachedCount || 0,
+          total: s.remote.totalCount,
+          pct: cacheCov,
+          cache: formatBytes(s.remote.cacheBytes)
+        })
+      );
     }
     if (s.remote.lockedCount > 0) {
-      addInsightItem("\u{1F6E1}\uFE0F", t2("analyticsInsightLockedSafe", { count: s.remote.lockedCount }), "#10b981");
+      addInsightItem("good", t2("analyticsInsightLockedSafe", { count: s.remote.lockedCount }));
     }
-    const allTop = s.topLargestAttachments || [];
+    if (unreferencedTop.length === 0 && totalImages > 1) {
+      addInsightItem(
+        "good",
+        t2("analyticsInsightAllHealthy"),
+        { label: t2("analyticsActionDuplicate"), run: () => openActionModal(DuplicateWizardModal) }
+      );
+    }
     if (allTop.length > 0) {
+      const PAGE_SIZE = 5;
       const topBox = contentEl.createDiv({ cls: "fm-section-box" });
-      const topHeaderRow = topBox.createDiv({
-        attr: { style: "display: flex; align-items: center; justify-content: space-between;" }
+      const topHeaderRow = topBox.createDiv({ cls: "fm-analytics-top-header" });
+      topHeaderRow.createDiv({
+        text: t2("analyticsTopLargest", { count: allTop.length }),
+        cls: "fm-section-title",
+        attr: { style: "margin: 0;" }
       });
-      topHeaderRow.createDiv({ text: t2("analyticsTopLargest"), cls: "fm-section-title", attr: { style: "margin: 0;" } });
       let currentFilter = "all";
+      let currentPage = 1;
       const filterGroup = topHeaderRow.createDiv({
-        attr: {
-          style: "display: flex; gap: 2px; background: var(--background-secondary); padding: 2px; border-radius: 6px; border: 1px solid var(--background-modifier-border);"
-        }
+        cls: "fm-gallery-mode-group fm-analytics-filter-group",
+        attr: { role: "group", "aria-label": t2("analyticsTopLargest", { count: allTop.length }) }
       });
-      const listEl = topBox.createDiv({ cls: "fm-scroll-list fm-file-action-list fm-analytics-files" });
+      const listEl = topBox.createDiv({ cls: "fm-file-action-list fm-analytics-files" });
+      const pagerEl = topBox.createDiv({ cls: "fm-analytics-pager" });
       const renderList = () => {
         listEl.empty();
+        pagerEl.empty();
         const filtered = allTop.filter((item) => {
           if (currentFilter === "local") return item.source === "local";
           if (currentFilter === "remote") return item.source === "remote";
           return true;
-        }).slice(0, 10);
+        });
         if (filtered.length === 0) {
+          pagerEl.style.display = "none";
           listEl.createDiv({
             text: t2("analyticsFilterEmpty"),
-            attr: { style: "text-align: center; padding: 20px; color: var(--text-faint); font-size: 12px;" }
+            attr: { style: "text-align: center; padding: 18px; color: var(--text-faint); font-size: 12px;" }
           });
           return;
         }
-        for (const item of filtered) {
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        currentPage = Math.min(Math.max(1, currentPage), totalPages);
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filtered.slice(start, start + PAGE_SIZE);
+        for (const item of pageItems) {
           const { actions } = fileActionRow(listEl, item, this.plugin, {
             metadata: (parent) => {
               fileMetaItem(parent, item.source === "local" ? "hard-drive" : "cloud", t2(item.source === "local" ? "analyticsBadgeLocal" : "analyticsBadgeRemote"));
-              if (item.displayPath || item.path) fileMetadata(parent, item, { path: item.displayPath || item.path });
+              const itemPath = item.displayPath || item.path || "";
+              if (itemPath.includes("/")) fileMetadata(parent, item, { path: itemPath });
             }
           });
           const references = fileReferenceButton(actions, item, this.plugin, item.referenceDocuments, () => this.close());
@@ -9379,28 +9494,48 @@ var VaultAnalyticsModal = class extends FileMasterModal {
             }
           };
         }
+        if (totalPages > 1) {
+          pagerEl.style.display = "";
+          pagerEl.createSpan({
+            cls: "fm-analytics-page-info",
+            text: t2("analyticsPageInfo", { page: currentPage, pages: totalPages })
+          });
+          const nav = pagerEl.createDiv({ cls: "fm-analytics-page-actions" });
+          const prevBtn = nav.createEl("button", { text: t2("analyticsPrevPage"), cls: "fm-mini-btn", attr: { type: "button" } });
+          prevBtn.disabled = currentPage <= 1;
+          prevBtn.onclick = () => {
+            if (currentPage > 1) {
+              currentPage--;
+              renderList();
+            }
+          };
+          const nextBtn = nav.createEl("button", { text: t2("analyticsNextPage"), cls: "fm-mini-btn", attr: { type: "button" } });
+          nextBtn.disabled = currentPage >= totalPages;
+          nextBtn.onclick = () => {
+            if (currentPage < totalPages) {
+              currentPage++;
+              renderList();
+            }
+          };
+        } else {
+          pagerEl.style.display = "none";
+        }
       };
+      const filterBtns = /* @__PURE__ */ new Map();
       const addFilterBtn = (filterKey, label) => {
         const btn = filterGroup.createEl("button", {
           text: label,
-          attr: {
-            style: `font-size: 10px; line-height: 1; padding: 2px 7px; height: 20px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.15s ease; background: ${currentFilter === filterKey ? "var(--background-primary)" : "transparent"}; color: ${currentFilter === filterKey ? "var(--text-normal)" : "var(--text-muted)"}; font-weight: ${currentFilter === filterKey ? "600" : "normal"}; box-shadow: ${currentFilter === filterKey ? "0 1px 2px rgba(0,0,0,0.1)" : "none"};`
-          }
+          attr: { type: "button", "aria-pressed": String(currentFilter === filterKey) }
         });
         btn.onclick = () => {
           currentFilter = filterKey;
-          for (const child of filterGroup.children) {
-            child.style.background = "transparent";
-            child.style.color = "var(--text-muted)";
-            child.style.fontWeight = "normal";
-            child.style.boxShadow = "none";
+          currentPage = 1;
+          for (const [key, b] of filterBtns.entries()) {
+            b.setAttribute("aria-pressed", String(key === filterKey));
           }
-          btn.style.background = "var(--background-primary)";
-          btn.style.color = "var(--text-normal)";
-          btn.style.fontWeight = "600";
-          btn.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
           renderList();
         };
+        filterBtns.set(filterKey, btn);
       };
       addFilterBtn("all", `${t2("analyticsFilterAll")} (${allTop.length})`);
       const localCount = allTop.filter((i) => i.source === "local").length;
@@ -11114,6 +11249,10 @@ var FileMasterHubModal = class extends FileMasterModal {
       ] : [{ icon: "plug", title: "hubConnect", run: settings }] },
       { title: "catPreferences", actions: [
         { icon: "trash-2", title: "remoteTrashTitle", disabled: !remote, run: () => show(new RemoteTrashModal(this.app, this.plugin)) },
+        { icon: "refresh-cw", title: "actRefreshCacheTitle", disabled: !remote, run: async () => {
+          const res = await refreshRemoteImageCache(this.plugin);
+          new import_obsidian32.Notice(t2("noticeCacheRefreshed", { count: res.refreshedUrls }));
+        } },
         { icon: "settings", title: "actOpenSettingsTitle", run: settings }
       ] }
     ];
@@ -11331,6 +11470,67 @@ function clearHeicPreviewCache(plugin) {
     revokeBlobUrl(url);
   }
   plugin.heicPreviewCache.clear();
+}
+async function refreshRemoteImageCache(plugin, targetUrls = []) {
+  var _a, _b;
+  const normalizeUrlKey = (u) => {
+    const base = String(u || "").split("#")[0].split("?")[0];
+    try {
+      return decodeURIComponent(base);
+    } catch (e) {
+      return base;
+    }
+  };
+  const stripRefreshParam = (u) => String(u || "").replace(/([?&])_fm_refresh=\d+&?/g, "$1").replace(/[?&]$/, "");
+  const targets = new Set((Array.isArray(targetUrls) ? targetUrls : []).filter(Boolean).map(normalizeUrlKey));
+  const isTargeted = targets.size > 0;
+  if (!isTargeted) {
+    clearHeicPreviewCache(plugin);
+  }
+  const serverBase = typeof (plugin == null ? void 0 : plugin.getCleanServerUrl) === "function" ? plugin.getCleanServerUrl() : "";
+  const urlsToReload = new Set(isTargeted ? targetUrls.filter(Boolean).map(stripRefreshParam) : []);
+  const matchedImages = [];
+  const workspace = (_a = plugin == null ? void 0 : plugin.app) == null ? void 0 : _a.workspace;
+  const leaves = [];
+  if (typeof (workspace == null ? void 0 : workspace.iterateAllLeaves) === "function") {
+    workspace.iterateAllLeaves((leaf) => leaves.push(leaf));
+  } else if (typeof (workspace == null ? void 0 : workspace.getLeavesOfType) === "function") {
+    leaves.push(...workspace.getLeavesOfType("markdown") || []);
+  }
+  for (const leaf of leaves) {
+    const container = (_b = leaf == null ? void 0 : leaf.view) == null ? void 0 : _b.containerEl;
+    if (!(container == null ? void 0 : container.querySelectorAll)) continue;
+    for (const img of container.querySelectorAll("img")) {
+      const src = img.getAttribute("src") || img.src || "";
+      if (!/^https?:\/\//i.test(src)) continue;
+      const cleanSrc = stripRefreshParam(src);
+      const key = normalizeUrlKey(cleanSrc);
+      const hit = isTargeted ? targets.has(key) : serverBase ? key.startsWith(normalizeUrlKey(serverBase)) : false;
+      if (hit) {
+        urlsToReload.add(cleanSrc);
+        matchedImages.push({ img, cleanSrc });
+      }
+    }
+  }
+  if (typeof fetch === "function" && urlsToReload.size > 0) {
+    const list = [...urlsToReload];
+    for (let i = 0; i < list.length; i += 6) {
+      await Promise.all(list.slice(i, i + 6).map(
+        (url) => fetch(url, { cache: "reload" }).catch(() => null)
+      ));
+    }
+  }
+  const bust = Date.now();
+  for (const { img, cleanSrc } of matchedImages) {
+    const [baseAndQuery, hash = ""] = cleanSrc.split("#");
+    const sep = baseAndQuery.includes("?") ? "&" : "?";
+    const nextSrc = `${baseAndQuery}${sep}_fm_refresh=${bust}${hash ? `#${hash}` : ""}`;
+    try {
+      img.src = nextSrc;
+    } catch (e) {
+    }
+  }
+  return { refreshedUrls: urlsToReload.size, refreshedImages: matchedImages.length };
 }
 async function getOrCreateHeicPreviewUrl(plugin, tfile, ext) {
   var _a;

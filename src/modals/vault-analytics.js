@@ -1,7 +1,11 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanVaultAnalytics, exportAnalyticsReportToRoot } from '../plugin/health-analytics.js';
+import { openModalSafely } from '../plugin/vault-utils.js';
 import { formatBytes } from '../engine.js';
 import { returnToHub } from './common.js';
+import { OrphanWizardModal } from './orphan-wizard.js';
+import { BatchMigrateWizardModal } from './batch-migrate-wizard.js';
+import { DuplicateWizardModal } from './duplicate-wizard.js';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 import { Notice, setIcon } from 'obsidian';
 import { fileActionRow, fileMetadata, fileMetaItem, fileReferenceButton } from '../ui/file-action-list.js';
@@ -109,13 +113,26 @@ export class VaultAnalyticsModal extends Modal {
     );
 
     // ==========================================
-    // 模块二：【存储用量分布】（纯粹专注存储体积）
+    // 模块二：【存储用量分布】（比例条 + 体积对比）
     // ==========================================
     const storageBox = contentEl.createDiv({ cls: 'fm-section-box' });
     storageBox.createDiv({ text: t('analyticsStorageComparison'), cls: 'fm-section-title' });
 
+    const barTrack = storageBox.createDiv({ cls: 'fm-analytics-bar' });
+    const barSegments = [
+      { cls: 'is-local', bytes: s.local.totalBytes, label: t('analyticsBarLocal'), pct: localPct },
+      { cls: 'is-remote', bytes: s.remote.rawBytes, label: t('analyticsBarRemote'), pct: remotePct }
+    ].filter((seg) => seg.bytes > 0);
+    for (const seg of barSegments) {
+      const pct = Math.max(2, (seg.bytes / totalCombinedBytes) * 100);
+      barTrack.createDiv({
+        cls: `fm-analytics-bar-seg ${seg.cls}`,
+        attr: { style: `width: ${pct.toFixed(2)}%;`, title: `${seg.label}: ${formatBytes(seg.bytes)} (${seg.pct}%)` }
+      });
+    }
+
     const summaryRow = storageBox.createDiv({
-      attr: { style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;' }
+      attr: { style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;' }
     });
 
     // 本地存储卡片
@@ -153,23 +170,28 @@ export class VaultAnalyticsModal extends Modal {
     });
 
     // ==========================================
-    // 模块三：【资产健康与优化建议】（独立结构化板块）
+    // 模块三：【资产健康与优化建议】（可行动诊断 + 一键跳转）
     // ==========================================
+    const allTop = s.topLargestAttachments || [];
     const insightsBox = contentEl.createDiv({ cls: 'fm-section-box' });
     insightsBox.createDiv({ text: t('analyticsInsightsTitle'), cls: 'fm-section-title' });
 
-    const insightsList = insightsBox.createDiv({
-      attr: { style: 'display: flex; flex-direction: column; gap: 6px; margin-top: 8px;' }
-    });
+    const insightsList = insightsBox.createDiv({ cls: 'fm-analytics-insights' });
 
-    const addInsightItem = (icon, message, accentColor = '#10b981') => {
-      const itemEl = insightsList.createDiv({
-        attr: {
-          style: 'display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.5; color: var(--text-muted); padding: 2px 0;'
-        }
+    const openActionModal = (ModalClass) => {
+      this.close();
+      openModalSafely(new ModalClass(this.app, this.plugin));
+    };
+
+    const addInsightItem = (statusKind, message, action = null) => {
+      const isAction = statusKind === 'action';
+      const accentColor = isAction ? 'var(--color-orange, #d97706)' : '#10b981';
+      const itemEl = insightsList.createDiv({ cls: 'fm-analytics-insight-row' });
+      itemEl.createSpan({
+        cls: `fm-analytics-status-pill ${isAction ? 'is-action' : 'is-good'}`,
+        text: t(isAction ? 'analyticsStatusAction' : 'analyticsStatusGood')
       });
-      itemEl.createSpan({ text: icon, attr: { style: 'flex-shrink: 0; font-size: 13px; margin-top: 1px;' } });
-      const textSpan = itemEl.createSpan({ attr: { style: 'flex: 1;' } });
+      const textSpan = itemEl.createSpan({ cls: 'fm-analytics-insight-text' });
       const parts = String(message || '').split(/(\*\*[^*]+\*\*)/g);
       for (const part of parts) {
         if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
@@ -181,64 +203,113 @@ export class VaultAnalyticsModal extends Modal {
           textSpan.createSpan({ text: part });
         }
       }
+      if (action) {
+        const btn = itemEl.createEl('button', {
+          text: action.label,
+          cls: 'fm-mini-btn',
+          attr: { type: 'button' }
+        });
+        btn.onclick = action.run;
+      }
     };
 
-    if (localPct >= 70 && s.local.totalBytes > 10 * 1024 * 1024) {
-      addInsightItem('📦', t('analyticsInsightStorageLocal', { pct: localPct }), 'var(--text-accent)');
-    } else if (remotePct >= 50) {
-      addInsightItem('☁️', t('analyticsInsightStorageRemote', { pct: remotePct }), '#10b981');
+    const unreferencedTop = allTop.filter((item) => Array.isArray(item.referenceDocuments) && item.referenceDocuments.length === 0);
+    if (unreferencedTop.length > 0) {
+      const wastedBytes = unreferencedTop.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
+      addInsightItem(
+        'action',
+        t('analyticsInsightUnreferencedTop', { count: unreferencedTop.length, size: formatBytes(wastedBytes) }),
+        { label: t('analyticsActionOrphan'), run: () => openActionModal(OrphanWizardModal) }
+      );
     }
 
-    if (cacheCov > 0) {
-      addInsightItem('⚡', t('analyticsInsightCacheReady'), '#10b981');
+    if (s.local.totalCount > 0 && s.local.totalBytes > 0) {
+      const isRemoteReady = Boolean(this.plugin?.settings?.enableRemoteServer && this.plugin?.isRemoteServerReady?.());
+      addInsightItem(
+        'action',
+        t('analyticsInsightLocalOffload', { count: s.local.totalCount, size: formatBytes(s.local.totalBytes) }),
+        isRemoteReady ? { label: t('analyticsActionMigrate'), run: () => openActionModal(BatchMigrateWizardModal) } : null
+      );
+    } else if (remotePct >= 50) {
+      addInsightItem('good', t('analyticsInsightStorageRemote', { pct: remotePct }));
+    }
+
+    if (s.remote.totalCount > 0) {
+      addInsightItem(
+        'good',
+        t('analyticsInsightCacheReady', {
+          cached: s.remote.cachedCount || 0,
+          total: s.remote.totalCount,
+          pct: cacheCov,
+          cache: formatBytes(s.remote.cacheBytes)
+        })
+      );
     }
 
     if (s.remote.lockedCount > 0) {
-      addInsightItem('🛡️', t('analyticsInsightLockedSafe', { count: s.remote.lockedCount }), '#10b981');
+      addInsightItem('good', t('analyticsInsightLockedSafe', { count: s.remote.lockedCount }));
+    }
+
+    if (unreferencedTop.length === 0 && totalImages > 1) {
+      addInsightItem(
+        'good',
+        t('analyticsInsightAllHealthy'),
+        { label: t('analyticsActionDuplicate'), run: () => openActionModal(DuplicateWizardModal) }
+      );
     }
 
     // ==========================================
-    // 模块四：【体积最大的 10 个附件】（紧凑控件 + 悬浮预览 + 纯文件名复制）
+    // 模块四：【大体积附件排行】（统一圆角分段控件 + 每页 5 条分页）
     // ==========================================
-    const allTop = s.topLargestAttachments || [];
     if (allTop.length > 0) {
+      const PAGE_SIZE = 5;
       const topBox = contentEl.createDiv({ cls: 'fm-section-box' });
-      const topHeaderRow = topBox.createDiv({
-        attr: { style: 'display: flex; align-items: center; justify-content: space-between;' }
+      const topHeaderRow = topBox.createDiv({ cls: 'fm-analytics-top-header' });
+      topHeaderRow.createDiv({
+        text: t('analyticsTopLargest', { count: allTop.length }),
+        cls: 'fm-section-title',
+        attr: { style: 'margin: 0;' }
       });
-      topHeaderRow.createDiv({ text: t('analyticsTopLargest'), cls: 'fm-section-title', attr: { style: 'margin: 0;' } });
 
-      // 收窄精细的微型切换控件
       let currentFilter = 'all'; // 'all' | 'local' | 'remote'
+      let currentPage = 1;
       const filterGroup = topHeaderRow.createDiv({
-        attr: {
-          style: 'display: flex; gap: 2px; background: var(--background-secondary); padding: 2px; border-radius: 6px; border: 1px solid var(--background-modifier-border);'
-        }
+        cls: 'fm-gallery-mode-group fm-analytics-filter-group',
+        attr: { role: 'group', 'aria-label': t('analyticsTopLargest', { count: allTop.length }) }
       });
 
-      const listEl = topBox.createDiv({ cls: 'fm-scroll-list fm-file-action-list fm-analytics-files' });
+      const listEl = topBox.createDiv({ cls: 'fm-file-action-list fm-analytics-files' });
+      const pagerEl = topBox.createDiv({ cls: 'fm-analytics-pager' });
 
       const renderList = () => {
         listEl.empty();
+        pagerEl.empty();
         const filtered = allTop.filter(item => {
           if (currentFilter === 'local') return item.source === 'local';
           if (currentFilter === 'remote') return item.source === 'remote';
           return true;
-        }).slice(0, 10);
+        });
 
         if (filtered.length === 0) {
+          pagerEl.style.display = 'none';
           listEl.createDiv({
             text: t('analyticsFilterEmpty'),
-            attr: { style: 'text-align: center; padding: 20px; color: var(--text-faint); font-size: 12px;' }
+            attr: { style: 'text-align: center; padding: 18px; color: var(--text-faint); font-size: 12px;' }
           });
           return;
         }
 
-        for (const item of filtered) {
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        currentPage = Math.min(Math.max(1, currentPage), totalPages);
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filtered.slice(start, start + PAGE_SIZE);
+
+        for (const item of pageItems) {
           const {actions} = fileActionRow(listEl,item,this.plugin,{
             metadata:parent=>{
               fileMetaItem(parent,item.source==='local'?'hard-drive':'cloud',t(item.source==='local'?'analyticsBadgeLocal':'analyticsBadgeRemote'));
-              if(item.displayPath||item.path)fileMetadata(parent,item,{path:item.displayPath||item.path});
+              const itemPath = item.displayPath || item.path || '';
+              if (itemPath.includes('/')) fileMetadata(parent,item,{path:itemPath});
             }
           });
           const references=fileReferenceButton(actions,item,this.plugin,item.referenceDocuments,()=>this.close());
@@ -250,29 +321,40 @@ export class VaultAnalyticsModal extends Modal {
             catch { new Notice(item.name); }
           };
         }
+
+        if (totalPages > 1) {
+          pagerEl.style.display = '';
+          pagerEl.createSpan({
+            cls: 'fm-analytics-page-info',
+            text: t('analyticsPageInfo', { page: currentPage, pages: totalPages })
+          });
+          const nav = pagerEl.createDiv({ cls: 'fm-analytics-page-actions' });
+          const prevBtn = nav.createEl('button', { text: t('analyticsPrevPage'), cls: 'fm-mini-btn', attr: { type: 'button' } });
+          prevBtn.disabled = currentPage <= 1;
+          prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; renderList(); } };
+          const nextBtn = nav.createEl('button', { text: t('analyticsNextPage'), cls: 'fm-mini-btn', attr: { type: 'button' } });
+          nextBtn.disabled = currentPage >= totalPages;
+          nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; renderList(); } };
+        } else {
+          pagerEl.style.display = 'none';
+        }
       };
 
+      const filterBtns = new Map();
       const addFilterBtn = (filterKey, label) => {
         const btn = filterGroup.createEl('button', {
           text: label,
-          attr: {
-            style: `font-size: 10px; line-height: 1; padding: 2px 7px; height: 20px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.15s ease; background: ${currentFilter === filterKey ? 'var(--background-primary)' : 'transparent'}; color: ${currentFilter === filterKey ? 'var(--text-normal)' : 'var(--text-muted)'}; font-weight: ${currentFilter === filterKey ? '600' : 'normal'}; box-shadow: ${currentFilter === filterKey ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'};`
-          }
+          attr: { type: 'button', 'aria-pressed': String(currentFilter === filterKey) }
         });
         btn.onclick = () => {
           currentFilter = filterKey;
-          for (const child of filterGroup.children) {
-            child.style.background = 'transparent';
-            child.style.color = 'var(--text-muted)';
-            child.style.fontWeight = 'normal';
-            child.style.boxShadow = 'none';
+          currentPage = 1;
+          for (const [key, b] of filterBtns.entries()) {
+            b.setAttribute('aria-pressed', String(key === filterKey));
           }
-          btn.style.background = 'var(--background-primary)';
-          btn.style.color = 'var(--text-normal)';
-          btn.style.fontWeight = '600';
-          btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
           renderList();
         };
+        filterBtns.set(filterKey, btn);
       };
 
       addFilterBtn('all', `${t('analyticsFilterAll')} (${allTop.length})`);

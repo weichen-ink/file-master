@@ -1,5 +1,5 @@
 import { modalTitle } from '../ui/navigation.js';
-import { getItemPreviewUrl, revokeBlobUrl } from '../plugin/vault-utils.js';
+import { getItemPreviewUrl, revokeBlobUrl, refreshRemoteImageCache } from '../plugin/vault-utils.js';
 import { checkUploadConflicts } from '../plugin/server-client.js';
 import { insertLinkAtTarget } from '../plugin/editor-target.js';
 import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
@@ -864,6 +864,9 @@ export class IncomingFileModal extends Modal {
         }
 
         this.finalizeRemoteResult(res, editor, sourcePath);
+        if (this.conflictStrategy === 'replace' && res) {
+          refreshRemoteImageCache(this.plugin, [res.rawUrl, res.pubUrl].filter(Boolean)).catch(() => { });
+        }
       }
     } catch (err) {
       this.isExecuting = false;

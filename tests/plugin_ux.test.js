@@ -127,7 +127,7 @@ test('Closing the browser removes workspace subscriptions and late loads cannot 
 test('Mobile Hub keeps connection setup visible and omits the desktop docking action',()=>{
   const {FileMasterHubModal}=loadPlugin(undefined,{host:{...host,Platform:{isMobile:true}}}),{plugin}=editorFixture();Object.assign(plugin,{manifest:{version:'1.1.0',id:'file-master'},isRemoteServerReady:()=>false});
   const hub=new FileMasterHubModal(plugin.app,plugin);hub.onOpen();assert.ok(hub.contentEl.all().some(el=>el.text==='hubConnect'));assert.equal(hub.contentEl.all().some(el=>el.text==='hubDockGallery'),false);
-  const actions=hub.contentEl.all().filter(el=>el.tag==='button'&&el.disabled);assert.equal(actions.length,5);hub.onClose();
+  const actions=hub.contentEl.all().filter(el=>el.tag==='button'&&el.disabled);assert.equal(actions.length,6);hub.onClose();
 });
 
 

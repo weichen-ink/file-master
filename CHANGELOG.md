@@ -1,5 +1,12 @@
 # Changelog (file-master)
 
+## [1.2.6] - 2026-11-16
+
+### Vault Overview Upgrade, Unified File-Row Hover & Local Image Cache Refresh
+- Upgrade `VaultAnalyticsModal` with a storage proportion bar, actionable health diagnostics (`Action needed` / `Healthy` pills + one-click wizard shortcuts), and a paginated 5-per-page largest attachments list using unified segmented filter controls.
+- Unify hover highlight and brand filename color transitions across all `fileActionRow` lists (orphan wizard, batch migrate, duplicate wizard, active note, remote trash, remote rename, and analytics), and fix duplicate metadata dots.
+- Add `refreshRemoteImageCache` to reload modified remote images in open notes without altering Markdown: triggered automatically on overwrite uploads and manually via Hub and the note `file-menu` (`File Master: Refresh local image cache`).
+
 ## [1.2.5] - 2026-11-16
 
 ### Upload Conflict Resolution, Target Verification & Modal Polish

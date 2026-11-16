@@ -141,6 +141,75 @@ export function clearHeicPreviewCache(plugin) {
   plugin.heicPreviewCache.clear();
 }
 
+/**
+ * Forces Obsidian's HTTP/DOM image cache to reload modified remote assets without touching note markdown.
+ */
+export async function refreshRemoteImageCache(plugin, targetUrls = []) {
+  const normalizeUrlKey = (u) => {
+    const base = String(u || '').split('#')[0].split('?')[0];
+    try { return decodeURIComponent(base); } catch { return base; }
+  };
+  const stripRefreshParam = (u) => String(u || '')
+    .replace(/([?&])_fm_refresh=\d+&?/g, '$1')
+    .replace(/[?&]$/, '');
+  const targets = new Set((Array.isArray(targetUrls) ? targetUrls : []).filter(Boolean).map(normalizeUrlKey));
+  const isTargeted = targets.size > 0;
+  if (!isTargeted) {
+    clearHeicPreviewCache(plugin);
+  }
+
+  const serverBase = typeof plugin?.getCleanServerUrl === 'function' ? plugin.getCleanServerUrl() : '';
+  const urlsToReload = new Set(isTargeted ? targetUrls.filter(Boolean).map(stripRefreshParam) : []);
+  const matchedImages = [];
+
+  const workspace = plugin?.app?.workspace;
+  const leaves = [];
+  if (typeof workspace?.iterateAllLeaves === 'function') {
+    workspace.iterateAllLeaves((leaf) => leaves.push(leaf));
+  } else if (typeof workspace?.getLeavesOfType === 'function') {
+    leaves.push(...(workspace.getLeavesOfType('markdown') || []));
+  }
+
+  for (const leaf of leaves) {
+    const container = leaf?.view?.containerEl;
+    if (!container?.querySelectorAll) continue;
+    for (const img of container.querySelectorAll('img')) {
+      const src = img.getAttribute('src') || img.src || '';
+      if (!/^https?:\/\//i.test(src)) continue;
+      const cleanSrc = stripRefreshParam(src);
+      const key = normalizeUrlKey(cleanSrc);
+      const hit = isTargeted
+        ? targets.has(key)
+        : (serverBase ? key.startsWith(normalizeUrlKey(serverBase)) : false);
+      if (hit) {
+        urlsToReload.add(cleanSrc);
+        matchedImages.push({ img, cleanSrc });
+      }
+    }
+  }
+
+  if (typeof fetch === 'function' && urlsToReload.size > 0) {
+    const list = [...urlsToReload];
+    for (let i = 0; i < list.length; i += 6) {
+      await Promise.all(list.slice(i, i + 6).map((url) =>
+        fetch(url, { cache: 'reload' }).catch(() => null)
+      ));
+    }
+  }
+
+  const bust = Date.now();
+  for (const { img, cleanSrc } of matchedImages) {
+    const [baseAndQuery, hash = ''] = cleanSrc.split('#');
+    const sep = baseAndQuery.includes('?') ? '&' : '?';
+    const nextSrc = `${baseAndQuery}${sep}_fm_refresh=${bust}${hash ? `#${hash}` : ''}`;
+    try {
+      img.src = nextSrc;
+    } catch { }
+  }
+
+  return { refreshedUrls: urlsToReload.size, refreshedImages: matchedImages.length };
+}
+
 export async function getOrCreateHeicPreviewUrl(plugin, tfile, ext) {
   if (!plugin || !tfile || plugin.isUnloading) return null;
   const cacheKey = `${tfile.path}:${tfile.stat?.mtime || 0}`;

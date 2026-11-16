@@ -44,7 +44,7 @@ test('Menu Integration: Markdown actions open note modals and copy public links'
     return '![](https://example.com/raw/2026/11/a.png)';
   } };
   f.handlers.get('file-menu')(f.menu, file);
-  assert.deepEqual(f.entries.map((e) => e.title), ['menuActiveNoteMigrate', 'menuActiveNoteDownload', 'menuActiveNoteAstro']);
+  assert.deepEqual(f.entries.map((e) => e.title), ['menuActiveNoteMigrate', 'menuActiveNoteDownload', 'menuActiveNoteAstro', 'menuActiveNoteRefreshCache']);
   await Promise.all(f.entries.map((entry) => entry.click()));
   assert.deepEqual(f.opened.map((modal) => modal.actionType), ['migrate', 'download']);
   assert.ok(f.opened.every((modal) => modal.targetFile === file));
