@@ -244,3 +244,47 @@ test('RemoteRenameModal reveals Next button when recovering from empty list to n
   await modal.reloadRemotePage();
   assert.equal(modal.next.hidden, false);
 });
+
+test('Duplicate merge only attaches Authorization header when rawUrl matches configured serverUrl origin', async () => {
+  const requests = [];
+  const original = bytes('same-content');
+  const f = createVaultFixture(
+    async (req) => {
+      requests.push(req);
+      return { status: 200, arrayBuffer: original };
+    },
+    { onModalOpen: (modal) => modal.onConfirm(true) }
+  );
+  f.plugin.settings.serverUrl = 'https://files.example.com';
+  f.plugin.settings.apiToken = 'secret-vault-token';
+  const keep = f.add('assets/keep.png', 'same-content', true);
+  const sha = await f.computeSha256Hex(original);
+  const local = { id: 'local:' + keep.path, source: 'local', name: keep.name, displayPath: keep.path, rawObj: keep };
+  const crossOriginRemote = {
+    id: 'remote:2026/11/cross.png',
+    source: 'remote',
+    name: 'cross.png',
+    displayPath: '2026/11/cross.png',
+    rawObj: { year: '2026', month: '11', filename: 'cross.png', rawUrl: 'https://other-cdn.example.net/raw/2026/11/cross.png' }
+  };
+  const sameOriginRemote = {
+    id: 'remote:2026/11/same.png',
+    source: 'remote',
+    name: 'same.png',
+    displayPath: '2026/11/same.png',
+    rawObj: { year: '2026', month: '11', filename: 'same.png', rawUrl: 'https://files.example.com/raw/2026/11/same.png' }
+  };
+  f.plugin.deleteRemoteFile = async () => {};
+
+  await f.attachmentOps.executeDuplicateMergeSafely(f.plugin, [
+    { sha256: sha, items: [local, crossOriginRemote], keepId: local.id },
+    { sha256: sha, items: [local, sameOriginRemote], keepId: local.id }
+  ]);
+
+  const crossReq = requests.find((r) => r.url.startsWith('https://other-cdn.example.net/'));
+  const sameReq = requests.find((r) => r.url.startsWith('https://files.example.com/raw/'));
+  assert.ok(crossReq, 'Cross-origin verification request should be sent');
+  assert.equal(crossReq.headers, undefined, 'Must not leak Authorization token to a different origin');
+  assert.ok(sameReq, 'Same-origin verification request should be sent');
+  assert.equal(sameReq.headers?.Authorization, 'Bearer secret-vault-token');
+});

@@ -1,5 +1,11 @@
 # Changelog (file-master)
 
+## [1.2.7] - 2026-11-17
+
+### Cross-Origin Token Protection & Plain-HTTP Security Hint
+- Restrict `Authorization: Bearer` headers during duplicate-merge hash verification to remote URLs matching the configured `serverUrl` origin, preventing API token leakage if a remote item points to a different host.
+- Display a bilingual security warning in plugin settings when a non-local `http://` server URL is configured, reminding users to prefer HTTPS and to exclude `.obsidian/plugins/file-master/data.json` when syncing vaults via Git or third-party tools.
+
 ## [1.2.6] - 2026-11-16
 
 ### Vault Overview Upgrade, Unified File-Row Hover & Local Image Cache Refresh

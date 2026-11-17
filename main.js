@@ -1557,6 +1557,7 @@ var UI_STRINGS = {
     serverUnverifiedHint: "\u8BF7\u5148\u6D4B\u8BD5\u670D\u52A1\u5668\u8FDE\u63A5\u3002\u8FDE\u63A5\u6210\u529F\u540E\u624D\u80FD\u4F7F\u7528\u670D\u52A1\u5668\u6587\u4EF6\u529F\u80FD\u3002",
     serverUrlName: "\u670D\u52A1\u5668\u5730\u5740",
     serverUrlDesc: "\u4F8B\u5982 https://files.example.com \u6216 http://192.168.1.100:3210",
+    insecureHttpHint: "\u26A0\uFE0F \u5F53\u524D\u4F7F\u7528\u975E\u672C\u5730 HTTP \u5730\u5740\uFF0CAPI \u4EE4\u724C\u5C06\u4EE5\u660E\u6587\u4F20\u8F93\uFF1B\u516C\u7F51\u73AF\u5883\u5EFA\u8BAE\u4F7F\u7528 HTTPS\u3002\u6B64\u5916\u4EE4\u724C\u4FDD\u5B58\u5728\u63D2\u4EF6\u76EE\u5F55 data.json \u4E2D\uFF0C\u4F7F\u7528 Git \u6216\u7B2C\u4E09\u65B9\u540C\u6B65\u65F6\u5EFA\u8BAE\u6392\u9664\u8BE5\u6587\u4EF6\u3002",
     apiTokenName: "API \u4EE4\u724C",
     apiTokenDesc: "\u4ECE\u670D\u52A1\u7AEF\u7684\u201C\u7AD9\u70B9\u8BBE\u7F6E\u201D\u4E2D\u590D\u5236\u4E0A\u4F20 API \u4EE4\u724C",
     showToken: "\u663E\u793A\u4EE4\u724C",
@@ -2293,6 +2294,7 @@ var UI_STRINGS = {
     serverUnverifiedHint: "Test the server connection before using server files.",
     serverUrlName: "Server URL",
     serverUrlDesc: "For example, https://files.example.com or http://192.168.1.100:3210",
+    insecureHttpHint: "\u26A0\uFE0F Using plain HTTP over a non-local address transmits your API token in cleartext; HTTPS is recommended. Note that your token is stored in data.json\u2014exclude it when syncing your vault via Git or third-party tools.",
     apiTokenName: "API token",
     apiTokenDesc: "Copy the upload API token from Site settings on your server",
     showToken: "Show token",
@@ -9736,12 +9738,30 @@ var FileMasterSettingTab = class extends import_obsidian28.PluginSettingTab {
           this.plugin.settings.serverUrl = value.trim();
           this.plugin.settings.serverVerified = false;
           this.plugin.lastServerCompatStatus = null;
+          updateHttpWarning(this.plugin.settings.serverUrl);
           updateStatusBox(null);
           await this.plugin.saveSettings();
         })
       ),
       "\u{1F310}"
     );
+    const httpWarningEl = containerEl.createDiv({ cls: "fm-settings-hint fm-settings-http-warning" });
+    const isNonLocalPlainHttp = (rawUrl) => {
+      try {
+        const parsed = new URL(String(rawUrl || "").trim());
+        if (parsed.protocol !== "http:") return false;
+        const host = parsed.hostname.toLowerCase();
+        return host !== "localhost" && host !== "127.0.0.1" && host !== "[::1]" && host !== "::1";
+      } catch (e) {
+        return false;
+      }
+    };
+    const updateHttpWarning = (rawUrl) => {
+      const show = isNonLocalPlainHttp(rawUrl);
+      httpWarningEl.style.display = show ? "" : "none";
+      httpWarningEl.textContent = show ? this.plugin.t("insecureHttpHint") : "";
+    };
+    updateHttpWarning(this.plugin.settings.serverUrl);
     let statusBox;
     const updateStatusBox = (compat) => {
       if (!statusBox) return;
@@ -11604,12 +11624,18 @@ async function mergeDuplicateGroups(plugin, groups, onComplete) {
   const remoteItemsToDelete = [];
   let skippedBySafetyGate = 0;
   const currentHash = async (item) => {
-    var _a;
+    var _a, _b;
     if (item.source === "local") return computeSha256Hex(await plugin.app.vault.readBinary(item.rawObj));
     const url = new URL(item.rawObj.rawUrl);
     url.searchParams.set("download", "1");
     url.searchParams.set("raw", "1");
-    const headers = ((_a = plugin.settings) == null ? void 0 : _a.apiToken) ? { Authorization: `Bearer ${plugin.settings.apiToken}` } : void 0;
+    let sameOrigin = false;
+    try {
+      const configuredUrl = ((_a = plugin.getCleanServerUrl) == null ? void 0 : _a.call(plugin)) || "";
+      sameOrigin = Boolean(configuredUrl) && new URL(configuredUrl).origin === url.origin;
+    } catch (e) {
+    }
+    const headers = sameOrigin && ((_b = plugin.settings) == null ? void 0 : _b.apiToken) ? { Authorization: `Bearer ${plugin.settings.apiToken}` } : void 0;
     const response = await (0, import_obsidian34.requestUrl)({ url: url.href, method: "GET", headers, throw: false });
     if (response.status !== 200 || !response.arrayBuffer) throw new Error("Unable to verify attachment content");
     return computeSha256Hex(response.arrayBuffer);

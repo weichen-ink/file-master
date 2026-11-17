@@ -222,12 +222,31 @@ export class FileMasterSettingTab extends PluginSettingTab {
               this.plugin.settings.serverUrl = value.trim();
               this.plugin.settings.serverVerified = false;
               this.plugin.lastServerCompatStatus = null;
+              updateHttpWarning(this.plugin.settings.serverUrl);
               updateStatusBox(null);
               await this.plugin.saveSettings();
             })
         ),
       '🌐'
     );
+
+    const httpWarningEl = containerEl.createDiv({ cls: 'fm-settings-hint fm-settings-http-warning' });
+    const isNonLocalPlainHttp = (rawUrl) => {
+      try {
+        const parsed = new URL(String(rawUrl || '').trim());
+        if (parsed.protocol !== 'http:') return false;
+        const host = parsed.hostname.toLowerCase();
+        return host !== 'localhost' && host !== '127.0.0.1' && host !== '[::1]' && host !== '::1';
+      } catch {
+        return false;
+      }
+    };
+    const updateHttpWarning = (rawUrl) => {
+      const show = isNonLocalPlainHttp(rawUrl);
+      httpWarningEl.style.display = show ? '' : 'none';
+      httpWarningEl.textContent = show ? this.plugin.t('insecureHttpHint') : '';
+    };
+    updateHttpWarning(this.plugin.settings.serverUrl);
 
     let statusBox;
     const updateStatusBox = (compat) => {
