@@ -1,4 +1,4 @@
-import { setIcon } from 'obsidian';
+import { Notice, TFile, setIcon } from 'obsidian';
 import { referenceIndicator } from './reference-indicator.js';
 
 const previewParents = new WeakMap();
@@ -17,9 +17,32 @@ function previewParent(owner) {
   return previewParents.get(owner);
 }
 
+export async function navigateToVaultDocument(plugin, filePath, lineNumber = null) {
+  const file = plugin?.app?.vault?.getAbstractFileByPath?.(filePath);
+  const isVaultFile = file && (file instanceof TFile || (!Array.isArray(file.children) && typeof file.path === 'string'));
+  if (!isVaultFile) {
+    const msg = typeof plugin?.t === 'function' ? plugin.t('noticeCannotOpenFile', { path: filePath }) : `Cannot open ${filePath}`;
+    new Notice(msg);
+    return false;
+  }
+  const leaf = plugin.app.workspace?.getLeaf?.(false);
+  if (!leaf || typeof leaf.openFile !== 'function') {
+    await plugin.app.workspace?.openLinkText?.(filePath, '', false);
+    return true;
+  }
+  await leaf.openFile(file);
+  const view = leaf.view;
+  if (view?.editor && Number.isFinite(lineNumber) && lineNumber > 0) {
+    const lineIdx = Math.max(0, lineNumber - 1);
+    view.editor.setCursor?.({ line: lineIdx, ch: 0 });
+    view.editor.scrollIntoView?.({ from: { line: lineIdx, ch: 0 }, to: { line: lineIdx, ch: 0 } }, true);
+  }
+  return true;
+}
+
 export function noteHoverPreview(plugin, element, path, hoverParent, line = null) {
   element.addEventListener('mouseenter', event => {
-    plugin.app.workspace.trigger('hover-link', {
+    plugin.app.workspace?.trigger?.('hover-link', {
       event, source:'file-master', hoverParent:previewParent(hoverParent), targetEl:element,
       linktext:path, sourcePath:'',
       // Native Page preview uses the same zero-based line state as Search results.
@@ -28,32 +51,45 @@ export function noteHoverPreview(plugin, element, path, hoverParent, line = null
   });
 }
 
-function previewButton(parent, plugin, path, hoverParent, line = null, label = null) {
+function previewButton(parent, plugin, path, hoverParent, line = null, label = null, onSelect = null) {
   const text = label || plugin.t('btnPreview');
   const btn = parent.createEl('button', { cls: 'fm-document-preview', attr: { type: 'button', 'aria-label': text } });
   setIcon(btn.createSpan({ cls: 'fm-indicator-icon', attr: { 'aria-hidden': 'true' } }), 'eye');
   btn.createSpan({ text });
   noteHoverPreview(plugin, btn, path, hoverParent, line);
+  btn.onclick = event => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    return onSelect ? onSelect(path, line) : navigateToVaultDocument(plugin, path, line);
+  };
   return btn;
 }
 
 /** Unified Level-1 note + Level-2 link preview layout for rename, reference inspection, and health checks. */
-export function documentRow(parent,plugin,document,{renderDetails=null,referenceState='referenceCount',hoverParent={hoverPopover:null},location=null,previewLabel=null}={}) {
+export function documentRow(parent,plugin,document,{renderDetails=null,referenceState='referenceCount',hoverParent={hoverPopover:null},location=null,previewLabel=null,onSelect=null}={}) {
   const row=parent.createDiv({cls:'fm-list-item fm-document-row'});
   const header=row.createDiv({cls:'fm-document-header'});
   setIcon(header.createSpan({cls:'fm-document-icon',attr:{'aria-hidden':'true'}}),'file-text');
   const content=header.createDiv({cls:'fm-document-content'});
   const heading=location ? content.createDiv({cls:'fm-document-heading'}) : content;
-  const name=heading.createDiv({text:document.path,cls:'fm-document-name internal-link',attr:{'data-href':document.path}});
+  const name=heading.createDiv({text:document.path,cls:'fm-document-name internal-link',attr:{'data-href':document.path,role:'button',tabindex:'0'}});
   if(location)heading.createSpan({text:location,cls:'fm-document-location'});
   noteHoverPreview(plugin,name,document.path,hoverParent,document.line);
+  const activateName = event => {
+    event?.preventDefault?.();
+    return onSelect ? onSelect(document.path, document.line) : navigateToVaultDocument(plugin, document.path, document.line);
+  };
+  name.onclick = activateName;
+  name.onkeydown = event => {
+    if (event.key === 'Enter' || event.key === ' ') activateName(event);
+  };
   if(renderDetails)renderDetails(content);
   const actions=header.createDiv({cls:'fm-document-actions'});
   if(typeof document.references==='number') {
     referenceIndicator(actions.createSpan({cls:`fm-reference-indicator${referenceState==='renameReferencesUpdated'?' is-updated':''}`}),plugin,document.references,{state:referenceState,icon:referenceState==='renameReferencesUpdated'?'check':document.references>0?'link':null});
   }
   const hasLinks=Array.isArray(document.links)&&document.links.length>0;
-  let preview=hasLinks ? null : previewButton(actions,plugin,document.path,hoverParent,document.line,previewLabel);
+  let preview=hasLinks ? null : previewButton(actions,plugin,document.path,hoverParent,document.line,previewLabel,onSelect);
   let linksEl=null;
   if(hasLinks) {
     linksEl=row.createDiv({cls:'fm-document-links'});
@@ -64,7 +100,7 @@ export function documentRow(parent,plugin,document,{renderDetails=null,reference
       if(Number.isFinite(link.line)&&link.line>0)info.createSpan({text:plugin.t('healthLine',{line:link.line}),cls:'fm-document-location'});
       if(link.target)info.createEl('code',{text:link.target,cls:'fm-document-link-target'});
       if(link.status)info.createSpan({text:link.status,cls:'fm-document-location'});
-      const btn=previewButton(linkRow,plugin,document.path,hoverParent,link.line??document.line,previewLabel);
+      const btn=previewButton(linkRow,plugin,document.path,hoverParent,link.line??document.line,previewLabel,onSelect);
       if(!preview)preview=btn;
     }
   }

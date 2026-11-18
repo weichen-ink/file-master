@@ -1,5 +1,4 @@
-import { openModalSafely, updateSidebarRibbonButton } from './plugin/vault-utils.js';
-import { onLanguageChange, getCompatibilityMessage } from './plugin/lifecycle.js';
+import { getCompatibilityMessage, onLanguageChange, openModalSafely, updateSidebarRibbonButton } from './plugin/vault-utils.js';
 import { checkServerCompatibility } from './plugin/server-client.js';
 import { MIN_SERVER_VERSION, displayVersion } from './constants.js';
 import { FileMasterHubModal } from './modals/hub.js';

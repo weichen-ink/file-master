@@ -1,9 +1,8 @@
-import { isScannableDocFile, isExcalidrawFile, isLocalPathExcluded } from './vault-utils.js';
+import { isScannableDocFile, isExcalidrawFile, isLocalPathExcluded, runAttachmentOperation } from './vault-utils.js';
 import { remoteCandidateUrls } from './remote-links.js';
 import { computeSha256Hex, formatBytes, formatDateYMD, formatDateTimestamp, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
-import { ConfirmActionModal } from '../modals/dialogs.js';
-import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, stripRemoteReferenceText } from '../references.js';
-import { runAttachmentOperation } from '../transfers.js';
+import { requireModal } from './modal-registry.js';
+import { addReference, createLocalReferenceMatcher, createTextReferenceMatcher, decodeValidPercentRuns, prepareDocumentTextForLocalScan } from '../references.js';
 import { Notice, TFile } from 'obsidian';
 
 // The plugin owns host state; these operations receive it explicitly.
@@ -16,6 +15,7 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
   } = scanCtx || {};
   const revision = plugin.referenceRevision || 0;
   const allFiles = plugin.app.vault.getFiles();
+  const knownPaths = new Set(allFiles.map((f) => String(f.path || '').toLowerCase()));
   const docFiles = allFiles.filter((f) => isScannableDocFile(plugin, f));
   const matchLocal = createLocalReferenceMatcher(allFiles, (file) => isExcalidrawFile(plugin.app, file));
   const localReferences = new Map();
@@ -32,15 +32,15 @@ export async function buildVaultReferenceSnapshot(plugin, scanCtx = {}) {
     const rawText = freshRead
       ? await plugin.app.vault.read(doc)
       : await plugin.app.vault.cachedRead(doc);
-    for (const target of matchLocal(stripRemoteReferenceText(rawText))) addReference(localReferences, target, doc.path);
-    if (rawText.includes('%')) {
-      let decodedText = rawText;
-      try {
-        decodedText = decodeURIComponent(rawText);
-      } catch { }
-      if (decodedText !== rawText) {
-        for (const target of matchLocal(stripRemoteReferenceText(decodedText))) addReference(localReferences, target, doc.path);
-      }
+    const docResolveLink = plugin.app?.metadataCache?.getFirstLinkpathDest
+      ? (ref) => {
+          const dest = plugin.app.metadataCache.getFirstLinkpathDest(ref, doc.path);
+          return dest ? dest.path : null;
+        }
+      : null;
+    const prepared = prepareDocumentTextForLocalScan(rawText, doc.path, knownPaths, docResolveLink);
+    for (const target of matchLocal(prepared)) {
+      addReference(localReferences, target, doc.path);
     }
     if (includeDocContents) {
       docContents.push({
@@ -93,10 +93,7 @@ export async function indexRemoteReferences(items, snapshot, serverUrl = '') {
     const doc = snapshot.docContents[i];
     for (const id of match(doc.rawText)) addReference(snapshot.remoteReferences, id, doc.path);
     if (doc.rawText.includes('%')) {
-      let decodedText = doc.rawText;
-      try {
-        decodedText = decodeURIComponent(doc.rawText);
-      } catch { }
+      const decodedText = decodeValidPercentRuns(doc.rawText);
       if (decodedText !== doc.rawText) {
         for (const id of match(decodedText)) addReference(snapshot.remoteReferences, id, doc.path);
       }
@@ -270,6 +267,7 @@ export async function cleanOrphanItems(plugin, selectedItems, onDone) {
   if (remoteToClean.length > 0) {
     const remoteBytes = remoteToClean.reduce((s, i) => s + (i.size || 0), 0);
     const confirmed = await new Promise((resolve) => {
+      const ConfirmActionModal = requireModal('ConfirmActionModal');
       new ConfirmActionModal(
         plugin.app,
         plugin.t('confirmRemoteOrphanTitle'),
@@ -551,7 +549,7 @@ export async function exportBatchMigrateReportToRoot(plugin, summary) {
     lines.push(`| # | 本地原路径 (Local Path) | 服务器链接 (Remote URL) | 文件大小 (Size) | 引用数 (Refs) |`);
     lines.push(`|---|---|---|---|---|`);
     items.forEach((item, idx) => {
-      const localPath = item.displayPath || item.name;
+      const localPath = item.localPath || item.displayPath || item.name;
       const remoteUrl = item.rawUrl || (item.rawObj && item.rawObj.rawUrl) || '';
       const sizeStr = formatBytes(item.size || 0);
       const refsCount = item.refNotesCount !== undefined ? `${item.refNotesCount} 篇` : '-';

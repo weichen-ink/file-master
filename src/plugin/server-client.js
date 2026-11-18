@@ -2,7 +2,7 @@ import { queryRemoteFiles } from '../remote-file-query.js';
 import { DEFAULT_SERVER_URL, IMAGE_EXTS, MIN_SERVER_VERSION, isAttachmentExt, isSupportedRemoteExtension } from '../constants.js';
 export { isSupportedRemoteExtension };
 import { applyNamingPattern, buildMultipartBuffer, compareSemver, computeSha256Hex, getBaseName, getExt, sanitizeCleanBaseName } from '../engine.js';
-import { IncomingFileModal } from '../modals/incoming-file.js';
+import { requireModal } from './modal-registry.js';
 import { captureEditorTarget } from './editor-target.js';
 import { requestWithBackoff, throwIfTransferCancelled } from '../transfers.js';
 import { requestUrl } from 'obsidian';
@@ -81,6 +81,7 @@ export async function handleIncomingBrowserFile(plugin, file, editor, options = 
     insertionTarget
   };
 
+  const IncomingFileModal = requireModal('IncomingFileModal');
   new IncomingFileModal(plugin.app, fileInfo, modalOptions).open();
 }
 

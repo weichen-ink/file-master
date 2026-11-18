@@ -1,5 +1,5 @@
 import { openModalSafely, getExcludedLocalFolderList } from '../plugin/vault-utils.js';
-import { FileMasterHubModal } from './hub.js';
+import { requireModal } from '../plugin/modal-registry.js';
 
 /**
  * Helper to return from a module modal back to the main File Master Hub modal
@@ -10,6 +10,7 @@ export function returnToHub(modal) {
   modal.close();
   if (!modal.fromHub) return;
   if (modal.app && modal.plugin) {
+    const FileMasterHubModal = requireModal('FileMasterHubModal');
     openModalSafely(new FileMasterHubModal(modal.app, modal.plugin));
   }
 }

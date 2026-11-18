@@ -2,7 +2,7 @@ import { getOrCreateHeicPreviewUrl, isLocalPathExcluded, toggleLocalFolderExclus
 import { migrateSingleLocalFileToRemote, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
 import { NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { escapeRegExp, getExt } from '../engine.js';
-import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
+import { requireModal } from './modal-registry.js';
 import { Notice } from 'obsidian';
 import { createAssetLinkRewriter, findRemoteAsset } from './remote-links.js';
 import { copyText, hasOptimizedVariant } from '../ui/links.js';
@@ -23,6 +23,7 @@ export function registerContextMenus(plugin) {
               .setTitle(plugin.t('menuMigrateFolder'))
               .setIcon('upload-cloud')
               .onClick(() => {
+                const BatchMigrateWizardModal = requireModal('BatchMigrateWizardModal');
                 new BatchMigrateWizardModal(plugin.app, plugin, folderPath).open();
               });
           });

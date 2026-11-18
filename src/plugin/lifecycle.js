@@ -1,21 +1,60 @@
 import { trackRenameReferenceChange } from './rename-reference-plan.js';
-import { captureEditorTarget, captureInsertionTarget, insertLinkAtTarget } from './editor-target.js';
+import { captureEditorTarget } from './editor-target.js';
 import { loadOperationLogs } from './logging.js';
-import { clearHeicPreviewCache, isScannableDocFile, updateSidebarRibbonButton, openModalSafely } from './vault-utils.js';
+import {
+  clearHeicPreviewCache,
+  getCompatibilityMessage,
+  initGalleryLeaf,
+  insertMarkdownToActiveEditor,
+  isScannableDocFile,
+  onLanguageChange,
+  openModalSafely,
+  reconcileGalleryLeaves,
+  updateCommandNames,
+  updateSidebarRibbonButton
+} from './vault-utils.js';
+import { registerPluginModals } from './modal-registry.js';
 import { checkServerCompatibility, filterAllowedFiles, handleIncomingBrowserFile } from './server-client.js';
 import { setupHeicInlinePreviewObserver, registerContextMenus } from './context-menus.js';
 import { resumePendingMigration, migrateActiveNoteAttachments, downloadActiveNoteRemoteAttachments, copyActiveNoteForAstro } from './attachment-ops.js';
 import { VIEW_TYPE_REMOTE_GALLERY } from '../constants.js';
+import { ActiveNoteActionModal } from '../modals/active-note.js';
 import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
+import { ConfirmActionModal, ImageLightboxModal, NoteRefsModal } from '../modals/dialogs.js';
 import { DuplicateWizardModal } from '../modals/duplicate-wizard.js';
 import { HealthCheckModal } from '../modals/health-check.js';
 import { FileMasterHubModal } from '../modals/hub.js';
+import { IncomingFileModal } from '../modals/incoming-file.js';
 import { OperationLogModal } from '../modals/operation-log.js';
 import { OrphanWizardModal } from '../modals/orphan-wizard.js';
 import { RemoteGalleryModal, RemoteGalleryView } from '../modals/remote-gallery.js';
 import { VaultAnalyticsModal } from '../modals/vault-analytics.js';
 import { FileMasterSettingTab } from '../settings-tab.js';
 import { MarkdownView, Notice, Platform } from 'obsidian';
+
+registerPluginModals({
+  ActiveNoteActionModal,
+  BatchMigrateWizardModal,
+  ConfirmActionModal,
+  DuplicateWizardModal,
+  FileMasterHubModal,
+  HealthCheckModal,
+  ImageLightboxModal,
+  IncomingFileModal,
+  NoteRefsModal,
+  OperationLogModal,
+  OrphanWizardModal,
+  RemoteGalleryModal,
+  VaultAnalyticsModal
+});
+
+export {
+  getCompatibilityMessage,
+  initGalleryLeaf,
+  insertMarkdownToActiveEditor,
+  onLanguageChange,
+  updateCommandNames
+};
 
 // The plugin owns host state; these operations receive it explicitly.
 export async function onload(plugin) {
@@ -223,40 +262,6 @@ export function registerPluginCommands(plugin) {
   }
 }
 
-export function updateCommandNames(plugin) {
-  if (!plugin.pluginCommandDefs || !plugin.app?.commands?.commands) return;
-  for (const cmd of plugin.pluginCommandDefs) {
-    const fullId = `${plugin.manifest.id}:${cmd.id}`;
-    const registered = plugin.app.commands.commands[fullId];
-    if (registered) {
-      registered.name = plugin.t(cmd.nameKey);
-    }
-  }
-}
-
-export function onLanguageChange(plugin) {
-  updateSidebarRibbonButton(plugin);
-  updateCommandNames(plugin);
-  for (const leaf of plugin.app?.workspace?.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || []) {
-    if (leaf.view?.rebuild) leaf.view.rebuild();
-    else leaf.view?.render?.();
-  }
-}
-
-export function getCompatibilityMessage(plugin, compat) {
-  if (!compat) return plugin.t(plugin.settings.serverVerified ? 'serverVerifiedBadge' : 'serverUnverifiedHint');
-  switch (compat.status) {
-    case 'compatible': return plugin.t('compatStatusOk', { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
-    case 'server_outdated': return plugin.t('compatStatusServerOld', { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
-    case 'plugin_outdated': return plugin.t('compatStatusPluginOld', { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
-    case 'api_incompatible': return plugin.t('compatStatusApiIncompatible', { apiVer: compat.apiVersion ?? '?', supportedVer: compat.supportedApiVersion ?? 1 });
-    case 'auth_failed': return plugin.t('compatStatusAuthFail');
-    case 'token_missing': return plugin.t('compatStatusTokenMissing');
-    case 'server_error': return plugin.t('compatStatusServerError', { code: compat.statusCode || '' });
-    default: return plugin.t('compatStatusOffline', { err: compat.error || '' });
-  }
-}
-
 export function onunload(plugin) {
   plugin.isUnloading = true;
   if (plugin.compatCheckTimer) {
@@ -282,41 +287,6 @@ export function onunload(plugin) {
   }
 }
 
-function reconcileGalleryLeaves(plugin) {
-  if (plugin.isUnloading || plugin.reconcilingGalleryLeaves) return null;
-  const workspace = plugin.app.workspace;
-  const leaves = workspace.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || [];
-  const keep = leaves.includes(workspace.activeLeaf) ? workspace.activeLeaf : leaves[0];
-  plugin.reconcilingGalleryLeaves = true;
-  try {
-    for (const leaf of leaves) if (leaf !== keep) leaf.detach();
-  } finally {
-    plugin.reconcilingGalleryLeaves = false;
-  }
-  return keep || null;
-}
-
-export async function initGalleryLeaf(plugin, reveal = false) {
-  if (plugin.isUnloading || !plugin.isRemoteServerReady()) return null;
-  const {workspace} = plugin.app;
-  if (!plugin.galleryLeafPromise) {
-    const pending = (async () => {
-      let leaf = reconcileGalleryLeaves(plugin);
-      if (!leaf) {
-        leaf = workspace.getRightLeaf(false);
-        if (!leaf) throw new Error(plugin.t('galleryPanelUnavailable'));
-        await leaf.setViewState({type:VIEW_TYPE_REMOTE_GALLERY, active:false});
-      }
-      return leaf;
-    })();
-    plugin.galleryLeafPromise = pending;
-    pending.finally(() => { if(plugin.galleryLeafPromise === pending) plugin.galleryLeafPromise = null; }).catch(() => {});
-  }
-  const leaf = await plugin.galleryLeafPromise;
-  if (!plugin.isUnloading && reveal && leaf) await workspace.revealLeaf(leaf);
-  return leaf;
-}
-
 export async function activateGalleryView(plugin) {
   if (!plugin.isRemoteServerReady()) {
     new Notice(plugin.t('remoteServerRequiredNotice'));
@@ -324,17 +294,4 @@ export async function activateGalleryView(plugin) {
   }
   if (Platform.isMobile) return openModalSafely(new RemoteGalleryModal(plugin.app, plugin));
   return initGalleryLeaf(plugin, true);
-}
-
-export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = undefined) {
-  const insertionTarget = target === undefined ? captureInsertionTarget(plugin) : target;
-  const result = insertLinkAtTarget(plugin, mdSnippet, insertionTarget, { appendNewlineOnEmptyLine: false });
-  if (!result.inserted) {
-    new Notice(result.reason);
-    return false;
-  }
-  const leaf = insertionTarget.view.leaf;
-  if (leaf) plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
-  if (successNotice) new Notice(successNotice);
-  return true;
 }

@@ -1,9 +1,57 @@
 import { setIcon } from 'obsidian';
-import { renderItemVisualThumb } from '../modals/incoming-file.js';
-import { NoteRefsModal } from '../modals/dialogs.js';
-import { formatBytes } from '../engine.js';
+import { AUDIO_EXTS, IMAGE_EXTS } from '../constants.js';
+import { formatBytes, getExt } from '../engine.js';
+import { translateUi } from '../i18n.js';
 import { fileReferenceDocuments } from '../plugin/file-references.js';
+import { requireModal } from '../plugin/modal-registry.js';
+import { getItemPreviewUrl } from '../plugin/vault-utils.js';
 import { referenceIndicator } from './reference-indicator.js';
+
+/**
+ * Renders a 44x44 thumbnail or icon in wizard lists (click to inspect)
+ */
+export function renderItemVisualThumb(parentEl, item, plugin) {
+  const t = (k, p) => (plugin ? plugin.t(k, p) : translateUi('auto', k, p));
+  const ext = getExt(item.name);
+  if (IMAGE_EXTS.has(ext)) {
+    const img = parentEl.createEl('img', {
+      cls: 'fm-item-thumb',
+      attr: { 'aria-label': t('thumbEnlargeTooltip') }
+    });
+    img.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const ImageLightboxModal = requireModal('ImageLightboxModal');
+      new ImageLightboxModal(plugin.app, plugin, item).open();
+    };
+    getItemPreviewUrl(plugin, item).then((url) => {
+      if (url) img.src = url;
+    });
+  } else {
+    const box = parentEl.createDiv({
+      cls: 'fm-item-icon-box',
+      attr: { 'aria-label': t('thumbDetailsTooltip') }
+    });
+    const icon =
+      ext === 'md'
+        ? '📝'
+        : AUDIO_EXTS.has(ext)
+          ? '🎵'
+          : ['mp4', 'webm', 'mov', 'mkv'].includes(ext)
+            ? '🎬'
+            : ext === 'pdf'
+              ? '📄'
+              : '📦';
+    box.createSpan({ text: icon });
+    box.createSpan({ text: (ext || 'FILE').slice(0, 4).toUpperCase(), cls: 'fm-item-icon-ext' });
+    box.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const ImageLightboxModal = requireModal('ImageLightboxModal');
+      new ImageLightboxModal(plugin.app, plugin, item).open();
+    };
+  }
+}
 
 export function fileSizeBadge(parent,size) {
   if(typeof size==='number')return parent.createSpan({text:formatBytes(size),cls:'fm-file-size'});
@@ -64,6 +112,7 @@ export function fileReferenceButton(parent, item, plugin, paths = null, onJump =
     button.disabled = !unique?.length;
     button.onclick = unique?.length ? event => {
       event.preventDefault();event.stopPropagation();
+      const NoteRefsModal = requireModal('NoteRefsModal');
       new NoteRefsModal(plugin.app,item.name,documents,onJump,plugin).open();
     } : null;
     if (!unique?.length) return;

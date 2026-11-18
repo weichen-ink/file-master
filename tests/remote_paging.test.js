@@ -23,7 +23,7 @@ test('Rename keeps pagination outside the list, loads 20 images per page and pre
     calls.push(options);return {items:Array.from({length:20},(_,i)=>image(options.offset+i)),totalCount:60,buckets:['2026/11']};
   };
   const modal=new f.RemoteRenameModal(f.plugin.app,f.plugin);await modal.onOpen();
-  assert.deepEqual(calls[0],{types:['image'],sort:'time_desc',limit:20,offset:0});
+  assert.deepEqual(calls[0],{sort:'time_desc',limit:20,offset:0});
   assert.equal(modal.rowControls.size,20);assert.equal(reads,0);
   assert.equal(modal.browserFooter.root.parentElement,modal.contentEl);
   assert.ok(!modal.list.all().includes(modal.browserFooter.pagination));

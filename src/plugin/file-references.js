@@ -1,4 +1,4 @@
-import { createLocalReferenceMatcher, stripRemoteReferenceText } from '../references.js';
+import { createLocalReferenceMatcher, prepareDocumentTextForLocalScan } from '../references.js';
 import { createRenameRewriter } from './remote-rename.js';
 import { isDocFile, isExcalidrawFile } from './vault-utils.js';
 
@@ -8,6 +8,13 @@ export async function fileReferenceDocuments(plugin, item, paths = null, documen
   const file = remote ? item.rawObj || item : item.rawObj || plugin.app.vault.getAbstractFileByPath(item.path || item.displayPath);
   if (!file) throw new Error('Attachment not found');
   let count = 0;
+  const vaultFiles = !remote ? plugin.app?.vault?.getFiles?.() : null;
+  const knownPaths = !remote
+    ? new Set([
+        String(file.path || '').toLowerCase(),
+        ...(Array.isArray(vaultFiles) ? vaultFiles.map((f) => String(f.path || '').toLowerCase()) : [])
+      ])
+    : null;
   const match = remote
     ? createRenameRewriter([...new Set([file.rawUrl, file.pubUrl, ...(file.referenceUrls || [])])].filter(Boolean).map(from => ({from, to:'@@file-master-reference@@'})), plugin.getCleanServerUrl())
     : createLocalReferenceMatcher([file], candidate => isExcalidrawFile(plugin.app, candidate), () => count++);
@@ -20,9 +27,14 @@ export async function fileReferenceDocuments(plugin, item, paths = null, documen
     if (remote) count = match(text).count;
     else {
       count = 0;
-      let decoded = text;
-      try { decoded = decodeURIComponent(text); } catch {}
-      match(stripRemoteReferenceText(decoded));
+      const docResolveLink = plugin.app?.metadataCache?.getFirstLinkpathDest
+        ? (ref) => {
+            const dest = plugin.app.metadataCache.getFirstLinkpathDest(ref, doc.path);
+            return dest ? dest.path : null;
+          }
+        : null;
+      const prepared = prepareDocumentTextForLocalScan(text, doc.path, knownPaths, docResolveLink);
+      match(prepared);
       count = Math.max(count, plugin.app.metadataCache?.resolvedLinks?.[doc.path]?.[file.path] || 0);
     }
     if (count) result.push({path:doc.path, references:count});

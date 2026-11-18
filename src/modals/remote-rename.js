@@ -44,7 +44,7 @@ export class RemoteRenameModal extends FileMasterModal {
         this.search();
         return;
       }
-      this.pages=new RemoteFilePages(this.plugin,{types:['image'],sort:'time_desc'});
+      this.pages=new RemoteFilePages(this.plugin,{sort:'time_desc'});
       this.items=[];
       this.unsubscribe=this.pages.subscribe(state=>{
         this.items=state.items;

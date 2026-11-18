@@ -7,53 +7,10 @@ import { computeSha256Hex, convertBufferToPreviewUrl, formatBytes, getExt, sanit
 import { translateUi } from '../i18n.js';
 import { formatFriendlyError } from './common.js';
 import { ImageLightboxModal } from './dialogs.js';
-import { fileMetaItem } from '../ui/file-action-list.js';
+import { fileMetaItem, renderItemVisualThumb } from '../ui/file-action-list.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
-
-/**
- * Renders a 44x44 thumbnail or icon in wizard lists (click to inspect)
- */
-export function renderItemVisualThumb(parentEl, item, plugin) {
-  const t = (k, p) => (plugin ? plugin.t(k, p) : translateUi('auto', k, p));
-  const ext = getExt(item.name);
-  if (IMAGE_EXTS.has(ext)) {
-    const img = parentEl.createEl('img', {
-      cls: 'fm-item-thumb',
-      attr: { 'aria-label': t('thumbEnlargeTooltip') }
-    });
-    img.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      new ImageLightboxModal(plugin.app, plugin, item).open();
-    };
-    getItemPreviewUrl(plugin, item).then((url) => {
-      if (url) img.src = url;
-    });
-  } else {
-    const box = parentEl.createDiv({
-      cls: 'fm-item-icon-box',
-      attr: { 'aria-label': t('thumbDetailsTooltip') }
-    });
-    const icon =
-      ext === 'md'
-        ? '📝'
-        : AUDIO_EXTS.has(ext)
-          ? '🎵'
-          : ['mp4', 'webm', 'mov', 'mkv'].includes(ext)
-            ? '🎬'
-            : ext === 'pdf'
-              ? '📄'
-              : '📦';
-    box.createSpan({ text: icon });
-    box.createSpan({ text: (ext || 'FILE').slice(0, 4).toUpperCase(), cls: 'fm-item-icon-ext' });
-    box.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      new ImageLightboxModal(plugin.app, plugin, item).open();
-    };
-  }
-}
+export { renderItemVisualThumb };
 
 export class IncomingFileModal extends Modal {
   constructor(app, fileInfo, options, callback = null) {

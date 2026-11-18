@@ -2,12 +2,10 @@ import { isScannableDocFile, isLocalPathExcluded, isDocFile, openModalSafely } f
 import { indexRemoteReferences, findReferencingNotesForRemoteItem, findReferencingNotesForLocalFile } from './vault-scans.js';
 import { IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { computeSha256Hex, escapeRegExp, formatBytes, getBaseName, getExt, getFileTypeGroup } from '../engine.js';
-import { ActiveNoteActionModal } from '../modals/active-note.js';
-import { BatchMigrateWizardModal } from '../modals/batch-migrate-wizard.js';
-import { ConfirmActionModal } from '../modals/dialogs.js';
+import { requireModal } from './modal-registry.js';
 import { migrateLocalAttachments, migrationCheckpointPath, requestWithBackoff, rewriteAttachmentPairs, runAttachmentOperation, throwIfTransferCancelled } from '../transfers.js';
 import { Notice, requestUrl } from 'obsidian';
-import { createAssetLinkRewriter } from './remote-links.js';
+import { createAssetLinkRewriter, findRemoteAsset } from './remote-links.js';
 import { copyText, hasOptimizedVariant } from '../ui/links.js';
 
 // The plugin owns host state; these operations receive it explicitly.
@@ -56,6 +54,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
   if (remoteItemsToDelete.length > 0) {
     const totalRemoteBytes = remoteItemsToDelete.reduce((s, x) => s + (x.removeItem.size || 0), 0);
     const confirmed = await new Promise((resolve) => {
+      const ConfirmActionModal = requireModal('ConfirmActionModal');
       new ConfirmActionModal(
         plugin.app,
         plugin.t('confirmRemoteDupTitle'),
@@ -181,7 +180,7 @@ export async function mergeDuplicateGroups(plugin, groups, onComplete) {
 }
 
 export async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLocal = true } = {}) {
-  const result = await plugin.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal });
+  const result = await plugin.executeBatchMigrateSafely([{ rawObj: tfile }], { deleteLocalAfter: deleteLocal, preserveExistingCheckpoint: true });
   if (!result.count) throw new Error(result.failures[0]?.error || plugin.t('transferIntegrityFailed'));
   new Notice(plugin.t('noticeMigrateSuccess', { name: tfile.name, protected: '', docs: result.docs }));
   return result.processedItems[0].rawObj;
@@ -203,6 +202,7 @@ export async function resumePendingMigration(plugin) {
       refNotes: findReferencingNotesForLocalFile(file, snapshot) };
   }).filter(Boolean);
   if (!items.length) { new Notice(plugin.t('transferNothingPending')); return; }
+  const BatchMigrateWizardModal = requireModal('BatchMigrateWizardModal');
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
   modal.options = { ...modal.options, ...checkpoint.options };
   if (checkpoint.options?.conflictStrategy) {
@@ -222,19 +222,27 @@ export async function downloadSingleRemoteItemToLocal(plugin, remoteMatch, optio
 export async function downloadRemoteItemToLocal(plugin, remoteMatch, options = {}) {
   const silent = Boolean(options?.silent);
   try {
-    const { year, month, filename } = remoteMatch;
+    const { year, month } = remoteMatch;
+    let filename = remoteMatch.filename;
     if (!silent) {
       new Notice(plugin.t('noticeDownloadingFile', { name: filename }));
     }
 
     let remoteObj = remoteMatch.rawObj || null;
-    if (!remoteObj) {
+    if (!remoteObj?.sha256) {
       try {
         const list = await plugin.fetchRemoteFileList();
-        remoteObj = list.find(
+        const found = list.find(
           (r) => r.year === year && r.month === month && r.filename === filename
-        );
+        ) || (remoteMatch.matchedUrl ? findRemoteAsset(list, remoteMatch.matchedUrl, plugin.getCleanServerUrl?.() || '') : null)
+          || (filename.toLowerCase().endsWith('.webp')
+            ? list.find((r) => r.year === year && r.month === month && getBaseName(r.filename).toLowerCase() === getBaseName(filename).toLowerCase())
+            : null);
+        if (found) remoteObj = found;
       } catch { }
+    }
+    if (remoteObj?.filename) {
+      filename = remoteObj.filename;
     }
 
     const activeFile = options?.activeFile || plugin.app.workspace.getActiveFile();
@@ -363,7 +371,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   const content = await plugin.app.vault.read(activeFile);
   const serverBase = escapeRegExp(plugin.getCleanServerUrl());
   const re = new RegExp(
-    `(${serverBase}\\/([^/\\s)]+)\\/(\\d{4})\\/(\\d{2})\\/([^)\\s]+))`,
+    `(${serverBase}\\/([^/\\s()]+)\\/(\\d{4})\\/(\\d{2})\\/((?:[^()\\s<>?#]|\\([^()\\s<>?#]*\\))+)(?:[?#][^)\\s<>]*)?)`,
     'gi'
   );
 
@@ -400,6 +408,7 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
   const snapshot = await plugin.buildVaultReferenceSnapshot();
   await indexRemoteReferences([...remoteList, ...matchesMap.values()], snapshot);
   const remoteByPath = new Map(remoteList.map((item) => [`${item.year}/${item.month}/${item.filename}`, item]));
+  const seenResolvedKeys = new Set();
 
   // Pre-index local attachment files by size for fast SHA-256 content duplicate checks
   const localFilesBySize = new Map();
@@ -427,8 +436,16 @@ export async function scanActiveNoteRemoteAttachments(plugin, activeFile) {
 
   const out = [];
   for (const match of matchesMap.values()) {
-    const { year, month, filename, matchedUrl, routePrefix } = match;
-    const remoteObj = remoteByPath.get(`${year}/${month}/${filename}`);
+    const { year, month, matchedUrl, routePrefix } = match;
+    const remoteObj = remoteByPath.get(`${year}/${month}/${match.filename}`)
+      || findRemoteAsset(remoteList, matchedUrl, plugin.getCleanServerUrl?.() || '')
+      || (match.filename.toLowerCase().endsWith('.webp')
+        ? remoteList.find((r) => r.year === year && r.month === month && getBaseName(r.filename).toLowerCase() === getBaseName(match.filename).toLowerCase())
+        : null);
+    const filename = remoteObj?.filename || match.filename;
+    const resolvedKey = `${year}/${month}/${filename}`;
+    if (seenResolvedKeys.has(resolvedKey)) continue;
+    seenResolvedKeys.add(resolvedKey);
     const availablePath = await plugin.app.fileManager.getAvailablePathForAttachment(
       filename,
       activeFile.path
@@ -555,6 +572,7 @@ export async function downloadActiveNoteRemoteAttachments(plugin, targetFile = n
     new Notice(plugin.t('noticeOpenMdFirst'));
     return;
   }
+  const ActiveNoteActionModal = requireModal('ActiveNoteActionModal');
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, 'download', options);
   if (options?.fromHub) {
     openModalSafely(modal);
@@ -726,6 +744,7 @@ export async function migrateActiveNoteAttachments(plugin, targetFile = null, op
     new Notice(plugin.t('noticeOpenMdFirst'));
     return;
   }
+  const ActiveNoteActionModal = requireModal('ActiveNoteActionModal');
   const modal = new ActiveNoteActionModal(plugin.app, plugin, activeFile, 'migrate', options);
   if (options?.fromHub) {
     openModalSafely(modal);

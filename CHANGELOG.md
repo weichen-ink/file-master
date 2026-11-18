@@ -1,5 +1,14 @@
 # Changelog (file-master)
 
+## [1.2.8] - 2026-11-18
+
+### Link Identity Precision, Fragment & Title Preservation, Server Pagination & UI Polish
+- Unify link tokenization, vault target identity resolution, and link formatting in `src/link-syntax.js`: honor authoritative host `getFirstLinkpathDest` resolution and Markdown vs. WikiLink relative semantics so same-basename attachments across root, sibling, and nested subdirectories (`./`, `../`, unprefixed subdirectories, and `%20`-encoded paths) never mis-rewrite or mis-count unrelated files.
+- Preserve URL fragments (`#page=5`, `#t=30`), hover titles (`"Chapter five"`), and Markdown table escaped pipes (`\|`) bidirectionally across WikiLinks, Markdown links/embeds, and JSON Canvas `file` ↔ `link` (`subpath` ↔ `#fragment`) conversions while keeping fenced and inline code segments untouched.
+- Support linear-time balanced-parentheses remote filenames and WebP `pubUrl` links across scanning, download, rename, and duplicate merge, and preserve batch migration checkpoints during single-file uploads.
+- Connect remote gallery and file browsers to the server's `/api/modules/image-host/files/query` paginated endpoint with automatic fallback for older servers, and decouple all 53 source modules to zero circular dependencies via `modal-registry.js`.
+- Refine Hub cards, Vault Overview proportions, Remote Gallery toolbar/cards, Health Check rows, and mobile responsive touch targets using Obsidian theme tokens.
+
 ## [1.2.7] - 2026-11-17
 
 ### Cross-Origin Token Protection & Plain-HTTP Security Hint

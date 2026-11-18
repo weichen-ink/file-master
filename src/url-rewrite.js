@@ -1,5 +1,6 @@
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const decode = value => {try{return decodeURI(value);}catch{return value;}};
+const encodeParens = value => String(value || '').replace(/\(/g, '%28').replace(/\)/g, '%29');
 const lineAtOffset = (source, offset) => {
   let line = 1;
   for (let i = 0; i < offset; i++) if (source.charCodeAt(i) === 10) line++;
@@ -14,6 +15,16 @@ export function createUrlRewriter(mappings, serverUrl = '', onMatch = null) {
       replacements.set(a,{text:b,reference});
       replacements.set(encodeURI(decode(a)),{text:encodeURI(decode(b)),reference});
       replacements.set(a.replace(/\//g,'\\/'),{text:b.replace(/\//g,'\\/'),reference});
+    }
+    for (const [a, b] of [
+      [encodeParens(encodeURI(decode(from))), encodeParens(encodeURI(decode(to)))],
+      [encodeParens(from), encodeParens(to)],
+      [encodeParens(decode(from)), encodeParens(decode(to))]
+    ]) {
+      if (!a || !b || a === b) continue;
+      if (!replacements.has(a)) replacements.set(a, { text: b, reference });
+      const escapedA = a.replace(/\//g, '\\/');
+      if (!replacements.has(escapedA)) replacements.set(escapedA, { text: b.replace(/\//g, '\\/'), reference });
     }
   };
   for(const {from,to} of mappings || []) {

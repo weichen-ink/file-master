@@ -1,5 +1,6 @@
 // Explicit exports for unit tests; this module is never part of the release entry.
 export * from '../../src/constants.js';
+export * from '../../src/link-syntax.js';
 export * from '../../src/engine.js';
 export * from '../../src/references.js';
 export * from '../../src/transfers.js';

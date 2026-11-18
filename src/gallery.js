@@ -1,5 +1,5 @@
 import { queryRemoteFiles } from './remote-file-query.js';
-import { insertMarkdownToActiveEditor } from './plugin/lifecycle.js';
+import { insertMarkdownToActiveEditor } from './plugin/vault-utils.js';
 import { IMAGE_EXTS } from './constants.js';
 import { formatBytes, getExt } from './engine.js';
 import { ImageLightboxModal } from './modals/dialogs.js';

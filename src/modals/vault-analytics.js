@@ -55,9 +55,10 @@ export class VaultAnalyticsModal extends Modal {
     const totalAllFiles = noteCount + s.local.totalCount + s.remote.totalCount;
 
     // Storage footprint breakdowns
-    const totalCombinedBytes = Math.max(1, s.local.totalBytes + s.remote.rawBytes);
-    const localPct = Math.round((s.local.totalBytes / totalCombinedBytes) * 100);
-    const remotePct = 100 - localPct;
+    const rawCombinedBytes = s.local.totalBytes + s.remote.rawBytes;
+    const totalCombinedBytes = Math.max(1, rawCombinedBytes);
+    const localPct = rawCombinedBytes > 0 ? Math.round((s.local.totalBytes / totalCombinedBytes) * 100) : 0;
+    const remotePct = rawCombinedBytes > 0 ? 100 - localPct : 0;
     const cacheCov = s.remote.totalCount > 0 ? Math.round(((s.remote.cachedCount || 0) / s.remote.totalCount) * 100) : 0;
 
     // ==========================================
@@ -97,19 +98,19 @@ export class VaultAnalyticsModal extends Modal {
       totalImages,
       t('analyticsStatImages'),
       t('analyticsStatImagesSub', { loc: s.local.imageCount, rem: remoteImgCount }),
-      '#10b981'
+      'var(--text-success)'
     );
     addStat(
       totalOtherAttachments,
       t('analyticsStatOtherAttachments'),
       t('analyticsStatOtherSub'),
-      '#3b82f6'
+      'var(--text-accent)'
     );
     addStat(
       totalAllFiles,
       t('analyticsStatTotalFiles'),
       t('analyticsStatTotalSub'),
-      '#8b5cf6'
+      'var(--text-accent)'
     );
 
     // ==========================================
@@ -132,7 +133,7 @@ export class VaultAnalyticsModal extends Modal {
     }
 
     const summaryRow = storageBox.createDiv({
-      attr: { style: 'display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;' }
+      cls: 'fm-analytics-storage-grid'
     });
 
     // 本地存储卡片
@@ -159,7 +160,7 @@ export class VaultAnalyticsModal extends Modal {
     remoteCard.createDiv({ text: t('analyticsRemoteServer'), attr: { style: 'font-weight: 600; font-size: 13px;' } });
     remoteCard.createDiv({
       text: `${formatBytes(s.remote.rawBytes)} (${remotePct}%)`,
-      attr: { style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: #10b981; font-variant-numeric: tabular-nums;' }
+      attr: { style: 'font-size: 15px; font-weight: 700; margin-top: 4px; color: var(--text-success); font-variant-numeric: tabular-nums;' }
     });
     remoteCard.createDiv({
       text: t('analyticsRemoteStats', {
@@ -185,7 +186,7 @@ export class VaultAnalyticsModal extends Modal {
 
     const addInsightItem = (statusKind, message, action = null) => {
       const isAction = statusKind === 'action';
-      const accentColor = isAction ? 'var(--color-orange, #d97706)' : '#10b981';
+      const accentColor = isAction ? 'var(--text-warning, #d97706)' : 'var(--text-success, #079455)';
       const itemEl = insightsList.createDiv({ cls: 'fm-analytics-insight-row' });
       itemEl.createSpan({
         cls: `fm-analytics-status-pill ${isAction ? 'is-action' : 'is-good'}`,
@@ -230,7 +231,7 @@ export class VaultAnalyticsModal extends Modal {
         t('analyticsInsightLocalOffload', { count: s.local.totalCount, size: formatBytes(s.local.totalBytes) }),
         isRemoteReady ? { label: t('analyticsActionMigrate'), run: () => openActionModal(BatchMigrateWizardModal) } : null
       );
-    } else if (remotePct >= 50) {
+    } else if (remotePct >= 50 && s.remote.rawBytes > 0) {
       addInsightItem('good', t('analyticsInsightStorageRemote', { pct: remotePct }));
     }
 
@@ -366,8 +367,11 @@ export class VaultAnalyticsModal extends Modal {
       renderList();
     }
 
-    // 动作按钮
+    // 动作按钮（统一 [取消/关闭] 在左、主操作 .mod-cta 在右）
     const btnRow = contentEl.createDiv({ cls: 'fm-btn-row' });
+    const closeBtn = btnRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
+    closeBtn.onclick = () => returnToHub(this);
+
     const exportBtn = btnRow.createEl('button', {
       text: t('analyticsExportReport'),
       cls: 'mod-cta'
@@ -375,9 +379,6 @@ export class VaultAnalyticsModal extends Modal {
     exportBtn.onclick = async () => {
       await exportAnalyticsReportToRoot(this.plugin, s);
     };
-
-    const closeBtn = btnRow.createEl('button', { text: t(this.fromHub ? 'btnCancel' : 'closeBtn') });
-    closeBtn.onclick = () => returnToHub(this);
   }
 
   onClose() {

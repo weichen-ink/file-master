@@ -83,7 +83,7 @@ test('rewriteContentLinks: Relative markdown links and fragments', () => {
   const output = rewriteContentLinks(input, localPdf, remotePdf);
   assert.strictEqual(
     output,
-    'Check [Spec](https://cdn.example.com/raw-secret/2026/10/manual.pdf) and [Alt](https://cdn.example.com/raw-secret/2026/10/manual.pdf).'
+    'Check [Spec](https://cdn.example.com/raw-secret/2026/10/manual.pdf#page=2) and [Alt](https://cdn.example.com/raw-secret/2026/10/manual.pdf).'
   );
 });
 

@@ -1,6 +1,6 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanVaultLinkHealth, exportHealthReportToRoot } from '../plugin/health-analytics.js';
-import { documentRow } from '../ui/document-list.js';
+import { documentRow, navigateToVaultDocument } from '../ui/document-list.js';
 import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
@@ -158,7 +158,14 @@ export class HealthCheckModal extends Modal {
       grouped.get(item.sourcePath).push({line:item.line,target:item.target,tag:t(tag),status:status?`HTTP ${status[1]}`:null});
     }
     for(const [path,links] of grouped.entries()) {
-      documentRow(listEl,this.plugin,{path,links},{hoverParent:this});
+      documentRow(listEl,this.plugin,{path,links},{
+        hoverParent:this,
+        onSelect: async (docPath, line) => {
+          const opened = await navigateToVaultDocument(this.plugin, docPath, line);
+          if (opened) this.close();
+          return opened;
+        }
+      });
     }
   }
 

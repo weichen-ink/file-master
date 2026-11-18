@@ -1,5 +1,6 @@
 import { indexRemoteReferences, findReferencingNotesForLocalFile, findReferencingNotesForRemoteItem } from './plugin/vault-scans.js';
-import { safeModifyFileContent, refreshRemoteImageCache } from './plugin/vault-utils.js';
+import { safeModifyFileContent, refreshRemoteImageCache, runAttachmentOperation } from './plugin/vault-utils.js';
+export { runAttachmentOperation };
 import { getLogFilePath } from './plugin/logging.js';
 import { computeSha256Hex, getExt } from './engine.js';
 import { isSupportedRemoteExtension } from './constants.js';
@@ -39,22 +40,6 @@ export async function requestWithBackoff(request, { signal, delay = transferDela
       try { if (response.json?.retryAfter) wait = Number(response.json.retryAfter) * 1000; } catch {}
     }
     await delay(Math.min(120000, Math.max(250, wait ?? 1000 * (2 ** attempt) + Math.random() * 250)), signal);
-  }
-}
-
-export async function runAttachmentOperation(plugin, task, signal) {
-  if (plugin.attachmentOperationRunning) throw new Error(plugin.t('transferBusy'));
-  plugin.attachmentOperationRunning = true;
-  const controller = new AbortController();
-  const cancelled = () => controller.abort();
-  if (signal?.aborted) cancelled();
-  else signal?.addEventListener('abort', cancelled, { once: true });
-  plugin.activeTransferController = controller;
-  try { return await task(controller.signal); }
-  finally {
-    signal?.removeEventListener('abort', cancelled);
-    plugin.activeTransferController = null;
-    plugin.attachmentOperationRunning = false;
   }
 }
 
@@ -104,6 +89,7 @@ export function migrationCheckpointPath(plugin) {
 }
 
 export async function saveMigrationCheckpoint(plugin, items, options) {
+  if (options?.preserveExistingCheckpoint) return;
   const adapter = plugin.app.vault.adapter;
   if (!adapter) return;
   const path = migrationCheckpointPath(plugin);
@@ -174,16 +160,20 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
         continue;
       }
       let remote;
+      let localSha;
       if (entry.hasConflict && strategy === 'reuse' && entry.conflict?.rawUrl) {
+        const localBytes = await plugin.app.vault.readBinary(tfile);
+        localSha = await computeSha256Hex(localBytes);
         remote = Object.assign({}, entry.conflict, { reusedExisting: true });
         lastSpeed = plugin.t('uploadReusedBadge');
-        transferredBytes += fileSize;
+        transferredBytes += (localBytes.byteLength || fileSize);
       } else {
         if (entry.hasConflict && strategy === 'replace') {
           if (entry.conflict?.locked) throw new Error(plugin.t('uploadConflictLockedHint'));
           if (entry.conflict?.code === 'NAME_RESERVED') throw new Error(plugin.t('uploadConflictReservedHint'));
         }
         const bytes = await plugin.app.vault.readBinary(tfile);
+        localSha = await computeSha256Hex(bytes);
         const uploadOpts = { signal: options.signal };
         if (entry.hasConflict && ['replace', 'rename'].includes(strategy)) {
           uploadOpts.conflictStrategy = strategy;
@@ -217,7 +207,7 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
         if (remote.rawUrl) replacedUrls.add(remote.rawUrl);
         if (remote.pubUrl) replacedUrls.add(remote.pubUrl);
       }
-      uploaded.push({ entry, tfile, sourceVersion, sourceSha: remote.sha256,
+      uploaded.push({ entry, tfile, sourceVersion, localSha, sourceSha: localSha,
         removeItem: { source: 'local', name: tfile.name, ext: tfile.extension.toLowerCase(), displayPath: tfile.path, rawObj: tfile },
         keepItem: { source: 'remote', name: remote.filename, ext: getExt(remote.filename),
           displayPath: `${remote.year}/${remote.month}/${remote.filename}`, rawObj: remote } });
@@ -270,7 +260,6 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
       } catch (err) {
         result.trashError = err.message || String(err);
         trashFailures.push({ path: tfile.path, error: result.trashError });
-        retryItems.push(pair.entry);
       }
     }
     processedItems.push(result);

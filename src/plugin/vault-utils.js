@@ -1,6 +1,7 @@
-import { IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS } from '../constants.js';
+import { IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS, VIEW_TYPE_REMOTE_GALLERY } from '../constants.js';
 import { convertBufferToPreviewUrl, getExt, isDocFile as helperIsDocFile, isExcalidrawFile as helperIsExcalidrawFile, isReportFile } from '../engine.js';
-import { FileMasterHubModal } from '../modals/hub.js';
+import { requireModal } from './modal-registry.js';
+import { captureInsertionTarget, insertLinkAtTarget } from './editor-target.js';
 import { Notice } from 'obsidian';
 import { openModal } from '../ui/navigation.js';
 
@@ -67,6 +68,22 @@ export function openModalSafely(modal) {
   return openModal(modal).catch(error => { new Notice(error.message || String(error)); });
 }
 
+export async function runAttachmentOperation(plugin, task, signal) {
+  if (plugin.attachmentOperationRunning) throw new Error(plugin.t('transferBusy'));
+  plugin.attachmentOperationRunning = true;
+  const controller = new AbortController();
+  const cancelled = () => controller.abort();
+  if (signal?.aborted) cancelled();
+  else signal?.addEventListener('abort', cancelled, { once: true });
+  plugin.activeTransferController = controller;
+  try { return await task(controller.signal); }
+  finally {
+    signal?.removeEventListener('abort', cancelled);
+    plugin.activeTransferController = null;
+    plugin.attachmentOperationRunning = false;
+  }
+}
+
 export function updateSidebarRibbonButton(plugin) {
   if (plugin.sidebarRibbonEl) {
     plugin.sidebarRibbonEl.remove();
@@ -79,6 +96,7 @@ export function updateSidebarRibbonButton(plugin) {
     'layers',
     plugin.t('hubTitle'),
     () => {
+      const FileMasterHubModal = requireModal('FileMasterHubModal');
       openModalSafely(new FileMasterHubModal(plugin.app, plugin));
     }
   );
@@ -282,4 +300,86 @@ export async function getItemPreviewUrl(plugin, item) {
   }
 
   return plugin.app.vault.getResourcePath(tfile);
+}
+
+export function updateCommandNames(plugin) {
+  if (!plugin.pluginCommandDefs || !plugin.app?.commands?.commands) return;
+  for (const cmd of plugin.pluginCommandDefs) {
+    const fullId = `${plugin.manifest.id}:${cmd.id}`;
+    const registered = plugin.app.commands.commands[fullId];
+    if (registered) {
+      registered.name = plugin.t(cmd.nameKey);
+    }
+  }
+}
+
+export function onLanguageChange(plugin) {
+  updateSidebarRibbonButton(plugin);
+  updateCommandNames(plugin);
+  for (const leaf of plugin.app?.workspace?.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || []) {
+    if (leaf.view?.rebuild) leaf.view.rebuild();
+    else leaf.view?.render?.();
+  }
+}
+
+export function getCompatibilityMessage(plugin, compat) {
+  if (!compat) return plugin.t(plugin.settings.serverVerified ? 'serverVerifiedBadge' : 'serverUnverifiedHint');
+  switch (compat.status) {
+    case 'compatible': return plugin.t('compatStatusOk', { serverVer: compat.serverVersion, count: compat.assetCount || 0 });
+    case 'server_outdated': return plugin.t('compatStatusServerOld', { serverVer: compat.serverVersion, minServerVer: compat.minServerVersion });
+    case 'plugin_outdated': return plugin.t('compatStatusPluginOld', { minPluginVer: compat.minPluginVersion, currentVer: compat.pluginVersion });
+    case 'api_incompatible': return plugin.t('compatStatusApiIncompatible', { apiVer: compat.apiVersion ?? '?', supportedVer: compat.supportedApiVersion ?? 1 });
+    case 'auth_failed': return plugin.t('compatStatusAuthFail');
+    case 'token_missing': return plugin.t('compatStatusTokenMissing');
+    case 'server_error': return plugin.t('compatStatusServerError', { code: compat.statusCode || '' });
+    default: return plugin.t('compatStatusOffline', { err: compat.error || '' });
+  }
+}
+
+export function reconcileGalleryLeaves(plugin) {
+  if (plugin.isUnloading || plugin.reconcilingGalleryLeaves) return null;
+  const workspace = plugin.app.workspace;
+  const leaves = workspace.getLeavesOfType?.(VIEW_TYPE_REMOTE_GALLERY) || [];
+  const keep = leaves.includes(workspace.activeLeaf) ? workspace.activeLeaf : leaves[0];
+  plugin.reconcilingGalleryLeaves = true;
+  try {
+    for (const leaf of leaves) if (leaf !== keep) leaf.detach();
+  } finally {
+    plugin.reconcilingGalleryLeaves = false;
+  }
+  return keep || null;
+}
+
+export async function initGalleryLeaf(plugin, reveal = false) {
+  if (plugin.isUnloading || !plugin.isRemoteServerReady()) return null;
+  const { workspace } = plugin.app;
+  if (!plugin.galleryLeafPromise) {
+    const pending = (async () => {
+      let leaf = reconcileGalleryLeaves(plugin);
+      if (!leaf) {
+        leaf = workspace.getRightLeaf(false);
+        if (!leaf) throw new Error(plugin.t('galleryPanelUnavailable'));
+        await leaf.setViewState({ type: VIEW_TYPE_REMOTE_GALLERY, active: false });
+      }
+      return leaf;
+    })();
+    plugin.galleryLeafPromise = pending;
+    pending.finally(() => { if (plugin.galleryLeafPromise === pending) plugin.galleryLeafPromise = null; }).catch(() => {});
+  }
+  const leaf = await plugin.galleryLeafPromise;
+  if (!plugin.isUnloading && reveal && leaf) await workspace.revealLeaf(leaf);
+  return leaf;
+}
+
+export function insertMarkdownToActiveEditor(plugin, mdSnippet, successNotice, target = undefined) {
+  const insertionTarget = target === undefined ? captureInsertionTarget(plugin) : target;
+  const result = insertLinkAtTarget(plugin, mdSnippet, insertionTarget, { appendNewlineOnEmptyLine: false });
+  if (!result.inserted) {
+    new Notice(result.reason);
+    return false;
+  }
+  const leaf = insertionTarget.view.leaf;
+  if (leaf) plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
+  if (successNotice) new Notice(successNotice);
+  return true;
 }

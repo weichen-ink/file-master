@@ -38,6 +38,17 @@ export function galleryToolbar(view,parent) {
     return input;
   });
   const popups=[folder.root,type.root,sort.root];
+  const insertGroup=filters.createDiv({cls:'fm-gallery-mode-group fm-browser-insert-mode',attr:{role:'group','aria-label':t('galleryInsertFormatLabel')}});
+  const insertButtons=['raw','webp'].map(mode=>{
+    const btn=insertGroup.createEl('button',{text:t(mode==='raw'?'galleryModeRaw':'galleryModeWebp'),attr:{type:'button','aria-pressed':'false'}});
+    btn.onclick=async event=>{
+      event?.preventDefault?.();
+      if(store.state.insertMode===mode)return;
+      try { await store.setInsertMode(mode); }
+      catch(error) { new Notice(error.message||String(error)); }
+    };
+    return [btn,mode];
+  });
   const outside=event=>{for(const popup of popups)if(!popup.contains(event.target))popup.open=false;};
   const escape=event=>{if(event.key==='Escape')for(const popup of popups)if(popup.open&&popup.contains(event.target)){event.preventDefault();event.stopPropagation();popup.open=false;popup.querySelector('summary').focus();}};
   const ownerDocument=parent.ownerDocument;ownerDocument?.addEventListener('click',outside);
@@ -49,6 +60,8 @@ export function galleryToolbar(view,parent) {
     folder.sync(buckets.map(value=>({value,label:value.split('/')[1],summary:value.replace('/',' / ')})));
     type.sync([['image','galleryFilterImage'],['audio','galleryFilterAudio'],['other','galleryFilterOther']].map(([value,key])=>({value,label:t(key),summary:t(key)})));
     for(const [button,mode] of [[grid,'grid'],[list,'list']]){button.toggleClass('is-active',state.layoutMode===mode);button.setAttribute('aria-pressed',String(state.layoutMode===mode));}
+    const activeInsert=state.insertMode==='webp'?'webp':'raw';
+    for(const [btn,mode] of insertButtons){btn.toggleClass('is-active',activeInsert===mode);btn.setAttribute('aria-pressed',String(activeInsert===mode));}
     const sortIndex=Math.max(0,sorts.indexOf(state.selectedSort));
     sort.text.setText(t(sortSummaryKeys[sortIndex]));
     sortInputs.forEach((input,index)=>{input.checked=index===sortIndex;});

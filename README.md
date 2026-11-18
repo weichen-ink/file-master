@@ -38,8 +38,8 @@ As an Obsidian vault grows, attachment management quickly gets messy:
 - **Vault analytics**: view local vs. remote attachment counts, storage usage, and largest files at a glance.
 
 ### 4. Vault-Wide Server File Renames
-- Before renaming a file on the server, File Master scans affected Markdown, Canvas, and Excalidraw documents and lists every matching link with **hover preview**.
-- Committing the rename updates all note references automatically while the server keeps an alias grace period for old URLs so external posts don't immediately 404.
+- Before renaming a file on the server, File Master scans affected Markdown, Canvas, and Excalidraw documents and lists every matching link with **hover preview** and **one-click jump to line**.
+- Committing the rename updates all note references automatically while the server keeps an alias grace period for old URLs so external posts don't immediately 404. Renamed target filenames remain permanently reserved on the server even after deletion to prevent future uploads from hijacking historic external links.
 
 ### 5. Preview, Insert, and Recover Anytime
 - **Gallery & desktop sidebar**: filter by directory, type, search query, and sort order; zoom images, toggle Original/WebP, and insert directly into the active editor.

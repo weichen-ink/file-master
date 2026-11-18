@@ -1,4 +1,5 @@
 import { OBSIDIAN_NOTE_EXTS, AUDIO_EXTS, IMAGE_EXTS, NEEDS_TRANSCODE_IMAGE_EXTS, isAttachmentExt } from './constants.js';
+import { decodeValidPercentRuns, resolveRelativePosixPath } from './link-syntax.js';
 import { requestUrl } from 'obsidian';
 
 /**
@@ -525,7 +526,7 @@ export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, opti
     while ((m = wikiRegex.exec(scanText)) !== null) {
       const isEmbed = Boolean(m[1]);
       const rawInside = m[2].trim();
-      const targetPart = rawInside.split(/[|#]/)[0].trim();
+      const targetPart = rawInside.split(/[|#]/)[0].replace(/\\+$/, '').trim();
       if (!targetPart) continue; // Same-page anchor [[#heading]]
 
       if (!resolveWikiTarget(targetPart, docPath, vaultIndex)) {
@@ -545,8 +546,8 @@ export function scanNoteContentForBrokenLinks(docPath, rawText, vaultIndex, opti
     }
   }
 
-  // 2. Check Standard Markdown Links: ![alt](url) and [alt](url)
-  const mdRegex = /(!?)\[([^\]\r\n]*)\]\((\s*<[^>]+>|[^\s)]+)(?:\s+["'][^"']*["'])?\)/g;
+  // 2. Check Standard Markdown Links: ![alt](url) and [alt](url) (including balanced parentheses in URLs)
+  const mdRegex = /(!?)\[([^\]\r\n]*)\]\((\s*<[^>]+>|(?:[^()\s]|\([^()\s]*\))+)(?:\s+["'][^"']*["'])?\s*\)/g;
   let m;
   while ((m = mdRegex.exec(scanText)) !== null) {
     const isEmbed = Boolean(m[1]);
@@ -793,10 +794,11 @@ export function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, co
     const wikiM = rawRef.match(/^!?\[\[([^\]|#]+)/);
     if (wikiM) rawRef = wikiM[1].trim();
 
-    const cleanRef = rawRef.replace(/^\.?\//, '').trim();
+    const rawTrimmed = rawRef.trim();
+    const isDotRelative = rawTrimmed.startsWith('./') || rawTrimmed.startsWith('../');
+    const cleanRef = rawTrimmed.replace(/^\.?\//, '').trim();
     const cleanRefLower = cleanRef.toLowerCase();
-    let decodedRefLower = cleanRefLower;
-    try { decodedRefLower = decodeURIComponent(cleanRefLower); } catch {}
+    const decodedRefLower = decodeValidPercentRuns(cleanRefLower);
 
     const isUrl = /^https?:\/\//i.test(cleanRef);
     const hasPathSlash = cleanRef.includes('/');
@@ -806,9 +808,22 @@ export function rewriteExcalidrawEmbeddedFiles(content, removeItem, keepItem, co
     if (removeItem.source === 'local') {
       if (isUrl) {
         isMatch = false;
+      } else if (isDotRelative && context?.docPath) {
+        const relResolved = resolveRelativePosixPath(context.docPath, decodeValidPercentRuns(rawTrimmed));
+        isMatch = Boolean(relResolved) && localPathTargets.has(relResolved.toLowerCase());
       } else if (hasPathSlash) {
-        // Full path matching: prevents attachments/b/diagram.png from matching attachments/a/diagram.png
-        isMatch = localPathTargets.has(cleanRefLower) || localPathTargets.has(decodedRefLower);
+        // Honor authoritative host resolver first; fall back to full path matching
+        if (typeof context?.resolveLink === 'function' && !rawTrimmed.startsWith('/')) {
+          const resolved = context.resolveLink(decodeValidPercentRuns(cleanRef));
+          if (resolved) {
+            const resLower = String(resolved).toLowerCase().replace(/^\.?\//, '');
+            isMatch = localPathTargets.has(resLower) || localPathTargets.has(decodeValidPercentRuns(resLower));
+          } else {
+            isMatch = localPathTargets.has(cleanRefLower) || localPathTargets.has(decodedRefLower);
+          }
+        } else {
+          isMatch = localPathTargets.has(cleanRefLower) || localPathTargets.has(decodedRefLower);
+        }
       } else {
         // Bare filename without path (e.g. [[diagram.png]])
         if (typeof context?.resolveLink === 'function') {

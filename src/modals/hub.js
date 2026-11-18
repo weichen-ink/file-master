@@ -1,7 +1,6 @@
 import { displayVersion } from '../constants.js';
-import { getCompatibilityMessage, initGalleryLeaf } from '../plugin/lifecycle.js';
 import { checkServerCompatibility } from '../plugin/server-client.js';
-import { isDocFile, refreshRemoteImageCache } from '../plugin/vault-utils.js';
+import { getCompatibilityMessage, initGalleryLeaf, isDocFile, refreshRemoteImageCache } from '../plugin/vault-utils.js';
 import { copyActiveNoteForAstro, resumePendingMigration } from '../plugin/attachment-ops.js';
 import { loadPendingRename } from '../plugin/remote-rename.js';
 import { migrationCheckpointPath } from '../transfers.js';
@@ -139,16 +138,16 @@ export class FileMasterHubModal extends Modal {
     (async()=>{
       const tasks=[];
       if(this.plugin.activeTransferController){
-        tasks.push({icon:'loader',title:this.plugin.settings.language==='en'?'Transfer in progress':'正在执行传输任务',run:null});
+        tasks.push({icon:'loader',title:t('hubTaskInProgress'),run:null});
       }
       try{
         if(remote && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))){
-          tasks.push({icon:'rotate-ccw',title:this.plugin.settings.language==='en'?'Resume pending upload':'恢复未完成的上传任务',run:()=>this.navigator.leave(()=>resumePendingMigration(this.plugin))});
+          tasks.push({icon:'rotate-ccw',title:t('hubTaskResumeUpload'),run:()=>this.navigator.leave(()=>resumePendingMigration(this.plugin))});
         }
       }catch{}
       try{
         if(remote && await loadPendingRename(this.plugin)){
-          tasks.push({icon:'file-pen-line',title:this.plugin.settings.language==='en'?'Resume pending rename':'恢复未完成的远程改名',run:()=>show(new RemoteRenameModal(this.app,this.plugin))});
+          tasks.push({icon:'file-pen-line',title:t('hubTaskResumeRename'),run:()=>show(new RemoteRenameModal(this.app,this.plugin))});
         }
       }catch{}
       if(!tasks.length || !this.contentEl.isConnected)return;

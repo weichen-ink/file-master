@@ -3,14 +3,13 @@ import { assetUrl, assetMarkdown, hasOptimizedVariant, copyText } from '../ui/li
 import { iconButton } from '../ui/gallery-toolbar.js';
 import { mountImageViewport } from '../ui/image-viewport.js';
 import { openModal, modalChrome, modalTitle } from '../ui/navigation.js';
-import { getItemPreviewUrl } from '../plugin/vault-utils.js';
-import { insertMarkdownToActiveEditor } from '../plugin/lifecycle.js';
+import { getItemPreviewUrl, insertMarkdownToActiveEditor } from '../plugin/vault-utils.js';
 import { IMAGE_EXTS } from '../constants.js';
 import { formatBytes, getExt } from '../engine.js';
 import { translateUi } from '../i18n.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
-import { documentRow } from '../ui/document-list.js';
+import { documentRow, navigateToVaultDocument } from '../ui/document-list.js';
 import { RemoteRenameModal } from './remote-rename.js';
 let imageCanvasSequence = 0;
 
@@ -120,18 +119,18 @@ export class ImageLightboxModal extends Modal {
     const location=this.item.displayPath?.split('/').slice(0,-1).join(' / ');
     const layout=this.contentEl.createDiv({cls:'fm-asset-layout'});
     const canvas=layout.createDiv({cls:'fm-asset-canvas'});
-    const tools=canvas.createDiv({cls:'fm-asset-tools'});
     this.variant='raw';
-    const variants=tools.createDiv({cls:'fm-gallery-mode-group',attr:{role:'group','aria-label':t('previewVariant')}});
-    const variantButtons=[];
-    if(image) for(const mode of remote&&hasOptimizedVariant(remote)?['raw','webp']:['raw']) {
-      const button=variants.createEl('button',{text:t(mode==='raw'?'galleryModeRaw':'galleryModeWebp'),attr:{type:'button','aria-pressed':String(mode==='raw')}});
-      button.onclick=()=>{this.variant=mode;variantButtons.forEach(([b,m])=>b.setAttribute('aria-pressed',String(m===mode)));this.loadPreview();};
-      variantButtons.push([button,mode]);
-    }
-    const zoom=tools.createDiv({cls:'fm-asset-zoom',attr:{role:'group','aria-label':t('previewZoomLabel')}});
     const zoomButtons=[];
     if(image) {
+      const tools=canvas.createDiv({cls:'fm-asset-tools'});
+      const variants=tools.createDiv({cls:'fm-gallery-mode-group',attr:{role:'group','aria-label':t('previewVariant')}});
+      const variantButtons=[];
+      for(const mode of remote&&hasOptimizedVariant(remote)?['raw','webp']:['raw']) {
+        const button=variants.createEl('button',{text:t(mode==='raw'?'galleryModeRaw':'galleryModeWebp'),attr:{type:'button','aria-pressed':String(mode==='raw')}});
+        button.onclick=()=>{this.variant=mode;variantButtons.forEach(([b,m])=>b.setAttribute('aria-pressed',String(m===mode)));this.loadPreview();};
+        variantButtons.push([button,mode]);
+      }
+      const zoom=tools.createDiv({cls:'fm-asset-zoom',attr:{role:'group','aria-label':t('previewZoomLabel')}});
       zoomButtons.push(iconButton(zoom,this.plugin,'previewZoomOut','minus',()=>this.viewport?.zoomOut()));
       this.percentage=zoom.createEl('button',{text:'—',attr:{type:'button','aria-label':t('previewActualSize')}});
       this.percentage.onclick=()=>this.viewport?.actual();zoomButtons.push(this.percentage);
@@ -298,7 +297,20 @@ export class NoteRefsModal extends Modal {
       contentEl.createEl('p',{text:t('notePreviewHint'),cls:'fm-inline-hint'});
       const listEl = contentEl.createDiv({ cls: 'fm-scroll-list fm-document-list' });
       for (const notePath of this.refNotePaths) {
-        documentRow(listEl,this.plugin || {app:this.app,t},typeof notePath==='string'?{path:notePath}:notePath,{hoverParent:this});
+        const host = this.plugin || { app: this.app, t };
+        documentRow(listEl, host, typeof notePath === 'string' ? { path: notePath } : notePath, {
+          hoverParent: this,
+          onSelect: async (path, line) => {
+            if (typeof this.onJump === 'function') {
+              await this.onJump(path, line);
+              this.close();
+              return true;
+            }
+            const opened = await navigateToVaultDocument(host, path, line);
+            if (opened) this.close();
+            return opened;
+          }
+        });
       }
     }
 

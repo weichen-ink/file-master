@@ -1,4 +1,5 @@
 import { Notice, setIcon } from 'obsidian';
+import { translateUi } from '../i18n.js';
 
 const modalHeaders = new WeakMap();
 
@@ -19,7 +20,7 @@ export function modalChrome(modal) {
     const bar = root.createDiv({cls:'fm-modal-nav'});
     const close = bar.createEl('button', {attr:{type:'button'}});
     close.addClass('fm-modal-close');
-    const closeLabel = modal.plugin?.t('closeBtn') || 'Close';
+    const closeLabel = modal.plugin?.t('closeBtn') || translateUi('auto', 'closeBtn') || 'Close';
     close.setAttribute('aria-label', closeLabel);
     close.onclick = event => { event.preventDefault(); event.stopPropagation(); modal.close(); };
     setIcon(close, 'x');
