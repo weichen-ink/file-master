@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS = {
   excludeLockedRemoteFiles: true
 };
 
-export const MIN_SERVER_VERSION = '1.1.0';
+export const MIN_SERVER_VERSION = '1.2.8';
 
 // Keep the product label compact; release metadata retains its required patch component.
 export const displayVersion = version => String(version || '').replace(/^(\d+\.\d+)\.0$/, '$1');

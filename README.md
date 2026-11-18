@@ -95,7 +95,7 @@ As an Obsidian vault grows, attachment management quickly gets messy:
    - Enable the server connection in plugin settings and enter your site URL plus the API token from the server's **Site settings**.
    - Click **Test Connection** to start uploading and browsing server files.
 
-> **Note**: Both the plugin and server must be **1.1 or later** (**1.2.0+** recommended). On mobile, use a server URL reachable from your phone rather than `localhost`.
+> **Note**: Plugin **1.2.9+** requires **File Master Server 1.2.8 or later** (and vice versa). On mobile, use a server URL reachable from your phone rather than `localhost`.
 
 ---
 

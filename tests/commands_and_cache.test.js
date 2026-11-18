@@ -11,10 +11,10 @@ test('All 13 registered commands enforce remote gating and execute cleanly', asy
       return { status: 200, json: { items: [], totalCount: 0, buckets: [] } };
     }
     if (url.includes('/api/platform/version')) {
-      return { status: 200, json: { version: '1.2.5', minPluginVersion: '1.0.0', apiVersion: 1 } };
+      return { status: 200, json: { version: '1.2.8', minPluginVersion: '1.2.9', apiVersion: 1 } };
     }
     if (url.includes('/api/platform/status')) {
-      return { status: 200, json: { initialized: true, version: '1.2.5' } };
+      return { status: 200, json: { initialized: true, version: '1.2.8' } };
     }
     return { status: 200, json: {} };
   }, {
@@ -43,7 +43,7 @@ test('All 13 registered commands enforce remote gating and execute cleanly', asy
   };
 
   const plugin = new loaded.Plugin(app);
-  plugin.manifest = { id: 'file-master', version: '1.2.5' };
+  plugin.manifest = { id: 'file-master', version: '1.2.9' };
   plugin.settings = { enableRemoteServer: false, serverVerified: false, serverUrl: 'https://example.com', apiToken: 'tok', language: 'en' };
   plugin.addCommand = (cmd) => commands.push(cmd);
   plugin.registerEvent = () => {};

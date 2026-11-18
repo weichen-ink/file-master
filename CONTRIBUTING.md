@@ -6,9 +6,9 @@ Run `npm ci`, then `npm test`. Tests rebuild `main.js` first. Commit the generat
 
 ## Compatibility / 兼容性
 
-Keep `package.json`, the root version entries in `package-lock.json`, `manifest.json`, and `versions.json` in sync. `versions.json` maps plugin releases to the minimum Obsidian version, not the server version. Server compatibility is controlled by `MIN_SERVER_VERSION` and the server's `minPluginVersion` response. Release 1.1 requires 1.1 on both sides.
+Keep `package.json`, the root version entries in `package-lock.json`, `manifest.json`, and `versions.json` in sync. `versions.json` maps plugin releases to the minimum Obsidian version, not the server version. Server compatibility is controlled by `MIN_SERVER_VERSION` and the server's `minPluginVersion` response. Plugin 1.2.9+ requires server 1.2.8+ and vice versa.
 
-同步维护包信息、锁文件、插件清单及 `versions.json`。`versions.json` 对应最低 Obsidian 版本，不是服务端版本；双方兼容要求分别由插件的 `MIN_SERVER_VERSION` 和服务端的 `minPluginVersion` 控制。1.1 版本要求两端均为 1.1 或更新版本。
+同步维护包信息、锁文件、插件清单及 `versions.json`。`versions.json` 对应最低 Obsidian 版本，不是服务端版本；双方兼容要求分别由插件的 `MIN_SERVER_VERSION` 和服务端的 `minPluginVersion` 控制。插件 1.2.9+ 与服务端 1.2.8+ 要求双向同步升级。
 
 Obsidian release versions must use three-part semantic versioning, such as `1.1.0`, in metadata and tags. The interface may show the shorter product label `1.1`.
 

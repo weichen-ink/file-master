@@ -1,5 +1,10 @@
 # Changelog (file-master)
 
+## [1.2.9] - 2026-11-18
+
+### Strict Peer Version Handshake
+- Tighten `MIN_SERVER_VERSION` to `1.2.8` (paired with `file-master-server` `1.2.8` requiring plugin `1.2.9+`) so both sides enforce the latest conflict-verification, server-side pagination, and share-integrity contracts.
+
 ## [1.2.8] - 2026-11-18
 
 ### Link Identity Precision, Fragment & Title Preservation, Server Pagination & UI Polish

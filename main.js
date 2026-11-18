@@ -27,7 +27,7 @@ var DEFAULT_SETTINGS = {
   excludedLocalFolders: "",
   excludeLockedRemoteFiles: true
 };
-var MIN_SERVER_VERSION = "1.1.0";
+var MIN_SERVER_VERSION = "1.2.8";
 var displayVersion = (version) => String(version || "").replace(/^(\d+\.\d+)\.0$/, "$1");
 var VIEW_TYPE_REMOTE_GALLERY = "file-master-remote-gallery";
 var IMAGE_EXTS = /* @__PURE__ */ new Set([
