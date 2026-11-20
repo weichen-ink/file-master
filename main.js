@@ -10201,6 +10201,9 @@ var OrphanWizardModal = class extends FileMasterModal {
 
 // src/gallery.js
 var import_obsidian26 = require("obsidian");
+function insertionTargetFor(view) {
+  return view.getInsertionTarget ? view.getInsertionTarget() : view.insertionTarget;
+}
 function renderGalleryMeta(parent, item, view) {
   const meta = parent.createDiv({ cls: "fm-gallery-meta" });
   const hasSize = typeof item.size === "number";
@@ -10307,7 +10310,7 @@ function renderRemoteGallery(view, containerEl) {
           );
         }
         (_a = view.store) == null ? void 0 : _a.emit();
-      }, { insertMode: view.insertMode, insertionTarget: view.insertionTarget })).catch((error) => new import_obsidian26.Notice(error.message));
+      }, { insertMode: view.insertMode, insertionTarget: insertionTargetFor(view) })).catch((error) => new import_obsidian26.Notice(error.message));
     };
     thumbWrap.onclick = openPreview;
     thumbWrap.setAttribute("role", "button");
@@ -10351,7 +10354,7 @@ function renderRemoteGallery(view, containerEl) {
     insertBtn.onclick = () => {
       const mdSnippet = assetMarkdown(fn, insertTargetUrl) + "\n";
       const noticeMsg = isWebpMode ? view.t("galleryInsertedWebp") : view.t("galleryInsertedRaw");
-      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, view.insertionTarget);
+      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, insertionTargetFor(view));
     };
     const copyBtn = actions.createEl("button", { cls: "fm-icon-button", attr: { type: "button", "aria-label": view.t("previewCopyUrl") } });
     (0, import_obsidian26.setIcon)(copyBtn, "copy");
@@ -10454,6 +10457,10 @@ var RemoteGalleryView = class extends import_obsidian27.ItemView {
     this.plugin = plugin;
     this.store = galleryStore(plugin);
     bindState(this);
+  }
+  // A docked gallery stays open while the user moves the caret in their note.
+  getInsertionTarget() {
+    return captureInsertionTarget(this.plugin);
   }
   getViewType() {
     return VIEW_TYPE_REMOTE_GALLERY;

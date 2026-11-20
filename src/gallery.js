@@ -9,6 +9,10 @@ import { isInsertionTargetValid } from './plugin/editor-target.js';
 import { Notice, setIcon } from 'obsidian';
 import { fileActionRow } from './ui/file-action-list.js';
 
+function insertionTargetFor(view) {
+  return view.getInsertionTarget ? view.getInsertionTarget() : view.insertionTarget;
+}
+
 function renderGalleryMeta(parent, item, view) {
   const meta = parent.createDiv({ cls: 'fm-gallery-meta' });
   const hasSize = typeof item.size === 'number';
@@ -118,7 +122,7 @@ export function renderRemoteGallery(view, containerEl) {
           );
         }
         view.store?.emit();
-      }, {insertMode:view.insertMode, insertionTarget:view.insertionTarget})).catch(error=>new Notice(error.message));
+      }, {insertMode:view.insertMode, insertionTarget:insertionTargetFor(view)})).catch(error=>new Notice(error.message));
     };
     thumbWrap.onclick = openPreview;
     thumbWrap.setAttribute('role', 'button');
@@ -168,7 +172,7 @@ export function renderRemoteGallery(view, containerEl) {
     insertBtn.onclick = () => {
       const mdSnippet = assetMarkdown(fn,insertTargetUrl)+"\n";
       const noticeMsg = isWebpMode ? view.t('galleryInsertedWebp') : view.t('galleryInsertedRaw');
-      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, view.insertionTarget);
+      if (view.plugin) insertMarkdownToActiveEditor(view.plugin, mdSnippet, noticeMsg, insertionTargetFor(view));
     };
     const copyBtn=actions.createEl('button',{cls:'fm-icon-button',attr:{type:'button','aria-label':view.t('previewCopyUrl')}});
     setIcon(copyBtn,'copy');copyBtn.onclick=()=>copyText(view.plugin,insertTargetUrl);

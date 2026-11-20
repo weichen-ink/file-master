@@ -54,6 +54,8 @@ export class RemoteGalleryModal extends Modal {
 }
 export class RemoteGalleryView extends ItemView {
   constructor(leaf,plugin){super(leaf);this.plugin=plugin;this.store=galleryStore(plugin);bindState(this);}
+  // A docked gallery stays open while the user moves the caret in their note.
+  getInsertionTarget(){return captureInsertionTarget(this.plugin);}
   getViewType(){return VIEW_TYPE_REMOTE_GALLERY;}
   getDisplayText(){return this.t('galleryViewTitle');}
   getIcon(){return 'images';}

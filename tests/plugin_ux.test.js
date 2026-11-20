@@ -97,6 +97,31 @@ test('Insertion preserves the captured selection, advances the cursor, and rejec
   view.file={path:'other.md',extension:'md'};assert.equal(insertMarkdownToActiveEditor(plugin,'WRONG',null,target),false);
 });
 
+test('Sidebar insertion uses the latest note selection even without a pointer event',async()=>{
+  const {RemoteGalleryView}=setup(),{plugin,view,editor}=editorFixture();
+  const text='标题\n封面图：\n结尾';let value=text,cursor={line:0,ch:0};
+  editor.getValue=()=>value;
+  editor.getLine=line=>value.split('\n')[line];
+  editor.getCursor=()=>({...cursor});
+  editor.setCursor=pos=>{cursor=pos;};
+  editor.replaceRange=(snippet,from,to)=>{
+    const offset=pos=>value.split('\n').slice(0,pos.line).reduce((sum,line)=>sum+line.length+1,0)+pos.ch;
+    const start=offset(from),end=offset(to);value=value.slice(0,start)+snippet+value.slice(end);
+  };
+  plugin.settings={};plugin.lastActiveMarkdownView=view;
+  plugin.app.workspace.on=()=>({});plugin.app.workspace.offref=()=>{};
+  plugin.fetchRemoteFilePage=async()=>({items:[{filename:'cover.png',year:'2026',month:'11',rawUrl:'https://example.invalid/cover.png'}],totalCount:1,buckets:[]});
+  const sidebar=new RemoteGalleryView({},plugin);sidebar.app=plugin.app;sidebar.contentEl=new Element();
+  await sidebar.onOpen();
+  const insert=sidebar.contentEl.all().find(el=>el['data-insert-action']);
+  assert.ok(insert);
+  // Move the caret in the same note, then activate the sidebar by keyboard.
+  cursor={line:1,ch:4};plugin.app.workspace.getActiveViewOfType=()=>null;
+  insert.onclick();
+  assert.equal(value,'标题\n封面图：![cover.png](https://example.invalid/cover.png)\n\n结尾');
+  sidebar.onClose();sidebar.store.clear();
+});
+
 test('Preview renders usable links before image load, ignores late local URLs and hides invalid WebP',async()=>{
   const copied=[],wait=deferred(),{ImageLightboxModal}=loadPlugin(undefined,{host,navigator:{clipboard:{writeText:async value=>copied.push(value)}}});const {plugin}=editorFixture();plugin.settings={};plugin.app.vault.getResourcePath=()=>wait.promise;
   const local=new ImageLightboxModal(plugin.app,plugin,{source:'local',name:'test.png',size:10,rawObj:{path:'test.png'}});local.onOpen();local.onClose();wait.resolve('late.png');await tick();assert.equal(local.contentEl.children.length,0);

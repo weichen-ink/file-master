@@ -1,5 +1,13 @@
 # Changelog (file-master)
 
+## [1.2.10] - 2026-11-20
+
+### Gallery Insertion Position and Shared File-List Styles
+- Read the latest note selection when inserting from the docked gallery or opening its preview, so moving the cursor while the gallery remains open does not insert at an old position.
+- Align the Original / WebP selector with the filters and share its selected colors with the grid / list controls.
+- Unify file-row hover backgrounds and filename link colors across Hub workflows, including unused-file results, uploads, duplicate files, trash, and vault overview.
+- Add a regression test for sidebar insertion after moving the cursor without a pointer event.
+
 ## [1.2.9] - 2026-11-18
 
 ### Strict Peer Version Handshake

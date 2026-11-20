@@ -239,6 +239,8 @@
   --fm-soft: rgba(113, 50, 245, .08);
   --fm-border: color-mix(in srgb, var(--background-modifier-border) 80%, var(--text-muted) 20%);
   --fm-divider: color-mix(in srgb, var(--fm-border) 65%, transparent);
+  --fm-file-row-hover: var(--background-modifier-hover, color-mix(in srgb, var(--text-normal) 5%, transparent));
+  --fm-file-name-hover: var(--link-color, var(--text-accent, var(--fm-brand)));
   box-sizing: border-box;
 }
 
@@ -1159,12 +1161,6 @@ button.fm-hub-status.is-failed:hover {
   border-radius: 8px;
 }
 
-.fm-ui .fm-icon-button.is-active {
-  background: var(--fm-soft);
-  color: var(--fm-control-foreground, var(--text-accent, var(--fm-brand)));
-  border-color: color-mix(in srgb, var(--fm-brand) 24%, transparent);
-}
-
 .fm-gallery-mode-group {
   display: inline-flex;
   align-items: center;
@@ -1188,9 +1184,11 @@ button.fm-hub-status.is-failed:hover {
   color: var(--text-muted);
 }
 
+.fm-ui .fm-view-controls .fm-icon-button[aria-pressed='true'],
 .fm-ui .fm-gallery-mode-group button[aria-pressed='true'] {
-  background: var(--background-secondary);
-  color: var(--text-normal);
+  background: var(--fm-soft);
+  color: var(--text-accent, var(--fm-brand));
+  border-color: color-mix(in srgb, var(--fm-brand) 24%, transparent);
 }
 
 .fm-browser-status {
@@ -1338,8 +1336,8 @@ button.fm-hub-status.is-failed:hover {
 
 .fm-ui button.fm-gallery-name:hover,
 .fm-gallery-card:hover .fm-gallery-name,
-.fm-gallery-list-row:hover .fm-gallery-name {
-  color: var(--fm-brand);
+.fm-gallery-card:focus-within .fm-gallery-name {
+  color: var(--fm-file-name-hover);
   background: transparent;
 }
 
@@ -1538,11 +1536,6 @@ button.fm-hub-status.is-failed:hover {
 
 .fm-gallery-grid.is-list .fm-gallery-list-row:last-child {
   border-bottom: 0;
-}
-
-.fm-gallery-list-row:hover,
-.fm-gallery-list-row:focus-within {
-  background: var(--background-secondary);
 }
 
 .fm-gallery-grid.is-list .fm-gallery-list-row .fm-file-row-preview {
@@ -3075,7 +3068,7 @@ button.fm-hub-status.is-failed:hover {
 
 .fm-list-item.fm-file-row:not(.is-selected):hover,
 .fm-list-item.fm-file-row:not(.is-selected):focus-within {
-  background: var(--background-secondary);
+  background: var(--fm-file-row-hover);
 }
 
 .fm-list-item.fm-file-row.has-selection {
@@ -3123,9 +3116,8 @@ button.fm-hub-status.is-failed:hover {
   transition: color 0.15s ease;
 }
 
-.fm-list-item.fm-file-row:hover .fm-file-row-name-text,
-.fm-list-item.fm-file-row:focus-within .fm-file-row-name-text {
-  color: var(--fm-brand);
+.fm-list-item.fm-file-row:is(:hover, :focus-within) :is(.fm-file-row-name-text, .fm-gallery-name) {
+  color: var(--fm-file-name-hover);
 }
 
 .fm-file-row-meta {
@@ -3556,16 +3548,6 @@ button.fm-hub-status.is-failed:hover {
   padding: 0;
 }
 
-.fm-rename-preview .fm-file-row:hover,
-.fm-rename-preview .fm-file-row:focus-within {
-  background: transparent;
-}
-
-.fm-rename-preview .fm-file-row:hover .fm-file-row-name-text,
-.fm-rename-preview .fm-file-row:focus-within .fm-file-row-name-text {
-  color: inherit;
-}
-
 .fm-rename-names {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -3709,10 +3691,6 @@ button.fm-hub-status.is-failed:hover {
 }
 .fm-analytics-files {
   margin-top: 12px;
-}
-.fm-analytics-files .fm-list-item.fm-file-row:not(.is-selected):hover,
-.fm-analytics-files .fm-list-item.fm-file-row:not(.is-selected):focus-within {
-  background: var(--background-primary);
 }
 .fm-analytics-pager {
   display: flex;
@@ -3952,8 +3930,6 @@ button.fm-hub-status.is-failed:hover {
 
 .fm-ui button.fm-file-preview-trigger:not(:disabled):hover {
   background: transparent;
-  color: var(--fm-brand);
-  text-decoration: underline;
 }
 
 .fm-ui button.fm-mini-btn {
@@ -4011,5 +3987,7 @@ button.fm-hub-status.is-failed:hover {
 }
 
 .fm-browser-insert-mode {
-  margin-left: auto;
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-left: 0;
 }
