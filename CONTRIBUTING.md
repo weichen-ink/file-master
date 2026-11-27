@@ -4,6 +4,46 @@ Run `npm ci`, then `npm test`. Tests rebuild `main.js` first. Commit the generat
 
 运行 `npm ci` 后使用 `npm test`，测试前会重建 `main.js`，源码和生成产物需要一起提交。`npm run package` 生成包含 `main.js`、`manifest.json`、`styles.css` 的发布包。
 
+## Obsidian simulation
+
+`npm run simulate:obsidian` runs an orphan scan through the wizard's Next button and checks the returned paths. Use `npm run --silent simulate:obsidian` for JSON output from the plugin checkout.
+
+`npm run simulate:obsidian` 会调用孤儿附件扫描向导的「下一步」处理函数，并校验返回的路径。从插件仓库执行 `npm run --silent simulate:obsidian` 可直接取得 JSON 输出。
+
+For a custom reproduction, run this example from the plugin checkout. Each call provides a fresh vault, the plugin instance, and the feature modules used by the tests.
+
+需要复现其他问题时，可从插件仓库运行下面的示例。每次调用都会创建独立的内存知识库，返回插件实例及测试使用的功能模块。
+
+```sh
+node <<'NODE'
+const assert = require('node:assert/strict');
+const { createObsidianSimulation } = require('./dev/obsidian');
+
+async function main() {
+  const { plugin, add, scans } = createObsidianSimulation();
+  add('assets/used.png', 'sample bytes', true);
+  add('assets/unused.png', 'other bytes', true);
+  add('note.md', '![[assets/used.png]]');
+
+  const files = await scans.scanUnusedFiles(plugin, {
+    scanLocal: true,
+    scanRemote: false,
+    typeImage: true
+  });
+  assert.deepEqual(files.map((file) => file.displayPath), ['assets/unused.png']);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+NODE
+```
+
+Pass `{ requestUrl }` to supply Obsidian HTTP responses or `{ globals: { host, fetch } }` to override host APIs and browser fetch. The default HTTP handlers reject unexpected calls. Use `contents`, `journal`, and `trashed` on the returned simulation to inspect file edits, recovery records, and trash actions. The simulated UI exposes its element tree and handlers for workflow tests. Use real Obsidian for layout, native input methods, and device behavior.
+
+通过 `{ requestUrl }` 提供模拟的 Obsidian HTTP 响应，通过 `{ globals: { host, fetch } }` 替换宿主 API 或浏览器请求。默认 HTTP 处理器会拒绝意外调用。返回对象的 `contents`、`journal` 和 `trashed` 可用于检查文件修改、恢复记录和回收站操作。界面模拟提供元素树及事件处理函数，布局、原生输入法及设备行为需在真实 Obsidian 中验证。
+
 ## Compatibility / 兼容性
 
 Keep `package.json`, the root version entries in `package-lock.json`, `manifest.json`, and `versions.json` in sync. `versions.json` maps plugin releases to the minimum Obsidian version, not the server version. Server compatibility is controlled by `MIN_SERVER_VERSION` and the server's `minPluginVersion` response. Plugin 1.2.9+ requires server 1.2.8+ and vice versa.

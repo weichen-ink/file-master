@@ -102,11 +102,30 @@ export function updateSidebarRibbonButton(plugin) {
   );
 }
 
+export function normalizeFolderPath(folderPath) {
+  return String(folderPath || '').replace(/^\/+|\/+$/g, '');
+}
+
+export function normalizeFolderList(folders) {
+  if (!Array.isArray(folders)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const raw of folders) {
+    const clean = normalizeFolderPath(raw);
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      out.push(clean);
+    }
+  }
+  return out;
+}
+
 export function getExcludedLocalFolderList(settings) {
-  return String(settings.excludedLocalFolders || '')
-    .split(/[,;\n]+/)
-    .map((s) => s.trim().replace(/^\/+|\/+$/g, ''))
-    .filter(Boolean);
+  return normalizeFolderList(
+    String(settings?.excludedLocalFolders || '')
+      .split(/[,;\n]+/)
+      .map((s) => s.trim())
+  );
 }
 
 export function isLocalPathExcluded(settings, filePath) {
@@ -115,8 +134,47 @@ export function isLocalPathExcluded(settings, filePath) {
   return list.some((folder) => p === folder || p.startsWith(folder + '/'));
 }
 
+export function createDefaultFolderScope(settings, initialInclude = []) {
+  return {
+    includeFolders: normalizeFolderList(Array.isArray(initialInclude) ? initialInclude : [initialInclude]),
+    excludeFolders: getExcludedLocalFolderList(settings)
+  };
+}
+
+export function resolveLocalFolderScope(settings, options = null) {
+  const hasExplicitInclude = Array.isArray(options?.includeFolders);
+  const legacyPrefix = normalizeFolderPath(options?.folderPrefix);
+  const includeFolders = hasExplicitInclude
+    ? normalizeFolderList(options.includeFolders)
+    : (legacyPrefix ? [legacyPrefix] : []);
+
+  let excludeFolders;
+  if (Array.isArray(options?.excludeFolders)) {
+    excludeFolders = normalizeFolderList(options.excludeFolders);
+  } else if (!hasExplicitInclude && legacyPrefix) {
+    excludeFolders = [];
+  } else {
+    excludeFolders = getExcludedLocalFolderList(settings);
+  }
+
+  return { includeFolders, excludeFolders };
+}
+
+export function matchesLocalFolderScope(filePath, scope) {
+  const p = String(filePath || '').replace(/^\/+/, '');
+  const include = scope?.includeFolders || [];
+  const exclude = scope?.excludeFolders || [];
+  if (include.length > 0 && !include.some((folder) => p === folder || p.startsWith(folder + '/'))) {
+    return false;
+  }
+  if (exclude.length > 0 && exclude.some((folder) => p === folder || p.startsWith(folder + '/'))) {
+    return false;
+  }
+  return true;
+}
+
 export async function toggleLocalFolderExclusion(plugin, folderPath) {
-  const clean = String(folderPath || '').replace(/^\/+|\/+$/g, '');
+  const clean = normalizeFolderPath(folderPath);
   if (!clean) return;
   const list = getExcludedLocalFolderList(plugin.settings);
   const idx = list.indexOf(clean);
@@ -133,10 +191,17 @@ export async function toggleLocalFolderExclusion(plugin, folderPath) {
 
 export function getAllVaultFolderPaths(app) {
   const folderSet = new Set();
-  for (const f of app.vault.getFiles()) {
-    const parentPath = f.parent?.path;
-    if (parentPath && parentPath !== '/') {
-      folderSet.add(parentPath);
+  const files = app?.vault?.getFiles?.() || [];
+  for (const f of files) {
+    const parentPath = f.parent?.path && f.parent.path !== '/'
+      ? f.parent.path
+      : (typeof f.path === 'string' && f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '');
+    if (!parentPath) continue;
+    const parts = parentPath.split('/').filter(Boolean);
+    let acc = '';
+    for (const part of parts) {
+      acc = acc ? `${acc}/${part}` : part;
+      folderSet.add(acc);
     }
   }
   return [...folderSet].sort();

@@ -88,29 +88,81 @@ export function migrationCheckpointPath(plugin) {
   return getLogFilePath(plugin).replace(/operation\.log$/, 'migration-pending.json');
 }
 
-export async function clearMigrationCheckpoint(plugin) {
-  const adapter = plugin?.app?.vault?.adapter;
-  if (!adapter) return false;
-  const path = migrationCheckpointPath(plugin);
-  if (await adapter.exists(path)) {
-    await adapter.remove(path);
-    return true;
+const checkpointQueues = new WeakMap();
+
+function serializeCheckpoint(plugin, task) {
+  const key = plugin && typeof plugin === 'object' ? plugin : null;
+  if (!key) return Promise.resolve().then(task);
+  const prev = checkpointQueues.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(task);
+  checkpointQueues.set(key, next);
+  return next;
+}
+
+function isValidCheckpointIdentity(expected) {
+  if (!expected || typeof expected !== 'object') return false;
+  if (typeof expected.operationId === 'string' && expected.operationId.trim().length > 0) return true;
+  if (typeof expected.raw === 'string' && expected.raw.length > 0) return true;
+  return false;
+}
+
+async function checkpointMatchesDisk(adapter, path, expected) {
+  if (!isValidCheckpointIdentity(expected)) return false;
+  let currentRaw = '';
+  try {
+    currentRaw = await adapter.read(path);
+  } catch {
+    return false;
+  }
+  if (typeof expected.operationId === 'string' && expected.operationId.trim().length > 0) {
+    let current = null;
+    try { current = JSON.parse(currentRaw); } catch { return false; }
+    return Boolean(current && current.operationId === expected.operationId);
+  }
+  if (typeof expected.raw === 'string' && expected.raw.length > 0) {
+    return currentRaw === expected.raw;
   }
   return false;
 }
 
-export async function saveMigrationCheckpoint(plugin, items, options) {
-  if (options?.preserveExistingCheckpoint) return;
-  const adapter = plugin.app.vault.adapter;
-  if (!adapter) return;
-  const path = migrationCheckpointPath(plugin);
-  if (!items.length) {
-    if (await adapter.exists(path)) await adapter.remove(path);
-    return;
-  }
-  await adapter.write(path, JSON.stringify({ version: 1, serverUrl: plugin.getCleanServerUrl(),
-    options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null, conflictStrategy: options.conflictStrategy || null },
-    items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) })) }));
+export function clearMigrationCheckpoint(plugin, expected = null) {
+  return serializeCheckpoint(plugin, async () => {
+    const adapter = plugin?.app?.vault?.adapter;
+    if (!adapter || !isValidCheckpointIdentity(expected)) return false;
+    const path = migrationCheckpointPath(plugin);
+    if (!await adapter.exists(path)) return false;
+    if (!await checkpointMatchesDisk(adapter, path, expected)) return false;
+    await adapter.remove(path);
+    return true;
+  });
+}
+
+export function saveMigrationCheckpoint(plugin, items, options = {}) {
+  if (options.preserveExistingCheckpoint) return Promise.resolve(false);
+  return serializeCheckpoint(plugin, async () => {
+    const adapter = plugin?.app?.vault?.adapter;
+    if (!adapter) return false;
+    const path = migrationCheckpointPath(plugin);
+    const { expectedCheckpoint, requireMatchingCheckpoint, preserveOtherCheckpoint } = options;
+    if (expectedCheckpoint || requireMatchingCheckpoint || preserveOtherCheckpoint) {
+      const exists = await adapter.exists(path);
+      const matches = exists && await checkpointMatchesDisk(adapter, path, expectedCheckpoint);
+      if (requireMatchingCheckpoint && !matches) {
+        throw new Error(plugin.t(exists ? 'transferCheckpointChanged' : 'transferNothingPending'));
+      }
+      // A result-page retry can claim an empty slot. Finalization requires its own record.
+      if (!matches && (exists || !preserveOtherCheckpoint)) return false;
+    }
+    if (!items.length) {
+      if (await adapter.exists(path)) await adapter.remove(path);
+      return true;
+    }
+    const operationId = options?.checkpointId || `migration-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    await adapter.write(path, JSON.stringify({ version: 1, operationId, serverUrl: plugin.getCleanServerUrl(),
+      options: { deleteLocalAfter: Boolean(options.deleteLocalAfter), documentPaths: options.documentPaths || null, conflictStrategy: options.conflictStrategy || null },
+      items: items.map((entry) => ({ path: (entry.tfile || entry.rawObj || entry).path, locked: Boolean(entry.locked) })) }));
+    return true;
+  });
 }
 
 export function formatSpeed(bytesPerSec) {
@@ -128,7 +180,8 @@ export function formatEta(seconds) {
 }
 
 export async function migrateLocalAttachments(plugin, items, options = {}, onProgress = null) {
-  await saveMigrationCheckpoint(plugin, items, options);
+  const checkpointId = options.checkpointId || `migration-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const ownsCheckpoint = await saveMigrationCheckpoint(plugin, items, { ...options, checkpointId });
   const uploaded = [], failures = [], retryItems = [];
   const replacedUrls = new Set();
   const batchStart = Date.now();
@@ -275,10 +328,17 @@ export async function migrateLocalAttachments(plugin, items, options = {}, onPro
     }
     processedItems.push(result);
   }
-  await saveMigrationCheckpoint(plugin, retryItems, options);
+  const savedFinalCheckpoint = ownsCheckpoint && await saveMigrationCheckpoint(plugin, retryItems, {
+    ...options,
+    checkpointId,
+    expectedCheckpoint: { operationId: checkpointId },
+    requireMatchingCheckpoint: false,
+    preserveOtherCheckpoint: false
+  });
   const summary = { count: uploaded.length, docs: rewritten.modified.size,
     modifiedNotePaths: [...rewritten.modified], trashed: trashedFiles.length, trashedFiles,
     processedItems, failures, trashFailures, retryItems, cancelled: Boolean(options.signal?.aborted),
+    checkpointId: retryItems.length && savedFinalCheckpoint ? checkpointId : null,
     totalBytes: processedItems.reduce((sum, item) => sum + item.size, 0) };
   plugin.logOperation('INFO', 'BATCH_UPLOAD', `Uploaded ${summary.count}, updated ${summary.docs}, trashed ${summary.trashed}`, {
     failures: failures.length, unfinished: retryItems.length, cancelled: summary.cancelled

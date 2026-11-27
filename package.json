@@ -1,10 +1,11 @@
 {
   "name": "file-master",
-  "version": "1.2.11",
+  "version": "1.2.12",
   "description": "Manage attachments in Obsidian: upload, browse server files, find duplicates, and check broken links.",
   "main": "main.js",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "simulate:obsidian": "node scripts/simulate-obsidian.js",
     "sync-demo": "node scripts/sync-demo.js",
     "build": "node scripts/build.js",
     "package": "node scripts/package-release.js",

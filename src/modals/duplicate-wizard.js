@@ -1,8 +1,10 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanDuplicateGroups, exportDuplicateReportToRoot } from '../plugin/vault-scans.js';
 import { executeDuplicateMergeSafely } from '../plugin/attachment-ops.js';
+import { createDefaultFolderScope } from '../plugin/vault-utils.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, renderScanEmpty, returnToHub, renderExcludedFoldersHint } from './common.js';
+import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
+import { renderFolderScopeSection } from '../ui/folder-scope.js';
 import { fileActionRow, fileMetadata, fileMetaItem, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
@@ -26,6 +28,7 @@ export class DuplicateWizardModal extends Modal {
       typeOther: true,
       typeNote: false
     };
+    this.folderScope = createDefaultFolderScope(plugin?.settings);
     this.processMode = 'auto';
     this.groups = [];
     this.scanStats = { localScanned: 0, remoteScanned: 0, remoteError: null };
@@ -54,6 +57,7 @@ export class DuplicateWizardModal extends Modal {
     moduleHeading(this,contentEl,{title:'actDupTitle',symbol:'files',step:1,total:2});
     contentEl.createEl('p',{text:t('dupStep1Desc'),cls:'fm-module-summary'});
 
+    let folderScopeSection = null;
     const isRemote = Boolean(this.plugin?.isRemoteServerReady?.());
     if (isRemote) {
       const scopeBox = contentEl.createDiv({ cls: 'fm-section-box' });
@@ -71,6 +75,7 @@ export class DuplicateWizardModal extends Modal {
         radio.checked = this.scope === s.key;
         radio.onchange = () => {
           this.scope = s.key;
+          folderScopeSection?.setVisible(this.scope !== 'remote');
         };
         row.createSpan({ text: s.label });
       }
@@ -83,7 +88,8 @@ export class DuplicateWizardModal extends Modal {
     this.createTypeCheckbox(typeBox, t('dupTypeOther'), 'typeOther');
     this.createTypeCheckbox(typeBox, t('dupTypeNote'), 'typeNote');
 
-    renderExcludedFoldersHint(contentEl, this.plugin);
+    folderScopeSection = renderFolderScopeSection(contentEl, this.plugin, this.folderScope);
+    folderScopeSection.setVisible(this.scope !== 'remote');
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
@@ -94,6 +100,7 @@ export class DuplicateWizardModal extends Modal {
 
     const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
+      if (this.scope !== 'remote' && folderScopeSection && !folderScopeSection.commitPendingInputs()) return;
       if (
         !this.fileTypes.typeImage &&
         !this.fileTypes.typeAudio &&
@@ -107,7 +114,7 @@ export class DuplicateWizardModal extends Modal {
       nextBtn.setText(t('dupComparing'));
       progressWidget.show();
       try {
-        const res = await scanDuplicateGroups(this.plugin, this.scope, this.fileTypes, {
+        const res = await scanDuplicateGroups(this.plugin, this.scope, { ...this.fileTypes, ...this.folderScope }, {
           signal: progressWidget.signal,
           onProgress: (cur, total, label) => progressWidget.update(cur, total, label)
         });

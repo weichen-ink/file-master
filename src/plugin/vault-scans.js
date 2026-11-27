@@ -1,4 +1,4 @@
-import { isScannableDocFile, isExcalidrawFile, isLocalPathExcluded, runAttachmentOperation } from './vault-utils.js';
+import { isScannableDocFile, isExcalidrawFile, matchesLocalFolderScope, resolveLocalFolderScope, runAttachmentOperation } from './vault-utils.js';
 import { remoteCandidateUrls } from './remote-links.js';
 import { computeSha256Hex, formatBytes, formatDateYMD, formatDateTimestamp, getBaseName, getExt, getFileTypeGroup, isReportFile } from '../engine.js';
 import { requireModal } from './modal-registry.js';
@@ -125,6 +125,7 @@ export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
   const unusedList = [];
 
   if (options.scanLocal) {
+    const folderScope = resolveLocalFolderScope(plugin.settings, options);
     const allFiles = plugin.app.vault.getFiles();
     for (let i = 0; i < allFiles.length; i++) {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
@@ -136,7 +137,7 @@ export async function scanUnusedFiles(plugin, options, scanCtx = {}) {
       if (isReportFile(f.name) || f.extension === 'canvas') {
         continue;
       }
-      if (isLocalPathExcluded(plugin.settings, f.path)) continue;
+      if (!matchesLocalFolderScope(f.path, folderScope)) continue;
 
       const grp = getFileTypeGroup(f.extension);
       if (!allowedGroups.has(grp)) continue;
@@ -354,13 +355,14 @@ export async function scanDuplicateGroups(plugin, scope, fileTypeOpts = null, sc
   };
 
   if (scope === 'local' || scope === 'both') {
+    const folderScope = resolveLocalFolderScope(plugin.settings, fileTypeOpts || scanCtx);
     const allFiles = plugin.app.vault.getFiles();
     for (const f of allFiles) {
       if (signal?.aborted) throw new Error('SCAN_ABORTED');
       if (isReportFile(f.name) || f.extension === 'canvas') {
         continue;
       }
-      if (isLocalPathExcluded(plugin.settings, f.path)) continue;
+      if (!matchesLocalFolderScope(f.path, folderScope)) continue;
 
       const grp = getFileTypeGroup(f.extension);
       if (!allowedGroups.has(grp)) continue;

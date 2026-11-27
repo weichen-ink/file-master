@@ -1,8 +1,8 @@
 const { loadPlugin } = require('./load-plugin');
 const bytes = (value) => new TextEncoder().encode(value).buffer;
 
-function createVaultFixture(requestUrl, globals = {}) {
-  const loaded = loadPlugin(requestUrl, globals);
+function createVaultFixture(requestUrl, globals = {}, options) {
+  const loaded = loadPlugin(requestUrl, globals, options);
   const { Plugin, computeSha256Hex, migrationCheckpointPath } = loaded;
   const files = [], contents = new Map(), binaries = new Map(), journal = new Map(), writes = new Map(), trashed = [];
   const add = (path, value, binary = false) => {
@@ -14,6 +14,7 @@ function createVaultFixture(requestUrl, globals = {}) {
   };
   const vault = {
     getFiles: () => files.filter((file) => !trashed.includes(file.path)),
+    getResourcePath: (file) => file.path,
     getAbstractFileByPath: (path) => files.find((file) => file.path === path),
     read: async (file) => contents.get(file.path),
     cachedRead: async (file) => contents.get(file.path),

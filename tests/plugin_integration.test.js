@@ -28,24 +28,21 @@ test('Settings tools open the hub and log modals with the correct host and plugi
 
 test('Wizard setup uses vault folders and exclusion settings without forwarding methods', () => {
   const loaded = loadPlugin();
-  const plugin = new loaded.Plugin({ vault: { getFiles: () => [{ parent: { path: 'assets' } }] } });
+  const plugin = new loaded.Plugin({ vault: { getFiles: () => [{ path: 'assets/sub/a.png', parent: { path: 'assets/sub' } }] } });
   plugin.settings = { language: 'en', excludedLocalFolders: 'private, templates' };
-  for (const Wizard of [loaded.BatchMigrateWizardModal, loaded.DuplicateWizardModal, loaded.OrphanWizardModal]) {
+  for (const Wizard of [loaded.BatchMigrateWizardModal, loaded.DuplicateWizardModal, loaded.OrphanWizardModal, loaded.HealthCheckModal]) {
     const modal = new Wizard(plugin.app, plugin);
     const tree = new Element();
     modal.renderStep1(tree);
     const nodes = tree.all();
-    if (Wizard === loaded.BatchMigrateWizardModal) {
-      assert.ok(nodes.some((node) => node.tag === 'option' && node.value === 'assets'));
-    } else {
-      assert.ok(nodes.some((node) => String(node.text).includes('private') && String(node.text).includes('templates')));
-      for (const empty of ['', '  , ; \n']) {
-        plugin.settings.excludedLocalFolders=empty;
-        const cleanTree=new Element();modal.renderStep1(cleanTree);
-        assert.equal(cleanTree.all().some(node=>node.className==='fm-exclusion-hint'),false);
-      }
-      plugin.settings.excludedLocalFolders='private, templates';
-    }
+    assert.ok(nodes.some((node) => String(node.text).includes('private/')), `${Wizard.name} should pre-populate excluded folder "private"`);
+    assert.ok(nodes.some((node) => String(node.text).includes('templates/')), `${Wizard.name} should pre-populate excluded folder "templates"`);
+    const includeInput = nodes.find((node) => node.tag === 'input' && node.className === 'fm-folder-input');
+    assert.ok(includeInput, `${Wizard.name} should render folder scope search input`);
+    includeInput.onfocus();
+    const optionTexts = tree.all().filter((node) => node.className?.includes('fm-folder-option')).map((node) => node.text);
+    assert.ok(optionTexts.includes('assets/'), `${Wizard.name} should include ancestor folder "assets/"`);
+    assert.ok(optionTexts.includes('assets/sub/'), `${Wizard.name} should include nested folder "assets/sub/"`);
   }
 });
 

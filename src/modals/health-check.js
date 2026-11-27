@@ -1,7 +1,9 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanVaultLinkHealth, exportHealthReportToRoot } from '../plugin/health-analytics.js';
+import { createDefaultFolderScope } from '../plugin/vault-utils.js';
 import { documentRow, navigateToVaultDocument } from '../ui/document-list.js';
 import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
+import { renderFolderScopeSection } from '../ui/folder-scope.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
 
@@ -17,7 +19,8 @@ export class HealthCheckModal extends Modal {
     this.options = {
       checkWikiLinks: true,
       checkLocalMarkdown: true,
-      checkRemote: false
+      checkRemote: false,
+      ...createDefaultFolderScope(plugin?.settings)
     };
     this.totalDocsScanned = 0;
     this.issues = [];
@@ -53,6 +56,8 @@ export class HealthCheckModal extends Modal {
     this.createCheckbox(box, t('healthCheckLocal'), 'checkLocalMarkdown');
     this.createCheckbox(box, t('healthCheckRemote'), 'checkRemote');
 
+    const folderScopeSection = renderFolderScopeSection(contentEl, this.plugin, this.options);
+
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
 
@@ -62,6 +67,7 @@ export class HealthCheckModal extends Modal {
 
     const startBtn = btnRow.createEl('button', { text: t('healthStartScan'), cls: 'mod-cta' });
     startBtn.onclick = async () => {
+      if (!folderScopeSection.commitPendingInputs()) return;
       if (!this.options.checkWikiLinks && !this.options.checkLocalMarkdown && !this.options.checkRemote) {
         return;
       }

@@ -1,7 +1,9 @@
 import { moduleHeading } from "../ui/navigation.js";
 import { scanUnusedFiles, exportOrphanReportToRoot, cleanSelectedOrphans } from '../plugin/vault-scans.js';
+import { createDefaultFolderScope } from '../plugin/vault-utils.js';
 import { formatBytes } from '../engine.js';
-import { createScanProgressWidget, renderScanEmpty, returnToHub, renderExcludedFoldersHint } from './common.js';
+import { createScanProgressWidget, renderScanEmpty, returnToHub } from './common.js';
+import { renderFolderScopeSection } from '../ui/folder-scope.js';
 import { fileActionRow, fileMetadata, fileMetaItem } from '../ui/file-action-list.js';
 import { Notice } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
@@ -24,7 +26,8 @@ export class OrphanWizardModal extends Modal {
       typeNote: false,
       typeImage: true,
       typeAudio: true,
-      typeOther: true
+      typeOther: true,
+      ...createDefaultFolderScope(plugin?.settings)
     };
     this.results = [];
   }
@@ -50,10 +53,13 @@ export class OrphanWizardModal extends Modal {
     moduleHeading(this,contentEl,{title:'actOrphanTitle',symbol:'search',step:1,total:2});
     contentEl.createEl('p',{text:t('orphanStep1Desc'),cls:'fm-module-summary'});
 
+    let folderScopeSection = null;
     if (this.plugin?.isRemoteServerReady?.()) {
       const locBox = contentEl.createDiv({ cls: 'fm-section-box' });
       locBox.createDiv({ text: t('orphanLocScope'), cls: 'fm-section-title' });
-      this.createCheckbox(locBox, t('orphanScanLocal'), 'scanLocal');
+      this.createCheckbox(locBox, t('orphanScanLocal'), 'scanLocal', (checked) => {
+        folderScopeSection?.setVisible(Boolean(checked));
+      });
       this.createCheckbox(locBox, t('orphanScanRemote'), 'scanRemote');
     }
 
@@ -64,7 +70,8 @@ export class OrphanWizardModal extends Modal {
     this.createCheckbox(typeBox, t('orphanTypeAudio'), 'typeAudio');
     this.createCheckbox(typeBox, t('orphanTypeOther'), 'typeOther');
 
-    renderExcludedFoldersHint(contentEl, this.plugin);
+    folderScopeSection = renderFolderScopeSection(contentEl, this.plugin, this.options);
+    folderScopeSection.setVisible(Boolean(this.options.scanLocal));
 
     const progressWidget = createScanProgressWidget(contentEl, this.plugin);
     this.activeProgress = progressWidget;
@@ -75,6 +82,7 @@ export class OrphanWizardModal extends Modal {
 
     const nextBtn = btnRow.createEl('button', { text: t('btnNext'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
+      if (this.options.scanLocal && folderScopeSection && !folderScopeSection.commitPendingInputs()) return;
       if (!this.options.scanLocal && !this.options.scanRemote) {
         new Notice(t('orphanLocRequired'));
         return;
@@ -102,12 +110,13 @@ export class OrphanWizardModal extends Modal {
     };
   }
 
-  createCheckbox(parent, labelText, optKey) {
+  createCheckbox(parent, labelText, optKey, onChange = null) {
     const label = parent.createEl('label', { cls: 'fm-check-row' });
     const cb = label.createEl('input', { type: 'checkbox' });
     cb.checked = Boolean(this.options[optKey]);
     cb.onchange = () => {
       this.options[optKey] = cb.checked;
+      onChange?.(cb.checked);
     };
     label.createSpan({ text: labelText });
   }

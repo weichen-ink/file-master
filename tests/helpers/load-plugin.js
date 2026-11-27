@@ -4,8 +4,12 @@ const esbuild = require('esbuild');
 const options = require('../../scripts/build-config');
 let helpersSource;
 
+function buildSource(entryPoints) {
+  return esbuild.buildSync({ ...options, entryPoints, write: false }).outputFiles[0].text;
+}
+
 /** Load release integration code and explicit unit-test exports with the same host boundary. */
-function loadPlugin(requestUrl = async () => { throw new Error('Unexpected network request'); }, globals = {}) {
+function loadPlugin(requestUrl = async () => { throw new Error('Unexpected network request'); }, globals = {}, { buildFromSource = false } = {}) {
   class Base { constructor(app) { this.app = app; } }
   class HostModal extends Base {
     constructor(app) { super(app); const {Element}=require('./ui'); this.containerEl=new Element();this.modalEl=this.containerEl.createDiv();this.contentEl=this.modalEl.createDiv(); }
@@ -24,9 +28,13 @@ function loadPlugin(requestUrl = async () => { throw new Error('Unexpected netwo
     }, mod, mod.exports, ...Object.values(runtimeGlobals));
     return mod.exports;
   }
-  helpersSource ||= esbuild.buildSync({ ...options, entryPoints: ['tests/helpers/entry.js'], write: false }).outputFiles[0].text;
-  const helpers = evaluate(helpersSource);
-  const Plugin = evaluate(fs.readFileSync(path.join(__dirname, '../../main.js'), 'utf8'));
+  const helperEntry = ['tests/helpers/entry.js'];
+  const helperBundle = buildFromSource ? buildSource(helperEntry) : (helpersSource ||= buildSource(helperEntry));
+  const pluginBundle = buildFromSource
+    ? buildSource(options.entryPoints)
+    : fs.readFileSync(path.join(__dirname, '../../main.js'), 'utf8');
+  const helpers = evaluate(helperBundle);
+  const Plugin = evaluate(pluginBundle);
   return { ...helpers, Plugin, HostPlugin: obsidian.Plugin, rewriteContentLinks: (...args) => Plugin.prototype.rewriteContentLinks(...args) };
 }
 module.exports = { loadPlugin };

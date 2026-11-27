@@ -1,4 +1,4 @@
-import { isScannableDocFile, isLocalPathExcluded, isDocFile, openModalSafely } from './vault-utils.js';
+import { isScannableDocFile, isLocalPathExcluded, isDocFile, matchesLocalFolderScope, openModalSafely, resolveLocalFolderScope } from './vault-utils.js';
 import { indexRemoteReferences, findReferencingNotesForRemoteItem, findReferencingNotesForLocalFile } from './vault-scans.js';
 import { IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { computeSha256Hex, escapeRegExp, formatBytes, getBaseName, getExt, getFileTypeGroup } from '../engine.js';
@@ -191,7 +191,9 @@ export async function resumePendingMigration(plugin, options = {}) {
   const adapter = plugin.app.vault.adapter;
   const path = migrationCheckpointPath(plugin);
   if (!await adapter.exists(path)) { new Notice(plugin.t('transferNothingPending')); return false; }
-  const checkpoint = JSON.parse(await adapter.read(path));
+  const rawCheckpoint = await adapter.read(path);
+  const checkpoint = JSON.parse(rawCheckpoint);
+  const checkpointIdentity = checkpoint.operationId ? { operationId: checkpoint.operationId } : { raw: rawCheckpoint };
   if (checkpoint.serverUrl !== plugin.getCleanServerUrl()) throw new Error(plugin.t('transferServerChanged'));
   const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
   const items = checkpoint.items.map((entry) => {
@@ -202,13 +204,14 @@ export async function resumePendingMigration(plugin, options = {}) {
       refNotes: findReferencingNotesForLocalFile(file, snapshot) };
   }).filter(Boolean);
   if (!items.length) {
-    await clearMigrationCheckpoint(plugin);
+    await clearMigrationCheckpoint(plugin, checkpointIdentity);
     new Notice(plugin.t('transferNothingPending'));
     return false;
   }
   const BatchMigrateWizardModal = requireModal('BatchMigrateWizardModal');
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
   modal.isResumed = true;
+  modal.checkpointIdentity = checkpointIdentity;
   modal.options = { ...modal.options, ...checkpoint.options };
   if (checkpoint.options?.conflictStrategy) {
     modal.conflictStrategy = checkpoint.options.conflictStrategy;
@@ -640,7 +643,7 @@ export async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanC
   if (options.typeAudio) allowedGroups.add('audio');
   if (options.typeOther) allowedGroups.add('other');
 
-  const prefix = String(options.folderPrefix || '').replace(/^\/+|\/+$/g, '');
+  const folderScope = resolveLocalFolderScope(plugin.settings, options);
   const list = [];
 
   const allFiles = plugin.app.vault.getFiles();
@@ -655,11 +658,7 @@ export async function scanLocalAttachmentsForBatchMigrate(plugin, options, scanC
     if (plugin.settings.uploadNonImageAttachments === false && !IMAGE_EXTS.has(f.extension.toLowerCase())) {
       continue;
     }
-    if (prefix) {
-      if (f.path !== prefix && !f.path.startsWith(prefix + '/')) continue;
-    } else if (isLocalPathExcluded(plugin.settings, f.path)) {
-      continue;
-    }
+    if (!matchesLocalFolderScope(f.path, folderScope)) continue;
 
     const grp = getFileTypeGroup(f.extension);
     if (!allowedGroups.has(grp)) continue;

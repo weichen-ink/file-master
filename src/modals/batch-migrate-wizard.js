@@ -1,10 +1,11 @@
 import { moduleHeading } from "../ui/navigation.js";
-import { getAllVaultFolderPaths } from '../plugin/vault-utils.js';
+import { createDefaultFolderScope } from '../plugin/vault-utils.js';
 import { scanLocalAttachmentsForBatchMigrate } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
 import { clearMigrationCheckpoint } from '../transfers.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, renderScanEmpty, renderUploadConflictBox, returnToHub } from './common.js';
+import { renderFolderScopeSection } from '../ui/folder-scope.js';
 import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
 import { Notice, setIcon } from 'obsidian';
 import { FileMasterModal as Modal } from '../ui/modal.js';
@@ -22,6 +23,7 @@ export class BatchMigrateWizardModal extends Modal {
     this.activeProgress = null;
     this.options = {
       folderPrefix: initialFolder || '',
+      ...createDefaultFolderScope(plugin?.settings, initialFolder ? [initialFolder] : []),
       typeImage: true,
       typeAudio: true,
       typeOther: true,
@@ -30,6 +32,8 @@ export class BatchMigrateWizardModal extends Modal {
     };
     this.items = [];
     this.isResumed = false;
+    this.checkpointIdentity = null;
+    this.isRetry = false;
   }
 
   onOpen() {
@@ -55,22 +59,7 @@ export class BatchMigrateWizardModal extends Modal {
     moduleHeading(this,contentEl,{title:'actMigrateTitle',symbol:'cloud-upload',step:1,total:2});
     contentEl.createEl('p',{text:t('migrateStep1Desc'),cls:'fm-module-summary'});
 
-    const folderBox = contentEl.createDiv({ cls: 'fm-section-box' });
-    folderBox.createDiv({ text: t('migrateFolderScope'), cls: 'fm-section-title' });
-    const folderSelect = folderBox.createEl('select', { attr: { style: 'width:100%; padding:8px 10px; border-radius:6px;' } });
-    folderSelect.createEl('option', {
-      value: '',
-      text: t('migrateEntireVault')
-    });
-
-    const allFolders = getAllVaultFolderPaths(this.plugin.app);
-    for (const fp of allFolders) {
-      const opt = folderSelect.createEl('option', { value: fp, text: `📁 ${fp}/` });
-      if (fp === this.options.folderPrefix) opt.selected = true;
-    }
-    folderSelect.onchange = () => {
-      this.options.folderPrefix = folderSelect.value;
-    };
+    const folderScopeSection = renderFolderScopeSection(contentEl, this.plugin, this.options, { titleKey: 'migrateFolderScope' });
 
     const typeBox = contentEl.createDiv({ cls: 'fm-section-box' });
     typeBox.createDiv({ text: t('migrateTypeScope'), cls: 'fm-section-title' });
@@ -101,6 +90,7 @@ export class BatchMigrateWizardModal extends Modal {
 
     const nextBtn = btnRow.createEl('button', { text: t('migrateNextPreview'), cls: 'mod-cta' });
     nextBtn.onclick = async () => {
+      if (!folderScopeSection.commitPendingInputs()) return;
       if (!this.options.typeImage && !this.options.typeAudio && !this.options.typeOther) {
         new Notice(t('migrateSelectTypeNotice'));
         return;
@@ -147,6 +137,9 @@ export class BatchMigrateWizardModal extends Modal {
     const leftTools = toolbar.createDiv({ attr: { style: 'display:flex; gap:8px; align-items:center;' } });
     const backBtn = leftTools.createEl('button', { text: t('btnBack') });
     backBtn.onclick = () => {
+      this.isResumed = false;
+      this.checkpointIdentity = null;
+      this.isRetry = false;
       this.step = 1;
       this.render();
     };
@@ -198,15 +191,16 @@ export class BatchMigrateWizardModal extends Modal {
       } else returnToHub(this);
     };
     let discardBtn = null;
-    if (this.isResumed) {
+    if (this.isResumed && this.checkpointIdentity) {
       discardBtn = btnRow.createEl('button', { text: t('transferDiscardPending'), cls: 'mod-warning' });
       discardBtn.onclick = async () => {
         if (this.transferController || discardBtn.disabled) return;
         discardBtn.disabled = true;
         try {
-          await clearMigrationCheckpoint(this.plugin);
+          const cleared = await clearMigrationCheckpoint(this.plugin, this.checkpointIdentity);
           this.isResumed = false;
-          new Notice(t('transferDiscarded'));
+          this.checkpointIdentity = null;
+          if (cleared) new Notice(t('transferDiscarded'));
           returnToHub(this);
         } catch (err) {
           discardBtn.disabled = false;
@@ -230,26 +224,34 @@ export class BatchMigrateWizardModal extends Modal {
       progressBox.style.display = 'block';
       this.transferController = new AbortController();
       try {
-      await this.plugin.executeBatchMigrateSafely(
-        selected,
-        { ...this.options, signal: this.transferController.signal },
-        (cur, total, name, stats) => {
-          const pct = Math.round((cur / Math.max(1, total)) * 100);
-          progressBar.style.width = `${pct}%`;
-          progressText.setText(t('migrateProgress', { current: cur, total, name }));
-          if (stats?.speedText) {
-            const eta = stats.etaText ? ` · 剩余约 ${stats.etaText}` : '';
-            progressSpeed.setText(`⚡ ${stats.speedText}${eta}`);
+        await this.plugin.executeBatchMigrateSafely(
+          selected,
+          {
+            ...this.options,
+            signal: this.transferController.signal,
+            expectedCheckpoint: this.checkpointIdentity,
+            requireMatchingCheckpoint: this.isResumed,
+            preserveOtherCheckpoint: this.isRetry
+          },
+          (cur, total, name, stats) => {
+            const pct = Math.round((cur / Math.max(1, total)) * 100);
+            progressBar.style.width = `${pct}%`;
+            progressText.setText(t('migrateProgress', { current: cur, total, name }));
+            if (stats?.speedText) {
+              const eta = stats.etaText ? ` · 剩余约 ${stats.etaText}` : '';
+              progressSpeed.setText(`⚡ ${stats.speedText}${eta}`);
+            }
+          },
+          (summary) => {
+            this.step = 3;
+            this.summary = summary;
+            this.checkpointIdentity = summary?.checkpointId ? { operationId: summary.checkpointId } : null;
+            if (!this.transferClosed) this.render();
           }
-        },
-        (summary) => {
-          this.step = 3;
-          this.summary = summary;
-          if (!this.transferClosed) this.render();
-        }
-      );
+        );
       } catch (err) {
         new Notice(err.message);
+        progressBox.style.display = 'none';
         runBtn.disabled = false;
         backBtn.disabled = false;
         if (discardBtn) discardBtn.disabled = false;
@@ -361,23 +363,27 @@ export class BatchMigrateWizardModal extends Modal {
     };
 
     if (this.summary?.retryItems?.length) {
-      const discard = btnRow.createEl('button', { text: t('transferDiscardPending'), cls: 'mod-warning' });
-      discard.onclick = async () => {
-        if (discard.disabled) return;
-        discard.disabled = true;
-        try {
-          await clearMigrationCheckpoint(this.plugin);
-          this.summary.retryItems = [];
-          this.isResumed = false;
-          new Notice(t('transferDiscarded'));
-          returnToHub(this);
-        } catch (err) {
-          discard.disabled = false;
-          new Notice('❌ ' + (err.message || String(err)));
-        }
-      };
+      if (this.checkpointIdentity) {
+        const discard = btnRow.createEl('button', { text: t('transferDiscardPending'), cls: 'mod-warning' });
+        discard.onclick = async () => {
+          if (discard.disabled) return;
+          discard.disabled = true;
+          try {
+            const cleared = await clearMigrationCheckpoint(this.plugin, this.checkpointIdentity);
+            this.summary.retryItems = [];
+            this.isResumed = false;
+            this.checkpointIdentity = null;
+            if (cleared) new Notice(t('transferDiscarded'));
+            returnToHub(this);
+          } catch (err) {
+            discard.disabled = false;
+            new Notice('❌ ' + (err.message || String(err)));
+          }
+        };
+      }
       const retry = btnRow.createEl('button', { text: t('transferRetry') });
       retry.onclick = () => {
+        this.isRetry = true;
         this.items = this.summary.retryItems.map((item) => ({ ...item, selected: true, refNotes: item.refNotes || [] }));
         this.step = 2;
         this.render();

@@ -528,7 +528,7 @@ export class ActiveNoteActionModal extends Modal {
           const pending = this.result.retryItems;
           this.step = 'running';
           this.render();
-          await this.execute(pending);
+          await this.execute(pending, { retry: true });
         };
       }
       const doneBtn = btnRow.createEl('button', { text: this.t('destBtnDone'), cls: 'mod-cta' });
@@ -536,7 +536,7 @@ export class ActiveNoteActionModal extends Modal {
     }
   }
 
-  async execute(selectedItems = null) {
+  async execute(selectedItems = null, { retry = false } = {}) {
     this.transferController = new AbortController();
     try {
       if (this.actionType === 'migrate') {
@@ -561,12 +561,15 @@ export class ActiveNoteActionModal extends Modal {
             syncOtherNotes: this.syncOtherNotes,
             conflictStrategy: this.uploadConflictStrategy,
             signal: this.transferController.signal,
-            returnDetails: true
+            returnDetails: true,
+            expectedCheckpoint: retry ? this.checkpointIdentity : null,
+            preserveOtherCheckpoint: retry
           }
         );
         const count = typeof res === 'object' ? (res.count || 0) : Number(res || 0);
         const processedItems = typeof res === 'object' && Array.isArray(res.processedItems) ? res.processedItems : [];
         const failures = typeof res === 'object' && Array.isArray(res.failures) ? res.failures : [];
+        this.checkpointIdentity = res?.checkpointId ? { operationId: res.checkpointId } : null;
         this.result = { success: true, ...res, count, processedItems, failures };
       } else {
         const res = await this.plugin.executeDownloadNoteDirect(

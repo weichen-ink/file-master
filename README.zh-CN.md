@@ -97,6 +97,17 @@
 
 > **提示**：插件 **1.2.9+** 需搭配服务端 **1.2.8 及以上版本**（双向同步校验）。在手机端使用时，服务器地址请填写手机可访问的局域网或公网域名，不要填写 `localhost`。
 
+## 本地开发与 Obsidian 模拟
+
+在插件仓库目录运行以下命令，即可用 Node.js 复现一次指定目录的孤儿附件扫描。
+
+```sh
+npm ci
+npm run simulate:obsidian
+```
+
+模拟器在内存中构建当前源码，并使用示例知识库运行。开发者和 AI 编码助手可导入 `createObsidianSimulation()`，复现向导操作、附件变更和服务端响应。用法见[开发指南与可运行示例](CONTRIBUTING.md#obsidian-simulation)。
+
 ---
 
 [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/weichen-ink/file-master/issues) · [MIT 许可证](LICENSE)

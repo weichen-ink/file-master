@@ -256,3 +256,459 @@ test('Resuming pending upload from Hub returns to Hub on cancel, supports discar
   assert.equal(res, false);
   assert.equal(f.journal.has(checkpointPath), false, 'Stale checkpoint with no existing files should be removed');
 });
+
+test('Folder include and exclude scopes filter candidates across all four scan engines while preserving full-vault references', async () => {
+  const f = createVaultFixture();
+  f.plugin.settings.excludedLocalFolders = '';
+  f.plugin.settings.uploadNonImageAttachments = true;
+  f.plugin.checkUploadConflicts = async () => [];
+
+  // Vault layout:
+  // - work/a.png (referenced ONLY from excluded diary/2022/03/day.md)
+  // - work/unused.png (unreferenced)
+  // - work/archive/old.png (unreferenced, inside excluded subfolder)
+  // - work/dup1.png & work/dup2.png (identical bytes)
+  // - other/dup3.png (identical bytes, outside include scope)
+  // - diary/2022/03/day.md (references work/a.png and broken [[missing-in-diary]])
+  // - work/note.md (references other/dup3.png [valid outside scope] and [[missing-in-work]])
+  f.add('work/a.png', 'unique-a', true);
+  f.add('work/unused.png', 'unique-unused', true);
+  f.add('work/archive/old.png', 'unique-old', true);
+  f.add('work/dup1.png', 'same-dup-bytes', true);
+  f.add('work/dup2.png', 'same-dup-bytes', true);
+  f.add('other/dup3.png', 'same-dup-bytes', true);
+  f.add('diary/2022/03/day.md', '![[work/a.png]] [[missing-in-diary]]');
+  f.add('work/note.md', '![[other/dup3.png]] [[missing-in-work]]');
+
+  // 0. Ancestor folders are exposed for easy selection
+  const allFolders = f.getAllVaultFolderPaths(f.plugin.app);
+  assert.ok(allFolders.includes('diary'));
+  assert.ok(allFolders.includes('diary/2022'));
+  assert.ok(allFolders.includes('diary/2022/03'));
+  assert.ok(allFolders.includes('work/archive'));
+
+  // 1. Orphan scan: include work, exclude work/archive & diary ->
+  //    work/a.png MUST NOT be flagged (still referenced by excluded diary),
+  //    work/archive/old.png MUST be excluded, diary/2022/03/day.md MUST be excluded.
+  const orphans = await f.scans.scanUnusedFiles(f.plugin, {
+    scanLocal: true,
+    scanRemote: false,
+    typeNote: true,
+    typeImage: true,
+    typeAudio: false,
+    typeOther: false,
+    includeFolders: ['work'],
+    excludeFolders: ['work/archive', 'diary']
+  });
+  const orphanPaths = orphans.map((o) => o.displayPath).sort();
+  assert.deepEqual(orphanPaths, ['work/dup1.png', 'work/dup2.png', 'work/note.md', 'work/unused.png']);
+
+  // 2. Duplicate scan: include work -> finds dup1 & dup2, excludes other/dup3
+  const dupRes = await f.scans.scanDuplicateGroups(f.plugin, 'local', {
+    typeImage: true,
+    typeAudio: false,
+    typeOther: false,
+    typeNote: false,
+    includeFolders: ['work'],
+    excludeFolders: ['work/archive']
+  });
+  assert.equal(dupRes.groups.length, 1);
+  assert.deepEqual(dupRes.groups[0].items.map((i) => i.displayPath).sort(), ['work/dup1.png', 'work/dup2.png']);
+
+  // 3. Health check: include work -> only scans work/note.md, reports [[missing-in-work]],
+  //    does NOT report [[missing-in-diary]], and does NOT falsely flag valid link to other/dup3.png!
+  const health = await f.analytics.scanVaultLinkHealth(f.plugin, {
+    checkWikiLinks: true,
+    checkLocalMarkdown: true,
+    checkRemote: false,
+    includeFolders: ['work'],
+    excludeFolders: ['work/archive']
+  });
+  assert.equal(health.totalDocs, 1);
+  assert.deepEqual(health.issues.map((i) => i.target), ['missing-in-work']);
+
+  // 4. Batch migrate: include work, exclude work/archive -> excludes work/archive/old.png and other/dup3.png
+  const migrateList = await f.attachmentOps.scanLocalAttachmentsForBatchMigrate(f.plugin, {
+    typeImage: true,
+    typeAudio: false,
+    typeOther: false,
+    includeFolders: ['work'],
+    excludeFolders: ['work/archive']
+  });
+  assert.deepEqual(migrateList.map((i) => i.displayPath).sort(), ['work/a.png', 'work/dup1.png', 'work/dup2.png', 'work/unused.png']);
+});
+
+test('Audit regressions: stale task discard preserves newer checkpoint, typed folder commits on scan, and leading-space folders stay exact', async () => {
+  const f = createVaultFixture();
+  f.plugin.settings.enableRemoteServer = true;
+  f.plugin.settings.serverVerified = true;
+  f.plugin.settings.language = 'zh';
+  f.plugin.settings.excludedLocalFolders = '';
+  f.plugin.isRemoteServerReady = () => true;
+  f.plugin.checkUploadConflicts = async () => [];
+  f.plugin.uploadBufferToServer = async () => { throw new Error('Network offline'); };
+  f.plugin.app.vault.getResourcePath = (file) => file.path;
+
+  const fileA = f.add('taskA/a.png', 'bytes-a', true);
+  const fileB = f.add('taskB/b.png', 'bytes-b', true);
+  const checkpointPath = f.migrationCheckpointPath(f.plugin);
+
+  const nodeText = (node) => !node ? '' : String(node.text || node.textContent || '') + (Array.isArray(node.children) ? node.children.map(nodeText).join('') : '');
+  const findButton = (root, text) => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (!node) continue;
+      if (node.tag === 'button' && nodeText(node).includes(text)) return node;
+      if (Array.isArray(node.children)) stack.push(...node.children);
+    }
+    return null;
+  };
+
+  // 1. [P1] Stale Task A result page discard must NOT remove Task B's newer checkpoint
+  const modalA = new f.BatchMigrateWizardModal(f.plugin.app, f.plugin);
+  modalA.items = [{ name: 'a.png', displayPath: fileA.path, size: 7, rawObj: fileA, selected: true, refNotes: [] }];
+  modalA.step = 2;
+  modalA.onOpen();
+  const runA = findButton(modalA.contentEl, f.plugin.t('migrateStart', { count: 1 }));
+  await runA.onclick();
+  assert.equal(modalA.step, 3);
+  const cpAfterA = JSON.parse(f.journal.get(checkpointPath));
+  assert.ok(cpAfterA.operationId);
+
+  const modalB = new f.BatchMigrateWizardModal(f.plugin.app, f.plugin);
+  modalB.items = [{ name: 'b.png', displayPath: fileB.path, size: 7, rawObj: fileB, selected: true, refNotes: [] }];
+  modalB.step = 2;
+  modalB.onOpen();
+  const runB = findButton(modalB.contentEl, f.plugin.t('migrateStart', { count: 1 }));
+  await runB.onclick();
+  assert.equal(modalB.step, 3);
+  const cpAfterB = JSON.parse(f.journal.get(checkpointPath));
+  assert.notEqual(cpAfterB.operationId, cpAfterA.operationId);
+
+  // Clicking Discard on stale Task A must leave Task B's checkpoint untouched
+  const discardA = findButton(modalA.contentEl, '放弃任务');
+  assert.ok(discardA);
+  await discardA.onclick();
+  assert.equal(f.journal.has(checkpointPath), true, 'Discarding stale task A must not delete task B checkpoint');
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, cpAfterB.operationId);
+
+  // Clicking Discard on Task B itself DOES remove Task B's checkpoint
+  const discardB = findButton(modalB.contentEl, '放弃任务');
+  assert.ok(discardB);
+  await discardB.onclick();
+  assert.equal(f.journal.has(checkpointPath), false, 'Discarding current task B should remove its own checkpoint');
+
+  // 2. [P2] Typing a folder without clicking suggestion still commits scope before Orphan scan
+  f.add('work/inside.png', 'inside', true);
+  f.add('outside/leak.png', 'outside', true);
+  const orphanModal = new f.OrphanWizardModal(f.plugin.app, f.plugin);
+  orphanModal.options.scanRemote = false;
+  orphanModal.onOpen();
+  const includeInput = orphanModal.contentEl.all().find((n) => n.tag === 'input' && n.className === 'fm-folder-input');
+  assert.ok(includeInput);
+  includeInput.value = 'work';
+  const nextBtn = findButton(orphanModal.contentEl, '下一步');
+  await nextBtn.onclick();
+  assert.deepEqual(orphanModal.options.includeFolders, ['work']);
+  assert.deepEqual(orphanModal.results.map((r) => r.displayPath), ['work/inside.png']);
+
+  // 3. [P2] Leading/trailing spaces in Obsidian folder paths must not be trimmed
+  f.add(' work/spaced.png', 'spaced', true);
+  const spacedModal = new f.BatchMigrateWizardModal(f.plugin.app, f.plugin, ' work');
+  assert.deepEqual(spacedModal.options.includeFolders, [' work']);
+  const scanned = await f.attachmentOps.scanLocalAttachmentsForBatchMigrate(f.plugin, spacedModal.options);
+  assert.deepEqual(scanned.map((i) => i.displayPath), [' work/spaced.png']);
+});
+
+test('Audit round 2 regressions: concurrent discard serialization, stale resume start guard, and unique partial folder match', async () => {
+  const f = createVaultFixture();
+  f.plugin.settings.enableRemoteServer = true;
+  f.plugin.settings.serverVerified = true;
+  f.plugin.settings.language = 'zh';
+  f.plugin.settings.excludedLocalFolders = '';
+  f.plugin.isRemoteServerReady = () => true;
+  f.plugin.checkUploadConflicts = async () => [];
+  f.plugin.uploadBufferToServer = async () => { throw new Error('Network offline'); };
+  f.plugin.app.vault.getResourcePath = (file) => file.path;
+
+  const fileA = f.add('taskA/a.png', 'bytes-a', true);
+  const fileB = f.add('taskB/b.png', 'bytes-b', true);
+  const checkpointPath = f.migrationCheckpointPath(f.plugin);
+
+  // 1. [P1] Concurrent clearMigrationCheckpoint (paused mid-read) vs saveMigrationCheckpoint(B)
+  await f.saveMigrationCheckpoint(f.plugin, [fileA], { checkpointId: 'op-A' });
+  const origRead = f.plugin.app.vault.adapter.read;
+  let releaseRead;
+  let paused = false;
+  f.plugin.app.vault.adapter.read = async (p) => {
+    const val = await origRead(p);
+    if (!paused && p === checkpointPath) {
+      paused = true;
+      await new Promise((resolve) => { releaseRead = resolve; });
+    }
+    return val;
+  };
+  const clearPromise = f.clearMigrationCheckpoint(f.plugin, { operationId: 'op-A' });
+  await new Promise((r) => setTimeout(r, 0));
+  const saveBPromise = f.saveMigrationCheckpoint(f.plugin, [fileB], { checkpointId: 'op-B' });
+  releaseRead();
+  await Promise.all([clearPromise, saveBPromise]);
+  f.plugin.app.vault.adapter.read = origRead;
+  assert.equal(f.journal.has(checkpointPath), true, 'Task B checkpoint must survive concurrent discard of Task A');
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, 'op-B');
+
+  // 2. [P1] Starting upload from a stale resumed page A must NOT overwrite newer Task B checkpoint
+  await f.saveMigrationCheckpoint(f.plugin, [fileA], { checkpointId: 'op-A-resumed' });
+  let resumedModalA = null;
+  await f.attachmentOps.resumePendingMigration(f.plugin, {
+    open(modal) { resumedModalA = modal; modal.onOpen(); }
+  });
+  assert.ok(resumedModalA);
+  // Task B fails and writes newer checkpoint op-B-new
+  await f.saveMigrationCheckpoint(f.plugin, [fileB], { checkpointId: 'op-B-new' });
+  const nodeText = (node) => !node ? '' : String(node.text || node.textContent || '') + (Array.isArray(node.children) ? node.children.map(nodeText).join('') : '');
+  const findButton = (root, text) => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (!node) continue;
+      if (node.tag === 'button' && nodeText(node).includes(text)) return node;
+      if (Array.isArray(node.children)) stack.push(...node.children);
+    }
+    return null;
+  };
+  const runStaleA = findButton(resumedModalA.contentEl, f.plugin.t('migrateStart', { count: 1 }));
+  await runStaleA.onclick();
+  assert.equal(f.journal.has(checkpointPath), true, 'Stale resumed Task A must not clear Task B checkpoint');
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, 'op-B-new', 'Stale resumed Task A must not overwrite Task B checkpoint');
+
+  // 3. [P2] Typing partial folder name "arch" in exclude input resolves unique suggestion "work/archive"
+  f.add('work/keep.png', 'keep', true);
+  f.add('work/archive/secret.png', 'secret', true);
+  const orphanModal = new f.OrphanWizardModal(f.plugin.app, f.plugin);
+  orphanModal.options.scanRemote = false;
+  orphanModal.onOpen();
+  const folderInputs = orphanModal.contentEl.all().filter((n) => n.tag === 'input' && n.className === 'fm-folder-input');
+  assert.equal(folderInputs.length, 2);
+  folderInputs[0].value = 'work';
+  folderInputs[1].value = 'arch';
+  const nextBtn = findButton(orphanModal.contentEl, '下一步');
+  await nextBtn.onclick();
+  assert.deepEqual(orphanModal.options.excludeFolders, ['work/archive']);
+  assert.deepEqual(orphanModal.results.map((r) => r.displayPath), ['work/keep.png']);
+});
+
+test('Stale confirmation blocks upload and result-page retry saves a checkpoint when the slot is free', async () => {
+  const f = createVaultFixture();
+  f.plugin.settings.enableRemoteServer = true;
+  f.plugin.settings.serverVerified = true;
+  f.plugin.settings.language = 'zh';
+  f.plugin.settings.excludedLocalFolders = '';
+  f.plugin.isRemoteServerReady = () => true;
+  f.plugin.checkUploadConflicts = async () => [];
+  f.plugin.uploadBufferToServer = async () => { throw new Error('Network offline'); };
+  f.plugin.app.vault.getResourcePath = (file) => file.path;
+
+  const fileA = f.add('taskA/a.png', 'bytes-a', true);
+  const fileB = f.add('taskB/b.png', 'bytes-b', true);
+  const checkpointPath = f.migrationCheckpointPath(f.plugin);
+  const nodeText = (node) => !node ? '' : String(node.text || node.textContent || '') + (Array.isArray(node.children) ? node.children.map(nodeText).join('') : '');
+  const findButton = (root, text) => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (!node) continue;
+      if (node.tag === 'button' && nodeText(node).includes(text)) return node;
+      if (Array.isArray(node.children)) stack.push(...node.children);
+    }
+    return null;
+  };
+
+  // A stale confirmation stays on the confirmation page.
+  await f.saveMigrationCheckpoint(f.plugin, [fileA], { checkpointId: 'op-A-r3' });
+  let resumedA = null;
+  await f.attachmentOps.resumePendingMigration(f.plugin, {
+    open(modal) { resumedA = modal; modal.onOpen(); }
+  });
+  await f.saveMigrationCheckpoint(f.plugin, [fileB], { checkpointId: 'op-B-r3' });
+  await findButton(resumedA.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  assert.equal(resumedA.step, 2);
+  assert.equal(await f.clearMigrationCheckpoint(f.plugin, null), false, 'clearMigrationCheckpoint without expected identity must not delete');
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, 'op-B-r3');
+
+  // 2. [P1] Normal batch upload A fails, B fails, then Retry from A's Step 3 must NOT overwrite B's checkpoint
+  const modalA = new f.BatchMigrateWizardModal(f.plugin.app, f.plugin);
+  modalA.items = [{ name: 'a.png', displayPath: fileA.path, size: 7, rawObj: fileA, selected: true, refNotes: [] }];
+  modalA.step = 2;
+  modalA.onOpen();
+  await findButton(modalA.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  const opA = JSON.parse(f.journal.get(checkpointPath)).operationId;
+
+  const modalB = new f.BatchMigrateWizardModal(f.plugin.app, f.plugin);
+  modalB.items = [{ name: 'b.png', displayPath: fileB.path, size: 7, rawObj: fileB, selected: true, refNotes: [] }];
+  modalB.step = 2;
+  modalB.onOpen();
+  await findButton(modalB.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  const opB = JSON.parse(f.journal.get(checkpointPath)).operationId;
+  assert.notEqual(opB, opA);
+
+  // Retry A from its Step 3
+  const retryA = findButton(modalA.contentEl, f.plugin.t('transferRetry'));
+  assert.ok(retryA);
+  retryA.onclick();
+  assert.equal(modalA.step, 2);
+  await findButton(modalA.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, opB, 'Retrying stale normal batch A must not overwrite B checkpoint');
+  assert.equal(modalA.checkpointIdentity, null);
+  assert.equal(findButton(modalA.contentEl, '放弃任务'), null, 'Unowned result must not show Discard');
+
+  const resumedB = await f.attachmentOps.resumePendingMigration(f.plugin, { open: (modal) => modal.onOpen() });
+  await findButton(resumedB.contentEl, '放弃任务').onclick();
+  assert.equal(f.journal.has(checkpointPath), false);
+
+  findButton(modalA.contentEl, f.plugin.t('transferRetry')).onclick();
+  await findButton(modalA.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  const checkpointA = JSON.parse(f.journal.get(checkpointPath));
+  assert.equal(checkpointA.operationId, modalA.checkpointIdentity.operationId);
+  assert.deepEqual(checkpointA.items.map((item) => item.path), [fileA.path]);
+  const restoredA = await f.attachmentOps.resumePendingMigration(f.plugin, { open: (modal) => modal.onOpen() });
+  assert.deepEqual(restoredA.items.map((item) => item.displayPath), [fileA.path]);
+
+  // 3. [P2] Ambiguous partial folder name "arch" (matches work/archive & work/archive-old) blocks scan
+  f.add('work/archive/a.png', 'a', true);
+  f.add('work/archive-old/b.png', 'b', true);
+  const orphanModal = new f.OrphanWizardModal(f.plugin.app, f.plugin);
+  orphanModal.options.scanRemote = false;
+  orphanModal.onOpen();
+  const folderInputs = orphanModal.contentEl.all().filter((n) => n.tag === 'input' && n.className === 'fm-folder-input');
+  folderInputs[1].value = 'arch';
+  await findButton(orphanModal.contentEl, '下一步').onclick();
+  assert.equal(orphanModal.step, 1, 'Ambiguous folder input must block scan instead of silently skipping exclusion');
+  assert.deepEqual(orphanModal.options.excludeFolders, []);
+  assert.equal(orphanModal.results.length, 0);
+});
+
+test('Audit round 4 regressions: active-note retry guard, abandoned resume block, invalid identity rejection, and blur timer cancel', async () => {
+  const f = createVaultFixture();
+  f.plugin.settings.enableRemoteServer = true;
+  f.plugin.settings.serverVerified = true;
+  f.plugin.settings.language = 'zh';
+  f.plugin.settings.excludedLocalFolders = '';
+  f.plugin.isRemoteServerReady = () => true;
+  f.plugin.checkUploadConflicts = async () => [];
+  let uploadCalls = 0;
+  f.plugin.uploadBufferToServer = async () => { uploadCalls++; throw new Error('Network offline'); };
+  f.plugin.app.vault.getResourcePath = (file) => file.path;
+
+  const note = f.add('note.md', '![[taskA/a.png]]');
+  const fileA = f.add('taskA/a.png', 'bytes-a', true);
+  const fileB = f.add('taskB/b.png', 'bytes-b', true);
+  const checkpointPath = f.migrationCheckpointPath(f.plugin);
+  const nodeText = (node) => !node ? '' : String(node.text || node.textContent || '') + (Array.isArray(node.children) ? node.children.map(nodeText).join('') : '');
+  const findButton = (root, text) => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (!node) continue;
+      if (node.tag === 'button' && nodeText(node).includes(text)) return node;
+      if (Array.isArray(node.children)) stack.push(...node.children);
+    }
+    return null;
+  };
+
+  // 1. [P1] Active-note upload A fails, Batch B fails, Retry on A must NOT overwrite B's checkpoint
+  const noteModal = new f.ActiveNoteActionModal(f.plugin.app, f.plugin, note, 'migrate');
+  noteModal.items = [{ name: 'a.png', displayPath: fileA.path, size: 7, rawObj: fileA, tfile: fileA, selected: true, refNotes: [note.path] }];
+  await noteModal.execute(noteModal.items);
+  noteModal.render();
+  const opNoteA = JSON.parse(f.journal.get(checkpointPath)).operationId;
+  assert.ok(opNoteA);
+
+  await f.saveMigrationCheckpoint(f.plugin, [fileB], { checkpointId: 'op-batch-B' });
+  const retryNoteBtn = findButton(noteModal.contentEl, f.plugin.t('transferRetry'));
+  assert.ok(retryNoteBtn);
+  await retryNoteBtn.onclick();
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, 'op-batch-B', 'Active-note retry must not overwrite newer Batch B checkpoint');
+  assert.equal(noteModal.checkpointIdentity, null);
+  assert.equal(await f.clearMigrationCheckpoint(f.plugin, { operationId: 'op-batch-B' }), true);
+  await findButton(noteModal.contentEl, f.plugin.t('transferRetry')).onclick();
+  const noteCheckpoint = JSON.parse(f.journal.get(checkpointPath));
+  assert.equal(noteCheckpoint.operationId, noteModal.checkpointIdentity.operationId);
+  assert.deepEqual(noteCheckpoint.items.map((item) => item.path), [fileA.path]);
+
+  // 2. [P2] Two resumed pages for the same task: discard on A1 blocks A2 from uploading or recreating checkpoint
+  await f.saveMigrationCheckpoint(f.plugin, [fileA], { checkpointId: 'op-shared-A' });
+  let resumed1 = null;
+  let resumed2 = null;
+  await f.attachmentOps.resumePendingMigration(f.plugin, { open(m) { resumed1 = m; m.onOpen(); } });
+  await f.attachmentOps.resumePendingMigration(f.plugin, { open(m) { resumed2 = m; m.onOpen(); } });
+  await findButton(resumed1.contentEl, '放弃任务').onclick();
+  assert.equal(f.journal.has(checkpointPath), false);
+  const callsBeforeA2 = uploadCalls;
+  await findButton(resumed2.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  assert.equal(uploadCalls, callsBeforeA2, 'Second resumed page must not upload after task was discarded');
+  assert.equal(f.journal.has(checkpointPath), false, 'Second resumed page must not recreate discarded checkpoint');
+
+  // 3. [P3] clearMigrationCheckpoint rejects empty/invalid identities ({}, { operationId: '' }, { raw: '' })
+  await f.saveMigrationCheckpoint(f.plugin, [fileB], { checkpointId: 'op-keep-B' });
+  await findButton(resumed2.contentEl, f.plugin.t('migrateStart', { count: 1 })).onclick();
+  assert.equal(uploadCalls, callsBeforeA2, 'A different pending operation must also block the discarded resume');
+  assert.equal(JSON.parse(f.journal.get(checkpointPath)).operationId, 'op-keep-B');
+  assert.equal(await f.clearMigrationCheckpoint(f.plugin, {}), false);
+  assert.equal(await f.clearMigrationCheckpoint(f.plugin, { operationId: '' }), false);
+  assert.equal(await f.clearMigrationCheckpoint(f.plugin, { operationId: '   ' }), false);
+  assert.equal(await f.clearMigrationCheckpoint(f.plugin, { raw: '' }), false);
+  assert.equal(f.journal.has(checkpointPath), true, 'Invalid checkpoint identity must never delete existing checkpoint');
+
+  // 4. [P3] Blur timer scheduled before clicking Next is cancelled when ambiguous dropdown reopens
+  f.add('work/archive/a.png', 'a', true);
+  f.add('work/archive-old/b.png', 'b', true);
+  const orphanModal = new f.OrphanWizardModal(f.plugin.app, f.plugin);
+  orphanModal.options.scanRemote = false;
+  orphanModal.onOpen();
+  const folderInputs = orphanModal.contentEl.all().filter((n) => n.tag === 'input' && n.className === 'fm-folder-input');
+  const dropdowns = orphanModal.contentEl.all().filter((n) => n.className === 'fm-folder-dropdown');
+  folderInputs[1].value = 'arch';
+  folderInputs[1].onblur(); // schedules 120ms hideDropdown timer
+  await findButton(orphanModal.contentEl, '下一步').onclick(); // cancels timer and reopens dropdown
+  assert.equal(dropdowns[1].style.display, 'block');
+  await new Promise((r) => setTimeout(r, 150));
+  assert.equal(dropdowns[1].style.display, 'block', 'Reopened ambiguous dropdown must stay open after 120ms blur delay');
+});
+
+test('Folder inputs leave IME confirmation to the editor and accept the composed path on the next Enter', () => {
+  let now = 1000;
+  const f = createVaultFixture(undefined, { Date: class extends Date { static now() { return now; } } });
+  f.plugin.isRemoteServerReady = () => false;
+  f.add('项目/a.png', 'project file', true);
+  const modal = new f.OrphanWizardModal(f.plugin.app, f.plugin);
+  modal.onOpen();
+  const inputs = modal.contentEl.all().filter((node) => node.className === 'fm-folder-input');
+
+  for (const [index, field] of ['includeFolders', 'excludeFolders'].entries()) {
+    const input = inputs[index];
+    let prevented = false;
+    const enter = { key: 'Enter', preventDefault() { prevented = true; } };
+    input.value = 'xiangmu';
+    input.oninput();
+    input.onkeydown({ ...enter, isComposing: true });
+    input.onkeydown({ ...enter, keyCode: 229 });
+    input.dispatch('compositionstart');
+    input.onkeydown(enter);
+    assert.equal(prevented, false);
+    assert.equal(input.value, 'xiangmu');
+    assert.deepEqual(modal.options[field], []);
+
+    input.value = '项目';
+    input.dispatch('compositionend');
+    input.oninput();
+    input.onkeydown(enter);
+    assert.equal(prevented, false);
+    assert.equal(input.value, '项目');
+    now += 100;
+    input.onkeydown(enter);
+    assert.equal(prevented, true);
+    assert.deepEqual(modal.options[field], ['项目']);
+  }
+});

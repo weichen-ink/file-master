@@ -1,4 +1,4 @@
-import { isScannableDocFile, isLocalPathExcluded } from './vault-utils.js';
+import { isScannableDocFile, matchesLocalFolderScope, resolveLocalFolderScope } from './vault-utils.js';
 import { getEffectiveLanguage } from './logging.js';
 import { computeVaultStatsFromEntries, formatBytes, formatDateYMD, formatDateTimestamp, scanNoteContentForBrokenLinks } from '../engine.js';
 import { Notice, requestUrl } from 'obsidian';
@@ -7,9 +7,10 @@ import { fileReferenceDocuments } from './file-references.js';
 // The plugin owns host state; these operations receive it explicitly.
 export async function scanVaultLinkHealth(plugin, options = {}, scanCtx = {}) {
   const { signal, onProgress } = scanCtx || {};
+  const folderScope = resolveLocalFolderScope(plugin.settings, options);
   const allFiles = plugin.app.vault.getFiles();
   const docFiles = allFiles.filter(
-    (f) => isScannableDocFile(plugin, f) && !isLocalPathExcluded(plugin.settings, f.path)
+    (f) => isScannableDocFile(plugin, f) && matchesLocalFolderScope(f.path, folderScope)
   );
 
   const vaultFilePaths = new Set(allFiles.map((f) => f.path));

@@ -1,5 +1,13 @@
 # Changelog (file-master)
 
+## [1.2.12] - 2026-11-27
+
+### Folder scope and upload recovery
+
+- Add per-run folder inclusion and exclusion to batch migration, duplicate detection, orphan cleanup, and link health checks. Keep vault-wide reference checks for attachment safety.
+- Protect upload recovery records during resume, retry, and discard. Stale resume dialogs stop before uploading, and failed retries can save progress once the recovery record is available.
+- Add a Node.js Obsidian simulator for development and regression testing, with runnable examples in the contribution guide.
+
 ## [1.2.11] - 2026-11-27
 
 ### Pending Upload Resume & Discard

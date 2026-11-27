@@ -16,7 +16,7 @@ export { registerContextMenus } from '../../src/plugin/context-menus.js';
 export { registerPluginCommands } from '../../src/plugin/lifecycle.js';
 export { exportBatchMigrateReportToRoot } from '../../src/plugin/vault-scans.js';
 export { OperationLogModal } from '../../src/modals/operation-log.js';
-export { getExcludedLocalFolderList, isLocalPathExcluded, getOrCreateHeicPreviewUrl, clearHeicPreviewCache } from '../../src/plugin/vault-utils.js';
+export { getExcludedLocalFolderList, isLocalPathExcluded, getAllVaultFolderPaths, matchesLocalFolderScope, resolveLocalFolderScope, getOrCreateHeicPreviewUrl, clearHeicPreviewCache } from '../../src/plugin/vault-utils.js';
 export { captureEditorTarget, insertLinkAtTarget } from '../../src/plugin/editor-target.js';
 export { filterAllowedFiles } from '../../src/plugin/server-client.js';
 export { OrphanWizardModal } from '../../src/modals/orphan-wizard.js';

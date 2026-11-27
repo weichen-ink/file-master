@@ -97,6 +97,17 @@ As an Obsidian vault grows, attachment management quickly gets messy:
 
 > **Note**: Plugin **1.2.9+** requires **File Master Server 1.2.8 or later** (and vice versa). On mobile, use a server URL reachable from your phone rather than `localhost`.
 
+## Local development with the Obsidian simulator
+
+Run the scoped orphan scan in Node.js from the plugin checkout.
+
+```sh
+npm ci
+npm run simulate:obsidian
+```
+
+The simulator bundles the current source in memory and runs it against a sample vault. Developers and coding agents can import `createObsidianSimulation()` to reproduce wizard flows, attachment changes, and server responses. See [the development guide and runnable example](CONTRIBUTING.md#obsidian-simulation).
+
 ---
 
 [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/weichen-ink/file-master/issues) · [MIT license](LICENSE)
