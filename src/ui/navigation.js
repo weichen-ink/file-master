@@ -102,6 +102,7 @@ export class HubNavigator {
     this.cleanupChild();
     this.busy = false;
     this.home.hidden = false;
+    this.host.refreshTasks?.();
     this.host.lastAction?.focus();
   }
   async leave(action, prepare = async () => {}) {

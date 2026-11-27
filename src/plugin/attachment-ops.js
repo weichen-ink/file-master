@@ -3,7 +3,7 @@ import { indexRemoteReferences, findReferencingNotesForRemoteItem, findReferenci
 import { IMAGE_EXTS, isAttachmentExt } from '../constants.js';
 import { computeSha256Hex, escapeRegExp, formatBytes, getBaseName, getExt, getFileTypeGroup } from '../engine.js';
 import { requireModal } from './modal-registry.js';
-import { migrateLocalAttachments, migrationCheckpointPath, requestWithBackoff, rewriteAttachmentPairs, runAttachmentOperation, throwIfTransferCancelled } from '../transfers.js';
+import { clearMigrationCheckpoint, migrateLocalAttachments, migrationCheckpointPath, requestWithBackoff, rewriteAttachmentPairs, runAttachmentOperation, throwIfTransferCancelled } from '../transfers.js';
 import { Notice, requestUrl } from 'obsidian';
 import { createAssetLinkRewriter, findRemoteAsset } from './remote-links.js';
 import { copyText, hasOptimizedVariant } from '../ui/links.js';
@@ -186,11 +186,11 @@ export async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLoca
   return result.processedItems[0].rawObj;
 }
 
-export async function resumePendingMigration(plugin) {
-  if (!plugin.isRemoteServerReady()) { new Notice(plugin.t('noticeRemoteNotReady')); return; }
+export async function resumePendingMigration(plugin, options = {}) {
+  if (!plugin.isRemoteServerReady()) { new Notice(plugin.t('noticeRemoteNotReady')); return false; }
   const adapter = plugin.app.vault.adapter;
   const path = migrationCheckpointPath(plugin);
-  if (!await adapter.exists(path)) { new Notice(plugin.t('transferNothingPending')); return; }
+  if (!await adapter.exists(path)) { new Notice(plugin.t('transferNothingPending')); return false; }
   const checkpoint = JSON.parse(await adapter.read(path));
   if (checkpoint.serverUrl !== plugin.getCleanServerUrl()) throw new Error(plugin.t('transferServerChanged'));
   const snapshot = await plugin.buildVaultReferenceSnapshot({ freshRead: true });
@@ -201,9 +201,14 @@ export async function resumePendingMigration(plugin) {
       rawObj: file, locked: Boolean(entry.locked), selected: true,
       refNotes: findReferencingNotesForLocalFile(file, snapshot) };
   }).filter(Boolean);
-  if (!items.length) { new Notice(plugin.t('transferNothingPending')); return; }
+  if (!items.length) {
+    await clearMigrationCheckpoint(plugin);
+    new Notice(plugin.t('transferNothingPending'));
+    return false;
+  }
   const BatchMigrateWizardModal = requireModal('BatchMigrateWizardModal');
   const modal = new BatchMigrateWizardModal(plugin.app, plugin);
+  modal.isResumed = true;
   modal.options = { ...modal.options, ...checkpoint.options };
   if (checkpoint.options?.conflictStrategy) {
     modal.conflictStrategy = checkpoint.options.conflictStrategy;
@@ -211,7 +216,12 @@ export async function resumePendingMigration(plugin) {
   await annotateLocalUploadConflicts(plugin, items);
   modal.items = items;
   modal.step = 2;
-  modal.open();
+  if (typeof options.open === 'function') {
+    await options.open(modal);
+  } else {
+    modal.open();
+  }
+  return modal;
 }
 
 export async function downloadSingleRemoteItemToLocal(plugin, remoteMatch, options = {}) {

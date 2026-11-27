@@ -135,22 +135,30 @@ export class FileMasterHubModal extends Modal {
       try{await action.run();}catch(error){new Notice(error.message||String(error));}
       finally{if(button.isConnected)button.disabled=false;}
     };};
-    (async()=>{
+    let taskRefreshId = 0;
+    this.refreshTasks = async () => {
+      const refreshId = ++taskRefreshId;
       const tasks=[];
+      const isRemoteReady = Boolean(this.plugin.isRemoteServerReady());
       if(this.plugin.activeTransferController){
         tasks.push({icon:'loader',title:t('hubTaskInProgress'),run:null});
       }
       try{
-        if(remote && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))){
-          tasks.push({icon:'rotate-ccw',title:t('hubTaskResumeUpload'),run:()=>this.navigator.leave(()=>resumePendingMigration(this.plugin))});
+        if(isRemoteReady && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))){
+          tasks.push({icon:'rotate-ccw',title:t('hubTaskResumeUpload'),run:async()=>{
+            const opened = await resumePendingMigration(this.plugin, { open: modal => show(modal) });
+            if (!opened) await this.refreshTasks();
+          }});
         }
       }catch{}
       try{
-        if(remote && await loadPendingRename(this.plugin)){
+        if(isRemoteReady && await loadPendingRename(this.plugin)){
           tasks.push({icon:'file-pen-line',title:t('hubTaskResumeRename'),run:()=>show(new RemoteRenameModal(this.app,this.plugin))});
         }
       }catch{}
-      if(!tasks.length || !this.contentEl.isConnected)return;
+      if(refreshId !== taskRefreshId || !this.contentEl.isConnected)return;
+      home.querySelector('.fm-hub-task-section')?.remove();
+      if(!tasks.length)return;
       const group=home.createDiv({cls:'fm-hub-section fm-hub-task-section'});
       if(home.firstChild && home.firstChild !== group) home.insertBefore(group, home.firstChild);
       const list=group.createDiv({cls:'fm-hub-list'});
@@ -160,12 +168,19 @@ export class FileMasterHubModal extends Modal {
         const text=row.createSpan({cls:'fm-hub-card-text'});
         text.createSpan({text:task.title,cls:'fm-hub-card-title'});
         if(task.run){
-          row.onclick=async event=>{event.preventDefault();event.stopPropagation();try{await task.run();}catch(err){new Notice(err.message||String(err));}};
+          row.onclick=async event=>{
+            event.preventDefault();event.stopPropagation();
+            if(this.navigator.busy||row.disabled)return;
+            this.lastAction=row;this.currentAction={title:task.title,icon:task.icon};row.disabled=true;
+            try{await task.run();}catch(err){new Notice(err.message||String(err));}
+            finally{if(row.isConnected)row.disabled=false;}
+          };
         }else{
           row.disabled=true;
         }
       }
-    })();
+    };
+    this.refreshTasks();
     for(const section of sections){
       const group=home.createDiv({cls:'fm-hub-section'}),title=group.createDiv({cls:'fm-hub-section-heading'});
       title.createEl('h3',{text:t(section.title)});

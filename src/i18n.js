@@ -133,6 +133,8 @@ export const UI_STRINGS = {
     transferStopping: "正在停止，将完成已传输文件的链接更新…",
     transferCancelled: "已停止，已完成的文件已处理。",
     transferRetry: "重试未完成项",
+    transferDiscardPending: "放弃任务",
+    transferDiscarded: "已取消未完成的上传任务。",
     noticeRemoteNotReady: "请先启用服务器并测试连接。",
     // 快捷控制中心
     hubBadge: '文件工具',
@@ -904,6 +906,8 @@ export const UI_STRINGS = {
     transferStopping: "Stopping; finishing link updates for transferred files…",
     transferCancelled: "Stopped. Completed transfers have been finalized.",
     transferRetry: "Retry unfinished files",
+    transferDiscardPending: "Discard task",
+    transferDiscarded: "Pending upload task cancelled.",
     noticeRemoteNotReady: "Enable the server and test the connection first.",
     // Quick Hub
     hubBadge: 'File tools',

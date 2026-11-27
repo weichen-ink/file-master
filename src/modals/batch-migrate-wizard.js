@@ -2,6 +2,7 @@ import { moduleHeading } from "../ui/navigation.js";
 import { getAllVaultFolderPaths } from '../plugin/vault-utils.js';
 import { scanLocalAttachmentsForBatchMigrate } from '../plugin/attachment-ops.js';
 import { exportBatchMigrateReportToRoot } from '../plugin/vault-scans.js';
+import { clearMigrationCheckpoint } from '../transfers.js';
 import { formatBytes } from '../engine.js';
 import { createScanProgressWidget, renderScanEmpty, renderUploadConflictBox, returnToHub } from './common.js';
 import { fileActionRow, fileMetadata, fileReferenceButton } from '../ui/file-action-list.js';
@@ -28,6 +29,7 @@ export class BatchMigrateWizardModal extends Modal {
       conflictStrategy: 'rename'
     };
     this.items = [];
+    this.isResumed = false;
   }
 
   onOpen() {
@@ -195,6 +197,23 @@ export class BatchMigrateWizardModal extends Modal {
         cancelBtn.setText(t('transferStopping'));
       } else returnToHub(this);
     };
+    let discardBtn = null;
+    if (this.isResumed) {
+      discardBtn = btnRow.createEl('button', { text: t('transferDiscardPending'), cls: 'mod-warning' });
+      discardBtn.onclick = async () => {
+        if (this.transferController || discardBtn.disabled) return;
+        discardBtn.disabled = true;
+        try {
+          await clearMigrationCheckpoint(this.plugin);
+          this.isResumed = false;
+          new Notice(t('transferDiscarded'));
+          returnToHub(this);
+        } catch (err) {
+          discardBtn.disabled = false;
+          new Notice('❌ ' + (err.message || String(err)));
+        }
+      };
+    }
     const runBtn = btnRow.createEl('button', {
       text: t('migrateStart', { count: this.items.filter((i) => i.selected).length }),
       cls: 'mod-cta'
@@ -207,6 +226,7 @@ export class BatchMigrateWizardModal extends Modal {
       }
       runBtn.disabled = true;
       backBtn.disabled = true;
+      if (discardBtn) discardBtn.disabled = true;
       progressBox.style.display = 'block';
       this.transferController = new AbortController();
       try {
@@ -232,6 +252,7 @@ export class BatchMigrateWizardModal extends Modal {
         new Notice(err.message);
         runBtn.disabled = false;
         backBtn.disabled = false;
+        if (discardBtn) discardBtn.disabled = false;
       } finally { this.transferController = null; }
     };
   }
@@ -340,6 +361,21 @@ export class BatchMigrateWizardModal extends Modal {
     };
 
     if (this.summary?.retryItems?.length) {
+      const discard = btnRow.createEl('button', { text: t('transferDiscardPending'), cls: 'mod-warning' });
+      discard.onclick = async () => {
+        if (discard.disabled) return;
+        discard.disabled = true;
+        try {
+          await clearMigrationCheckpoint(this.plugin);
+          this.summary.retryItems = [];
+          this.isResumed = false;
+          new Notice(t('transferDiscarded'));
+          returnToHub(this);
+        } catch (err) {
+          discard.disabled = false;
+          new Notice('❌ ' + (err.message || String(err)));
+        }
+      };
       const retry = btnRow.createEl('button', { text: t('transferRetry') });
       retry.onclick = () => {
         this.items = this.summary.retryItems.map((item) => ({ ...item, selected: true, refNotes: item.refNotes || [] }));

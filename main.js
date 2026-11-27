@@ -1607,6 +1607,8 @@ var UI_STRINGS = {
     transferStopping: "\u6B63\u5728\u505C\u6B62\uFF0C\u5C06\u5B8C\u6210\u5DF2\u4F20\u8F93\u6587\u4EF6\u7684\u94FE\u63A5\u66F4\u65B0\u2026",
     transferCancelled: "\u5DF2\u505C\u6B62\uFF0C\u5DF2\u5B8C\u6210\u7684\u6587\u4EF6\u5DF2\u5904\u7406\u3002",
     transferRetry: "\u91CD\u8BD5\u672A\u5B8C\u6210\u9879",
+    transferDiscardPending: "\u653E\u5F03\u4EFB\u52A1",
+    transferDiscarded: "\u5DF2\u53D6\u6D88\u672A\u5B8C\u6210\u7684\u4E0A\u4F20\u4EFB\u52A1\u3002",
     noticeRemoteNotReady: "\u8BF7\u5148\u542F\u7528\u670D\u52A1\u5668\u5E76\u6D4B\u8BD5\u8FDE\u63A5\u3002",
     // 快捷控制中心
     hubBadge: "\u6587\u4EF6\u5DE5\u5177",
@@ -2350,6 +2352,8 @@ var UI_STRINGS = {
     transferStopping: "Stopping; finishing link updates for transferred files\u2026",
     transferCancelled: "Stopped. Completed transfers have been finalized.",
     transferRetry: "Retry unfinished files",
+    transferDiscardPending: "Discard task",
+    transferDiscarded: "Pending upload task cancelled.",
     noticeRemoteNotReady: "Enable the server and test the connection first.",
     // Quick Hub
     hubBadge: "File tools",
@@ -3094,12 +3098,13 @@ var HubNavigator = class {
     }
   }
   back() {
-    var _a;
+    var _a, _b, _c;
     if (!this.active) return;
     this.cleanupChild();
     this.busy = false;
     this.home.hidden = false;
-    (_a = this.host.lastAction) == null ? void 0 : _a.focus();
+    (_b = (_a = this.host).refreshTasks) == null ? void 0 : _b.call(_a);
+    (_c = this.host.lastAction) == null ? void 0 : _c.focus();
   }
   async leave(action, prepare = async () => {
   }) {
@@ -4580,6 +4585,17 @@ async function rewriteAttachmentPairs(plugin, pairs, documentPaths = null) {
 function migrationCheckpointPath(plugin) {
   return getLogFilePath(plugin).replace(/operation\.log$/, "migration-pending.json");
 }
+async function clearMigrationCheckpoint(plugin) {
+  var _a, _b;
+  const adapter = (_b = (_a = plugin == null ? void 0 : plugin.app) == null ? void 0 : _a.vault) == null ? void 0 : _b.adapter;
+  if (!adapter) return false;
+  const path = migrationCheckpointPath(plugin);
+  if (await adapter.exists(path)) {
+    await adapter.remove(path);
+    return true;
+  }
+  return false;
+}
 async function saveMigrationCheckpoint(plugin, items, options) {
   if (options == null ? void 0 : options.preserveExistingCheckpoint) return;
   const adapter = plugin.app.vault.adapter;
@@ -4989,17 +5005,17 @@ async function migrateSingleLocalFileToRemote(plugin, tfile, { deleteLocal = tru
   new import_obsidian8.Notice(plugin.t("noticeMigrateSuccess", { name: tfile.name, protected: "", docs: result.docs }));
   return result.processedItems[0].rawObj;
 }
-async function resumePendingMigration(plugin) {
+async function resumePendingMigration(plugin, options = {}) {
   var _a;
   if (!plugin.isRemoteServerReady()) {
     new import_obsidian8.Notice(plugin.t("noticeRemoteNotReady"));
-    return;
+    return false;
   }
   const adapter = plugin.app.vault.adapter;
   const path = migrationCheckpointPath(plugin);
   if (!await adapter.exists(path)) {
     new import_obsidian8.Notice(plugin.t("transferNothingPending"));
-    return;
+    return false;
   }
   const checkpoint = JSON.parse(await adapter.read(path));
   if (checkpoint.serverUrl !== plugin.getCleanServerUrl()) throw new Error(plugin.t("transferServerChanged"));
@@ -5019,11 +5035,13 @@ async function resumePendingMigration(plugin) {
     };
   }).filter(Boolean);
   if (!items.length) {
+    await clearMigrationCheckpoint(plugin);
     new import_obsidian8.Notice(plugin.t("transferNothingPending"));
-    return;
+    return false;
   }
   const BatchMigrateWizardModal2 = requireModal("BatchMigrateWizardModal");
   const modal = new BatchMigrateWizardModal2(plugin.app, plugin);
+  modal.isResumed = true;
   modal.options = { ...modal.options, ...checkpoint.options };
   if ((_a = checkpoint.options) == null ? void 0 : _a.conflictStrategy) {
     modal.conflictStrategy = checkpoint.options.conflictStrategy;
@@ -5031,7 +5049,12 @@ async function resumePendingMigration(plugin) {
   await annotateLocalUploadConflicts(plugin, items);
   modal.items = items;
   modal.step = 2;
-  modal.open();
+  if (typeof options.open === "function") {
+    await options.open(modal);
+  } else {
+    modal.open();
+  }
+  return modal;
 }
 async function downloadSingleRemoteItemToLocal(plugin, remoteMatch, options = {}) {
   const task = (signal) => downloadRemoteItemToLocal(plugin, remoteMatch, { ...options, signal });
@@ -8858,6 +8881,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
       conflictStrategy: "rename"
     };
     this.items = [];
+    this.isResumed = false;
   }
   onOpen() {
     this.render();
@@ -9011,6 +9035,23 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
         cancelBtn.setText(t2("transferStopping"));
       } else returnToHub(this);
     };
+    let discardBtn = null;
+    if (this.isResumed) {
+      discardBtn = btnRow.createEl("button", { text: t2("transferDiscardPending"), cls: "mod-warning" });
+      discardBtn.onclick = async () => {
+        if (this.transferController || discardBtn.disabled) return;
+        discardBtn.disabled = true;
+        try {
+          await clearMigrationCheckpoint(this.plugin);
+          this.isResumed = false;
+          new import_obsidian21.Notice(t2("transferDiscarded"));
+          returnToHub(this);
+        } catch (err) {
+          discardBtn.disabled = false;
+          new import_obsidian21.Notice("\u274C " + (err.message || String(err)));
+        }
+      };
+    }
     const runBtn = btnRow.createEl("button", {
       text: t2("migrateStart", { count: this.items.filter((i) => i.selected).length }),
       cls: "mod-cta"
@@ -9023,6 +9064,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
       }
       runBtn.disabled = true;
       backBtn.disabled = true;
+      if (discardBtn) discardBtn.disabled = true;
       progressBox.style.display = "block";
       this.transferController = new AbortController();
       try {
@@ -9048,6 +9090,7 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
         new import_obsidian21.Notice(err.message);
         runBtn.disabled = false;
         backBtn.disabled = false;
+        if (discardBtn) discardBtn.disabled = false;
       } finally {
         this.transferController = null;
       }
@@ -9146,6 +9189,21 @@ var BatchMigrateWizardModal = class extends FileMasterModal {
       }
     };
     if ((_h = (_g = this.summary) == null ? void 0 : _g.retryItems) == null ? void 0 : _h.length) {
+      const discard = btnRow.createEl("button", { text: t2("transferDiscardPending"), cls: "mod-warning" });
+      discard.onclick = async () => {
+        if (discard.disabled) return;
+        discard.disabled = true;
+        try {
+          await clearMigrationCheckpoint(this.plugin);
+          this.summary.retryItems = [];
+          this.isResumed = false;
+          new import_obsidian21.Notice(t2("transferDiscarded"));
+          returnToHub(this);
+        } catch (err) {
+          discard.disabled = false;
+          new import_obsidian21.Notice("\u274C " + (err.message || String(err)));
+        }
+      };
       const retry = btnRow.createEl("button", { text: t2("transferRetry") });
       retry.onclick = () => {
         this.items = this.summary.retryItems.map((item) => ({ ...item, selected: true, refNotes: item.refNotes || [] }));
@@ -11320,24 +11378,33 @@ var FileMasterHubModal = class extends FileMasterModal {
         }
       };
     };
-    (async () => {
+    let taskRefreshId = 0;
+    this.refreshTasks = async () => {
+      var _a2;
+      const refreshId = ++taskRefreshId;
       const tasks = [];
+      const isRemoteReady = Boolean(this.plugin.isRemoteServerReady());
       if (this.plugin.activeTransferController) {
         tasks.push({ icon: "loader", title: t2("hubTaskInProgress"), run: null });
       }
       try {
-        if (remote && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))) {
-          tasks.push({ icon: "rotate-ccw", title: t2("hubTaskResumeUpload"), run: () => this.navigator.leave(() => resumePendingMigration(this.plugin)) });
+        if (isRemoteReady && await this.app.vault.adapter.exists(migrationCheckpointPath(this.plugin))) {
+          tasks.push({ icon: "rotate-ccw", title: t2("hubTaskResumeUpload"), run: async () => {
+            const opened = await resumePendingMigration(this.plugin, { open: (modal) => show(modal) });
+            if (!opened) await this.refreshTasks();
+          } });
         }
       } catch (e) {
       }
       try {
-        if (remote && await loadPendingRename(this.plugin)) {
+        if (isRemoteReady && await loadPendingRename(this.plugin)) {
           tasks.push({ icon: "file-pen-line", title: t2("hubTaskResumeRename"), run: () => show(new RemoteRenameModal(this.app, this.plugin)) });
         }
       } catch (e) {
       }
-      if (!tasks.length || !this.contentEl.isConnected) return;
+      if (refreshId !== taskRefreshId || !this.contentEl.isConnected) return;
+      (_a2 = home.querySelector(".fm-hub-task-section")) == null ? void 0 : _a2.remove();
+      if (!tasks.length) return;
       const group = home.createDiv({ cls: "fm-hub-section fm-hub-task-section" });
       if (home.firstChild && home.firstChild !== group) home.insertBefore(group, home.firstChild);
       const list = group.createDiv({ cls: "fm-hub-list" });
@@ -11350,17 +11417,24 @@ var FileMasterHubModal = class extends FileMasterModal {
           row.onclick = async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (this.navigator.busy || row.disabled) return;
+            this.lastAction = row;
+            this.currentAction = { title: task.title, icon: task.icon };
+            row.disabled = true;
             try {
               await task.run();
             } catch (err) {
               new import_obsidian30.Notice(err.message || String(err));
+            } finally {
+              if (row.isConnected) row.disabled = false;
             }
           };
         } else {
           row.disabled = true;
         }
       }
-    })();
+    };
+    this.refreshTasks();
     for (const section of sections) {
       const group = home.createDiv({ cls: "fm-hub-section" }), title = group.createDiv({ cls: "fm-hub-section-heading" });
       title.createEl("h3", { text: t2(section.title) });

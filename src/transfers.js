@@ -88,6 +88,17 @@ export function migrationCheckpointPath(plugin) {
   return getLogFilePath(plugin).replace(/operation\.log$/, 'migration-pending.json');
 }
 
+export async function clearMigrationCheckpoint(plugin) {
+  const adapter = plugin?.app?.vault?.adapter;
+  if (!adapter) return false;
+  const path = migrationCheckpointPath(plugin);
+  if (await adapter.exists(path)) {
+    await adapter.remove(path);
+    return true;
+  }
+  return false;
+}
+
 export async function saveMigrationCheckpoint(plugin, items, options) {
   if (options?.preserveExistingCheckpoint) return;
   const adapter = plugin.app.vault.adapter;

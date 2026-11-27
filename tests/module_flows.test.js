@@ -182,3 +182,77 @@ test('Compatibility rejects unknown apiVersion and preflight blocks unsupported 
   );
   assert.equal(readCalled, false);
 });
+
+test('Resuming pending upload from Hub returns to Hub on cancel, supports discarding task, and cleans up stale checkpoints', async () => {
+  const f = createVaultFixture();
+  f.plugin.settings.enableRemoteServer = true;
+  f.plugin.settings.serverVerified = true;
+  f.plugin.settings.language = 'zh';
+  f.plugin.manifest = { id: 'file-master', version: '1.2.9' };
+  f.plugin.isRemoteServerReady = () => true;
+  f.plugin.checkUploadConflicts = async () => [];
+  f.add('assets/pending.png', 'A', true);
+  const checkpointPath = f.migrationCheckpointPath(f.plugin);
+  const checkpoint = { serverUrl: 'https://example.com', options: {}, items: [{ path: 'assets/pending.png' }] };
+  f.journal.set(checkpointPath, JSON.stringify(checkpoint));
+
+  f.plugin.app.workspace.getActiveFile = () => null;
+  f.plugin.app.vault.getResourcePath = (file) => file.path;
+  const hub = new f.FileMasterHubModal(f.plugin.app, f.plugin);
+  hub.contentEl.isConnected = true;
+  let hubClosed = false;
+  hub.close = () => { hubClosed = true; };
+  hub.onOpen({ skipHandshake: true });
+  await hub.refreshTasks();
+
+  const nodeText = (node) => {
+    if (!node) return '';
+    return String(node.text || node.textContent || '') + (Array.isArray(node.children) ? node.children.map(nodeText).join('') : '');
+  };
+  const findButton = (root, text) => {
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.shift();
+      if (!node) continue;
+      if (node.tag === 'button' && nodeText(node).includes(text)) return node;
+      if (Array.isArray(node.children)) stack.push(...node.children);
+    }
+    return null;
+  };
+
+  const resumeCard = findButton(hub.contentEl, '恢复未完成的上传任务');
+  assert.ok(resumeCard, 'Hub should show the pending upload task card');
+  await resumeCard.onclick({ preventDefault() {}, stopPropagation() {} });
+  assert.equal(hubClosed, false, 'Opening pending upload from Hub must not close Hub');
+  assert.ok(hub.navigator.child, 'Resumed wizard should be mounted inside Hub');
+  assert.equal(hub.navigator.child.fromHub, true);
+  assert.equal(hub.navigator.child.isResumed, true);
+
+  // Cancel returns to Hub without deleting checkpoint
+  const cancelBtn = findButton(hub.navigator.child.contentEl, '取消');
+  assert.ok(cancelBtn);
+  cancelBtn.onclick();
+  assert.equal(hubClosed, false);
+  assert.equal(hub.navigator.child, null, 'Cancel should return to Hub home');
+  assert.equal(hub.navigator.home.hidden, false);
+  assert.equal(f.journal.has(checkpointPath), true, 'Cancel should preserve checkpoint');
+
+  // Re-enter and click Discard task -> deletes checkpoint, returns to Hub, hides task card
+  await hub.refreshTasks();
+  const resumeCardAgain = findButton(hub.contentEl, '恢复未完成的上传任务');
+  assert.ok(resumeCardAgain);
+  await resumeCardAgain.onclick({ preventDefault() {}, stopPropagation() {} });
+  const discardBtn = findButton(hub.navigator.child.contentEl, '放弃任务');
+  assert.ok(discardBtn, 'Resumed wizard should offer a discard task button');
+  await discardBtn.onclick();
+  assert.equal(f.journal.has(checkpointPath), false, 'Discard should delete checkpoint');
+  assert.equal(hub.navigator.child, null, 'Discard should return to Hub');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(findButton(hub.contentEl, '恢复未完成的上传任务'), null, 'Hub should hide task card after discard');
+
+  // Stale checkpoint whose files no longer exist is auto-removed on resume
+  f.journal.set(checkpointPath, JSON.stringify({ serverUrl: 'https://example.com', options: {}, items: [{ path: 'missing.png' }] }));
+  const res = await f.attachmentOps.resumePendingMigration(f.plugin);
+  assert.equal(res, false);
+  assert.equal(f.journal.has(checkpointPath), false, 'Stale checkpoint with no existing files should be removed');
+});

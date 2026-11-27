@@ -1,5 +1,11 @@
 # Changelog (file-master)
 
+## [1.2.11] - 2026-11-27
+
+### Pending Upload Resume & Discard
+- Mount the resumed pending-upload wizard inside the Hub navigator so clicking Cancel returns to the Hub instead of closing it, and refresh the Hub task banner automatically on return.
+- Add a Discard task button on resumed upload confirmation and partial-failure result views to clear `migration-pending.json`, and automatically clean up stale checkpoints whose local files no longer exist.
+
 ## [1.2.10] - 2026-11-20
 
 ### Gallery Insertion Position and Shared File-List Styles
