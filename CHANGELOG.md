@@ -1,5 +1,10 @@
 # Changelog (file-master)
 
+## [1.3.0] - 2026-11-27
+
+- Restore visible remove icons in the folder selector and give them larger touch targets on mobile.
+- Simplify the search focus ring and keep long folder paths within the selector on narrow screens.
+
 ## [1.2.12] - 2026-11-27
 
 ### Folder scope and upload recovery

@@ -3994,9 +3994,14 @@ button.fm-hub-status.is-failed:hover {
 
 /* Unified local folder include/exclude scope picker */
 .fm-folder-scope-box {
+  --fm-folder-remove-size: 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.is-mobile .fm-folder-scope-box {
+  --fm-folder-remove-size: 36px;
 }
 
 .fm-folder-scope-field {
@@ -4028,8 +4033,9 @@ button.fm-hub-status.is-failed:hover {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  box-sizing: border-box;
   max-width: 100%;
-  padding: 2px 6px 2px 8px;
+  padding: 2px 3px 2px 8px;
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.4;
@@ -4061,47 +4067,63 @@ button.fm-hub-status.is-failed:hover {
 }
 
 .fm-folder-chip-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fm-folder-chip-remove {
+.fm-ui .fm-folder-chip > button.fm-folder-chip-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  flex: none;
+  width: var(--fm-folder-remove-size);
+  height: var(--fm-folder-remove-size);
+  min-width: var(--fm-folder-remove-size);
+  min-height: var(--fm-folder-remove-size);
   padding: 0;
   margin: 0;
-  border: none;
+  border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   box-shadow: none;
-  flex-shrink: 0;
 }
 
-.fm-folder-chip-remove:hover {
+.fm-ui .fm-folder-chip > button.fm-folder-chip-remove:not(:disabled):hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
 .fm-folder-chip-remove svg {
-  width: 12px;
-  height: 12px;
+  display: block;
+  flex: none;
+  width: 14px;
+  height: 14px;
 }
 
 .fm-folder-picker {
   position: relative;
 }
 
-.fm-folder-input {
+.fm-ui .fm-folder-picker > input.fm-folder-input {
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
+  background: var(--background-primary);
+  box-shadow: none;
   font-size: 12.5px;
+}
+
+.fm-ui .fm-folder-picker > input.fm-folder-input:focus {
+  outline: 2px solid var(--fm-brand);
+  outline-offset: 1px;
+  box-shadow: none;
 }
 
 .fm-folder-dropdown {
@@ -4119,11 +4141,12 @@ button.fm-hub-status.is-failed:hover {
   box-shadow: var(--shadow-s, 0 4px 14px rgba(0, 0, 0, 0.14));
 }
 
-.fm-folder-option {
+.fm-ui .fm-folder-picker button.fm-folder-option {
   display: block;
   width: 100%;
   text-align: left;
   padding: 6px 10px;
+  min-height: 28px;
   border: none;
   border-radius: 5px;
   background: transparent;
@@ -4136,11 +4159,15 @@ button.fm-hub-status.is-failed:hover {
   white-space: nowrap;
 }
 
-.fm-folder-option:hover,
-.fm-folder-option.is-active {
+.fm-ui .fm-folder-picker button.fm-folder-option:not(:disabled):hover,
+.fm-ui .fm-folder-picker button.fm-folder-option.is-active {
   background: var(--background-modifier-hover);
 }
 
-.fm-folder-option.is-custom {
+.fm-ui .fm-folder-picker button.fm-folder-option.is-custom {
   color: var(--text-accent);
+}
+
+.is-mobile .fm-ui .fm-folder-picker button.fm-folder-option {
+  min-height: 44px;
 }

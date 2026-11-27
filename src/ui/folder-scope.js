@@ -173,7 +173,7 @@ export function renderFolderScopeSection(parentEl, plugin, scope, options = {}) 
         chip.createSpan({ text: `${folder}/`, cls: 'fm-folder-chip-text', attr: { title: folder } });
         const removeBtn = chip.createEl('button', {
           type: 'button',
-          cls: 'fm-folder-chip-remove',
+          cls: 'clickable-icon fm-folder-chip-remove',
           attr: { 'aria-label': t('folderScopeRemove', { path: folder }) }
         });
         setIcon(removeBtn, 'x');

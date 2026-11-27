@@ -50,9 +50,9 @@ Keep `package.json`, the root version entries in `package-lock.json`, `manifest.
 
 同步维护包信息、锁文件、插件清单及 `versions.json`。`versions.json` 对应最低 Obsidian 版本，不是服务端版本；双方兼容要求分别由插件的 `MIN_SERVER_VERSION` 和服务端的 `minPluginVersion` 控制。插件 1.2.9+ 与服务端 1.2.8+ 要求双向同步升级。
 
-Obsidian release versions must use three-part semantic versioning, such as `1.1.0`, in metadata and tags. The interface may show the shorter product label `1.1`.
+Starting with `1.3.0`, increment the minor version for every plugin release and keep the patch version at zero. The sequence is `1.3.0`, `1.4.0`, `1.5.0`, and so on. Use the full three-part version in Obsidian metadata and Git tags. The interface may show the shorter product label, such as `1.3`.
 
-Obsidian 发布元数据和 tag 必须使用 `1.1.0` 这样的三段版本号；界面可以显示简写 `1.1`。
+从 `1.3.0` 起，每次发布插件只递增第二位，第三位固定为 `0`，依次使用 `1.3.0`、`1.4.0`、`1.5.0`。Obsidian 发布元数据和 Git 标签使用完整三段版本号。界面可以显示 `1.3` 这样的简写。
 
 ## Release checks / 发布检查
 

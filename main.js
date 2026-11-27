@@ -9155,7 +9155,7 @@ function renderFolderScopeSection(parentEl, plugin, scope, options = {}) {
         chip.createSpan({ text: `${folder}/`, cls: "fm-folder-chip-text", attr: { title: folder } });
         const removeBtn = chip.createEl("button", {
           type: "button",
-          cls: "fm-folder-chip-remove",
+          cls: "clickable-icon fm-folder-chip-remove",
           attr: { "aria-label": t2("folderScopeRemove", { path: folder }) }
         });
         (0, import_obsidian21.setIcon)(removeBtn, "x");
